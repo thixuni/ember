@@ -1206,9 +1206,20 @@ function viewNotes(){
 }
 
 /* ============ modals ============ */
-function closeModal(){el("modalRoot").innerHTML="";}
+function closeModal(){el("modalRoot").innerHTML="";V.peek=null;}
 function openModal(html,opt){
-  el("modalRoot").innerHTML='<div class="scrim" data-scrim="1">'+html+'</div>';
+  const root=el("modalRoot"),open=root.querySelector(".scrim > .modal");
+  const label=(html.match(/aria-label="([^"]*)"/)||[])[1];
+  /* The same modal drawn again -- the categories list after an edit, the day
+     popup after a tick -- is swapped in place: no pop-in replayed, the list
+     left where it was scrolled, and the focus left alone. */
+  if(open&&label&&open.getAttribute("aria-label")===label){
+    const marks=scrollMarks(open),scrim=root.querySelector(".scrim");
+    scrim.innerHTML=html;scrim.classList.add("still");
+    const m=scrim.querySelector(".modal");if(m){m.classList.add("still");putScroll(m,marks);}
+    return;
+  }
+  root.innerHTML='<div class="scrim" data-scrim="1">'+html+'</div>';
   /* Settings has no first field worth focusing: the ring that landed on its
      first select read as a fault, not a convenience. */
   if(opt&&opt.focus===false)return;
@@ -1738,10 +1749,11 @@ function catEditModal(id){
   const M=el("modalRoot");M.dataset.color=c.color;M.dataset.icon=c.icon;
 }
 function peekModal(date){
+  V.peek=date;
   const ts=tasksFor(date),evs=eventsFor(parseD(date));
   const routines=evs.filter(e=>e.kind!=="session"),tracked=evs.filter(e=>e.kind==="session");
   const gd=gcalFor(parseD(date)),gev=gd.allDay.concat(gd.timed.map(x=>x.g));
-  openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Day">'+
+  openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Day" data-peek="1">'+
     '<div class="mhead2"><h2>'+esc(parseD(date).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}))+'</h2>'+
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div><div class="mbody">'+
     (gev.length?'<div><div class="sec-label" style="margin-bottom:6px">Events</div>'+gev.map(e=>'<div class="qrow" data-act="gcal-ev" data-id="'+esc(e.id)+'"><span class="gdot" style="--c:'+e.color+'"></span><div class="t"><b>'+esc(e.title)+'</b></div><span class="chip num">'+esc(e.allDay?"All day":fmtTime(pad(new Date(e.st).getHours())+":"+pad(new Date(e.st).getMinutes())))+'</span></div>').join("")+'</div>':"")+
@@ -1760,8 +1772,48 @@ function scratchModal(){
 }
 
 /* ============ render ============ */
+/* ---- keeping your place across a redraw ----
+   A redraw replaces the HTML, and every scrolled box inside it goes with it:
+   tick a missed routine halfway down the dashboard and the column jumped back
+   to the top; the calendar went back to 7am every minute. So before a redraw
+   each scrolled box is noted by where it sits -- its id, or its first class
+   and its place among boxes of that class -- and afterwards the box in the
+   same place is scrolled back. Scroll positions only carry over within one
+   screen: a different view, mode or note starts at its top. */
+function scrollKey(n,root){
+  if(n===root)return ":root";
+  if(n.id)return "#"+CSS.escape(n.id);
+  const sel=n.classList.length?"."+CSS.escape(n.classList[0]):n.tagName.toLowerCase();
+  return sel+"@"+Array.prototype.indexOf.call(root.querySelectorAll(sel),n);
+}
+function scrollMarks(root){
+  const out=[];if(!root)return out;
+  [root].concat(Array.from(root.querySelectorAll("*"))).forEach(n=>{
+    if(n.scrollTop||n.scrollLeft)out.push([scrollKey(n,root),n.scrollTop,n.scrollLeft]);});
+  return out;
+}
+function putScroll(root,marks){
+  (marks||[]).forEach(m=>{
+    let n=null;const k=m[0],at=k.lastIndexOf("@");
+    if(k===":root")n=root;
+    else if(k[0]==="#")n=root.querySelector(k);
+    else if(at>0)n=root.querySelectorAll(k.slice(0,at))[Number(k.slice(at+1))];
+    if(n){n.scrollTop=m[1];n.scrollLeft=m[2];}
+  });
+}
+/* The button that was pressed is redrawn too; give the keyboard back to its
+   replacement, so a keyboard user does not start again from the top. */
+function focusKey(a,root){
+  if(!a||a.tagName!=="BUTTON"||!root.contains(a)||!a.dataset.act)return "";
+  return ["act","id","date","v","k"].map(k=>a.dataset[k]?'[data-'+k+'="'+CSS.escape(a.dataset[k])+'"]':"").join("");
+}
+const screenKey=()=>[V.view,V.view==="tasks"?V.taskMode:"",V.view==="calendar"?V.calMode:"",V.view==="notes"?V.noteId:""].join("|");
+
 function renderView(){
   const vp=el("viewport"),flush=(V.view==="calendar"||V.view==="notes"||V.view==="tasks"||V.view==="dashboard");
+  const screen=screenKey(),same=vp.dataset.screen===screen;
+  const marks=same?scrollMarks(vp):null,hadGrid=same&&!!el("gridScroll");
+  const fk=same?focusKey(document.activeElement,vp):"";
   vp.className="viewport"+(flush?" flush":"");
   if(V.view==="dashboard")vp.innerHTML=viewDashboard();
   else if(V.view==="calendar")vp.innerHTML=viewCalendar();
@@ -1769,11 +1821,23 @@ function renderView(){
   else if(V.view==="matrix")vp.innerHTML=viewMatrix();
   else if(V.view==="routines")vp.innerHTML=viewRoutines();
   else vp.innerHTML=viewNotes();
-  const gs=el("gridScroll");if(gs)gs.scrollTop=Math.max(0,(7-H0)*PX-8);
+  /* Worked out again: drawing can settle what the screen is, as Notes does
+     when it picks the note to open. */
+  vp.dataset.screen=screenKey();
+  /* The week opens at 7am the first time it is shown, and stays where you
+     left it after that -- across redraws and across weeks. */
+  const gs=el("gridScroll");if(gs&&!hadGrid)gs.scrollTop=Math.max(0,(7-H0)*PX-8);
+  if(marks)putScroll(vp,marks);
+  if(fk){const b=vp.querySelector(fk);if(b&&document.activeElement===document.body)b.focus({preventScroll:true});}
   if(V.view==="calendar"||V.view==="dashboard")gcalEnsure();
   if(V.view==="calendar"&&document.querySelector(".mgrid"))fitMonth();
 }
-function render(){renderRail();renderTopbar();renderView();}
+function render(){
+  renderRail();renderTopbar();renderView();
+  /* The day popup lists what the page does; a tick in it redraws the page, so
+     the popup is redrawn with it rather than left showing the old state. */
+  if(V.peek&&el("modalRoot").querySelector('.modal[data-peek]'))peekModal(V.peek);
+}
 
 /* ============ actions ============ */
 function toggleTaskDone(id){

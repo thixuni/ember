@@ -82,6 +82,13 @@ test('dates and times open the planner pickers, not the browser ones', () => {
   assert.match(jsCode, /function pickField\(/, 'the picker fields are gone from app.js');
 });
 
+test('a redraw keeps the scroll position of the screen it redraws', () => {
+  // Without this every tick threw scrolled lists back to the top.
+  const body = (jsCode.match(/function renderView\(\)\{([\s\S]*?)\n\}/) || [])[1] || '';
+  assert.match(body, /scrollMarks\(vp\)/, 'renderView no longer notes the scroll positions before drawing');
+  assert.match(body, /putScroll\(vp,marks\)/, 'renderView no longer puts the scroll positions back');
+});
+
 test('colours come from tokens, not hardcoded hex in rules', () => {
   // A token block is any rule whose declarations are all custom properties —
   // :root, the accent hues, the dark ramp. Literal colours belong only there;

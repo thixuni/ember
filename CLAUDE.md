@@ -66,6 +66,24 @@ Rendering is full innerHTML replacement, no virtual DOM:
 Each view is a function returning an HTML string: `viewDashboard`, `viewCalendar`, `viewBoard`,
 `viewList`, `viewMatrix`, `viewRoutines`, `viewNotes`.
 
+**A redraw must not lose your place.** Replacing the HTML replaces every
+scrolled box inside it, so ticking a missed routine halfway down the
+dashboard used to throw the column back to the top, and the calendar went
+back to 7am every minute. `renderView()` notes each scrolled box before
+drawing (`scrollMarks()`: its id, or its first class and its place among
+boxes of that class) and scrolls the box in the same place back afterwards
+(`putScroll()`), and hands the keyboard back to the redrawn copy of the
+button that was pressed. This only carries over within one screen
+(`screenKey()`: the view, its mode, the open note) — a different screen
+starts at its top. The week grid opens at 7am the first time it is shown
+and stays where you left it after that. Give a new scrolling box a class of
+its own and it is covered; nothing else is needed.
+
+Modals follow the same rule: `openModal()` with the same `aria-label` as the
+one already open swaps it in place — no pop-in replayed, its lists left
+where they were scrolled. The day popup is redrawn by `render()` while it is
+open (`V.peek`), because the ticks in it change the page underneath.
+
 The task detail panel is a **second root**, `#sheetRoot`, drawn by
 `renderSheet()`. `render()` deliberately does not touch it, because a redraw
 while someone is typing in it would throw the caret away — so anything that
