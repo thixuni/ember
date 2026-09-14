@@ -38,6 +38,8 @@
      near-black as the page behind Routines and Matrix, so the cards and
      panels on it lift off rather than all sitting at one grey. */
   --canvas:var(--surface);
+  /* Accent as text: the dark shade on white, the light shade on a dark panel. */
+  --accent-ink:var(--a-dark);
   /* Calendar blocks and chips: how much of the category colour goes into the
      fill, the title and the time. Light mode can carry a strong tint in the
      text; dark mode cannot, so there the text is mostly ink and the colour
@@ -120,6 +122,7 @@
     --done-fade:.9;
   --knob:var(--muted);
   --canvas:var(--ground);
+  --accent-ink:var(--a-lift);
   /* Measured over every category colour: titles at least 8.3:1 on their
      block, times 6.8:1, finished items 5.8:1 even faded and struck through. */
   --ev-fill:12%;
@@ -165,6 +168,7 @@
   --done-fade:.9;
   --knob:var(--muted);
   --canvas:var(--ground);
+  --accent-ink:var(--a-lift);
   /* Measured over every category colour: titles at least 8.3:1 on their
      block, times 6.8:1, finished items 5.8:1 even faded and struck through. */
   --ev-fill:12%;
@@ -665,25 +669,100 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .modal-sm{width:min(420px,94vw)}
 
 /* ---------- dashboard ----------
-   On the page's own surface like the calendar and the board, with bordered
-   panels rather than raised cards. Wide: two columns that each fill the
-   height -- today and attention scroll together on the left, the scratch pad
-   runs the full height on the right. Narrow: one column, and the scratch pad
-   moves up to sit second, where it is still quick to reach. */
+   A welcome panel across the top, then two columns: today and what needs
+   you on the left, time and the scratch pad on the right. The panel is the
+   one place on the page with atmosphere -- an accent glow and the app's own
+   orbit mark drawn large and faint -- so the lists below it can stay calm. */
 .dash{height:100%;min-height:0;background:var(--canvas);padding:20px 24px 24px;
-  display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);gap:18px}
+  display:flex;flex-direction:column;gap:18px;overflow:hidden}
+.dash-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);gap:18px}
 .dash-col{display:flex;flex-direction:column;gap:18px;min-height:0;overflow-y:auto;padding-right:2px}
-.dcard{border:1px solid var(--line);border-radius:var(--r-m);background:var(--surface);min-width:0;flex:none}
-.dcard-h{display:flex;align-items:center;gap:8px;padding:14px 16px 6px}
-.dcard-h h2{font-size:15px;font-weight:600}
+.dash-side{display:flex;flex-direction:column;gap:18px;min-height:0}
+
+/* ---- the welcome panel ---- */
+.dhero{position:relative;flex:none;overflow:hidden;border:1px solid var(--line);border-radius:var(--r-l);
+  padding:22px 26px 14px;
+  background:
+    radial-gradient(70% 130% at 0% 0%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%),
+    radial-gradient(45% 110% at 100% 10%,color-mix(in srgb,var(--accent-lift) 12%,transparent),transparent 72%),
+    var(--surface)}
+/* Kept to the top corner, clear of the day strip, where the lines would
+   only add noise to the bars. */
+.dhero-art{position:absolute;right:-40px;top:-104px;width:440px;height:330px;pointer-events:none;
+  fill:none;stroke:color-mix(in srgb,var(--accent) 24%,transparent);stroke-width:1.2}
+.dhero-art circle{fill:color-mix(in srgb,var(--accent) 45%,transparent);stroke:none}
+.dhero-top{position:relative;display:flex;align-items:center;gap:28px}
+.dhero-text{flex:1;min-width:0}
+.dhero-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink)}
+.dhero-hi{font-family:var(--fd);font-size:32px;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:4px 0 6px;color:var(--ink)}
+.dhero-line{margin:0;font-size:14.5px;line-height:1.5;color:var(--ink-2);max-width:58ch}
+
+/* now and next, as pills under the greeting */
+.dnext-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;min-height:34px}
+.dnext{display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 14px 0 6px;border-radius:40px;max-width:100%;
+  background:color-mix(in srgb,var(--c) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 32%,var(--surface))}
+.dnext:hover{background:color-mix(in srgb,var(--c) 18%,var(--surface))}
+.dnext > *{pointer-events:none}
+.dnext-l{height:22px;padding:0 9px;border-radius:20px;display:inline-grid;place-items:center;flex:none;
+  font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);
+  box-shadow:inset 0 0 0 1px var(--line-2)}
+.dnext.is-now .dnext-l{background:var(--c);color:var(--on-accent);box-shadow:none;animation:dpulse 2.4s ease-in-out infinite}
+@keyframes dpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 45%,transparent)}
+  60%{box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 0%,transparent)}}
+.dnext b{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.dnext-w{font-size:12px;color:var(--muted);white-space:nowrap}
+.dnext-none{font-size:12.5px;color:var(--muted);align-self:center}
+
+/* the day's progress as an orbit: dotted path, the done part drawn solid,
+   and a planet where it has got to */
+.dorbit{position:relative;flex:none;width:112px;height:112px}
+.dorbit svg{width:100%;height:100%;overflow:visible}
+.dorbit-track{fill:none;stroke:color-mix(in srgb,var(--accent) 38%,transparent);stroke-width:2.2;stroke-dasharray:1 5;stroke-linecap:round}
+.dorbit-arc{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round}
+.dorbit-planet{fill:var(--accent);stroke:var(--surface);stroke-width:3}
+.dorbit-mid{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;text-align:center}
+.dorbit-mid b{font-family:var(--fd);font-size:26px;font-weight:600;color:var(--ink);line-height:1}
+.dorbit-mid b i{font-style:normal;font-size:15px;font-weight:500;color:var(--muted)}
+.dorbit-mid span{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.dorbit-mid .ic{width:28px;height:28px;color:var(--accent)}
+
+/* the day on a strip: hatched where it has passed, a line for now */
+#dashStrip{position:relative;margin-top:20px}
+.dstrip{position:relative;height:calc(var(--lanes) * 14px + 8px);border-radius:10px;
+  background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.dstrip-past{position:absolute;left:0;top:0;bottom:0;border-radius:10px 0 0 10px;
+  background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--ink) 7%,transparent) 0 5px,transparent 5px 10px)}
+.dblk{position:absolute;height:10px;border-radius:5px;background:var(--c);box-shadow:0 0 0 2px var(--surface);
+  transition:transform .12s}
+.dblk:hover{transform:scaleY(1.35)}
+.dblk.done{opacity:.4}
+.dnow{position:absolute;top:-5px;bottom:-5px;width:2px;margin-left:-1px;background:var(--accent);border-radius:2px;pointer-events:none}
+.dnow span{position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);
+  font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
+.dticks{position:relative;height:14px;margin-top:6px}
+.dtick{position:absolute;transform:translateX(-50%);font-size:10.5px;color:var(--faint);white-space:nowrap}
+.dtick.first{transform:none}
+.dtick.last{transform:translateX(-100%)}
+
+/* ---- cards ---- */
+.dcard{border:1px solid var(--line);border-radius:var(--r-l);background:var(--surface);min-width:0;flex:none}
+.dcard-h{display:flex;align-items:center;gap:10px;padding:14px 16px 8px}
+.dcard-h h2{font-family:var(--fd);font-size:16px;font-weight:600;letter-spacing:-.01em}
 .dcard-h small{margin-left:auto;font-size:11.5px;color:var(--faint)}
+/* each card wears a small tinted badge, so the page has a rhythm of colour
+   rather than four identical boxes */
+.dch-ic{--tone:var(--accent);width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,var(--tone) 16%,var(--tint-base));color:var(--tone)}
+.dch-ic.warn{--tone:var(--danger)}
+.dch-ic.blue{--tone:var(--blue)}
+.dch-ic.note{--tone:var(--amber)}
 .dgroup{padding:6px 8px 10px}
 .dgroup + .dgroup{border-top:1px solid var(--line-soft);padding-top:12px}
 .dgroup h3{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--faint);
   padding:0 8px 6px;font-family:var(--ff);letter-spacing:0}
 .dgroup h3 .num{font-weight:600;color:var(--muted)}
 .dempty{margin:0;padding:2px 8px 4px;font-size:12.5px;color:var(--faint)}
-.drow{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:8px}
+.drow{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:10px}
 .drow:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
 .drow-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left}
 .drow-body > *{pointer-events:none}
@@ -695,51 +774,64 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .drow-end{flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .drow-end.late{color:var(--danger);font-weight:600}
 .drow-end.behind{color:var(--amber)}
-.dmore{margin:4px 8px 0;padding:4px 8px;border-radius:7px;font-size:12px;font-weight:600;color:var(--accent-2)}
+.dmore{margin:4px 8px 0;padding:4px 8px;border-radius:7px;font-size:12px;font-weight:600;color:var(--accent-ink)}
 .dmore:hover{background:var(--accent-soft)}
 .drow.done{opacity:var(--done-fade)}
 .drow.done .drow-body b{text-decoration:line-through;color:var(--muted)}
-.dclear{display:flex;align-items:center;gap:10px;padding:6px 16px 18px;color:var(--muted);font-size:13px}
-.dclear .ic{color:var(--accent)}
-.dclear p{margin:0}
 
-/* The right column: up next and time today sit above the scratch pad, which
-   takes whatever height is left. */
-.dash-side{display:flex;flex-direction:column;gap:18px;min-height:0}
-.dash-scratch{display:flex;flex-direction:column;min-height:180px;flex:1;overflow:hidden}
-.dash-scratch .rte-bar{padding:6px 12px;border-top:1px solid var(--line-soft)}
-.dash-scratch .rte{flex:1;min-height:0;padding:14px 16px 20px;font-size:13.5px}
-
-/* quick add: a borderless line at the top of Today */
-.dquick{display:flex;align-items:center;gap:9px;margin:4px 16px 6px;padding:7px 10px;
-  border:1px dashed var(--line-2);border-radius:9px;color:var(--faint)}
-.dquick:focus-within{border-style:solid;border-color:var(--accent);color:var(--accent)}
+/* quick add */
+.dquick{display:flex;align-items:center;gap:9px;margin:2px 16px 8px;padding:8px 12px;border-radius:12px;
+  border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent-ink);
+  background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.dquick:focus-within{border-style:solid;border-color:var(--accent)}
 .dquick input{flex:1;min-width:0;border:0;background:none;outline:0;font-size:13.5px;color:var(--ink)}
-.dquick input::placeholder{color:var(--faint)}
+.dquick input::placeholder{color:var(--muted)}
 .dquick select{border:0;background:none;font-size:12px;color:var(--muted);cursor:pointer;max-width:120px}
+
+/* the schedule as a timeline: time, a dot on a line, the thing. A routine's
+   dot is its tick box; an event's is a square, because it is Google's. */
+.dag{position:relative}
+.dag::before{content:"";position:absolute;left:92px;top:16px;bottom:16px;width:2px;border-radius:2px;background:var(--line)}
+.dag-row{position:relative;display:grid;grid-template-columns:64px 18px minmax(0,1fr) auto;column-gap:12px;align-items:center;
+  padding:7px 8px;border-radius:10px}
+.dag-row:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.dag-row.now{background:color-mix(in srgb,var(--c) 11%,var(--surface))}
+.dag-time{font-size:12px;font-weight:600;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.dag-time.behind{color:var(--amber)}
+.dag-dot{position:relative;z-index:1;width:18px;height:18px;border-radius:50%;border:2px solid var(--c);
+  background:var(--surface);display:grid;place-items:center;transition:background .15s}
+.dag-dot .ic{width:10px;height:10px;stroke:var(--on-accent);stroke-width:3;opacity:0}
+button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
+.dag-row.done .dag-dot{background:var(--c)}
+.dag-row.done .dag-dot .ic{opacity:1}
+.dag-dot.ev{border-radius:5px;background:color-mix(in srgb,var(--c) 30%,var(--surface))}
+.dag-row.done .drow-body b{text-decoration:line-through;color:var(--muted)}
+.dag-row.past .drow-body b{color:var(--muted)}
+.dag-now{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 8px;border-radius:20px;background:var(--c);color:var(--on-accent)}
+.dag-allday{display:flex;flex-wrap:wrap;gap:6px;padding:0 8px 8px}
+.dag-allday .gchip{width:auto;max-width:100%}
+
+/* needs your attention: a warm wash when there is something; a small
+   celebration when there is not */
+.dash-attn:not(.clear){background:linear-gradient(to bottom,color-mix(in srgb,var(--danger) 7%,var(--surface)),var(--surface) 110px)}
+.dclear{display:flex;align-items:center;gap:14px;padding:6px 18px 20px}
+.dclear-ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;
+  background:var(--accent-soft);color:var(--accent-ink)}
+.dclear-ic .ic{width:20px;height:20px;stroke-width:2.4}
+.dclear b{font-family:var(--fd);font-size:15px;font-weight:600;color:var(--ink)}
+.dclear p{margin:2px 0 0;font-size:13px;color:var(--muted)}
 
 /* start / pause on a task row */
 .dplay{flex:none;display:inline-flex;align-items:center;gap:5px;height:26px;min-width:26px;padding:0 6px;
   border-radius:7px;color:var(--faint);justify-content:center;opacity:0;transition:opacity .12s}
 .dplay > *{pointer-events:none}
 .drow:hover .dplay,.dplay:focus-visible{opacity:1}
-.dplay:hover{background:var(--accent-soft);color:var(--accent-2)}
-.dplay.on{opacity:1;background:var(--accent-soft);color:var(--accent-2);font-size:12px;font-weight:600}
-
-/* up next */
-.dnext-list{display:flex;flex-direction:column;gap:6px;padding:4px 12px 14px}
-.dnext{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;
-  text-align:left;padding:8px 10px 8px 12px;border-radius:9px;border-left:3px solid var(--c);
-  background:color-mix(in srgb,var(--c) 7%,var(--tint-base))}
-.dnext > *{pointer-events:none}
-.dnext-l{grid-row:1 / span 2;align-self:center;font-size:10.5px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.06em;color:var(--c);min-width:34px}
-.dnext b{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dnext-w{font-size:12px;color:var(--muted)}
-.dash-next .dempty{padding:0 4px}
+.dplay:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.dplay.on{opacity:1;background:var(--accent-soft);color:var(--accent-ink);font-size:12px;font-weight:600}
 
 /* time today */
-.dtotal{margin-left:auto;font-size:15px;font-weight:700;color:var(--ink)}
+.dtotal{margin-left:auto;font-family:var(--fd);font-size:20px;font-weight:600;color:var(--ink)}
 .dtime{display:flex;flex-direction:column;gap:2px;padding:2px 8px 12px;max-height:190px;overflow-y:auto}
 .dtrow{display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:5px;column-gap:10px;padding:6px 8px;
   border-radius:8px;text-align:left}
@@ -747,25 +839,47 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .dtrow:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
 .dtrow-t{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dtrow-v{font-size:12px;color:var(--muted)}
-.dtrow-v.live{color:var(--accent-2);font-weight:600}
-.dtrow-bar{grid-column:1 / -1;height:4px;border-radius:4px;background:var(--surface-3);overflow:hidden}
-.dtrow-bar i{display:block;height:100%;border-radius:4px;background:var(--c)}
+.dtrow-v.live{color:var(--accent-ink);font-weight:600}
+.dtrow-bar{grid-column:1 / -1;height:5px;border-radius:5px;background:var(--surface-3);overflow:hidden}
+.dtrow-bar i{display:block;height:100%;border-radius:5px;background:var(--c)}
 .dtime-empty{padding:0 16px 14px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+
+/* the scratch pad is ruled like a notepad; the lines scroll with the text */
+.dash-scratch{display:flex;flex-direction:column;min-height:200px;flex:1;overflow:hidden}
+.dash-scratch .rte-bar{padding:6px 12px;border-top:1px solid var(--line-soft);background:transparent}
+.dash-scratch .rte{flex:1;min-height:0;padding:12px 18px 20px;font-size:13.5px;line-height:24px;
+  background-image:repeating-linear-gradient(to bottom,transparent 0 23px,var(--line-soft) 23px 24px);
+  background-position:0 12px;background-attachment:local}
+.dash-scratch .rte p,.dash-scratch .rte ul,.dash-scratch .rte ol,.dash-scratch .rte div{margin:0}
 
 /* scratch pad: the two ways out sit at the right of its toolbar */
 .rte-bar .rte-txt{width:auto;padding:0 9px;gap:6px;display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:var(--muted)}
 .rte-bar .rte-txt > *{pointer-events:none}
-.rte-bar .rte-txt:hover{color:var(--accent-2);background:var(--accent-soft)}
+.rte-bar .rte-txt:hover{color:var(--accent-ink);background:var(--accent-soft)}
 
+/* A short window: the whole page scrolls rather than squeezing the columns. */
+@media (max-height:760px){
+  .dash{overflow-y:auto}
+  .dash-grid{flex:none}
+  .dash-col{overflow:visible}
+  .dash-scratch{min-height:320px}
+}
 @media (max-width:1080px){
-  .dash{display:flex;flex-direction:column;overflow-y:auto;padding:16px}
+  .dash{overflow-y:auto;padding:16px}
+  .dash-grid{display:flex;flex-direction:column;flex:none}
   .dash-col,.dash-side{display:contents}
-  .dash-next{order:1}
-  .dash-today{order:2}
-  .dash-scratch{order:3;min-height:300px;flex:none}
-  .dash-attn{order:4}
-  .dash-time{order:5}
+  .dash-today{order:1}
+  .dash-scratch{order:2;min-height:300px;flex:none}
+  .dash-attn{order:3}
+  .dash-time{order:4}
   .dplay{opacity:1}
+}
+@media (max-width:640px){
+  .dhero{padding:18px 18px 12px}
+  .dhero-top{gap:14px}
+  .dhero-hi{font-size:25px}
+  .dorbit{width:84px;height:84px}
+  .dorbit-mid b{font-size:20px}
 }
 
 /* ---------- google calendar ----------

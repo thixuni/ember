@@ -302,9 +302,7 @@ function renderTopbar(){
   let title="",sub="",right="";
   if(V.view==="dashboard"){
     const d=todayItems(),left=d.tasks.filter(isOpen).length+d.routines.filter(r=>!doneR(r,TODAY())).length;
-    title="Dashboard";
-    sub=today().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})+
-      " · "+(left?left+" left to do today":"nothing left for today");
+    title="Dashboard";sub="Your day at a glance";
     right='<button class="btn btn-primary" data-act="new-task" data-date="'+TODAY()+'">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="calendar"){
     title="Calendar";
@@ -542,48 +540,72 @@ function dashGroup(title,count,rows,empty){
 /* Past this many, missed routines fold away behind "Show more": they are the
    least actionable thing on the page and ten of them hid everything below. */
 const MISS_SHOWN=4;
+function dashHead(ic,title,tone,extra){
+  return '<header class="dcard-h"><span class="dch-ic'+(tone?" "+tone:"")+'">'+icon(ic,"ic-14")+'</span>'+
+    '<h2>'+esc(title)+'</h2>'+(extra||"")+'</header>';
+}
 function viewDashboard(){
   const ts=TODAY(),d=todayItems(),nowMin=new Date().getHours()*60+new Date().getMinutes();
   const mins=tm=>{if(!tm)return -1;const x=tm.split(":").map(Number);return x[0]*60+x[1];};
 
+  /* ---- to do: tasks due today ---- */
   const taskRow=t=>{const c=cat(t.cat),done=t.status==="completed",est=tEst(t);
     return dashRow({color:c.color,done:done,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
       meta:esc(c.name)+(est?' · '+esc(fmtMins(est))+' estimate':""),
       end:done?"":timerBtn(t)});};
-  const routineRow=r=>{const c=cat(r.cat),done=doneR(r,ts);
-    /* A routine whose time has come and gone without a tick says so -- in
-       amber, not red. It is behind, not missed; there is still today. */
-    const behind=!done&&r.time&&mins(r.time)+(r.dur||0)<nowMin;
-    return dashRow({color:c.color,done:done,behind:behind,
-      tick:'<button class="tick'+(done?" on":"")+'" data-act="routine-done" data-id="'+r.id+'" data-date="'+ts+'" aria-label="'+(done?"Mark not done":"Mark done")+'">'+icon("i-check")+'</button>',
-      open:'data-act="routine" data-id="'+r.id+'" data-date="'+ts+'"',title:r.title,meta:esc(c.name),
-      end:r.time?esc(fmtTime(r.time)):""});};
+  const openT=d.tasks.filter(isOpen).length;
 
-  const openT=d.tasks.filter(isOpen).length,leftR=d.routines.filter(r=>!doneR(r,ts)).length;
+  /* ---- schedule: routines and Google events on one line of time ----
+     A routine's dot is its tick; an event's dot is a square and is not,
+     because it is Google's to change. */
+  const gd=gcalFor(today());
+  const sched=d.routines.map(r=>({kind:"r",r:r,start:r.time?mins(r.time):-1,end:r.time?mins(r.time)+(Number(r.dur)||0):-1}))
+    .concat(gd.timed.map(x=>({kind:"g",g:x.g,start:x.start,end:x.start+x.dur})))
+    .sort((a,b)=>a.start-b.start);
+  const agRow=it=>{
+    const isNow=it.start>=0&&it.start<=nowMin&&nowMin<it.end;
+    if(it.kind==="g"){const e=it.g;
+      return '<div class="dag-row'+(e.en<Date.now()?" past":"")+(isNow?" now":"")+'" style="--c:'+e.color+'">'+
+        '<span class="dag-time num">'+esc(fmtTime(pad(Math.floor(it.start/60))+":"+pad(it.start%60)))+'</span>'+
+        '<span class="dag-dot ev" aria-hidden="true"></span>'+
+        '<button class="drow-body" data-act="gcal-ev" data-id="'+esc(e.id)+'"><b>'+esc(e.title)+'</b>'+
+        '<small><i class="cdot"></i>'+esc(e.calName)+'</small></button>'+(isNow?'<span class="dag-now">Now</span>':"")+'</div>';}
+    const r=it.r,c=cat(r.cat),done=doneR(r,ts),behind=!done&&it.end>=0&&it.end<nowMin;
+    return '<div class="dag-row'+(done?" done":"")+(isNow&&!done?" now":"")+'" style="--c:'+c.color+'">'+
+      '<span class="dag-time num'+(behind?" behind":"")+'">'+(r.time?esc(fmtTime(r.time)):"Any time")+'</span>'+
+      '<button class="dag-dot" data-act="routine-done" data-id="'+r.id+'" data-date="'+ts+'" aria-label="'+(done?"Mark not done":"Mark done")+'">'+icon("i-check")+'</button>'+
+      '<button class="drow-body" data-act="routine" data-id="'+r.id+'" data-date="'+ts+'"><b>'+esc(r.title)+'</b>'+
+      '<small><i class="cdot"></i>'+esc(c.name)+(r.dur?' · '+esc(fmtMins(r.dur)):"")+'</small></button>'+
+      (isNow&&!done?'<span class="dag-now">Now</span>':"")+'</div>';
+  };
+  const allDay=gd.allDay.length?'<div class="dag-allday">'+gd.allDay.map(e=>
+    '<button class="gchip" style="--c:'+e.color+'" data-act="gcal-ev" data-id="'+esc(e.id)+'"><span>'+esc(e.title)+'</span></button>').join("")+'</div>':"";
+  const leftR=d.routines.filter(r=>!doneR(r,ts)).length;
+
   const qc=S.categories.some(c=>c.id===S.prefs.quickCat)?S.prefs.quickCat:S.categories[0].id;
   const quick='<div class="dquick">'+icon("i-plus","ic-14")+
     '<input id="dashQuick" placeholder="Add a task for today, then press Enter" aria-label="Add a task for today" autocomplete="off">'+
     '<select id="dashQuickCat" aria-label="Category for the new task">'+S.categories.map(c=>
       '<option value="'+c.id+'"'+(c.id===qc?" selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select></div>';
-  const gd=gcalFor(today()),gev=gd.allDay.concat(gd.timed.map(x=>x.g));
-  const evRows=gev.map(e=>dashRow({color:e.color,tick:'<span class="dev-mark"></span>',
-    open:'data-act="gcal-ev" data-id="'+esc(e.id)+'"',title:e.title,meta:esc(e.calName),
-    end:esc(e.allDay?"All day":fmtTime(pad(new Date(e.st).getHours())+":"+pad(new Date(e.st).getMinutes()))),
-    behind:!e.allDay&&e.en<Date.now()})).join("");
-  const todayCard='<section class="dcard dash-today"><header class="dcard-h"><h2>Today</h2></header>'+quick+
-    (gcalOn()?dashGroup("Events",gev.length,evRows,"No events in your calendar today."):"")+
-    dashGroup("Tasks due today",openT,d.tasks.map(taskRow).join(""),"Nothing due today.")+
-    dashGroup("Routines",leftR,d.routines.map(routineRow).join(""),"No routines fall on today.")+
+
+  const todayCard='<section class="dcard dash-today">'+dashHead("i-sun","Today","",
+      '<small>'+openT+' to do · '+leftR+' in your schedule</small>')+quick+
+    dashGroup("To do",openT,d.tasks.map(taskRow).join(""),"Nothing due today. Add one above.")+
+    '<div class="dgroup"><h3>Schedule'+(leftR?'<span class="num">'+leftR+'</span>':"")+'</h3>'+allDay+
+      (sched.length?'<div class="dag">'+sched.map(agRow).join("")+'</div>'
+        :(allDay?"":'<p class="dempty">Nothing scheduled today.</p>'))+'</div>'+
     '</section>';
 
+  /* ---- needs your attention ---- */
   const o=overdueItems(),ai=noteActionItems();
   const need=o.tasks.length+o.miss.length+ai.length;
   /* No red total here: the sidebar's red number means late, and a total that
      also counts missed routines and undated notes would say 10 beside its 1.
      Each group below carries its own count. */
-  const attn='<section class="dcard dash-attn"><header class="dcard-h"><h2>Needs your attention</h2></header>'+
-    (!need?'<div class="dclear">'+icon("i-check")+'<p>You’re all caught up. Nothing overdue, nothing missed.</p></div>':
-      (o.tasks.length?dashGroup("Overdue tasks",o.tasks.length,o.tasks.map(t=>{const c=cat(t.cat);
+  const attn='<section class="dcard dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-check","Needs your attention",need?"warn":"")+
+    (!need?'<div class="dclear"><span class="dclear-ic">'+icon("i-check")+'</span><div><b>You’re all caught up</b>'+
+      '<p>Nothing overdue, nothing missed. Enjoy it.</p></div></div>':
+      (o.tasks.length?dashGroup("Overdue",o.tasks.length,o.tasks.map(t=>{const c=cat(t.cat);
         return dashRow({color:c.color,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
           meta:esc(c.name),end:esc(relDue(t.due)),late:true});}).join("")):"")+
       (ai.length?dashGroup("From your notes",ai.length,ai.map(x=>{
@@ -600,8 +622,8 @@ function viewDashboard(){
         (o.miss.length>MISS_SHOWN?'<button class="dmore" data-act="dash-more">'+(V.dashAll?"Show fewer":"Show "+(o.miss.length-MISS_SHOWN)+" more")+'</button>':"")):""))+
     '</section>';
 
-  const scratch='<section class="dcard dash-scratch"><header class="dcard-h"><h2>Scratch pad</h2>'+
-      '<small>Saves as you type</small></header>'+
+  /* ---- scratch pad ---- */
+  const scratch='<section class="dcard dash-scratch">'+dashHead("i-edit","Scratch pad","note",'<small>Saves as you type</small>')+
     '<div class="rte-bar">'+["bold|B","italic|I","insertUnorderedList|•"].map(x=>{const q=x.split("|");
       return '<button data-act="rte" data-cmd="'+q[0]+'" data-scratch="1" aria-label="'+q[0]+'">'+q[1]+'</button>';}).join("")+
       '<span class="spacer" style="flex:1"></span>'+
@@ -611,9 +633,56 @@ function viewDashboard(){
     '<div class="rte" id="scratchPad" contenteditable="true" data-ph="Anything you need out of your head…">'+(S.prefs.scratch||"")+'</div>'+
     '</section>';
 
-  return '<div class="dash"><div class="dash-col">'+todayCard+attn+'</div>'+
-    '<div class="dash-side">'+'<section class="dcard dash-next" id="dashNext">'+upNextHtml()+'</section>'+
-    timeTodayCard()+scratch+'</div></div>';
+  return '<div class="dash">'+dashHero(d)+
+    '<div class="dash-grid"><div class="dash-col">'+todayCard+attn+'</div>'+
+    '<div class="dash-side">'+timeTodayCard()+scratch+'</div></div></div>';
+}
+
+/* ---- the welcome panel ----
+   The top of the page says hello, says in a sentence how today stands, and
+   shows the day as an orbit: a planet that travels round as the things due
+   today get done. Under it, the whole day on one strip. */
+function dashGreeting(){
+  const h=new Date().getHours();
+  return h<5?"Still up?":h<12?"Good morning":h<17?"Good afternoon":h<22?"Good evening":"Winding down";
+}
+function dashHero(d){
+  const ts=TODAY(),over=overdueItems().tasks.length;
+  const doneT=d.tasks.filter(t=>t.status==="completed").length,doneRt=d.routines.filter(r=>doneR(r,ts)).length;
+  const total=d.tasks.length+d.routines.length,done=doneT+doneRt,left=total-done;
+  const plural=(n,w)=>n+" "+w+(n===1?"":"s");
+  let line;
+  if(!total&&!over)line="Nothing planned for today. A clear day, all yours.";
+  else if(!left&&!over)line="Everything for today is done. Nicely handled.";
+  else if(!left)line="Today’s list is done. "+plural(over,"thing")+" carried over still need"+(over===1?"s":"")+" you.";
+  else line=plural(left,"thing")+" left for today"+(over?", and "+over+" carried over from before.":".");
+
+  /* The orbit. r=40 in a 100 box; the planet sits where the arc ends. */
+  const pct=total?done/total:0,C=2*Math.PI*40,ang=pct*2*Math.PI-Math.PI/2;
+  const px=(50+40*Math.cos(ang)).toFixed(2),py=(50+40*Math.sin(ang)).toFixed(2);
+  const ring='<div class="dorbit" role="img" aria-label="'+(total?done+" of "+total+" done today":"Nothing planned today")+'">'+
+    '<svg viewBox="0 0 100 100" aria-hidden="true">'+
+      '<circle class="dorbit-track" cx="50" cy="50" r="40"/>'+
+      (pct>0?'<circle class="dorbit-arc" cx="50" cy="50" r="40" stroke-dasharray="'+(C*pct).toFixed(2)+' '+C.toFixed(2)+'" transform="rotate(-90 50 50)"/>':"")+
+      '<circle class="dorbit-planet" cx="'+px+'" cy="'+py+'" r="6.5"/>'+
+    '</svg>'+
+    '<div class="dorbit-mid">'+(total?'<b class="num">'+done+'<i>/'+total+'</i></b><span>done</span>':icon("i-sun"))+'</div></div>';
+
+  /* Two faint orbits behind it, the app's own mark drawn large. */
+  const art='<svg class="dhero-art" viewBox="0 0 400 300" aria-hidden="true">'+
+    '<ellipse cx="250" cy="130" rx="190" ry="70" transform="rotate(-14 250 130)"/>'+
+    '<ellipse cx="250" cy="130" rx="130" ry="46" transform="rotate(-14 250 130)"/>'+
+    '<circle cx="84" cy="176" r="4"/><circle cx="372" cy="70" r="3"/></svg>';
+
+  return '<section class="dhero">'+art+
+    '<div class="dhero-top"><div class="dhero-text">'+
+      '<div class="dhero-eyebrow">'+esc(today().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}))+'</div>'+
+      '<h2 class="dhero-hi">'+esc(dashGreeting())+'</h2>'+
+      '<p class="dhero-line">'+esc(line)+'</p>'+
+      '<div class="dnext-list" id="dashNext">'+upNextHtml()+'</div>'+
+    '</div>'+ring+'</div>'+
+    '<div id="dashStrip">'+dayStripHtml()+'</div>'+
+  '</section>';
 }
 /* A small play button on a task row. Running shows the live clock and pauses. */
 function timerBtn(t){
@@ -641,13 +710,44 @@ function upNextHtml(){
   const cur=items.filter(x=>x.start<=now&&now<x.end)[0];
   const next=items.filter(x=>x.start>now)[0];
   const clock=mn=>fmtTime(pad(Math.floor(mn/60)%24)+":"+pad(mn%60));
-  const line=(label,x,when)=>'<button class="dnext" style="--c:'+x.color+'" '+x.act+'>'+
+  const pill=(label,x,when)=>'<button class="dnext'+(label==="Now"?" is-now":"")+'" style="--c:'+x.color+'" '+x.act+'>'+
     '<span class="dnext-l">'+esc(label)+'</span><b>'+esc(x.title)+'</b><span class="dnext-w">'+esc(when)+'</span></button>';
   let body="";
-  if(cur)body+=line("Now",cur,"until "+clock(cur.end));
-  if(next)body+=line("Next",next,"in "+inMins(next.start-now)+" · "+clock(next.start));
-  if(!body)body='<p class="dempty">Nothing else with a time today.</p>';
-  return '<header class="dcard-h"><h2>Up next</h2></header><div class="dnext-list">'+body+'</div>';
+  if(cur)body+=pill("Now",cur,"until "+clock(cur.end));
+  if(next)body+=pill("Next",next,"in "+inMins(next.start-now)+" · "+clock(next.start));
+  return body||'<span class="dnext-none">Nothing else with a time today.</span>';
+}
+/* The day from the calendar's first hour to midnight on one strip: routines
+   and Google events as bars at their real times, what has passed shaded,
+   and a line for now. Overlaps stack into up to three lanes. Swapped in
+   place with up next, so the now line walks across without a redraw. */
+function dayStripHtml(){
+  const from=H0*60,to=H1*60,span=to-from,ts=TODAY();
+  const n=new Date(),now=n.getHours()*60+n.getMinutes();
+  const m=tm=>{const x=tm.split(":").map(Number);return x[0]*60+x[1];};
+  const items=todayItems().routines.filter(r=>r.time).map(r=>({title:r.title,color:cat(r.cat).color,
+      start:m(r.time),end:m(r.time)+Math.max(10,Number(r.dur)||30),done:doneR(r,ts),
+      act:'data-act="routine" data-id="'+r.id+'" data-date="'+ts+'"'}))
+    .concat(gcalFor(today()).timed.map(x=>({title:x.g.title,color:x.g.color,start:x.start,end:x.start+x.dur,done:false,
+      act:'data-act="gcal-ev" data-id="'+esc(x.g.id)+'"'})))
+    .sort((a,b)=>a.start-b.start);
+  const lanes=[];
+  items.forEach(it=>{
+    let l=lanes.findIndex(e=>e<=it.start);
+    if(l<0){if(lanes.length<3){lanes.push(0);l=lanes.length-1;}else l=lanes.length-1;}
+    lanes[l]=Math.max(lanes[l],it.end);it.lane=l;
+  });
+  const pos=v=>Math.max(0,Math.min(100,(v-from)/span*100));
+  const hh=h=>fmtTime(pad(h%24)+":00");
+  const ticks=[];for(let h=H0;h<=H1;h+=3)ticks.push('<span class="dtick'+(h===H0?" first":h>=H1?" last":"")+'" style="left:'+pos(h*60).toFixed(2)+'%">'+esc(hh(h))+'</span>');
+  const bars=items.map(it=>{const l=pos(it.start),w=Math.max(.9,pos(it.end)-l);
+    return '<button class="dblk'+(it.done?" done":"")+'" style="--c:'+it.color+';left:'+l.toFixed(2)+'%;width:'+w.toFixed(2)+'%;top:'+(6+it.lane*14)+'px" '+it.act+
+      ' title="'+esc(it.title+" · "+fmtTime(pad(Math.floor(it.start/60))+":"+pad(it.start%60)))+'" aria-label="'+esc(it.title)+'"></button>';}).join("");
+  const inDay=now>=from&&now<=to;
+  return '<div class="dstrip" style="--lanes:'+Math.max(1,lanes.length)+'">'+
+      '<div class="dstrip-past" style="width:'+pos(now).toFixed(2)+'%"></div>'+bars+
+      (inDay?'<div class="dnow" style="left:'+pos(now).toFixed(2)+'%"><span>Now</span></div>':"")+
+    '</div><div class="dticks">'+ticks.join("")+'</div>';
 }
 
 /* ---- time tracked today ----
@@ -665,8 +765,8 @@ function trackedToday(){
 const totalMins=secs=>{const m=Math.floor(secs/60);return m?fmtMins(m):"0m";};
 function timeTodayCard(){
   const d=trackedToday(),max=d.rows.length?d.rows[0].secs:0,r=running();
-  return '<section class="dcard dash-time"><header class="dcard-h"><h2>Time today</h2>'+
-    '<span class="dtotal num" id="dashTotal">'+esc(totalMins(d.total))+'</span></header>'+
+  return '<section class="dcard dash-time">'+dashHead("i-timer","Time today","blue",
+      '<span class="dtotal num" id="dashTotal">'+esc(totalMins(d.total))+'</span>')+
     (d.rows.length?'<div class="dtime">'+d.rows.map(x=>{const c=cat(x.t.cat),live=r&&r.task===x.t.id;
       return '<button class="dtrow" data-act="task" data-id="'+x.t.id+'" style="--c:'+c.color+'">'+
         '<span class="dtrow-t">'+esc(x.t.title)+'</span>'+
@@ -2890,7 +2990,9 @@ if(S.prefs&&S.prefs.launch&&NAV.some(v=>v.id===S.prefs.launch)){V.view=S.prefs.l
 maybeAutoBackup();
 gcalBoot();
 setInterval(()=>{if(V.view==="calendar"&&V.calMode==="week"&&!el("modalRoot").innerHTML)renderView();},60000);
-setInterval(()=>{const n=el("dashNext");if(n&&V.view==="dashboard")n.innerHTML=upNextHtml();},30000);
+setInterval(()=>{if(V.view!=="dashboard")return;
+  const n=el("dashNext");if(n)n.innerHTML=upNextHtml();
+  const st=el("dashStrip");if(st)st.innerHTML=dayStripHtml();},30000);
 
 /* The clock ticks in place. A full render every second would fight anything
    being typed, so only the two readouts are touched. */

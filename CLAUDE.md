@@ -139,9 +139,18 @@ existed has `launch:"calendar"` saved — the old default, not a choice — so
 start-up moves them once; picking a page in Settings sets `launchSet` and is
 never overridden.
 
+The top of it is a welcome panel (`dashHero()`): a greeting by time of day,
+a sentence on how today stands, the day's progress drawn as an orbit — a
+planet that travels round as today's tasks and routines get done, the app's
+name made literal — and the whole day on one strip (`dayStripHtml()`). It is
+the one place on the page with atmosphere, so the lists below stay calm. The
+schedule lays routines and Google events on a timeline; a routine's dot is its
+tick box, an event's is a square because it is Google's to change.
+
 It is also where the caret is most likely to be, in the scratch pad, so
-nothing live on it redraws the page. Up next is swapped in place every 30
-seconds (`upNextHtml()` into `#dashNext`), and the per-second timer tick
+nothing live on it redraws the page. Now/next and the day strip are swapped in
+place every 30 seconds (`upNextHtml()` into `#dashNext`, `dayStripHtml()` into
+`#dashStrip`), and the per-second timer tick
 writes the running task's clock and today's total into `data-live` and
 `data-live-total` nodes directly. A full `render()` there would throw the
 caret out of whatever is being typed.
