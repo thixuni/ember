@@ -225,8 +225,8 @@ behind a permission prompt, and only while the tab is open.
   than the idea, and it belongs to the start date when there is one and to the
   due date when there is not (`tTimeDay()`). Reminders count back from that
   moment; a chip shows the time only beside the date it belongs to. It is set
-  with the planner's own picker (`timePicker()`, open while `V.tp` is set):
-  type a time, or pick from quarter hours grouped by part of the day.
+  with the planner's own time picker (see Pickers): type a time, or pick from
+  quarter hours grouped by part of the day.
 - A reminder's id carries what it was worked out from — item, day, time,
   lead — so changing any of them makes a new reminder rather than one the
   shell has already marked as sent.
@@ -236,8 +236,6 @@ behind a permission prompt, and only while the tab is open.
   than that out of date.
 - Quiet hours have no default and may wrap midnight. A reminder inside them
   is skipped, not queued for later.
-- Time inputs in Settings and the task panel commit without a redraw. A
-  redraw after the first digit would throw the caret out of the field.
 
 ### Google Calendar
 
