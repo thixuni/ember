@@ -375,12 +375,24 @@ const runEnd=x=>x.end||(x.start+(x.secs||0)*1000);
 function sittings(dayStr){
   const by={},out=[];
   S.sessions.forEach(x=>{if(ymd(new Date(x.start))===dayStr)(by[x.task]=by[x.task]||[]).push(x);});
+  /* The run in progress has no row until it stops, so it is added here as
+     one: from when it began to now, or, if paused, as far as it had got. It
+     merges like any other run, so resuming soon after a stop carries on the
+     same block rather than starting a new one beside it. */
+  const r=running();
+  if(r&&r.began&&ymd(new Date(r.began))===dayStr){
+    const secs=liveSecs();
+    (by[r.task]=by[r.task]||[]).push({task:r.task,start:r.began,end:r.since?Date.now():r.began+secs*1000,secs:secs,live:true});
+  }
   Object.keys(by).forEach(id=>{
     const t=taskById(id);if(!t||!visibleCat(t.cat))return;
     let cur=null;
     by[id].sort((a,b)=>a.start-b.start).forEach(x=>{
       if(cur&&x.start-cur.end<=RUN_GAP){cur.end=Math.max(cur.end,runEnd(x));cur.secs+=x.secs||0;cur.runs.push(x);}
       else{cur={t:t,start:x.start,end:runEnd(x),secs:x.secs||0,runs:[x]};out.push(cur);}
+      /* base is what the stopped runs add up to, so the tick can show base
+         plus the live seconds without recounting the rows. */
+      if(x.live){cur.live=true;cur.base=cur.secs-(x.secs||0);}
     });
   });
   return out;
@@ -468,6 +480,13 @@ function weekGrid(){
       if(isS){
         const hm=ms=>{const x=new Date(ms);return fmtTime(pad(x.getHours())+":"+pad(x.getMinutes()));};
         const n=e.g.runs.length;
+        if(e.g.live){
+          const going=!!(running()||{}).since;
+          return '<button class="ev tracked live'+(going?"":" held")+(compact?" sm":"")+'" style="'+pos+'" data-act="task" data-id="'+e.t.id+'"'+
+            ' data-live-base="'+e.g.base+'" data-live-start="'+e.g.start+'" aria-label="'+esc(e.t.title+(going?", timer running":", timer paused"))+'">'+
+            '<b><span class="ev-dot"></span>'+esc(e.t.title)+'</b>'+
+            '<i class="num">'+(going?"":"Paused · ")+'<span class="ev-clock">'+esc(fmtDur(e.secs))+'</span></i></button>';
+        }
         return '<button class="ev tracked'+(compact?" sm":"")+'" style="'+pos+'" data-act="task" data-id="'+e.t.id+
           '" title="'+esc(e.t.title+" · "+fmtTracked(e.secs)+" tracked, "+hm(e.g.start)+"–"+hm(e.g.end)+(n>1?", in "+n+" runs":""))+'">'+
           /* The timer icon only where there is room for it; squeezed into a
@@ -3307,6 +3326,16 @@ setInterval(function(){
   if(!r||!r.since)return;
   const t=taskById(r.task);if(!t)return;
   const secs=liveSecs(),est=tEst(t)*60,over=est&&secs>est;
+  /* The calendar's live block counts with the pill and grows as the run
+     does, touched in place; the grid itself redraws once a minute. */
+  if(V.view==="calendar"){
+    const lb=document.querySelector(".ev.tracked.live");
+    if(lb){
+      const c=lb.querySelector(".ev-clock");if(c)c.textContent=fmtDur((Number(lb.dataset.liveBase)||0)+secs);
+      const mins=(Date.now()-Number(lb.dataset.liveStart))/60000;
+      if(mins>0)lb.style.height=Math.max(16,(mins/60)*PX-2).toFixed(1)+"px";
+    }
+  }
   if(V.view==="dashboard"){
     document.querySelectorAll('[data-live="'+r.task+'"]').forEach(n=>{n.textContent=fmtDur(secs);});
     const tt=el("dashTotal"),td=trackedToday();

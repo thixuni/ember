@@ -107,6 +107,13 @@ and an afternoon run would claim the hours between. A sitting is its true
 length with a 16px floor, just enough to click; readers of a session event
 use `e.g` (the sitting) and `e.secs`, not a single row.
 
+The run in progress is part of this too. It has no `S.sessions` row until it
+stops, so `sittings()` adds it as one — from `began` to now, or as far as it
+got if paused — and it merges like any other run, so resuming soon after a
+stop carries on the same block. That block is marked `live`; the per-second
+tick writes its clock (`data-live-base` plus the live seconds) and its height
+into the DOM directly, and the grid itself redraws once a minute.
+
 In the task panel the total is a button, not a hover: it opens the time
 breakdown (`timeBreakdown()`) — a meter against the estimate with the
 overrun hatched past a marker, then each day as a 6am–midnight strip with
