@@ -422,19 +422,41 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .nowline{position:absolute;left:0;right:0;height:0;border-top:1.6px solid var(--danger);z-index:4;pointer-events:none}
 .nowline::before{content:"";position:absolute;left:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--danger)}
 
-.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);flex:1;min-height:0;background:var(--line)}
+/* The month: every day a cell with a hairline round it, and only as many
+   rows as the month has weeks. */
+/* A week row is never shorter than four lines need. On a short screen a
+   six-week month scrolls a little rather than dropping to one line a day. */
+.mgrid{--mrow-min:108px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));flex:1;min-height:0;overflow-y:auto;background:var(--canvas)}
 .mhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--canvas);border-bottom:1px solid var(--line)}
 .mhead div{padding:7px 8px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);text-align:center}
-.mcell{background:var(--canvas);padding:5px 5px 4px;display:flex;flex-direction:column;gap:3px;min-height:0;overflow:hidden}
+.mcell{background:var(--canvas);border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:5px 5px 4px;display:flex;flex-direction:column;gap:3px;min-height:0;overflow:hidden;cursor:pointer}
+.mcell.last-col{border-right:0}
+.mcell.last-row{border-bottom:0}
 .mcell.out{background:var(--surface-2)}
 .mcell.out .mnum{color:var(--faint)}
-.mtop{display:flex;align-items:center;gap:5px}
-.mnum{font-family:var(--fd);font-size:12.5px;font-weight:600;width:21px;height:21px;display:grid;place-items:center;border-radius:50%}
+.mtop{display:flex;align-items:center;gap:5px;flex:none}
+.mnum{font-family:var(--fd);font-size:12.5px;font-weight:600;min-width:21px;height:20px;padding:0 4px;display:grid;place-items:center;border-radius:21px}
+.mnum.wide{padding:0 7px}
 .mcell.today .mnum{background:var(--accent);color:var(--on-accent)}
-.mdots{display:flex;gap:2.5px;margin-left:auto;padding-right:2px}
-.mdot{width:5px;height:5px;border-radius:50%;background:var(--c)}
-.mmore{font-size:10.5px;color:var(--faint);font-weight:600;text-align:left;padding-left:3px}
-.mchip{display:flex;align-items:center;gap:4px;font-size:10.5px;padding:1.5px 5px;border-radius:5px;background:var(--fill);color:var(--label);border-left:2px solid var(--edge);text-align:left;min-width:0}
+.mlist{display:flex;flex-direction:column;gap:1px;min-height:0;flex:1;overflow:hidden}
+/* one line per thing: a dot in its colour, the time, the name */
+.mline{display:flex;align-items:center;gap:5px;min-width:0;height:18px;padding:0 4px;border-radius:5px;flex:none;
+  font-size:11px;text-align:left;width:100%;color:var(--ink)}
+.mline > *{pointer-events:none}
+.mline:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.mline-dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--c)}
+.mline.ev .mline-dot{border-radius:2px}
+.mline-t{flex:none;font-size:10.5px;color:var(--muted)}
+.mline-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.mline.done .mline-n{text-decoration:line-through;color:var(--muted)}
+.mline.done .mline-dot{background:transparent;box-shadow:inset 0 0 0 1.5px var(--c)}
+.mline.tracked{color:var(--muted)}
+.mline.tracked .ic{width:12px;height:12px;flex:none}
+.mline-chip{height:18px;flex:none;font-size:11px}
+.mmore{flex:none;height:17px;font-size:10.5px;color:var(--muted);font-weight:600;text-align:left;padding:0 5px;border-radius:5px}
+.mmore:hover{background:color-mix(in srgb,var(--ink) 5%,transparent);color:var(--ink)}
+.mchip{display:flex;align-items:center;gap:4px;height:18px;flex:none;font-size:11px;padding:0 6px;border-radius:5px;background:var(--fill);color:var(--label);border-left:2px solid var(--edge);text-align:left;min-width:0}
 .mchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mchip.done{opacity:var(--done-fade);text-decoration:line-through;color:var(--label-done)}
 

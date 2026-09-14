@@ -114,6 +114,17 @@ stop carries on the same block. That block is marked `live`; the per-second
 tick writes its clock (`data-live-base` plus the live seconds) and its height
 into the DOM directly, and the grid itself redraws once a minute.
 
+The month view shows only the weeks the month touches — four, five or six
+rows — with the neighbouring months' days only where they fill out a first or
+last week, and every day a cell with a hairline round it. A cell lists up to
+`MONTH_LINES` (four) things, as Google Calendar does: tasks as chips, all-day
+events, then everything timed in order as dot · time · name, and the day's
+tracked time as one line. Past four, three show with "+N more" (the day popup).
+A week row never gets shorter than four lines need (`--mrow-min`); on a short
+screen a six-week month scrolls a little instead. After drawing, `fitMonth()`
+drops lines from any cell that still overflows and folds them into the count,
+so a line is never cut in half.
+
 In the task panel the total is a button, not a hover: it opens the time
 breakdown (`timeBreakdown()`) — a meter against the estimate with the
 overrun hatched past a marker, then each day as a 6am–midnight strip with

@@ -506,31 +506,75 @@ function weekGrid(){
     '<div class="wk-sticky">'+head+ad+'</div>'+
     '<div class="tgrid"><div class="tcol-time">'+hours+'</div>'+cols+'</div></div>';
 }
+/* A cell shows this many lines before the rest fold into "+N more". Four
+   fits a six-week month on an ordinary laptop screen. */
+const MONTH_LINES=4;
 function monthGrid(){
-  const first=new Date(V.anchor.getFullYear(),V.anchor.getMonth(),1);
-  const start=startOfWeek(first),tstr=TODAY(),m=V.anchor.getMonth();
-  let cells="";
-  for(let i=0;i<42;i++){
-    const d=addDays(start,i),s=ymd(d);
-    const ts=tasksFor(s);
-    const evs=eventsFor(d),gd=gcalFor(d),gcount=gd.timed.length+gd.allDay.length;
-    const dots=[];evs.forEach(e=>{const c=cat(e.kind==="session"?e.t.cat:e.r.cat).color;
-      if(dots.indexOf(c)===-1&&dots.length<4)dots.push(c);});
-    gd.allDay.concat(gd.timed.map(x=>x.g)).forEach(e=>{if(dots.indexOf(e.color)===-1&&dots.length<4)dots.push(e.color);});
-    const routines=evs.filter(e=>e.kind!=="session"),tracked=evs.filter(e=>e.kind==="session");
-    const show=ts.slice(0,2),parts=[];
-    if(ts.length-show.length>0)parts.push((ts.length-show.length)+" more");
-    if(gcount)parts.push(gcount+" event"+(gcount===1?"":"s"));
-    if(routines.length)parts.push(routines.length+" routine"+(routines.length===1?"":"s"));
-    if(tracked.length)parts.push(fmtTracked(tracked.reduce((n,e)=>n+(e.secs||0),0))+" tracked");
-    const more=parts.join(" · ");
-    cells+='<div class="mcell'+(d.getMonth()!==m?" out":"")+(s===tstr?" today":"")+'" data-act="new-task" data-date="'+s+'">'+
-      '<div class="mtop"><span class="mnum num">'+d.getDate()+'</span><span class="mdots">'+dots.map(c=>'<span class="mdot" style="--c:'+c+'"></span>').join("")+'</span></div>'+
-      show.map(t=>{const c=cat(t.cat);return '<button class="mchip'+(t.status==="completed"?" done":"")+'" style="--c:'+c.color+'" data-act="task" data-id="'+t.id+'" data-stop="1"><span>'+esc(t.title)+'</span></button>';}).join("")+
-      (more?'<button class="mmore" data-act="peek" data-date="'+s+'" data-stop="1">'+esc(more)+'</button>':"")+'</div>';
-  }
-  return '<div class="mhead">'+dowLabels().map(d=>'<div>'+d+'</div>').join("")+'</div><div class="mgrid">'+cells+'</div>';
+  const y=V.anchor.getFullYear(),m=V.anchor.getMonth(),tstr=TODAY(),q=(V.q||"").toLowerCase();
+  /* Only the weeks the month touches: from the week holding its first day to
+     the week holding its last. Days of the next or last month appear only to
+     fill out those weeks, never as whole rows of their own. */
+  const start=startOfWeek(new Date(y,m,1)),end=addDays(startOfWeek(new Date(y,m+1,0)),6);
+  const days=[];for(let d=start;ymd(d)<=ymd(end);d=addDays(d,1))days.push(d);
+  const hit=t=>!q||t.toLowerCase().indexOf(q)>-1;
+  const clock=mins=>fmtTime(pad(Math.floor(mins/60))+":"+pad(mins%60));
+
+  const cells=days.map((d,i)=>{
+    const s=ymd(d),evs=eventsFor(d),gd=gcalFor(d),items=[];
+    /* Tasks first, as chips: they belong to the day, not to a time in it. */
+    tasksFor(s).forEach(t=>{const c=cat(t.cat);
+      items.push('<button class="mchip'+(t.status==="completed"?" done":"")+'" style="--c:'+c.color+'" data-act="task" data-id="'+t.id+'" data-stop="1"><span>'+esc(t.title)+'</span></button>');});
+    gd.allDay.filter(e=>hit(e.title)).forEach(e=>items.push(
+      '<button class="gchip mline-chip" style="--c:'+e.color+'" data-act="gcal-ev" data-id="'+esc(e.id)+'" data-stop="1"><span>'+esc(e.title)+'</span></button>'));
+    /* Then everything with a time, in order: a dot, the time, the name. */
+    const timed=evs.filter(e=>e.kind!=="session"&&hit(e.r.title)).map(e=>({start:e.start,
+        html:'<button class="mline'+(e.done?" done":"")+'" style="--c:'+cat(e.r.cat).color+'" data-act="routine" data-id="'+e.r.id+'" data-date="'+s+'" data-stop="1">'+
+          '<i class="mline-dot"></i><span class="mline-t num">'+esc(clock(e.start))+'</span><span class="mline-n">'+esc(e.r.title)+'</span></button>'}))
+      .concat(gd.timed.filter(x=>hit(x.g.title)).map(x=>({start:x.start,
+        html:'<button class="mline ev" style="--c:'+x.g.color+'" data-act="gcal-ev" data-id="'+esc(x.g.id)+'" data-stop="1">'+
+          '<i class="mline-dot"></i><span class="mline-t num">'+esc(clock(x.start))+'</span><span class="mline-n">'+esc(x.g.title)+'</span></button>'})))
+      .sort((p,r)=>p.start-r.start);
+    timed.forEach(x=>items.push(x.html));
+    /* Time tracked is one line for the day, not one per sitting. */
+    const tracked=evs.filter(e=>e.kind==="session"),secs=tracked.reduce((n,e)=>n+(e.secs||0),0);
+    if(tracked.length)items.push('<button class="mline tracked" data-act="peek" data-date="'+s+'" data-stop="1">'+
+      icon("i-timer","ic-14")+'<span class="mline-n">'+esc(fmtTracked(secs))+' tracked</span></button>');
+
+    const over=items.length>MONTH_LINES,shown=over?items.slice(0,MONTH_LINES-1):items;
+    const first=d.getDate()===1;
+    return '<div class="mcell'+(d.getMonth()!==m?" out":"")+(s===tstr?" today":"")+(s<tstr?" past":"")+
+        ((i+1)%7===0?" last-col":"")+(i>=days.length-7?" last-row":"")+'" data-act="new-task" data-date="'+s+'" data-total="'+items.length+'">'+
+      '<div class="mtop"><span class="mnum num'+(first?" wide":"")+'">'+(first?esc(MONS[d.getMonth()])+" ":"")+d.getDate()+'</span></div>'+
+      '<div class="mlist">'+shown.join("")+
+        (over?'<button class="mmore" data-act="peek" data-date="'+s+'" data-stop="1">+'+(items.length-shown.length)+' more</button>':"")+
+      '</div></div>';
+  }).join("");
+  return '<div class="mhead">'+dowLabels().map(x=>'<div>'+x+'</div>').join("")+'</div>'+
+    '<div class="mgrid" style="grid-template-rows:repeat('+(days.length/7)+',minmax(var(--mrow-min),1fr))">'+cells+'</div>';
 }
+/* Four lines is the most a cell shows, but on a short screen a six-week
+   month has room for fewer, and a half-cut fourth line reads as a fault.
+   After drawing, each cell drops lines from the end until what is left fits,
+   and the "+N more" count takes them in. */
+function fitMonth(){
+  document.querySelectorAll(".mcell").forEach(c=>{
+    const list=c.querySelector(".mlist");if(!list)return;
+    const total=Number(c.dataset.total)||0;
+    const items=[...list.children].filter(x=>!x.classList.contains("mmore"));
+    items.forEach(x=>{x.style.display="";});
+    let more=list.querySelector(".mmore"),shown=items.length;
+    const setMore=()=>{
+      const n=total-shown;if(n<=0){if(more)more.remove();more=null;return;}
+      if(!more){more=document.createElement("button");more.className="mmore";more.dataset.act="peek";
+        more.dataset.date=c.dataset.date;more.dataset.stop="1";list.appendChild(more);}
+      more.textContent="+"+n+" more";
+    };
+    while(list.scrollHeight>list.clientHeight+1&&shown>0){items[--shown].style.display="none";setMore();}
+  });
+}
+let fitTimer=null;
+window.addEventListener("resize",()=>{clearTimeout(fitTimer);fitTimer=setTimeout(()=>{if(V.view==="calendar"&&V.calMode!=="week")fitMonth();},120);});
+
 function overduePanel(){
   const o=overdueItems(),n=o.tasks.length+o.miss.length;
   const head='<div class="od-head">'+
@@ -1699,6 +1743,7 @@ function renderView(){
   else vp.innerHTML=viewNotes();
   const gs=el("gridScroll");if(gs)gs.scrollTop=Math.max(0,(7-H0)*PX-8);
   if(V.view==="calendar"||V.view==="dashboard")gcalEnsure();
+  if(V.view==="calendar"&&document.querySelector(".mgrid"))fitMonth();
 }
 function render(){renderRail();renderTopbar();renderView();}
 
