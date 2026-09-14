@@ -362,6 +362,18 @@ function renderTopbar(){
 }
 
 /* ============ shared fragments ============ */
+/* A category drop-down shows the chosen category's colour as a dot inside
+   the field -- the same dot its list shows beside every option -- so the
+   colours stay familiar wherever a category is picked. `any` adds a first
+   option with no category, which shows no dot. */
+function catSelect(attrs,val,o){
+  o=o||{};const c=val?cat(val):null;
+  return '<span class="catsel'+(o.cls?" "+o.cls:"")+(c?"":" none")+'" style="--c:'+(c?c.color:"transparent")+'">'+
+    '<i class="catsel-dot" aria-hidden="true"></i><select '+attrs+'>'+
+    (o.any?'<option value="">'+esc(o.any)+'</option>':"")+
+    S.categories.map(x=>'<option value="'+x.id+'"'+(val===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+
+    '</select></span>';
+}
 function catChip(id){const c=cat(id);return '<span class="chip chip-cat" style="--c:'+c.color+'">'+icon(c.icon)+esc(c.name)+'</span>';}
 function dueChip(t){
   if(!t.due)return"";
@@ -707,8 +719,7 @@ function viewDashboard(){
   const qc=S.categories.some(c=>c.id===S.prefs.quickCat)?S.prefs.quickCat:S.categories[0].id;
   const quick='<div class="dquick">'+icon("i-plus","ic-14")+
     '<input id="dashQuick" placeholder="Add a task for today, then press Enter" aria-label="Add a task for today" autocomplete="off">'+
-    '<select id="dashQuickCat" aria-label="Category for the new task">'+S.categories.map(c=>
-      '<option value="'+c.id+'"'+(c.id===qc?" selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select></div>';
+    catSelect('id="dashQuickCat" aria-label="Category for the new task"',qc,{cls:"bare"})+'</div>';
 
   const todayCard='<section class="dcard dash-today">'+dashHead("i-sun","Today","",
       '<small>'+openT+' to do · '+leftR+' in your schedule</small>')+quick+
@@ -1009,7 +1020,7 @@ function filterBar(){
   if(V.adv){
     h+='<div class="adv">'+
       field("Status",'<select class="inp" data-act="f" data-k="status"><option value="">Any status</option>'+STATUSES.map(s=>'<option value="'+s.id+'"'+(V.f.status===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select>')+
-      field("Category",'<select class="inp" data-act="f" data-k="cat"><option value="">All categories</option>'+S.categories.map(c=>'<option value="'+c.id+'"'+(V.f.cat===c.id?" selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select>')+
+      field("Category",catSelect('class="inp" data-act="f" data-k="cat"',V.f.cat,{any:"All categories"}))+
       field("Matrix quadrant",'<select class="inp" data-act="f" data-k="quad"><option value="">Any priority</option>'+QUADS.map(q=>'<option value="'+q.id+'"'+(V.f.quad===q.id?" selected":"")+'>'+esc(q.name)+'</option>').join("")+'<option value="none"'+(V.f.quad==="none"?" selected":"")+'>Not prioritised</option></select>')+
       field("Due from",dateField('data-act="f" data-k="from"',V.f.from,{label:"Due from",ph:"Any date"}))+
       field("Due until",dateField('data-act="f" data-k="to"',V.f.to,{label:"Due until",ph:"Any date"}))+
@@ -1189,7 +1200,7 @@ function viewNotes(){
     '<button data-act="note-pin" data-id="'+n.id+'" title="Pin note" style="width:auto;padding:0 9px;font-size:12px;font-weight:600">'+(n.pinned?"Unpin":"Pin")+'</button>'+
     '<button data-act="note-delete" data-id="'+n.id+'" title="Delete note" style="color:var(--danger)">'+icon("i-trash","ic-14")+'</button></div>';
   const meta='<div class="ned-meta">'+
-    '<select class="inp" id="noteCat" style="width:auto;min-width:150px">'+S.categories.map(c=>'<option value="'+c.id+'"'+(n.cat===c.id?" selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select>'+
+    catSelect('class="inp" id="noteCat" aria-label="Category"',n.cat,{cls:"note-cat"})+
     '<input class="inp" id="noteTags" style="width:auto;min-width:200px;flex:1" value="'+esc((n.tags||[]).join(", "))+'" placeholder="Tags, comma separated">'+
     '</div>';
   const acts='<div class="actions-panel"><h4>'+icon("i-check","ic-14")+'Action items <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0">— each one becomes a task on your board and calendar</span></h4>'+
@@ -1704,7 +1715,7 @@ function routineModal(id){
     '<div class="mbody">'+
     field("Routine",'<input class="inp" id="rTitle" value="'+esc(r.title)+'" placeholder="Skincare routine, stand-up, weekly review…">')+
     '<div class="grid3">'+
-      field("Category",'<select class="inp" id="rCat">'+S.categories.map(c=>'<option value="'+c.id+'"'+(r.cat===c.id?" selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select>')+
+      field("Category",catSelect('class="inp" id="rCat"',r.cat))+
       field("Time",timeField('id="rTime"',r.time,{label:"Time",req:1}))+
       field("Minutes",'<input class="inp" type="number" min="5" step="5" id="rDur" value="'+(r.dur||30)+'">')+
     '</div>'+
@@ -1986,7 +1997,6 @@ document.addEventListener("click",function(e){
     case "sh-tab":V.sheet.tab=n.dataset.v;renderSheet();break;
     case "sh-done":{const t=sheetTask();if(t&&V.sheet.id)toggleTaskDone(t.id),renderSheet();break;}
     case "sh-delete":if(arm(n,"Delete for good?"))deleteTask(V.sheet.id);break;
-    case "sh-cat":{const t=sheetTask();if(t&&t.cat!==n.dataset.v)patchCurrent({cat:n.dataset.v});break;}
     case "pk-open":pkOpen(n);break;
     case "pk-pick":case "pk-day":pkPick(n.dataset.v);break;
     case "pk-clear":pkPick("");break;
@@ -2204,6 +2214,8 @@ document.addEventListener("keydown",function(e){
 });
 document.addEventListener("change",function(e){
   const t=e.target;
+  const cs=t.tagName==="SELECT"&&t.closest(".catsel");
+  if(cs){const c=t.value?cat(t.value):null;cs.style.setProperty("--c",c?c.color:"transparent");cs.classList.toggle("none",!c);}
   if(t.id==="importFile"){importPicked(t.files&&t.files[0]);return;}
   if(t.id==="dashQuickCat"){S.prefs.quickCat=t.value;save("prefs");return;}
   if(t.dataset&&t.dataset.act==="gcal-cal"){
@@ -2868,13 +2880,8 @@ window.addEventListener("resize",function(){if(PK.el)pkPlace();});
 try{new MutationObserver(function(){if(PK.el&&!(PK.btn&&PK.btn.isConnected))pkRelink();})
   .observe(document.body,{childList:true,subtree:true});}catch(e){}
 
-/* Every category as a pill in its own colour, the chosen one outlined and
-   ticked: one click to change it, and the colours become familiar. */
 function sheetCats(t){
-  return '<div class="catpick" role="radiogroup" aria-label="Category">'+S.categories.map(x=>{
-    const on=t.cat===x.id;
-    return '<button class="cp'+(on?" on":"")+'" style="--c:'+x.color+'" data-act="sh-cat" data-v="'+x.id+'" role="radio" aria-checked="'+on+'">'+
-      icon(x.icon,"ic-14")+esc(x.name)+(on?icon("i-check","ic-14 cp-tick"):"")+'</button>';}).join("")+'</div>';
+  return catSelect('class="inp inp-sm" data-act="sh-set" data-k="cat" aria-label="Category"',t.cat);
 }
 /* Two questions, each a yes or a no, and the quadrant they add up to --
    rather than four checkboxes whose pairing had to be guessed. */

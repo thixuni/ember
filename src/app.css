@@ -812,17 +812,17 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .pk-day.today:not(.on){box-shadow:inset 0 0 0 1px var(--line-2);color:var(--accent-ink);font-weight:700}
 .pk-day.on{background:var(--accent);color:var(--on-accent);font-weight:700}
 
-/* category: every one a pill in its own colour */
-.catpick{display:flex;flex-wrap:wrap;gap:6px}
-.cp{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px 0 9px;border-radius:20px;border:1px solid transparent;
-  font-size:12px;font-weight:600;background:color-mix(in srgb,var(--c) 11%,var(--tint-base));
-  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));transition:background .12s,border-color .12s}
-.cp > *{pointer-events:none}
-.cp .ic{width:13px;height:13px;flex:none}
-.cp:hover{background:color-mix(in srgb,var(--c) 18%,var(--tint-base))}
-.cp.on{background:color-mix(in srgb,var(--c) 16%,var(--tint-base));border-color:color-mix(in srgb,var(--c) 70%,var(--tint-base));
-  box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 22%,transparent)}
-.cp .cp-tick{stroke-width:2.6;margin-left:1px}
+/* category: a drop-down with the chosen category's colour as a dot */
+.catsel{position:relative;display:block;min-width:0}
+.catsel-dot{position:absolute;left:11px;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:var(--c);pointer-events:none;z-index:1}
+.catsel select.inp{padding-left:28px}
+.catsel.none .catsel-dot{display:none}
+.catsel.none select.inp{padding-left:10px}
+.catsel.none select.inp-sm{padding-left:8px}
+.catsel.note-cat{display:inline-block;min-width:170px}
+.catsel.bare{display:inline-block;flex:none}
+.catsel.bare .catsel-dot{left:0;width:8px;height:8px;margin-top:-4px}
+.catsel.bare select{padding-left:14px}
 
 /* priority: two yes-or-no questions and what they add up to */
 .prio2{display:flex;flex-direction:column;gap:8px}

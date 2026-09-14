@@ -308,7 +308,9 @@ grey the operating system chose and matched nothing on the page.
 - **Selects** stay real `<select>` elements, so values, handlers and arrow
   keys stay native. A capturing `mousedown` stops the browser's list and
   opens the same pop-over over the options; a list of categories shows their
-  colours. On a touch screen the phone's own picker is better, so there it
+  colours. Write a category drop-down with `catSelect(attrs, value, opts)`:
+  it puts the chosen category's colour as a dot inside the closed field too,
+  and a `change` listener keeps that dot in step where nothing redraws. On a touch screen the phone's own picker is better, so there it
   is left alone (`pkSelectable`).
 - The pop-over is appended to `<body>`, so a modal's or the panel's
   overflow cannot clip it, and is placed against its field. A redraw under an
