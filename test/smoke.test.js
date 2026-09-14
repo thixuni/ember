@@ -160,7 +160,8 @@ test('everything reaching the shell goes through the preload bridge', () => {
     chooseBackupDir: 'backup:dir', writeBackup: 'backup:write',
     timer: 'timer:state', popTimer: 'timer:pop', onTimerCmd: 'timer:cmd',
     gcalConnect: 'gcal:connect', gcalCancel: 'gcal:cancel', gcalDisconnect: 'gcal:disconnect',
-    gcalStatus: 'gcal:status', gcalRequest: 'gcal:request'
+    gcalStatus: 'gcal:status', gcalRequest: 'gcal:request',
+    scheduleReminders: 'remind:schedule', testReminder: 'remind:test', onReminderOpen: 'remind:open'
   };
   for (const [member, channel] of Object.entries(surface)) {
     assert.ok(new RegExp('\\b' + member + '\\s*[:(]').test(preload), 'preload.js no longer exposes ' + member);

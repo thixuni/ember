@@ -43,6 +43,13 @@ contextBridge.exposeInMainWorld('orbit', {
   gcalStatus:     ()    => ipcRenderer.invoke('gcal:status'),
   gcalRequest:    req   => ipcRenderer.invoke('gcal:request', req),
 
+  /* ---- reminders ----
+     The planner sends the whole list whenever it changes; the shell holds
+     the timers and shows the notifications. */
+  scheduleReminders: list => ipcRenderer.send('remind:schedule', list),
+  testReminder:      msg  => ipcRenderer.send('remind:test', msg),
+  onReminderOpen:    fn   => ipcRenderer.on('remind:open', (e, d) => fn(d)),
+
   /* ---- the floating timer ---- */
   timer:    state => ipcRenderer.send('timer:state', state),
   popTimer: ()    => ipcRenderer.send('timer:pop'),

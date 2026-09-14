@@ -195,6 +195,18 @@ one-off redirect to `127.0.0.1`, and PKCE. The key it gets back is encrypted
 with your operating system's keychain and never leaves the main process; the
 planner page asks the main process to make each request.
 
+## Reminders
+
+The desktop app sends notifications even with its window closed, since it
+keeps running in the tray. Routines, and tasks with a due time, remind you
+30 minutes before; change that per task or routine, or turn it off. Once a
+day, at 12:00 unless you choose another time, one notification says how many
+tasks are overdue. Quiet hours, if you set them, hold everything back.
+Settings ▸ Reminders has it all, and a button to send a test.
+
+The browser build can remind you too, after you allow notifications, but
+only while its tab is open.
+
 ## Backups
 
 **File ▸ Back up planner** writes a `.json` file and **File ▸ Restore from

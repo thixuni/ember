@@ -1,4 +1,4 @@
-const {app, BrowserWindow, Menu, Tray, shell, dialog, ipcMain, screen, nativeTheme} = require('electron');
+const {app, BrowserWindow, Menu, Tray, shell, dialog, ipcMain, screen, nativeTheme, Notification} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const KEY = 'everyday-orbit-v1';
@@ -271,6 +271,47 @@ ipcMain.handle('gcal:disconnect', () => gcal.disconnect());
 ipcMain.handle('gcal:status', () => gcal.status());
 ipcMain.handle('gcal:request', (e, req) => gcal.request(req));
 
+/* -------------------------------------------------------------- reminders
+ * The planner works out what to remind and when, and hands the whole list
+ * over each time it changes; this side only keeps the timers and shows the
+ * notifications. Timers here are not throttled the way a hidden window's
+ * are, and they keep running with the window closed, which is the point.
+ */
+const remindTimers = new Map();
+const remindFired = new Set();      // this session; a new list cannot re-send one
+const remindShown = new Set();      // held so a click handler is not collected
+function showReminder(r){
+  if(!Notification.isSupported()) return;
+  const n = new Notification({title: r.title, body: r.body || '', icon: iconPath()});
+  remindShown.add(n);
+  const drop = () => remindShown.delete(n);
+  n.on('click', () => {
+    showPlanner();
+    const send = () => { if(win && !win.isDestroyed()) win.webContents.send('remind:open', r.open || null); };
+    if(win && win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
+    drop();
+  });
+  n.on('close', drop);
+  n.show();
+}
+ipcMain.on('remind:schedule', (e, list) => {
+  for(const t of remindTimers.values()) clearTimeout(t);
+  remindTimers.clear();
+  const now = Date.now();
+  (Array.isArray(list) ? list : []).forEach(r => {
+    if(!r || !r.id || remindFired.has(r.id)) return;
+    const wait = Number(r.at) - now;
+    /* A minute late is still worth sending; an hour late is not. */
+    if(!(wait > -60000) || wait > 48 * 3600 * 1000) return;
+    remindTimers.set(r.id, setTimeout(() => {
+      remindTimers.delete(r.id);
+      remindFired.add(r.id);
+      showReminder(r);
+    }, Math.max(0, wait)));
+  });
+});
+ipcMain.on('remind:test', (e, r) => showReminder(Object.assign({title: 'Everyday Orbit', body: ''}, r || {}, {open: null})));
+
 /* ------------------------------------------------------------ attachments */
 
 ipcMain.on('file:save', (e, req) => {
@@ -493,6 +534,10 @@ if(!app.requestSingleInstanceLock()){
     showPlanner();
   });
   app.on('before-quit', () => { quitting = true; });
+  /* Windows files notifications under the app's id; the installer uses the
+     same one, so a development run and an installed copy look the same. */
+  if(process.platform === 'win32') app.setAppUserModelId('com.thisuni.everydayorbit');
+
   app.whenReady().then(() => {
     buildMenu();
     buildTray();

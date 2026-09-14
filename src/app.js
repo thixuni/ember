@@ -153,6 +153,7 @@ function bodyFor(k){
 function save(key){
   dirty[key]=true;touched[key]=true;saveLocal();setSync("warn","Saving…");
   if((key==="tasks"||key==="routines")&&!GC.applying)gcalSoon();
+  if(key==="tasks"||key==="routines"||key==="completions"||key==="prefs")remindSoon();
   clearTimeout(timers[key]);
   timers[key]=setTimeout(()=>{
     timers[key]=null;
@@ -259,6 +260,10 @@ const V={view:"dashboard",calMode:"week",anchor:today(),taskMode:"board",q:"",od
 const GC={events:[],cals:[],from:"",to:"",busy:false,fetching:false,err:"",status:null,
   connecting:false,applying:false,soon:null,draft:{id:"",secret:""}};
 
+/* Reminders' working state: the pending reschedule, and in a plain browser
+   the timers and what has already been shown. See the reminders section. */
+const RM={soon:null,web:new Map(),fired:new Set()};
+
 /* ============ rail + topbar ============ */
 const NAV=[{id:"dashboard",name:"Dashboard",icon:"i-dash"},{id:"calendar",name:"Calendar",icon:"i-calendar"},{id:"tasks",name:"Tasks",icon:"i-board"},
  {id:"matrix",name:"Matrix",icon:"i-grid"},{id:"routines",name:"Routines",icon:"i-repeat"},{id:"notes",name:"Notes",icon:"i-note"}];
@@ -336,7 +341,7 @@ function catChip(id){const c=cat(id);return '<span class="chip chip-cat" style="
 function dueChip(t){
   if(!t.due)return"";
   const d=dayDiff(t.due,TODAY());const k=isOpen(t)?(d<0?"over":(d<=1?"soon":"")):"";
-  return '<span class="chip chip-due '+k+'">'+icon("i-clock")+esc(relDue(t.due))+'</span>';
+  return '<span class="chip chip-due '+k+'">'+icon("i-clock")+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>';
 }
 function quadChip(t){const q=quadOf(t);if(!q)return"";const Q=QUADS.find(x=>x.id===q);
   return '<span class="chip chip-q '+Q.cls+'">'+esc(Q.name)+'</span>';}
@@ -551,7 +556,7 @@ function viewDashboard(){
   /* ---- to do: tasks due today ---- */
   const taskRow=t=>{const c=cat(t.cat),done=t.status==="completed",est=tEst(t);
     return dashRow({color:c.color,done:done,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
-      meta:esc(c.name)+(est?' · '+esc(fmtMins(est))+' estimate':""),
+      meta:esc(c.name)+(t.dueTime?' · due '+esc(fmtTime(t.dueTime)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
       end:done?"":timerBtn(t)});};
   const openT=d.tasks.filter(isOpen).length;
 
@@ -1000,7 +1005,8 @@ function viewRoutines(){
       return '<div class="wd"><small>'+DOWS[i][0]+'</small><button class="cell'+(sched?" sched":"")+(done?" done":"")+(isT?" today":"")+'" '+(sched?'data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'"':'disabled')+' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
     return '<article class="rcard'+(r.active?"":" paused")+'" style="--c:'+c.color+'">'+
       '<div class="rtop"><span class="ravatar">'+icon(c.icon,"ic-18")+'</span>'+
-      '<div style="flex:1;min-width:0"><h3>'+esc(r.title)+'</h3><div class="rsub">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+r.dur+' min</span><span>·</span><span>'+esc(freqLabel(r))+'</span></div></div>'+
+      '<div style="flex:1;min-width:0"><h3>'+esc(r.title)+'</h3><div class="rsub">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+r.dur+' min</span><span>·</span><span>'+esc(freqLabel(r))+'</span>'+
+      '<span class="rbell'+(remindMins(r)===null?" off":"")+'" title="Reminder">'+icon("i-bell","ic-14")+esc(remindLabel(r))+'</span></div></div>'+
       (st>1?'<span class="streak">'+icon("i-flame","ic-14")+st+'</span>':"")+'</div>'+
       days+
       '<div style="display:flex;gap:6px;align-items:center">'+catChip(r.cat)+'<div class="spacer" style="flex:1"></div>'+
@@ -1234,6 +1240,7 @@ const SET_TABS=[
   {group:"Preferences"},
   {id:"appearance", name:"Appearance",     icon:"i-palette"},
   {id:"dates",      name:"Dates and times",icon:"i-clock"},
+  {id:"reminders",  name:"Reminders",      icon:"i-bell"},
   {group:"Your planner"},
   {id:"connections",name:"Connections",    icon:"i-link"},
   {id:"data",       name:"Your data",      icon:"i-folder"}];
@@ -1286,6 +1293,34 @@ function settingsModal(){
         field("Open the planner on:",launchPick,"The view you land on each time the planner starts."))+
       sec("Time",field("",toggle("clock24",p.clock24,"24-hour clock"),
         p.clock24?"Times read as 14:30.":"Times read as 2:30pm."));
+  }
+  else if(tab==="reminders"){
+    const rp=remindPrefs(),web=!hasDesktop();
+    const canWeb=typeof Notification!=="undefined";
+    const timeIn=(k,v,label)=>'<input class="inp inp-time" type="time" data-act="set-pref" data-k="remind.'+k+'" value="'+esc(v||"")+'" aria-label="'+esc(label)+'">';
+    const reach=!web?"":!canWeb
+      ? '<p class="set-err">'+icon("i-alert","ic-14")+'This browser cannot show notifications. The desktop app can.</p>'
+      : Notification.permission!=="granted"
+        ? '<div class="set-actions" style="margin-top:12px"><button class="btn btn-sm btn-primary" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button></div>'
+        : "";
+    /* Each control sits on the line of the switch it belongs to, so the tab
+       fits without scrolling, as the other tabs do. */
+    pane=sec("Reminders",
+        field("",'<div class="set-actions">'+toggle("remind.on",rp.on,"Send reminders")+
+          '<button class="btn btn-sm" data-act="remind-test">'+icon("i-bell","ic-14")+'Send a test</button></div>',
+          "Routines, and tasks with a due time, remind you 30 minutes before unless you choose otherwise on the task or routine."+
+          (web?" In a browser they only arrive while this tab is open.":" They arrive even with the window closed."))+
+        reach)+
+      sec("Overdue tasks",
+        field("",'<div class="set-actions">'+toggle("remind.overdue",rp.overdue,"A daily count of overdue tasks, at")+
+          timeIn("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>',
+          "One notification with how many tasks are overdue, not one per task, and only when there are any."))+
+      sec("Quiet hours",
+        field("",'<div class="set-actions">'+toggle("remind.quiet",rp.quiet,"Quiet hours")+
+          (rp.quiet?timeIn("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+
+            timeIn("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>',
+          rp.quiet&&!(rp.quietFrom&&rp.quietTo)?"Pick both times to switch quiet hours on."
+            :"Nothing is sent in this window, the overdue count included. Reminders inside it are skipped, not saved up."));
   }
   else if(tab==="connections"){
     const vault=vaultPath();
@@ -1515,6 +1550,7 @@ function routineModal(id){
       field("Time",'<input class="inp" type="time" id="rTime" value="'+esc(r.time)+'">')+
       field("Minutes",'<input class="inp" type="number" min="5" step="5" id="rDur" value="'+(r.dur||30)+'">')+
     '</div>'+
+    field("Reminder",'<select class="inp" id="rRemind">'+remindOptions(r)+'</select>')+
     field("Repeats",'<div class="pickers" id="rFreq">'+
       ['daily|Every day','weekdays|Weekdays','weekly|Chosen days','interval|Every N days'].map(o=>{const[v,l]=o.split("|");
         const on=(v==="daily"&&r.freq==="weekly"&&(r.days||[]).length===7)||(v==="weekdays"&&r.freq==="weekly"&&(r.days||[]).length===5&&[1,2,3,4,5].every(x=>r.days.indexOf(x)>-1))||(v==="weekly"&&r.freq==="weekly"&&!((r.days||[]).length===7||((r.days||[]).length===5&&[1,2,3,4,5].every(x=>r.days.indexOf(x)>-1))))||(v==="interval"&&r.freq==="interval");
@@ -1658,7 +1694,8 @@ function saveRoutine(id){
   const freq=M.dataset.freq==="interval"?"interval":"weekly";
   const data={title:title,cat:el("rCat").value,time:el("rTime").value||"09:00",dur:Math.max(5,Number(el("rDur").value)||30),
     freq:freq,days:freq==="interval"?[]:days,every:Math.max(1,Number(el("rEvery").value)||2),
-    start:el("rStart").value||TODAY(),end:el("rEnd").value||"",active:M.dataset.active!=="false"};
+    start:el("rStart").value||TODAY(),end:el("rEnd").value||"",active:M.dataset.active!=="false",
+    remind:(v=>v==="d"?null:v==="off"?false:Number(v))(el("rRemind").value)};
   if(freq==="weekly"&&!days.length){toast("Pick at least one day");return;}
   let r=id?routineById(id):null;
   if(r)Object.assign(r,data);else S.routines.push(Object.assign({id:uid("r"),note:""},data));
@@ -1807,6 +1844,9 @@ document.addEventListener("click",function(e){
     case "gcal-cancel":{const o=gcalBridge();if(o&&o.gcalCancel)o.gcalCancel();break;}
     case "gcal-sync":gcalSync();break;
     case "gcal-disconnect":if(arm(n,"Disconnect?"))gcalDisconnect();break;
+    case "remind-test":remindTest();break;
+    case "remind-allow":if(typeof Notification!=="undefined")
+      Promise.resolve(Notification.requestPermission()).then(()=>{settingsModal();remindSoon();});break;
     case "dash-more":V.dashAll=!V.dashAll;renderView();break;
     case "dash-note":V.view="notes";V.noteId=id;V.q="";render();break;
     case "note-tag":V.noteTag=n.dataset.v;renderView();break;
@@ -1963,11 +2003,15 @@ document.addEventListener("change",function(e){
       if(a==="gcal")gcalSoon();
     }else S.prefs[k]=(k==="weekStart")?Number(v):v;
     if(k==="launch")S.prefs.launchSet=true;
+    if(t.type==="time"){save("prefs");return;}
     save("prefs");applyAppearance();render();settingsModal();return;
   }
   if(t.dataset&&t.dataset.act==="sh-set"){
     const k=t.dataset.k;let v=t.value;
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);
+    if(k==="remind")v=v==="d"?null:v==="off"?false:Number(v);
+    if(k==="dueTime"){patchCurrent({dueTime:v},false);
+      const box=el("shRemind"),cur=sheetTask();if(box&&cur)box.innerHTML=taskRemindHtml(cur);return;}
     if(k==="title"){v=v.trim();if(!v){const cur=sheetTask();t.value=cur?cur.title:"";return;}}
     // Re-rendering while the caret is in a text field would throw it away.
     patchCurrent({[k]:v},k!=="title"&&k!=="desc");
@@ -2018,7 +2062,8 @@ function maybeWelcome(){
    write, plus an automatic entry for every field that changes. */
 const FIELD_LABEL={title:"Title",desc:"Description",due:"Due date",start:"Start date",
   status:"Status",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
-  tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments"};
+  tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
+  dueTime:"Due time",remind:"Reminder"};
 
 const actFor=id=>S.activity.filter(a=>a.task===id).sort((a,b)=>a.at-b.at);
 
@@ -2030,6 +2075,8 @@ function logAct(taskId,kind,text,meta){
 
 /* Render a field value the way a person would say it, not the way it is stored. */
 function fieldText(k,v){
+  if(k==="remind")return remindLabel({remind:v});
+  if(k==="dueTime")return v?fmtTime(v):"no time";
   if(v==null||v===""||(Array.isArray(v)&&!v.length))return "empty";
   if(k==="status")return ST(v).name;
   if(k==="cat")return cat(v).name;
@@ -2498,7 +2545,9 @@ function renderSheet(){
           '<input class="inp inp-sm" type="date" value="'+esc(tStart(t))+'" data-act="sh-set" data-k="start" aria-label="Start date">'+
           '<span class="arrow">'+icon("i-chev-r","ic-14")+'</span>'+
           '<input class="inp inp-sm" type="date" value="'+esc(t.due||"")+'" data-act="sh-set" data-k="due" aria-label="Due date">'+
+          '<input class="inp inp-sm dtime-in" type="time" value="'+esc(t.dueTime||"")+'" data-act="sh-set" data-k="dueTime" aria-label="Due time"'+(t.due?"":" disabled title=\"Set a due date first\"")+'>'+
           '</div>',"i-calendar")+
+        metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell")+
         metaRow("Category",'<select class="inp inp-sm" data-act="sh-set" data-k="cat">'+
           S.categories.map(x=>'<option value="'+x.id+'"'+(t.cat===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>',c.icon)+
         metaRow("Priority",sheetPrio(t),"i-flag")+
@@ -2582,6 +2631,142 @@ function syncTimerWindow(){
   const est=tEst(t)*60,secs=liveSecs();
   try{o.timer({state:r.since?"running":"paused",title:t.title,task:t.id,
     secs:secs,est:est,colour:cat(t.cat).color,over:est>0&&secs>est,dark:dark,accent:accent});}catch(e){}
+}
+
+/* ============ reminders ============ */
+/* Worked out here, where the data is, and handed to the desktop shell to
+   deliver: main.js holds the timers and shows the notifications, so they
+   arrive with the window closed and are not slowed the way a hidden page's
+   timers are. The list is rebuilt from scratch whenever tasks, routines,
+   ticks or settings change, and every five minutes, so nothing is ever
+   stale by more than that. In a plain browser the page keeps the timers
+   itself, and they only fire while the tab is open.
+
+   A reminder's id carries what it was worked out from -- the item, the day,
+   the time, the lead -- so moving a routine or changing its reminder makes a
+   new one rather than being swallowed as "already shown". */
+const REMIND_DEFAULT=30;
+const REMIND_OPTS=[[0,"At the time"],[5,"5 min before"],[10,"10 min before"],[15,"15 min before"],
+  [60,"1 hour before"],[120,"2 hours before"],[1440,"1 day before"]];
+/* remind is unset (the default, 30 minutes), a number of minutes, or false. */
+function remindMins(x){if(x.remind===false)return null;return typeof x.remind==="number"?x.remind:REMIND_DEFAULT;}
+function remindLabel(x){
+  const m=remindMins(x);if(m===null)return "No reminder";
+  if(m===REMIND_DEFAULT)return "30 min before";
+  const o=REMIND_OPTS.filter(p=>p[0]===m)[0];return o?o[1]:m+" min before";
+}
+function remindOptions(x){
+  const v=x.remind===false?"off":typeof x.remind==="number"&&x.remind!==REMIND_DEFAULT?String(x.remind):"d";
+  return '<option value="d"'+(v==="d"?" selected":"")+'>30 min before (default)</option>'+
+    REMIND_OPTS.map(o=>'<option value="'+o[0]+'"'+(v===String(o[0])?" selected":"")+'>'+o[1]+'</option>').join("")+
+    '<option value="off"'+(v==="off"?" selected":"")+'>No reminder</option>';
+}
+function taskRemindHtml(t){
+  if(!t.due)return '<span class="mnone">Give it a due date and time to get a reminder</span>';
+  if(!t.dueTime)return '<span class="mnone">Add a due time above to get a reminder</span>';
+  return '<select class="inp inp-sm" data-act="sh-set" data-k="remind" aria-label="Reminder">'+remindOptions(t)+'</select>';
+}
+/* Defaults filled in on the one object, as with gcalPrefs, since the nested
+   settings handler writes into it in place. No quiet hours by default. */
+function remindPrefs(){
+  const p=S.prefs.remind||(S.prefs.remind={});
+  if(p.on===undefined)p.on=true;
+  if(p.overdue===undefined)p.overdue=true;
+  if(!p.overdueAt)p.overdueAt="12:00";
+  if(p.quiet===undefined)p.quiet=false;
+  if(p.quietFrom===undefined)p.quietFrom="";
+  if(p.quietTo===undefined)p.quietTo="";
+  return p;
+}
+const hm=tm=>{const x=String(tm||"0:0").split(":").map(Number);return x[0]*60+(x[1]||0);};
+function inQuiet(ms,p){
+  if(!p.quiet||!p.quietFrom||!p.quietTo||p.quietFrom===p.quietTo)return false;
+  const d=new Date(ms),m=d.getHours()*60+d.getMinutes(),a=hm(p.quietFrom),b=hm(p.quietTo);
+  return a<b?(m>=a&&m<b):(m>=a||m<b);          // a window like 22:00-07:00 wraps midnight
+}
+function leadText(mins){
+  if(!mins)return "now";
+  if(mins<60)return "in "+mins+" min";
+  if(mins<1440)return "in "+(mins/60)+" hour"+(mins===60?"":"s");
+  return "tomorrow";
+}
+function buildReminders(){
+  const p=remindPrefs();if(!p.on)return [];
+  const now=Date.now(),until=now+36*3600e3,out=[];
+  const at=(ds,tm)=>{const d=parseD(ds);d.setHours(Math.floor(hm(tm)/60),hm(tm)%60,0,0);return d.getTime();};
+  const clock=ms=>{const d=new Date(ms);return fmtTime(pad(d.getHours())+":"+pad(d.getMinutes()));};
+  const keep=fire=>fire>=now-60000&&fire<=until;
+  /* A day-before reminder for tomorrow's routine is fired today, so look two
+     days ahead. Reminders ignore the category filter: hiding a category is
+     about what you look at, not what you want to be told. */
+  for(let i=0;i<=2;i++){
+    const d=addDays(today(),i),ds=ymd(d);
+    S.routines.forEach(r=>{
+      if(!r.time||!routineOn(r,d)||doneR(r,ds))return;
+      const m=remindMins(r);if(m===null)return;
+      const start=at(ds,r.time),fire=start-m*60000;if(!keep(fire))return;
+      out.push({id:"r:"+r.id+":"+ds+":"+r.time+":"+m,at:fire,title:r.title,
+        body:(m?"Starts "+leadText(m)+", at "+clock(start):"Starting now")+" · "+cat(r.cat).name,
+        open:{kind:"routine",id:r.id,date:ds}});
+    });
+  }
+  S.tasks.forEach(t=>{
+    if(!isOpen(t)||!t.due||!t.dueTime)return;
+    const m=remindMins(t);if(m===null)return;
+    const due=at(t.due,t.dueTime),fire=due-m*60000;if(!keep(fire))return;
+    out.push({id:"t:"+t.id+":"+t.due+"T"+t.dueTime+":"+m,at:fire,title:t.title,
+      body:(m?"Due "+leadText(m)+", at "+clock(due):"Due now")+" · "+cat(t.cat).name,
+      open:{kind:"task",id:t.id}});
+  });
+  if(p.overdue){
+    let fire=at(TODAY(),p.overdueAt);if(fire<now-60000)fire=at(ymd(addDays(today(),1)),p.overdueAt);
+    /* Counted as it will stand then: anything open and due before that day. */
+    const day=ymd(new Date(fire)),late=S.tasks.filter(t=>isOpen(t)&&t.due&&t.due<day);
+    if(late.length)out.push({id:"overdue:"+day+":"+p.overdueAt,at:fire,
+      title:late.length+" overdue task"+(late.length===1?"":"s"),
+      body:late.slice(0,2).map(t=>t.title).join(", ")+(late.length>2?" and "+(late.length-2)+" more":""),
+      open:{kind:"dashboard"}});
+  }
+  return out.filter(r=>!inQuiet(r.at,p)).sort((a,b)=>a.at-b.at);
+}
+function remindSoon(){clearTimeout(RM.soon);RM.soon=setTimeout(scheduleReminders,800);}
+function scheduleReminders(){
+  let list;try{list=buildReminders();}catch(e){return;}
+  const o=desktop();
+  if(o&&o.scheduleReminders){try{o.scheduleReminders(list);}catch(e){}return;}
+  /* The browser: the page keeps its own timers, and only while open. */
+  RM.web.forEach(x=>clearTimeout(x));RM.web.clear();
+  if(typeof Notification==="undefined"||Notification.permission!=="granted")return;
+  const now=Date.now();
+  list.forEach(r=>{
+    if(RM.fired.has(r.id))return;
+    RM.web.set(r.id,setTimeout(()=>{
+      RM.fired.add(r.id);RM.web.delete(r.id);
+      try{const n=new Notification(r.title,{body:r.body,tag:r.id});
+        n.onclick=()=>{try{window.focus();}catch(e){}openReminder(r.open);n.close();};}catch(e){}
+    },Math.max(0,r.at-now)));
+  });
+}
+/* Where a reminder takes you: a task opens its panel; a routine or the
+   overdue count opens the dashboard, where they can be ticked off. */
+function openReminder(o){
+  if(!o)return;
+  closeModal();
+  if(o.kind==="task"&&taskById(o.id)){V.view="tasks";render();openSheet(o.id);return;}
+  V.view="dashboard";render();
+}
+function remindTest(){
+  const o=desktop(),msg={title:"Reminders are working",body:"This is how a reminder will look."};
+  if(o&&o.testReminder){o.testReminder(msg);toast("Test sent");return;}
+  if(typeof Notification==="undefined"){toast("This browser cannot show notifications");return;}
+  if(Notification.permission!=="granted"){toast("Allow notifications first");return;}
+  try{new Notification(msg.title,{body:msg.body});toast("Test sent");}catch(e){toast("The browser would not show it");}
+}
+function remindBoot(){
+  const o=desktop();
+  if(o&&o.onReminderOpen)o.onReminderOpen(openReminder);
+  scheduleReminders();
+  setInterval(scheduleReminders,5*60*1000);
 }
 
 /* ============ google calendar ============ */
@@ -2989,6 +3174,7 @@ if(S.prefs&&!S.prefs.launchSet&&S.prefs.launch==="calendar"){S.prefs.launch="das
 if(S.prefs&&S.prefs.launch&&NAV.some(v=>v.id===S.prefs.launch)){V.view=S.prefs.launch;render();}
 maybeAutoBackup();
 gcalBoot();
+remindBoot();
 setInterval(()=>{if(V.view==="calendar"&&V.calMode==="week"&&!el("modalRoot").innerHTML)renderView();},60000);
 setInterval(()=>{if(V.view!=="dashboard")return;
   const n=el("dashNext");if(n)n.innerHTML=upNextHtml();

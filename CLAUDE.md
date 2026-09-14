@@ -161,6 +161,34 @@ text rather than copy it. The toolbar keeps the selection alive through the
 click the same way the formatting buttons do: they are in the `mousedown`
 guard that calls `saveSel()` and prevents the default.
 
+### Reminders
+
+Worked out in app.js, delivered by main.js. `buildReminders()` turns tasks,
+routines and `prefs.remind` into a flat list of `{id, at, title, body, open}`
+for the next 36 hours, and `scheduleReminders()` hands the *whole* list to
+the shell every time anything changes (any save of tasks, routines,
+completions or prefs, debounced) and every five minutes. main.js clears its
+timers and sets them again from that list; its timers are not throttled the
+way a hidden window's are, and they keep running with the window closed.
+Clicking a notification sends `remind:open`, and `openReminder()` opens the
+task or the dashboard. In a plain browser the page keeps the timers itself,
+behind a permission prompt, and only while the tab is open.
+
+- An item's `remind` is unset (the default, 30 minutes before), a number of
+  minutes, or `false`. Tasks need a `dueTime` to have a reminder at all;
+  "before" needs something to be before.
+- A reminder's id carries what it was worked out from — item, day, time,
+  lead — so changing any of them makes a new reminder rather than one the
+  shell has already marked as sent.
+- The overdue count is one notification a day at `remind.overdueAt`
+  (12:00 unless changed), counting tasks as they will stand *then*: open and
+  due before that day. It is rebuilt every five minutes, so it is never more
+  than that out of date.
+- Quiet hours have no default and may wrap midnight. A reminder inside them
+  is skipped, not queued for later.
+- Time inputs in Settings and the task panel commit without a redraw. A
+  redraw after the first digit would throw the caret out of the field.
+
 ### Google Calendar
 
 Split across the two processes on purpose. `gcal.js` (main) owns the
