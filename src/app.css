@@ -383,7 +383,7 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .tchip.done{opacity:var(--done-fade)}
 /* Overdue takes over the chip's colour, so the icon follows the background
    rather than staying on the category hue. */
-.tchip.over{--fill:var(--danger-soft);--fill-hover:color-mix(in srgb,var(--danger) 18%,var(--tint-base));--edge:color-mix(in srgb,var(--danger) 55%,var(--tint-base));--label:color-mix(in srgb,var(--danger) var(--ev-label),var(--ink))}
+.tchip.over,.ev.tev.over{--fill:var(--danger-soft);--fill-hover:color-mix(in srgb,var(--danger) 18%,var(--tint-base));--edge:color-mix(in srgb,var(--danger) 55%,var(--tint-base));--label:color-mix(in srgb,var(--danger) var(--ev-label),var(--ink))}
 .tchip.over .ic{color:var(--danger)}
 .grid-scroll{flex:1;overflow-y:auto;min-height:0}
 /* Pinned inside the scroller, so it shares the grid's content width exactly
@@ -424,6 +424,21 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
   color:var(--muted);background:var(--surface-3);border-radius:20px;padding:3px 10px}
 .cal-tracked .ic{color:var(--faint)}
 .ev.done{opacity:var(--done-fade)}
+/* a task with a time: its tick box in the corner, then the title and time */
+.ev.tev{display:flex;align-items:flex-start;gap:6px;padding:4px 6px}
+.ev.tev .tchip-tick{margin-top:1px}
+.tev-body{flex:1;min-width:0;display:block;text-align:left;color:inherit;font:inherit;padding:0}
+.ev.tev.sm{align-items:center;padding:1px 6px}
+.ev.tev.sm .tchip-tick{margin-top:0}
+.ev.tev.sm .tev-body{display:flex;align-items:center;gap:5px}
+.ev.tev.sm .tev-body b{flex:1 1 auto;min-width:0}
+.ev.tev.sm .tev-body i{flex:none;font-size:10px}
+.ev.tev.done .tchip-tick{background:var(--c);border-color:var(--c)}
+.ev.tev.done .tchip-tick .ic{opacity:1}
+/* dragging out a new task: the stretch it will take, in the accent */
+.drag-ghost{position:absolute;left:3px;right:3px;z-index:5;border-radius:7px;border:1.5px solid var(--accent);
+  background:var(--accent-soft);color:var(--accent-ink);font-size:11px;font-weight:700;padding:2px 6px;pointer-events:none;overflow:hidden;white-space:nowrap}
+.daycol{cursor:default;user-select:none}
 .ev.done b{text-decoration:line-through;color:var(--label-done)}
 .nowline{position:absolute;left:0;right:0;height:0;border-top:1.6px solid var(--danger);z-index:4;pointer-events:none}
 .nowline::before{content:"";position:absolute;left:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--danger)}
@@ -453,6 +468,7 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .mline:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
 .mline-dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--c)}
 .mline.ev .mline-dot{border-radius:2px}
+.mline-dot.sq{border-radius:3px;width:7px;height:7px}
 .mline-t{flex:none;font-size:10.5px;color:var(--muted)}
 .mline-n{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .mline.done .mline-n{text-decoration:line-through;color:var(--muted)}
@@ -745,17 +761,36 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .sh-gh{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:12px 0 2px}
 .sh-group:first-child .sh-gh{padding-top:4px}
 
-/* dates: a caption over each field, and words in place of an empty one */
-.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
-.dfield{display:flex;flex-direction:column;gap:5px;min-width:0}
-.dcap{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+/* when: a date, a start and an end time on one line, all day beneath, and a
+   deadline apart from them, as Google Calendar lays out an event */
+.when{display:flex;flex-direction:column;gap:9px;align-items:flex-start}
+.when-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}
+.when-line .pkf{display:inline-flex}
+.when-date{min-width:200px}
+.when-time{width:104px}
+.when-dash{color:var(--muted);padding:0 1px}
+.when-all{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);cursor:pointer}
+.when-all input{width:15px;height:15px;margin:0;accent-color:var(--accent);cursor:pointer}
+.when-add{display:inline-flex;align-items:center;gap:7px;padding:4px 8px 4px 6px;margin-left:-6px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.when-add > *{pointer-events:none}
+.when-add:hover{background:var(--surface-3);color:var(--ink)}
+.when-dl{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2)}
+.when-dl .ic{color:var(--muted)}
+.when-dl-k{font-weight:600;color:var(--muted)}
+.when-dl-f{min-width:150px}
+/* a deadline beside a date, on cards and in the list */
+.m-dl{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.m-dl .ic{width:12px;height:12px}
+.m-dl.over{color:var(--danger-ink)}
+.lr-when{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+
 /* ---- pickers ----
    One pop-over for every date, time and drop-down: a card in the panel
    colours with a header, a body and a footer. Options are the same 30px rows
    everywhere, the chosen one filled in the accent and ticked. The fields that
    open one are a button in the .inp box, the value in words. */
 .pkf{position:relative;display:inline-flex;min-width:0;max-width:100%}
-.field .pkf,.dfield .pkf{display:flex}
+.field .pkf{display:flex}
 .pk-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;cursor:pointer;color:var(--ink);white-space:nowrap}
 .pk-btn > *{pointer-events:none}
 .pk-val{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -779,6 +814,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
   text-transform:uppercase;color:var(--faint);background:var(--surface)}
 .pk-opts{display:grid;gap:3px}
 .pk-time .pk-opts{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pk-time .pk-opts.one{grid-template-columns:minmax(0,1fr)}
+.pk-opt small{font-size:11.5px;font-weight:500;color:var(--muted)}
+.pk-opt.on small{color:inherit}
 .pk-opt{display:flex;align-items:center;gap:8px;width:100%;height:30px;padding:0 10px;border-radius:8px;
   font-size:12.5px;font-weight:500;color:var(--ink);text-align:left;font-variant-numeric:tabular-nums}
 .pk-opt > *{pointer-events:none}

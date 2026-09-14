@@ -198,7 +198,7 @@ planner page asks the main process to make each request.
 ## Reminders
 
 The desktop app sends notifications even with its window closed, since it
-keeps running in the tray. Routines, and tasks with a due time, remind you
+keeps running in the tray. Routines, and tasks with a start time, remind you
 30 minutes before; change that per task or routine, or turn it off. Once a
 day, at 12:00 unless you choose another time, one notification says how many
 tasks are overdue. Quiet hours, if you set them, hold everything back.

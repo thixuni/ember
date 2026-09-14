@@ -178,6 +178,40 @@ off day after it and before the next day it is due. That window is one per
 missed day, so one extra tick never covers two, and a made-up day is not
 listed as missed either.
 
+### When a task happens
+
+Put the way Google Calendar puts it. A task has a **date** — stored as
+`due`, a name older than the idea, and what places it on the calendar, on
+the dashboard's today and in overdue — and on that date it is either **all
+day** (no `dueTime`) or runs from a **start** to an **end time** (`dueTime`,
+`endTime`). Apart from both, an optional **deadline** (`deadline`): the day it
+must be done by, which is not the day you plan to do it. A task is overdue
+when its date *or* its deadline has gone (`isOverdue()`); a task with a
+deadline and no date sits on its deadline's day. `tSpan()` gives the start
+and end in minutes — a start with no end, from before tasks had one, is half
+an hour.
+
+In the panel it reads as Google's event form: the date, then start – end on
+one line, "All day" beneath, and "Add deadline" hidden until it is wanted
+(`V.sheet.dl`). A new start time keeps the length the task had; the end
+time's list starts after the start and says how long each choice makes it.
+
+The form once had a *start date* beside the due date. `fixTasks()`, run at
+the top of every `render()` and harmless to repeat, moves any that remain:
+the start date becomes the date, and a due date after it the deadline.
+
+On the calendar, a task with a time is a block in the week grid with its
+tick box in the corner (kind `"task"`, added in `weekGrid()` beside Google's
+events — **not** in `eventsFor()`, for the reason given under Google
+Calendar); all-day tasks stay in the band across the top, and in the month
+a timed task is a line with its time. **Dragging down an empty stretch of a
+day makes a task** for that time, as in Google Calendar (`DG`): quarter-hour
+steps, a click without a drag makes an hour, and the placeholder stays on the
+grid until the new task is made or abandoned. The once-a-minute redraw of
+the week waits while a drag or a placeholder is on it. Google Calendar sync
+writes a timed task as a timed event and reads times back from it; the
+deadline is the planner's own and is never synced.
+
 ### Dashboard
 
 `viewDashboard` is today on one page and owns no data of its own. The
@@ -239,12 +273,8 @@ behind a permission prompt, and only while the tab is open.
 - An item's `remind` is unset (the default, 30 minutes before), a number of
   minutes, or `false`. Tasks need a time to have a reminder at all; "before"
   needs something to be before.
-- A task's time is its **start time**. It is stored as `dueTime`, a name older
-  than the idea, and it belongs to the start date when there is one and to the
-  due date when there is not (`tTimeDay()`). Reminders count back from that
-  moment; a chip shows the time only beside the date it belongs to. It is set
-  with the planner's own time picker (see Pickers): type a time, or pick from
-  quarter hours grouped by part of the day.
+- Reminders count back from a task's **start time** on its date (see When a
+  task happens). All-day tasks have no reminder.
 - A reminder's id carries what it was worked out from — item, day, time,
   lead — so changing any of them makes a new reminder rather than one the
   shell has already marked as sent.

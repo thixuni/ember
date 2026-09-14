@@ -83,24 +83,50 @@ function blankState(){
 }
 /* Tasks gained fields over time; older saved tasks predate them. Read through
    these rather than assuming the field is there. */
-const tStart=t=>t.start||"";
 const tTags=t=>Array.isArray(t.tags)?t.tags:[];
 const tLinks=t=>Array.isArray(t.links)?t.links:[];
 const tFiles=t=>Array.isArray(t.attachments)?t.attachments:[];
 const tEst=t=>Number(t.est)||0;
-/* A task's time is when you mean to start it. It is stored as dueTime, a
-   name older than the idea, and it belongs to the start date when there is
-   one and to the due date when there is not. */
-const tTimeDay=t=>tStart(t)||t.due||"";
+/* When a task happens, put the way Google Calendar puts it: a date -- stored
+   as `due`, a name older than the idea -- and then either all day, or a
+   start and an end time (`dueTime`, `endTime`). Apart from that, an
+   optional deadline: the day it has to be done by, which is not the day you
+   plan to do it. */
+const tTimeDay=t=>t.due||"";
+const hm2m=hm=>{const x=String(hm||"").split(":").map(Number);return x[0]*60+(x[1]||0);};
+const m2hm=m=>pad(Math.floor(m/60))+":"+pad(m%60);
+/* A start time with no end -- set before tasks had an end -- is drawn half
+   an hour long. */
+const TASK_DUR=30;
+function tSpan(t){
+  if(!t.dueTime)return null;
+  const s=hm2m(t.dueTime);let e=t.endTime?hm2m(t.endTime):s+TASK_DUR;
+  if(e<=s)e=Math.min(s+TASK_DUR,24*60);
+  return {start:s,end:e};
+}
+const fmtTaskTime=t=>{const sp=tSpan(t);return sp?fmtRange(t.dueTime,sp.end-sp.start):"";};
+/* The task form once had a start date beside the due date. The date is now
+   the day you plan to do it, so a start date becomes the date, and a due
+   date after it becomes the deadline. The time went with the start date
+   already, so it stays with it. Safe to run any number of times. */
+function fixTasks(){
+  let n=0;
+  (S.tasks||[]).forEach(t=>{
+    if(!t.start)return;
+    if(t.due&&t.due>t.start&&!t.deadline)t.deadline=t.due;
+    t.due=t.start;t.start="";n++;
+  });
+  if(n)save("tasks");
+}
 function sampleState(){
   const st=blankState(),o=n=>ymd(addDays(today(),n));
   const T=(title,due,cat,status,u,i,extra)=>Object.assign({id:uid("t"),title:title,desc:"",due:due,cat:cat,status:status,
     urgent:u,important:i,subtasks:[],created:o(-4),completedAt:status==="completed"?due:null},extra||{});
   st.tasks=[
    T("Reply to the emails still sitting in the inbox",o(-1),"office","planned",true,true),
-   T("Send the invoice for last month",o(0),"freelance","in_progress",true,true),
+   T("Send the invoice for last month",o(0),"freelance","in_progress",true,true,{dueTime:"15:00",endTime:"15:30"}),
    T("Draft the project brief",o(2),"office","planned",false,true,
-     {desc:"One page: the problem, who it is for, and how we will know it worked.",
+     {dueTime:"14:00",endTime:"15:30",deadline:o(4),desc:"One page: the problem, who it is for, and how we will know it worked.",
       subtasks:[{id:uid("s"),t:"Collect the background notes",d:true},{id:uid("s"),t:"Write the first pass",d:false},{id:uid("s"),t:"Send it round for comments",d:false}]}),
    T("Book the dentist",o(1),"personal","backlog",true,false),
    T("Tidy the desk",o(3),"home","backlog",false,false),
@@ -123,7 +149,7 @@ function sampleState(){
    {id:uid("n"),title:"How this planner works",cat:"personal",tags:["start-here"],pinned:true,updated:Date.now(),
     html:"<p>Six sections, all sharing the same tasks and categories.</p>"+
       "<h2>Dashboard</h2><p>Today on one page: tasks due today, today’s routines, anything overdue or missed, open action items from your notes, and a scratch pad for a quick thought.</p>"+
-      "<h2>Calendar</h2><p>Week and month. Tasks sit in the band across the top, routines sit in the time grid. The <b>Catch-up</b> panel on the right collects anything overdue so you can clear it in one place.</p>"+
+      "<h2>Calendar</h2><p>Week and month. Tasks with a time and routines sit in the time grid, and all-day tasks in the band across the top. Drag down a day to make a task for that time. The <b>Catch-up</b> panel on the right collects anything overdue so you can clear it in one place.</p>"+
       "<h2>Tasks</h2><p>A board you can drag cards across, or a list grouped by month. Quick filters sit on one row, and Advanced opens status, category, priority and date range.</p>"+
       "<h2>Matrix</h2><p>Every task lands in a quadrant based on whether it is urgent, important, both or neither. Closest due date comes first. Anything you have not judged yet waits in the tray at the bottom.</p>"+
       "<h2>Routines</h2><p>Anything that repeats: daily, weekdays, chosen days, or every few days. Tick the day squares to keep a streak going: any day counts, and doing it on a day off makes up for a missed one.</p>"+
@@ -224,7 +250,17 @@ const taskById=id=>S.tasks.find(t=>t.id===id);
 const routineById=id=>S.routines.find(r=>r.id===id);
 const noteById=id=>S.notes.find(n=>n.id===id);
 const isOpen=t=>OPEN.indexOf(t.status)>-1;
-const isOverdue=t=>isOpen(t)&&t.due&&dayDiff(t.due,TODAY())<0;
+/* Late if the day you planned it has gone, or the deadline has. */
+const isOverdue=t=>isOpen(t)&&((!!t.due&&t.due<TODAY())||(!!t.deadline&&t.deadline<TODAY()));
+/* What "late" says: how far past the deadline when that has gone, otherwise
+   how far past the date. */
+const lateText=t=>relDue(t.deadline&&t.deadline<TODAY()?t.deadline:t.due);
+/* A deadline, as a small mark beside the date. */
+function dlMark(t){
+  if(!t.deadline)return "";
+  const over=isOpen(t)&&t.deadline<TODAY();
+  return '<span class="m-dl'+(over?" over":"")+'" title="Deadline '+esc(fmtDate(t.deadline))+'">'+icon("i-deadline","ic-14")+esc(fmtDate(t.deadline))+'</span>';
+}
 function routineOn(r,d){
   if(!r.active)return false;
   const s=ymd(d);
@@ -265,7 +301,7 @@ function streak(r){
   return n;
 }
 function overdueItems(){
-  const tasks=S.tasks.filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>a.due<b.due?-1:1);
+  const tasks=S.tasks.filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>(a.due||a.deadline)<(b.due||b.deadline)?-1:1);
   const miss=[];
   S.routines.filter(r=>visibleCat(r.cat)).forEach(r=>{
     for(let i=1;i<=7;i++){const d=addDays(today(),-i),s=ymd(d);
@@ -378,7 +414,7 @@ function catChip(id){const c=cat(id);return '<span class="chip chip-cat" style="
 function dueChip(t){
   if(!t.due)return"";
   const d=dayDiff(t.due,TODAY());const k=isOpen(t)?(d<0?"over":(d<=1?"soon":"")):"";
-  return '<span class="chip chip-due '+k+'">'+icon("i-clock")+esc(relDue(t.due)+(t.dueTime&&tTimeDay(t)===t.due?" "+fmtTime(t.dueTime):""))+'</span>';
+  return '<span class="chip chip-due '+k+'">'+icon("i-clock")+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>';
 }
 function quadChip(t){const q=quadOf(t);if(!q)return"";const Q=QUADS.find(x=>x.id===q);
   return '<span class="chip chip-q '+Q.cls+'">'+esc(Q.name)+'</span>';}
@@ -460,9 +496,13 @@ function layoutEvents(evs){
   }
   return out;
 }
+/* A task belongs to its date, or, with no date, to its deadline. */
 function tasksFor(s){
-  return S.tasks.filter(t=>t.due===s&&visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped");
+  return S.tasks.filter(t=>(t.due===s||(!t.due&&t.deadline===s))&&visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped");
 }
+/* A task with a time sits in the time grid; the band across the top is for
+   the rest. */
+const timedOn=(t,s)=>t.due===s&&!!t.dueTime;
 const H0=6,H1=24,PX=48;
 function weekGrid(){
   const start=startOfWeek(V.anchor),days=[];for(let i=0;i<7;i++)days.push(addDays(start,i));
@@ -470,7 +510,7 @@ function weekGrid(){
   let head='<div class="wk-head"><div class="corner"></div>'+days.map(d=>{const s=ymd(d);
     return '<div class="dcol'+(s===tstr?" today":"")+'"><div class="dow">'+DOWS[(d.getDay()+6)%7]+'</div><div class="dnum num">'+d.getDate()+'</div></div>';}).join("")+'</div>';
   let ad='<div class="allday"><div class="lab">'+(gcalOn()?"All day":"Tasks")+'</div>'+days.map(d=>{const s=ymd(d);
-    const ts=tasksFor(s);
+    const ts=tasksFor(s).filter(t=>!timedOn(t,s));
     const gad=gcalFor(d).allDay.filter(e=>!V.q||e.title.toLowerCase().indexOf(V.q.toLowerCase())>-1);
     return '<div class="ad-cell'+(s===tstr?" today":"")+'" data-act="new-task" data-date="'+s+'">'+
       gad.map(e=>'<button class="gchip" style="--c:'+e.color+'" data-act="gcal-ev" data-id="'+esc(e.id)+'" title="'+esc(e.title+" · "+e.calName)+'"><span>'+esc(e.title)+'</span></button>').join("")+
@@ -480,20 +520,32 @@ function weekGrid(){
       const done=t.status==="completed";
       return '<div class="tchip'+(done?" done":"")+(isOverdue(t)?" over":"")+'" style="--c:'+c.color+'">'+
         '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
-        '<button class="tchip-body" data-act="task" data-id="'+t.id+'">'+icon(c.icon,"ic-14")+'<span>'+esc(t.title)+'</span></button>'+
+        '<button class="tchip-body" data-act="task" data-id="'+t.id+'"'+(t.due!==s?' title="Deadline"':"")+'>'+icon(t.due!==s?"i-deadline":c.icon,"ic-14")+'<span>'+esc(t.title)+'</span></button>'+
         '</div>';}).join("")+'</div>';}).join("")+'</div>';
   let hours="";for(let h=H0;h<H1;h++)hours+='<div class="hourlab num">'+fmtTime(pad(h)+":00")+'</div>';
   const cols=days.map(d=>{
     const s=ymd(d);let lines="";for(let h=H0;h<H1;h++)lines+='<div class="hourline"></div>';
     const q=(V.q||"").toLowerCase();
-    const evs=layoutEvents(eventsFor(d).concat(gcalFor(d).timed).sort((a,b)=>a.start-b.start).filter(e=>{
-      if(!q)return true;
+    const tev=tasksFor(s).filter(t=>timedOn(t,s)).map(t=>{const sp=tSpan(t);return {kind:"task",t:t,start:sp.start,dur:sp.end-sp.start};});
+    const evs=layoutEvents(eventsFor(d).concat(gcalFor(d).timed,tev).sort((a,b)=>a.start-b.start).filter(e=>{
+      if(!q||e.kind==="task")return true;
       if(e.kind==="gcal")return e.g.title.toLowerCase().indexOf(q)>-1||e.g.calName.toLowerCase().indexOf(q)>-1;
       const title=e.kind==="session"?e.t.title:e.r.title;
       const cid=e.kind==="session"?e.t.cat:e.r.cat;
       return title.toLowerCase().indexOf(q)>-1||cat(cid).name.toLowerCase().indexOf(q)>-1;
     }));
     const body=evs.map(e=>{
+      /* A task with a time: a block like a routine's, with the task's tick
+         box in its corner, so it can be finished from the calendar. */
+      if(e.kind==="task"){
+        const t=e.t,c=cat(t.cat),top=(e.start/60-H0)*PX,ht=Math.max(20,(e.dur/60)*PX-2),clip=Math.max(0,-top);
+        const w=100/e._n,left=e._c*w,sm=ht-clip<40,done=t.status==="completed";
+        return '<div class="ev tev'+(done?" done":"")+(isOverdue(t)?" over":"")+(sm?" sm":"")+'" style="--c:'+c.color+';top:'+Math.max(0,top).toFixed(1)+'px;height:'+
+          Math.max(20,ht-clip).toFixed(1)+'px;left:calc('+left+'% + 3px);width:calc('+w+'% - 6px)">'+
+          '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
+          '<button class="tev-body" data-act="task" data-id="'+t.id+'" title="'+esc(t.title+" · "+fmtTaskTime(t))+'"><b>'+esc(t.title)+'</b>'+
+          '<i class="num">'+esc(sm?fmtTime(t.dueTime):fmtTaskTime(t))+'</i></button></div>';
+      }
       if(e.kind==="gcal"){
         const top=(e.start/60-H0)*PX,ht=Math.max(18,(e.dur/60)*PX-2),w=100/e._n,left=e._c*w,sm=ht<40;
         const clip=Math.max(0,-top);   // an event that starts before the grid does
@@ -535,7 +587,7 @@ function weekGrid(){
     let now="";
     if(s===tstr){const n=new Date(),mins=n.getHours()*60+n.getMinutes();
       if(mins>=H0*60&&mins<=H1*60)now='<div class="nowline" style="top:'+(((mins/60)-H0)*PX).toFixed(1)+'px"></div>';}
-    return '<div class="daycol'+(s===tstr?" today":"")+'">'+lines+body+now+'</div>';}).join("");
+    return '<div class="daycol'+(s===tstr?" today":"")+'" data-date="'+s+'">'+lines+body+now+'</div>';}).join("");
   /* The head and the task band live inside the scroller, pinned. Outside it
      they were laid out over the full width while the grid lost the scrollbar's
      15px, so the day columns drifted further apart across the week. */
@@ -543,6 +595,53 @@ function weekGrid(){
     '<div class="wk-sticky">'+head+ad+'</div>'+
     '<div class="tgrid"><div class="tcol-time">'+hours+'</div>'+cols+'</div></div>';
 }
+/* ---- drag on the week to make a task ----
+   As in Google Calendar: press on an empty stretch of a day, drag to the end
+   time, let go, and a new task opens with that day and those times. A click
+   without a drag makes an hour. Times snap to quarter hours, as the time
+   picker's do. The placeholder stays on the grid while the new task is being
+   filled in, and goes when it is made or abandoned. */
+const DG={on:false};
+const snap15=m=>Math.round(m/15)*15;
+function dragMinute(y){
+  const r=DG.col.getBoundingClientRect();
+  return Math.max(H0*60,Math.min(H1*60,H0*60+(y-r.top)/PX*60));
+}
+function paintGhost(){
+  const a=DG.a,b=DG.b,g=DG.g;
+  g.style.top=((a/60-H0)*PX).toFixed(1)+"px";g.style.height=Math.max(12,((b-a)/60)*PX-2).toFixed(1)+"px";
+  g.textContent=fmtRange(m2hm(a),b-a);
+}
+function clearGhosts(){document.querySelectorAll(".drag-ghost").forEach(x=>x.remove());}
+document.addEventListener("mousedown",function(e){
+  if(e.button!==0||!e.target.closest)return;
+  const col=e.target.closest(".daycol");
+  if(!col||!col.dataset.date||e.target.closest(".ev"))return;
+  e.preventDefault();
+  clearGhosts();
+  const g=document.createElement("div");g.className="drag-ghost";g.setAttribute("aria-hidden","true");col.appendChild(g);
+  Object.assign(DG,{on:true,col:col,g:g,y0:e.clientY,moved:false});
+  DG.m0=Math.min(H1*60-15,Math.floor(dragMinute(e.clientY)/15)*15);
+  DG.a=DG.m0;DG.b=DG.m0+60>H1*60?H1*60:DG.m0+60;
+  paintGhost();
+});
+document.addEventListener("mousemove",function(e){
+  if(!DG.on)return;
+  if(Math.abs(e.clientY-DG.y0)>4)DG.moved=true;
+  if(!DG.moved)return;
+  const m=dragMinute(e.clientY);
+  if(m>=DG.m0){DG.a=DG.m0;DG.b=Math.max(DG.m0+15,snap15(m));}
+  else{DG.a=Math.floor(m/15)*15;DG.b=DG.m0+15;}
+  paintGhost();
+});
+document.addEventListener("mouseup",function(){
+  if(!DG.on)return;
+  DG.on=false;
+  const end=Math.min(DG.b,24*60-1);
+  openSheet(null,{due:DG.col.dataset.date,dueTime:m2hm(DG.a),endTime:m2hm(end),status:"planned"});
+  const ti=el("shTitle");if(ti)ti.focus();
+});
+
 /* A cell shows this many lines before the rest fold into "+N more". Four
    fits a six-week month on an ordinary laptop screen. */
 const MONTH_LINES=4;
@@ -559,7 +658,7 @@ function monthGrid(){
   const cells=days.map((d,i)=>{
     const s=ymd(d),evs=eventsFor(d),gd=gcalFor(d),items=[];
     /* Tasks first, as chips: they belong to the day, not to a time in it. */
-    tasksFor(s).forEach(t=>{const c=cat(t.cat);
+    tasksFor(s).filter(t=>!timedOn(t,s)).forEach(t=>{const c=cat(t.cat);
       items.push('<button class="mchip'+(t.status==="completed"?" done":"")+'" style="--c:'+c.color+'" data-act="task" data-id="'+t.id+'" data-stop="1"><span>'+esc(t.title)+'</span></button>');});
     gd.allDay.filter(e=>hit(e.title)).forEach(e=>items.push(
       '<button class="gchip mline-chip" style="--c:'+e.color+'" data-act="gcal-ev" data-id="'+esc(e.id)+'" data-stop="1"><span>'+esc(e.title)+'</span></button>'));
@@ -570,6 +669,9 @@ function monthGrid(){
       .concat(gd.timed.filter(x=>hit(x.g.title)).map(x=>({start:x.start,
         html:'<button class="mline ev" style="--c:'+x.g.color+'" data-act="gcal-ev" data-id="'+esc(x.g.id)+'" data-stop="1">'+
           '<i class="mline-dot"></i><span class="mline-t num">'+esc(clock(x.start))+'</span><span class="mline-n">'+esc(x.g.title)+'</span></button>'})))
+      .concat(tasksFor(s).filter(t=>timedOn(t,s)).map(t=>({start:tSpan(t).start,
+        html:'<button class="mline'+(t.status==="completed"?" done":"")+'" style="--c:'+cat(t.cat).color+'" data-act="task" data-id="'+t.id+'" data-stop="1">'+
+          '<i class="mline-dot sq"></i><span class="mline-t num">'+esc(fmtTime(t.dueTime))+'</span><span class="mline-n">'+esc(t.title)+'</span></button>'})))
       .sort((p,r)=>p.start-r.start);
     timed.forEach(x=>items.push(x.html));
     /* Time tracked is one line for the day, not one per sitting. */
@@ -622,7 +724,7 @@ function overduePanel(){
   if(!n)body='<div class="empty">'+icon("i-check")+'<p>Nothing behind. Every task and routine up to today is done.</p></div>';
   else{
     if(o.tasks.length)body+='<div class="od-group"><h4>Overdue tasks</h4>'+o.tasks.map(t=>
-      '<div class="od-item">'+tickBtn(t)+'<div class="t"><b>'+esc(t.title)+'</b><small>'+esc(relDue(t.due))+' · '+esc(cat(t.cat).name)+'</small></div>'+
+      '<div class="od-item">'+tickBtn(t)+'<div class="t"><b>'+esc(t.title)+'</b><small>'+esc(lateText(t))+' · '+esc(cat(t.cat).name)+'</small></div>'+
       '<button class="rowbtn" style="opacity:1" data-act="task" data-id="'+t.id+'" aria-label="Open task">'+icon("i-edit","ic-14")+'</button></div>').join("")+'</div>';
     if(o.miss.length)body+='<div class="od-group"><h4>Missed routines</h4>'+o.miss.map(x=>
       '<div class="od-item"><button class="tick" data-act="routine-done" data-id="'+x.r.id+'" data-date="'+x.date+'" aria-label="Mark done">'+icon("i-check")+'</button>'+
@@ -639,8 +741,8 @@ function todayItems(){
   const ts=TODAY();
   /* Open first, finished at the bottom, where they read as progress rather
      than as clutter. */
-  const tasks=S.tasks.filter(t=>t.due===ts&&visibleCat(t.cat)&&t.status!=="dropped")
-    .sort((a,b)=>(isOpen(a)?0:1)-(isOpen(b)?0:1));
+  const tasks=S.tasks.filter(t=>(t.due===ts||(!t.due&&t.deadline===ts))&&visibleCat(t.cat)&&t.status!=="dropped")
+    .sort((a,b)=>(isOpen(a)?0:1)-(isOpen(b)?0:1)||((a.dueTime||"99")<(b.dueTime||"99")?-1:1));
   const routines=S.routines.filter(r=>visibleCat(r.cat)&&routineHere(r,today()))
     .sort((a,b)=>(a.time||"99")<(b.time||"99")?-1:1);
   return {tasks:tasks,routines:routines};
@@ -685,7 +787,7 @@ function viewDashboard(){
   /* ---- to do: tasks due today ---- */
   const taskRow=t=>{const c=cat(t.cat),done=t.status==="completed",est=tEst(t);
     return dashRow({color:c.color,done:done,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
-      meta:esc(c.name)+(t.dueTime&&tTimeDay(t)===TODAY()?' · starts '+esc(fmtTime(t.dueTime)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
+      meta:esc(c.name)+(t.dueTime&&t.due===TODAY()?' · '+esc(fmtTaskTime(t)):"")+(t.deadline?' · deadline '+esc(t.deadline===TODAY()?"today":fmtDate(t.deadline)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
       end:done?"":timerBtn(t)});};
   const openT=d.tasks.filter(isOpen).length;
 
@@ -740,7 +842,7 @@ function viewDashboard(){
       '<p>Nothing overdue, nothing missed. Enjoy it.</p></div></div>':
       (o.tasks.length?dashGroup("Overdue",o.tasks.length,o.tasks.map(t=>{const c=cat(t.cat);
         return dashRow({color:c.color,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
-          meta:esc(c.name),end:esc(relDue(t.due)),late:true});}).join("")):"")+
+          meta:esc(c.name),end:esc(lateText(t)),late:true});}).join("")):"")+
       (ai.length?dashGroup("From your notes",ai.length,ai.map(x=>{
         const c=cat(x.t?x.t.cat:x.n.cat);
         return dashRow({color:c.color,
@@ -986,7 +1088,7 @@ function viewCalendar(){
 }
 
 /* ============ tasks: filters ============ */
-const QUICKS=[{id:"open",name:"Open"},{id:"today",name:"Due today"},{id:"week",name:"This week"},{id:"overdue",name:"Overdue"},{id:"done",name:"Completed"},{id:"all",name:"Everything"}];
+const QUICKS=[{id:"open",name:"Open"},{id:"today",name:"Today"},{id:"week",name:"This week"},{id:"overdue",name:"Overdue"},{id:"done",name:"Completed"},{id:"all",name:"Everything"}];
 function filterTasks(mode){
   const f=V.f,t0=TODAY(),wkEnd=ymd(addDays(startOfWeek(today()),6));
   let list=S.tasks.filter(t=>visibleCat(t.cat)&&matchQ(t,V.q));
@@ -1022,8 +1124,8 @@ function filterBar(){
       field("Status",'<select class="inp" data-act="f" data-k="status"><option value="">Any status</option>'+STATUSES.map(s=>'<option value="'+s.id+'"'+(V.f.status===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select>')+
       field("Category",catSelect('class="inp" data-act="f" data-k="cat"',V.f.cat,{any:"All categories"}))+
       field("Matrix quadrant",'<select class="inp" data-act="f" data-k="quad"><option value="">Any priority</option>'+QUADS.map(q=>'<option value="'+q.id+'"'+(V.f.quad===q.id?" selected":"")+'>'+esc(q.name)+'</option>').join("")+'<option value="none"'+(V.f.quad==="none"?" selected":"")+'>Not prioritised</option></select>')+
-      field("Due from",dateField('data-act="f" data-k="from"',V.f.from,{label:"Due from",ph:"Any date"}))+
-      field("Due until",dateField('data-act="f" data-k="to"',V.f.to,{label:"Due until",ph:"Any date"}))+
+      field("Date from",dateField('data-act="f" data-k="from"',V.f.from,{label:"Date from",ph:"Any date"}))+
+      field("Date until",dateField('data-act="f" data-k="to"',V.f.to,{label:"Date until",ph:"Any date"}))+
       field("Sort by",'<select class="inp" data-act="f" data-k="sort"><option value="due"'+(V.f.sort==="due"?" selected":"")+'>Due date</option><option value="priority"'+(V.f.sort==="priority"?" selected":"")+'>Matrix priority</option><option value="title"'+(V.f.sort==="title"?" selected":"")+'>Title A–Z</option><option value="created"'+(V.f.sort==="created"?" selected":"")+'>Recently added</option></select>')+
       '</div>';
   }
@@ -1035,7 +1137,7 @@ const field=(l,inner)=>'<div class="field"><label>'+esc(l)+'</label>'+inner+'</d
 function taskCard(t){
   const c=cat(t.cat),subs=t.subtasks||[],dn=subs.filter(s=>s.d).length;
   const q=quadOf(t),Q=q?QUADS.find(x=>x.id===q):null;
-  const over=isOverdue(t),soon=!over&&t.due&&dayDiff(t.due,TODAY())<=1;
+  const over=isOpen(t)&&!!t.due&&t.due<TODAY(),soon=!over&&t.due&&dayDiff(t.due,TODAY())<=1;
 
   /* The category is a tinted pill at the top of the card, and its colour
      washes faintly in from that corner. One pill, not three: a row of filled
@@ -1050,7 +1152,7 @@ function taskCard(t){
   const head='<div class="tc-head">'+
     '<span class="tc-cat">'+icon(c.icon,"ic-14")+esc(c.name)+'</span>'+
     '<span class="tc-right">'+(state?state:
-      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime&&tTimeDay(t)===t.due?" "+fmtTime(t.dueTime):""))+'</span>':"")+
+      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+dlMark(t)+
       (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':""))+
     '</span></div>';
 
@@ -1088,15 +1190,15 @@ function viewList(){
   const list=filterTasks("list");
   if(!list.length)return '<div class="task-main">'+filterBar()+'<div class="list-scroll"><div class="empty">'+icon("i-inbox")+'<p>No tasks match these filters. Try clearing them or add something new.</p></div></div></div>';
   const groups={},order=[];
-  list.forEach(t=>{const k=t.due?MONS[parseD(t.due).getMonth()]+" "+parseD(t.due).getFullYear():"No due date";
+  list.forEach(t=>{const k=t.due?MONS[parseD(t.due).getMonth()]+" "+parseD(t.due).getFullYear():"No date";
     if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(t);});
-  const head='<div class="lrow head"><span></span><span>Task</span><span>Due date</span><span>Priority</span><span>Category</span><span>Status</span><span></span></div>';
+  const head='<div class="lrow head"><span></span><span>Task</span><span>Date</span><span>Priority</span><span>Category</span><span>Status</span><span></span></div>';
   return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+order.map(k=>'<div class="lgroup"><h3>'+esc(k)+'<span class="n num">'+groups[k].length+'</span></h3><div class="ltable">'+head+
     groups[k].map(t=>{const c=cat(t.cat),s=ST(t.status),subs=t.subtasks||[];
       return '<div class="lrow'+(t.status==="completed"?" done":"")+'" data-act="task" data-id="'+t.id+'">'+
         tickBtn(t)+
         '<span class="name">'+icon(c.icon,"ic-14")+'<b>'+esc(t.title)+'</b>'+(subs.length?'<span class="sub num">'+subs.filter(x=>x.d).length+'/'+subs.length+'</span>':"")+'</span>'+
-        '<span class="sub num" style="color:'+(isOverdue(t)?"var(--danger)":"var(--muted)")+'">'+esc(t.due?fmtDate(t.due):"—")+'</span>'+
+        '<span class="sub num lr-when" style="color:'+(isOverdue(t)?"var(--danger)":"var(--muted)")+'">'+esc(t.due?fmtDate(t.due):"—")+dlMark(t)+'</span>'+
         '<span>'+(quadChip(t)||'<span class="sub">—</span>')+'</span>'+
         '<span>'+catChip(t.cat)+'</span>'+
         '<span class="status-dot" style="--s:'+s.color+'"><span class="sw"></span>'+esc(s.name)+'</span>'+
@@ -1844,6 +1946,7 @@ function renderView(){
   if(V.view==="calendar"&&document.querySelector(".mgrid"))fitMonth();
 }
 function render(){
+  fixTasks();
   renderRail();renderTopbar();renderView();
   /* The day popup lists what the page does; a tick in it redraws the page, so
      the popup is redrawn with it rather than left showing the old state. */
@@ -1994,6 +2097,8 @@ document.addEventListener("click",function(e){
     /* ---- task detail sheet ---- */
     case "sheet-close":closeSheet();break;
     case "sh-create":createFromDraft();break;
+    case "sh-deadline":{if(!V.sheet)break;V.sheet.dl=true;renderSheet();
+      const b=document.querySelector('.when-dl .pk-btn');if(b)pkOpen(b);break;}
     case "sh-tab":V.sheet.tab=n.dataset.v;renderSheet();break;
     case "sh-done":{const t=sheetTask();if(t&&V.sheet.id)toggleTaskDone(t.id),renderSheet();break;}
     case "sh-delete":if(arm(n,"Delete for good?"))deleteTask(V.sheet.id);break;
@@ -2242,12 +2347,29 @@ document.addEventListener("change",function(e){
     const k=t.dataset.k;let v=t.value;
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);
     if(k==="remind")v=v==="d"?null:v==="off"?false:Number(v);
-    if((k==="start"||k==="due")&&!v){const cur=sheetTask();
-      if(cur&&!(k==="start"?cur.due:tStart(cur))){patchCurrent({[k]:"",dueTime:""});return;}}
+    /* No date, no times. */
+    if(k==="due"&&!v){patchCurrent({due:"",dueTime:"",endTime:""});return;}
+    /* A new start time keeps the length the task already had, as moving an
+       event in Google does; the first one gets an hour. */
+    if(k==="dueTime"){const cur=sheetTask()||{};
+      if(!v){patchCurrent({dueTime:"",endTime:""});return;}
+      const len=cur.dueTime&&cur.endTime?Math.max(15,hm2m(cur.endTime)-hm2m(cur.dueTime)):60;
+      patchCurrent({dueTime:v,endTime:m2hm(Math.min(hm2m(v)+len,24*60-1))});return;}
+    if(k==="endTime"){const cur=sheetTask()||{};
+      if(v&&cur.dueTime&&hm2m(v)<=hm2m(cur.dueTime)){toast("The end time has to be after the start");renderSheet();return;}}
+    if(k==="deadline"&&!v&&V.sheet)V.sheet.dl=false;
     if(k==="title"){v=v.trim();if(!v){const cur=sheetTask();t.value=cur?cur.title:"";return;}}
     // Re-rendering while the caret is in a text field would throw it away.
     patchCurrent({[k]:v},k!=="title"&&k!=="desc");
     return;
+  }
+  /* All day clears the times; unticked, it offers the next hour today, or
+     nine in the morning on any other day, an hour long. */
+  if(t.dataset&&t.dataset.act==="sh-allday"){
+    const cur=sheetTask();if(!cur)return;
+    if(t.checked){patchCurrent({dueTime:"",endTime:""});return;}
+    const s=cur.due===TODAY()?Math.min(23*60,(new Date().getHours()+1)*60):9*60;
+    patchCurrent({dueTime:m2hm(s),endTime:m2hm(Math.min(s+60,24*60-1))});return;
   }
   if(t.dataset&&t.dataset.act==="sh-link-add"&&t.value){
     const cur=sheetTask();
@@ -2292,7 +2414,7 @@ function maybeWelcome(){
 /* ============ activity log ============ */
 /* Everything that happens to a task lands here: comments and documents you
    write, plus an automatic entry for every field that changes. */
-const FIELD_LABEL={title:"Title",desc:"Description",due:"Due date",start:"Start date",
+const FIELD_LABEL={title:"Title",desc:"Description",due:"Date",start:"Start date",deadline:"Deadline",endTime:"End time",
   status:"Status",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
   dueTime:"Start time",remind:"Reminder"};
@@ -2308,11 +2430,11 @@ function logAct(taskId,kind,text,meta){
 /* Render a field value the way a person would say it, not the way it is stored. */
 function fieldText(k,v){
   if(k==="remind")return remindLabel({remind:v});
-  if(k==="dueTime")return v?fmtTime(v):"no time";
+  if(k==="dueTime"||k==="endTime")return v?fmtTime(v):"no time";
   if(v==null||v===""||(Array.isArray(v)&&!v.length))return "empty";
   if(k==="status")return ST(v).name;
   if(k==="cat")return cat(v).name;
-  if(k==="due"||k==="start")return fmtDate(v);
+  if(k==="due"||k==="start"||k==="deadline")return fmtDate(v);
   if(k==="est")return fmtMins(Number(v)||0);
   if(k==="urgent"||k==="important")return v?"yes":"no";
   if(k==="tags")return v.join(", ");
@@ -2545,11 +2667,11 @@ function openSheet(id,preset){
   if(id&&!taskById(id))return;
   V.tmBreak=null;
   V.sheet={id:id||null,tab:"details",
-    draft:id?null:Object.assign({title:"",desc:"",due:"",start:"",cat:S.categories[0].id,
+    draft:id?null:Object.assign({title:"",desc:"",due:"",dueTime:"",endTime:"",deadline:"",cat:S.categories[0].id,
       status:"backlog",urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[]},preset||{})};
   renderSheet();
 }
-function closeSheet(){V.sheet=null;V.tmBreak=null;renderSheet();}
+function closeSheet(){V.sheet=null;V.tmBreak=null;renderSheet();clearGhosts();}
 
 /* The task being shown, or the unsaved draft for a new one. */
 const sheetTask=()=>{const s=V.sheet;return s?(s.id?taskById(s.id):s.draft):null;};
@@ -2567,6 +2689,8 @@ function patchTask(id,patch,redraw){
 /* A draft has no id yet, so edits are held until it is created. */
 function patchDraft(patch){
   if(V.sheet&&V.sheet.draft)Object.assign(V.sheet.draft,patch);
+  /* The placeholder on the grid showed the times it was dragged to. */
+  if("due" in patch||"dueTime" in patch||"endTime" in patch)clearGhosts();
 }
 function patchCurrent(patch,redraw){
   const s=V.sheet;if(!s)return;
@@ -2586,19 +2710,24 @@ function createFromDraft(){
 
 const metaRow=(label,inner,ic)=>'<div class="mrow"><div class="mlab">'+(ic?icon(ic,"ic-14"):"")+esc(label)+'</div><div class="mval">'+inner+'</div></div>';
 
-/* Three fields that say what they are: a caption over each, and plain words
-   when one is empty. The time is the start time, so it sits beside the start
-   date, and it waits for a date to hang on. All three open the planner's own
-   pickers (see the pickers section); clearing is done in the picker. */
+/* When, the way Google Calendar asks it: a date, then a start and an end
+   time on the same line -- or, ticked, all day -- and apart from both, a
+   deadline, which stays out of the way behind "Add deadline" until a task
+   needs one. The times wait for a date to hang on. */
 function sheetDates(t){
-  const day=tTimeDay(t);
-  const f=(cap,html)=>'<div class="dfield"><span class="dcap">'+esc(cap)+'</span>'+html+'</div>';
-  return '<div class="dgrid">'+
-    f("Start",dateField('data-act="sh-set" data-k="start"',tStart(t),{sm:1,label:"Start date",ph:"Add a start date"}))+
-    f("Start time",timeField('data-act="sh-set" data-k="dueTime"',t.dueTime,{sm:1,label:"Start time",
-      ph:day?"Add a start time":"Set a date first",disabled:!day}))+
-    f("Due",dateField('data-act="sh-set" data-k="due"',t.due,{sm:1,label:"Due date",ph:"Add a due date"}))+
+  const day=t.due||"",all=!t.dueTime,open=!!(V.sheet&&V.sheet.dl);
+  const line='<div class="when-line">'+
+    dateField('data-act="sh-set" data-k="due"',day,{sm:1,long:1,label:"Date",ph:"Add a date",cls:"when-date"})+
+    (day&&!all?timeField('data-act="sh-set" data-k="dueTime"',t.dueTime,{sm:1,label:"Start time",req:1,cls:"when-time"})+
+      '<span class="when-dash" aria-hidden="true">–</span>'+
+      timeField('data-act="sh-set" data-k="endTime"',t.endTime||m2hm(tSpan(t).end),{sm:1,label:"End time",req:1,after:t.dueTime,cls:"when-time"}):"")+
     '</div>';
+  const allday=day?'<label class="when-all"><input type="checkbox" data-act="sh-allday"'+(all?" checked":"")+'><span>All day</span></label>':"";
+  const dl=t.deadline||open
+    ? '<div class="when-dl">'+icon("i-deadline","ic-14")+'<span class="when-dl-k">Deadline</span>'+
+        dateField('data-act="sh-set" data-k="deadline"',t.deadline,{sm:1,label:"Deadline",ph:"Pick a deadline",cls:"when-dl-f"})+'</div>'
+    : '<button class="when-add" data-act="sh-deadline">'+icon("i-deadline","ic-14")+'Add deadline</button>';
+  return '<div class="when">'+line+allday+dl+'</div>';
 }
 
 /* ============ pickers ============
@@ -2626,13 +2755,18 @@ function sheetDates(t){
 const PK={el:null,src:null,btn:null,kind:"",month:null,focus:""};
 const TP_PARTS=[["Night",0,6],["Morning",6,12],["Afternoon",12,17],["Evening",17,24]];
 const pkDateText=v=>{const d=parseD(v);return DOWS[(d.getDay()+6)%7]+" "+fmtDate(v);};
-const pkText=(kind,v)=>kind==="date"?pkDateText(v):fmtTime(v);
+/* "Wednesday, 9 September", as Google writes the date of an event. */
+const pkLongDate=v=>{const d=parseD(v);
+  return d.toLocaleDateString(undefined,Object.assign({weekday:"long",day:"numeric",month:"long"},d.getFullYear()===today().getFullYear()?{}:{year:"numeric"}));};
+const pkText=(kind,v,fmt)=>kind==="date"?(fmt==="long"?pkLongDate(v):pkDateText(v)):fmtTime(v);
+/* How long an end time makes it: 30 mins, 1 hr, 1.5 hrs. */
+const durLabel=m=>m<60?m+" mins":(Math.round(m/60*100)/100)+(m===60?" hr":" hrs");
 function pickField(kind,attrs,val,o){
   o=o||{};val=val||"";
-  const txt=val?pkText(kind,val):(o.ph||(kind==="date"?"Pick a date":"Pick a time"));
+  const txt=val?pkText(kind,val,o.long?"long":""):(o.ph||(kind==="date"?"Pick a date":"Pick a time"));
   return '<span class="pkf">'+
     '<button type="button" class="inp'+(o.sm?" inp-sm":"")+(o.cls?" "+o.cls:"")+' pk-btn'+(val?"":" is-empty")+'" data-act="pk-open" data-pk="'+kind+'"'+
-      ' data-ph="'+esc(o.ph||(kind==="date"?"Pick a date":"Pick a time"))+'"'+(o.req?' data-req="1"':"")+' data-label="'+esc(o.label||"")+'"'+
+      ' data-ph="'+esc(o.ph||(kind==="date"?"Pick a date":"Pick a time"))+'"'+(o.req?' data-req="1"':"")+' data-label="'+esc(o.label||"")+'"'+(o.long?' data-fmt="long"':"")+(o.after?' data-after="'+esc(o.after)+'"':"")+
       ' aria-label="'+esc((o.label?o.label+": ":"")+txt)+'" aria-haspopup="dialog" aria-expanded="false"'+(o.disabled?" disabled":"")+'>'+
       '<span class="pk-val">'+esc(txt)+'</span>'+icon(kind==="date"?"i-calendar":"i-clock","ic-14")+'</button>'+
     '<input type="hidden" '+attrs+' value="'+esc(val)+'"></span>';
@@ -2778,7 +2912,19 @@ function parseTimeStr(s){
   return pad(h)+":"+pad(mm);
 }
 function pkTimeHtml(){
-  const cur=PK.src.value;
+  const cur=PK.src.value,after=PK.btn.dataset.after;
+  /* An end time lists the quarter hours after the start, each with how long
+     that makes it, as Google Calendar does. */
+  if(after){
+    const a=hm2m(after),aim=cur||m2hm(Math.min(a+60,23*60+45));let items="";
+    for(let m=a+15;m<24*60;m+=15){const v=m2hm(m);
+      items+='<button type="button" class="pk-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="pk-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'">'+
+        '<span>'+esc(fmtTime(v))+' <small>('+esc(durLabel(m-a))+')</small></span>'+(v===cur?icon("i-check","ic-14"):"")+'</button>';}
+    return '<div class="pk-top"><input id="pkType" class="inp inp-sm" placeholder="Type a time, like 4:30pm" autocomplete="off" value="'+esc(cur?fmtTime(cur):"")+'">'+
+        '<button type="button" class="btn btn-sm btn-primary" data-act="pk-type">Set</button></div>'+
+      '<div class="pk-body" role="listbox"><div class="pk-opts one">'+items+'</div></div>'+
+      pkFoot("Ends after "+esc(fmtTime(after)),"");
+  }
   const n=new Date(),next=Math.min(23*60+45,Math.ceil((n.getHours()*60+n.getMinutes())/15)*15);
   const aim=cur||pad(Math.floor(next/60))+":"+pad(next%60);
   const groups=TP_PARTS.map(g=>{let items="";
@@ -2829,7 +2975,7 @@ function pkPick(v){
   if(src.value===v)return;
   src.value=v;
   const b=src.tagName==="INPUT"&&src.parentNode.querySelector(".pk-btn");
-  if(b){const txt=v?pkText(b.dataset.pk,v):(b.dataset.ph||"");
+  if(b){const txt=v?pkText(b.dataset.pk,v,b.dataset.fmt):(b.dataset.ph||"");
     b.querySelector(".pk-val").textContent=txt;b.classList.toggle("is-empty",!v);
     b.setAttribute("aria-label",(b.dataset.label?b.dataset.label+": ":"")+txt);}
   src.dispatchEvent(new Event("change",{bubbles:true}));
@@ -3136,7 +3282,7 @@ function renderSheet(){
          form reads as when, what, how long, and what it is tied to. */
       (s.tab==="activity"?historyPane(t):'<div class="sh-meta">'+
         '<div class="sh-group"><div class="sh-gh">Schedule</div>'+
-          metaRow("Dates",sheetDates(t),"i-calendar")+
+          metaRow("When",sheetDates(t),"i-clock")+
           metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell")+
         '</div>'+
         '<div class="sh-group"><div class="sh-gh">Organise</div>'+
@@ -3259,8 +3405,8 @@ function remindOptions(x){
     '<option value="off"'+(v==="off"?" selected":"")+'>No reminder</option>';
 }
 function taskRemindHtml(t){
-  if(!tTimeDay(t))return '<span class="mnone">Give it a date and a start time to get a reminder</span>';
-  if(!t.dueTime)return '<span class="mnone">Add a start time above to get a reminder</span>';
+  if(!tTimeDay(t))return '<span class="mnone">Give it a date and a time to get a reminder</span>';
+  if(!t.dueTime)return '<span class="mnone">Untick All day and set a time to get a reminder</span>';
   return '<select class="inp inp-sm" data-act="sh-set" data-k="remind" aria-label="Reminder">'+remindOptions(t)+'</select>';
 }
 /* Defaults filled in on the one object, as with gcalPrefs, since the nested
@@ -3433,12 +3579,16 @@ const evPath=id=>"/calendars/primary/events/"+encodeURIComponent(id);
 
 /* ---- what the planner writes ---- */
 function taskEvent(t){
-  const from=tStart(t)&&tStart(t)<t.due?tStart(t):t.due;
-  return {summary:(t.status==="completed"?"✓ ":"")+t.title,
-    start:{date:from},end:{date:ymd(addDays(parseD(t.due),1))},
-    /* A task is a deadline, not a meeting: it should not show you as busy. */
+  const ev={summary:(t.status==="completed"?"✓ ":"")+t.title,
+    /* A task is not a meeting: it should not show you as busy. */
     transparency:"transparent",
     extendedProperties:{private:{orbitApp:"1",orbitKind:"task",orbitId:t.id}}};
+  /* On its date: from its start to its end time, or all day. */
+  const sp=tSpan(t);
+  if(sp){ev.start={dateTime:t.due+"T"+m2hm(sp.start)+":00",timeZone:TZ};
+    ev.end={dateTime:t.due+"T"+m2hm(Math.min(sp.end,24*60-1))+":00",timeZone:TZ};}
+  else{ev.start={date:t.due};ev.end={date:ymd(addDays(parseD(t.due),1))};}
+  return ev;
 }
 /* A repeating event's first instance has to be a day it actually falls on. */
 function routineFirst(r){
@@ -3473,11 +3623,16 @@ function applyTaskEvent(t,ev){
   const title=String(ev.summary||"").replace(/^✓\s*/,"").trim();
   const sd=ev.start&&(ev.start.date||String(ev.start.dateTime||"").slice(0,10));
   if(!sd)return;
-  let ed=ev.end&&ev.end.date?ymd(addDays(parseD(ev.end.date),-1)):String((ev.end&&ev.end.dateTime)||"").slice(0,10);
-  if(!ed||ed<sd)ed=sd;
   const before=JSON.parse(JSON.stringify(t));
   if(title)t.title=title;
-  t.due=ed;t.start=sd<ed?sd:"";
+  /* Moved or resized in Google: its day and times follow. The deadline is
+     the planner's own and is left alone. */
+  if(ev.start.dateTime){
+    const st=new Date(ev.start.dateTime),en=ev.end&&ev.end.dateTime?new Date(ev.end.dateTime):null;
+    t.due=ymd(st);t.dueTime=pad(st.getHours())+":"+pad(st.getMinutes());
+    t.endTime=!en?"":ymd(en)===t.due?pad(en.getHours())+":"+pad(en.getMinutes()):"23:59";
+  }else{t.due=sd;t.dueTime="";t.endTime="";}
+  t.start="";
   if(JSON.stringify(before)!==JSON.stringify(t)){
     logAct(t.id,"gcal","Changed in Google Calendar");
     logChanges(t.id,before,t);
@@ -3773,7 +3928,7 @@ if(S.prefs&&S.prefs.launch&&NAV.some(v=>v.id===S.prefs.launch)){V.view=S.prefs.l
 maybeAutoBackup();
 gcalBoot();
 remindBoot();
-setInterval(()=>{if(V.view==="calendar"&&V.calMode==="week"&&!el("modalRoot").innerHTML)renderView();},60000);
+setInterval(()=>{if(V.view==="calendar"&&V.calMode==="week"&&!el("modalRoot").innerHTML&&!DG.on&&!document.querySelector(".drag-ghost"))renderView();},60000);
 setInterval(()=>{if(V.view!=="dashboard")return;
   const n=el("dashNext");if(n)n.innerHTML=upNextHtml();
   const st=el("dashStrip");if(st)st.innerHTML=dayStripHtml();},30000);
