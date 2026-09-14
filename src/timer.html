@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <title>Everyday Orbit timer</title>
 <style>
+/* The same greys as the planner, which clear WCAG AA; this window has its
+   own stylesheet and did not get them when the planner's were raised. */
 :root{
   --surface:#FFFFFF; --surface-2:#FAFBF8; --line:#E5E9E1; --line-2:#D5DCCE;
-  --ink:#222A24; --ink-2:#495247; --muted:#7D867C; --faint:#9AA298;
-  --accent:#3F7D5C; --danger:#C25340; --danger-soft:#FAE8E4;
+  --ink:#222A24; --ink-2:#3E433F; --muted:#545955; --faint:#616662;
+  --accent:#3F7D5C; --danger:#C25340; --danger-soft:#FAE8E4; --danger-ink:#7A4133;
   --on-accent:#FFFFFF; --tint-base:#FFFFFF;
   --ff:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --fd:"Gabarito","Plus Jakarta Sans",system-ui,sans-serif;
@@ -19,16 +21,16 @@
   :root:not([data-theme="light"]){
     color-scheme: dark;
     --surface:#1C2023; --surface-2:#262B2E; --line:#333A3E; --line-2:#454D51;
-    --ink:#E6EAEB; --ink-2:#C6CCCE; --muted:#A2AAAD; --faint:#878F92;
-    --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724;
+    --ink:#E6EAEB; --ink-2:#CDD2D4; --muted:#B4BBBE; --faint:#A0A8AB;
+    --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#E58270;
     --on-accent:#0E1113; --tint-base:#1C2023;
   }
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
   --surface:#1C2023; --surface-2:#262B2E; --line:#333A3E; --line-2:#454D51;
-  --ink:#E6EAEB; --ink-2:#C6CCCE; --muted:#A2AAAD; --faint:#878F92;
-  --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724;
+  --ink:#E6EAEB; --ink-2:#CDD2D4; --muted:#B4BBBE; --faint:#A0A8AB;
+  --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#E58270;
   --on-accent:#0E1113; --tint-base:#1C2023;
 }
 *{box-sizing:border-box}
@@ -69,7 +71,7 @@ button.act{flex:1;height:28px;border-radius:8px;border:1px solid var(--line);bac
   display:flex;align-items:center;justify-content:center;gap:5px}
 button.act:hover{background:var(--surface-2);border-color:var(--line-2)}
 button.act.go{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-button.act.stop:hover{background:var(--danger-soft);border-color:var(--danger-soft);color:var(--danger)}
+button.act.stop:hover{background:var(--danger-soft);border-color:var(--danger-soft);color:var(--danger-ink)}
 svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 
 .idle{flex:1;display:grid;place-items:center;text-align:center;padding:0 14px;color:var(--faint);font-size:11.5px}

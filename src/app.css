@@ -22,9 +22,14 @@
   --line:color-mix(in srgb,var(--a-base) 9%,#E7E8E7);
   --line-2:color-mix(in srgb,var(--a-base) 14%,#D8DAD9);
   --ink:color-mix(in srgb,var(--a-base) 6%,#232725);
-  --ink-2:color-mix(in srgb,var(--a-base) 7%,#4B504D);
-  --muted:color-mix(in srgb,var(--a-base) 8%,#6E736F);
-  --faint:color-mix(in srgb,var(--a-base) 9%,#868B87);
+  /* Every text grey clears WCAG AA (4.5:1) on the darkest light background
+     it can land on -- a raised panel, the page, the settings sidebar -- for
+     any accent, a custom one included. Faint was 2.9:1 and muted 3.9:1 at
+     their worst; the steps between the four are closer than they were,
+     because AA leaves no room for a grey that is merely suggested. */
+  --ink-2:color-mix(in srgb,var(--a-base) 7%,#3E433F);
+  --muted:color-mix(in srgb,var(--a-base) 8%,#545955);
+  --faint:color-mix(in srgb,var(--a-base) 9%,#616662);
   --apricot:#E0854A;
   --danger:#C25340;
   --amber:#BC841A;
@@ -38,6 +43,16 @@
      near-black as the page behind Routines and Matrix, so the cards and
      panels on it lift off rather than all sitting at one grey. */
   --canvas:var(--surface);
+  /* A hue used as text is half hue, half the theme's own ink -- darker in
+     light mode, lighter in dark -- which clears AA on its soft tint and on a
+     plain panel in both. The bare hues stay for fills, edges and icons. */
+  --amber-ink:color-mix(in srgb,var(--amber) 55%,var(--ink));
+  --apricot-ink:color-mix(in srgb,var(--apricot) 55%,var(--ink));
+  --danger-ink:color-mix(in srgb,var(--danger) 55%,var(--ink));
+  --blue-ink:color-mix(in srgb,var(--blue) 55%,var(--ink));
+  /* A solid category colour under text is darkened (light) or lightened
+     (dark) the same way; raw, the yellower ones gave white text 2:1. */
+  --solid-mix:48%;
   /* Accent as text: the dark shade on white, the light shade on a dark panel. */
   --accent-ink:var(--a-dark);
   /* Calendar blocks and chips: how much of the category colour goes into the
@@ -45,15 +60,15 @@
      text; dark mode cannot, so there the text is mostly ink and the colour
      rides in the fill, the edge and the icon. */
   --ev-fill:10%;
-  --ev-label:58%;
-  --ev-time:42%;
-  --ev-time-base:var(--muted);
-  --ev-done-mix:100%;
+  --ev-label:48%;
+  --ev-time:38%;
+  --ev-time-base:var(--ink-2);
+  --ev-done-mix:0%;
   --surface-today:color-mix(in srgb,var(--a-base) 4%,#FDFDFD);
   --line-soft:color-mix(in srgb,var(--a-base) 6%,#F2F3F2);
   --scrim:rgba(24,28,26,.38);
   /* How far a finished thing fades. Dark needs far less, or it disappears. */
-  --done-fade:.55;
+  --done-fade:1;
   /* A switch that is off. White reads on a light grey track; on a dark one
      it would be the pane's own colour and vanish, so dark uses a grey. */
   --knob:var(--surface);
@@ -88,7 +103,10 @@
    rule for a colour that does not exist yet. What is below is only the
    default, so the page has an accent before a line of script runs. */
 :root{--a-base:#3F7D5C;--a-dark:#305E46;--a-lift:#5CAD82}
-:root{--accent:var(--a-base);--accent-2:var(--a-dark);--accent-lift:var(--a-lift)}
+:root{--accent:var(--a-base);--accent-lift:var(--a-lift);
+  /* A primary button under the pointer: further from the text on it in
+     either theme -- darker under white text, lighter under dark text. */
+  --accent-hover:color-mix(in srgb,var(--accent) 86%,var(--ink))}
 
 /* ---- the dark ramp. Only neutrals move; hues brighten to hold their own
         against a dark ground. Declared for both the system preference and an
@@ -105,12 +123,12 @@
     --surface-3:color-mix(in srgb,var(--a-lift) 8%,#2A3034);
     --line:color-mix(in srgb,var(--a-lift) 9%,#333A3E);
     --line-2:color-mix(in srgb,var(--a-lift) 12%,#454D51);
-    /* Text is measured against --surface, the panel it usually sits on:
-       ink 12.1, ink-2 9.1, muted 6.3, faint 4.7. */
+    /* Measured on the lightest dark background text lands on -- a raised
+       panel or an accent tint -- over every accent: faint 4.8, muted 5.8. */
     --ink:color-mix(in srgb,var(--a-lift) 5%,#E6EAEB);
-    --ink-2:color-mix(in srgb,var(--a-lift) 6%,#C6CCCE);
-    --muted:color-mix(in srgb,var(--a-lift) 8%,#A2AAAD);
-    --faint:color-mix(in srgb,var(--a-lift) 9%,#878F92);
+    --ink-2:color-mix(in srgb,var(--a-lift) 6%,#CDD2D4);
+    --muted:color-mix(in srgb,var(--a-lift) 8%,#B4BBBE);
+    --faint:color-mix(in srgb,var(--a-lift) 9%,#A0A8AB);
     --apricot:#EDA470;
     --danger:#E58270;
     --amber:#DDAE52;
@@ -136,7 +154,6 @@
     --sh-3:0 24px 60px -20px rgba(0,0,0,.82);
     /* The lifted shade carries the accent here, so what sits on it goes dark. */
     --accent:var(--a-lift);
-    --accent-2:var(--a-base);
     --on-accent:#0E1113;
   }
 }
@@ -151,12 +168,12 @@
   --surface-3:color-mix(in srgb,var(--a-lift) 8%,#2A3034);
   --line:color-mix(in srgb,var(--a-lift) 9%,#333A3E);
   --line-2:color-mix(in srgb,var(--a-lift) 12%,#454D51);
-  /* Text is measured against --surface, the panel it usually sits on:
-     ink 12.1, ink-2 9.1, muted 6.3, faint 4.7. */
+  /* Measured on the lightest dark background text lands on -- a raised
+     panel or an accent tint -- over every accent: faint 4.8, muted 5.8. */
   --ink:color-mix(in srgb,var(--a-lift) 5%,#E6EAEB);
-  --ink-2:color-mix(in srgb,var(--a-lift) 6%,#C6CCCE);
-  --muted:color-mix(in srgb,var(--a-lift) 8%,#A2AAAD);
-  --faint:color-mix(in srgb,var(--a-lift) 9%,#878F92);
+  --ink-2:color-mix(in srgb,var(--a-lift) 6%,#CDD2D4);
+  --muted:color-mix(in srgb,var(--a-lift) 8%,#B4BBBE);
+  --faint:color-mix(in srgb,var(--a-lift) 9%,#A0A8AB);
   --apricot:#EDA470;
   --danger:#E58270;
   --amber:#DDAE52;
@@ -182,10 +199,10 @@
   --sh-3:0 24px 60px -20px rgba(0,0,0,.82);
   /* The lifted shade carries the accent here, so what sits on it goes dark. */
   --accent:var(--a-lift);
-  --accent-2:var(--a-base);
   --on-accent:#0E1113;
 }
 *{box-sizing:border-box}
+::placeholder{color:var(--faint);opacity:1}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--ff);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 button{background:none;border:0;cursor:pointer;padding:0}
@@ -219,7 +236,7 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .nav{display:flex;flex-direction:column;gap:2px;margin-bottom:18px}
 .nav-btn{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-s);color:var(--ink-2);font-weight:500;text-align:left;width:100%;transition:background .15s,color .15s}
 .nav-btn:hover{background:var(--surface-3)}
-.nav-btn[aria-current="true"]{background:var(--accent-soft);color:var(--accent-2);font-weight:600}
+.nav-btn[aria-current="true"]{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
 /* Something is late. Filled in the danger colour so it is the one thing in
    the sidebar that catches the eye, which only works because nothing else
    there carries a number. */
@@ -265,13 +282,13 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .search .ic{color:var(--faint)}
 .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);padding:2px;gap:2px}
 .seg button{padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
-.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-2)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-ink)}
 .seg button:hover:not([aria-pressed="true"]){color:var(--ink)}
 .btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px;border-radius:var(--r-s);font-weight:600;font-size:13px;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);transition:background .15s,border-color .15s,transform .1s}
 .btn:hover{border-color:var(--line-2);background:var(--surface-2)}
 .btn:active{transform:translateY(1px)}
 .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);box-shadow:var(--sh-1)}
-.btn-primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
 .btn-ghost{background:none;border-color:transparent}
 .btn-ghost:hover{background:var(--surface-3);border-color:transparent}
 .btn-danger{color:var(--danger)}
@@ -285,16 +302,17 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 /* ---------- generic bits ---------- */
 .chip{display:inline-flex;align-items:center;gap:5px;height:21px;padding:0 8px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface-3);color:var(--ink-2);white-space:nowrap}
 .chip .ic{width:12px;height:12px;stroke-width:2}
-.chip-cat{background:color-mix(in srgb,var(--c) 13%,var(--tint-base));color:var(--c)}
+.chip-cat{background:color-mix(in srgb,var(--c) 13%,var(--tint-base));color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
 .chip-due{background:var(--surface-3);color:var(--muted)}
-.chip-due.soon{background:var(--amber-soft);color:var(--amber)}
-.chip-due.over{background:var(--danger-soft);color:var(--danger)}
-.q-do{--q:var(--accent);--qs:var(--accent-soft)}
-.q-decide{--q:var(--amber);--qs:var(--amber-soft)}
-.q-delegate{--q:var(--blue);--qs:var(--blue-soft)}
-.q-drop{--q:var(--danger);--qs:var(--danger-soft)}
-.q-none{--q:var(--faint);--qs:var(--surface-3)}
-.chip-q{background:var(--qs);color:var(--q)}
+.chip-due.soon{background:var(--amber-soft);color:var(--amber-ink)}
+.chip-due.over{background:var(--danger-soft);color:var(--danger-ink)}
+/* --q is the quadrant's hue for icons and edges, --qt the same as text. */
+.q-do{--q:var(--accent);--qt:var(--accent-ink);--qs:var(--accent-soft)}
+.q-decide{--q:var(--amber);--qt:var(--amber-ink);--qs:var(--amber-soft)}
+.q-delegate{--q:var(--blue);--qt:var(--blue-ink);--qs:var(--blue-soft)}
+.q-drop{--q:var(--danger);--qt:var(--danger-ink);--qs:var(--danger-soft)}
+.q-none{--q:var(--faint);--qt:var(--muted);--qs:var(--surface-3)}
+.chip-q{background:var(--qs);color:var(--qt)}
 .tick{width:17px;height:17px;flex:none;border-radius:6px;border:1.7px solid var(--line-2);background:var(--surface);display:grid;place-items:center;transition:background .15s,border-color .15s}
 .tick .ic{width:11px;height:11px;stroke:var(--on-accent);stroke-width:3;opacity:0}
 .tick:hover{border-color:var(--accent)}
@@ -436,7 +454,7 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--canvas)}
 .filter-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .filter-pill:hover{border-color:var(--line-2)}
-.filter-pill.on{background:var(--accent-soft);border-color:transparent;color:var(--accent-2)}
+.filter-pill.on{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
 .filter-pill .x{color:var(--faint)}
 .adv{background:var(--surface-2);border-bottom:1px solid var(--line);padding:14px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
 .field{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -463,8 +481,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .tcard .meta .ic{flex:none}
 .m-cat{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}
 .m-cat .ic{color:var(--c)}
-.m-due.soon{color:var(--amber);font-weight:600}
-.m-due.over{color:var(--danger);font-weight:600}
+.m-due.soon{color:var(--amber-ink);font-weight:600}
+.m-due.over{color:var(--danger-ink);font-weight:600}
 .m-subs{color:var(--faint)}
 /* What is attached to the task: subtasks, comments, documents, files, links.
    Only the ones that exist are drawn, so a bare task stays bare. */
@@ -504,9 +522,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .quad{border-radius:var(--r-l);border:1px solid color-mix(in srgb,var(--q) 26%,var(--line));background:color-mix(in srgb,var(--q) 6%,var(--tint-base));display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .quad-head{display:flex;align-items:center;gap:9px;padding:12px 14px 10px}
 .quad-head .ic{color:var(--q)}
-.quad-head h3{font-size:14.5px;color:var(--q)}
+.quad-head h3{font-size:14.5px;color:var(--qt)}
 .quad-head p{margin:0;font-size:11.5px;color:var(--muted)}
-.quad-head .n{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--q);background:var(--surface);border-radius:20px;padding:2px 9px}
+.quad-head .n{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--qt);background:var(--surface);border-radius:20px;padding:2px 9px}
 .quad-body{flex:1;overflow-y:auto;padding:0 10px 12px;display:flex;flex-direction:column;gap:6px}
 .qrow{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 10px;text-align:left}
 .qrow:hover{border-color:var(--line-2);box-shadow:var(--sh-1)}
@@ -537,10 +555,10 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .wd small{font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.03em}
 .wd .cell{width:26px;height:26px;border-radius:9px;border:1.6px solid var(--line);display:grid;place-items:center;background:var(--surface-2);color:transparent}
 .wd .cell.sched{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background:color-mix(in srgb,var(--c) 8%,var(--tint-base))}
-.wd .cell.done{background:var(--c);border-color:var(--c);color:var(--on-accent)}
+.wd .cell.done{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));border-color:transparent;color:var(--on-accent)}
 .wd .cell.today{box-shadow:0 0 0 2px var(--accent-soft)}
 .wd .cell .ic{width:13px;height:13px;stroke-width:3}
-.streak{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--apricot);background:var(--apricot-soft);padding:2px 8px;border-radius:20px}
+.streak{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--apricot-ink);background:var(--apricot-soft);padding:2px 8px;border-radius:20px}
 
 /* ---------- notes ---------- */
 .notes{display:grid;grid-template-columns:266px minmax(0,1fr);height:100%;min-height:0;background:var(--canvas)}
@@ -570,7 +588,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .wel-choice{display:flex;gap:8px;flex-wrap:wrap}
 .wel-choice .btn{flex:1;min-width:150px;justify-content:center;height:38px}
 .wel-fine{margin:0;font-size:11.5px;line-height:1.55;color:var(--muted)}
-.linkish{color:var(--accent-2);font-weight:600;text-decoration:underline;text-underline-offset:2px;font-size:11.5px}
+.linkish{color:var(--accent-ink);font-weight:600;text-decoration:underline;text-underline-offset:2px;font-size:11.5px}
 .rte{flex:1;overflow-y:auto;padding:18px 20px 30px;outline:0;font-size:14px;line-height:1.65;max-width:none}
 .rte:empty::before{content:attr(data-ph);color:var(--faint)}
 .rte h2{font-family:var(--fd);font-size:18px;margin:16px 0 6px}
@@ -579,7 +597,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .rte ul,.rte ol{margin:0 0 10px;padding-left:22px}
 .rte li{margin-bottom:4px}
 .rte blockquote{margin:0 0 10px;padding:4px 0 4px 14px;border-left:3px solid var(--accent-soft);color:var(--ink-2);font-style:italic}
-.rte a{color:var(--accent-2)}
+.rte a{color:var(--accent-ink)}
 .rte code{background:var(--surface-3);padding:1px 5px;border-radius:5px;font-size:12.5px}
 .actions-panel{border-top:1px solid var(--line);background:var(--surface-2);padding:12px 20px 16px;max-height:38%;overflow-y:auto}
 .actions-panel h4{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:8px;display:flex;align-items:center;gap:7px}
@@ -604,7 +622,10 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .pickers{display:flex;flex-wrap:wrap;gap:6px}
 .pick{display:inline-flex;align-items:center;gap:6px;height:31px;padding:0 11px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .pick:hover{border-color:var(--line-2)}
-.pick.on{border-color:transparent;background:color-mix(in srgb,var(--c,var(--accent)) 14%,var(--tint-base));color:var(--c,var(--accent-2))}
+/* A category-coloured pick takes the calendar's label recipe: a raw category
+   colour is not readable text on its own tint in the dark. */
+.pick.on{border-color:transparent;background:color-mix(in srgb,var(--c,var(--accent)) 14%,var(--tint-base));
+  color:color-mix(in srgb,var(--c,var(--accent-ink)) var(--ev-label),var(--ink))}
 .pick.on .ic{color:var(--c,var(--accent))}
 .pick > *{pointer-events:none}
 
@@ -629,7 +650,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .sw-btn.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface) inset}
 .icon-pick{display:flex;flex-wrap:wrap;gap:6px}
 .icon-pick button{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-2);background:var(--surface)}
-.icon-pick button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-2)}
+.icon-pick button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
 .cat-manage{display:flex;flex-direction:column;gap:7px}
 .cm-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--surface)}
 .cm-row .t{flex:1;font-weight:600;font-size:13px}
@@ -706,7 +727,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .dnext-l{height:22px;padding:0 9px;border-radius:20px;display:inline-grid;place-items:center;flex:none;
   font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);
   box-shadow:inset 0 0 0 1px var(--line-2)}
-.dnext.is-now .dnext-l{background:var(--c);color:var(--on-accent);box-shadow:none;animation:dpulse 2.4s ease-in-out infinite}
+.dnext.is-now .dnext-l{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));color:var(--on-accent);box-shadow:none;animation:dpulse 2.4s ease-in-out infinite}
 @keyframes dpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 45%,transparent)}
   60%{box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 0%,transparent)}}
 .dnext b{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
@@ -772,8 +793,8 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cdot{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
 .drow-end{flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.drow-end.late{color:var(--danger);font-weight:600}
-.drow-end.behind{color:var(--amber)}
+.drow-end.late{color:var(--danger-ink);font-weight:600}
+.drow-end.behind{color:var(--amber-ink)}
 .dmore{margin:4px 8px 0;padding:4px 8px;border-radius:7px;font-size:12px;font-weight:600;color:var(--accent-ink)}
 .dmore:hover{background:var(--accent-soft)}
 .drow.done{opacity:var(--done-fade)}
@@ -797,7 +818,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .dag-row:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
 .dag-row.now{background:color-mix(in srgb,var(--c) 11%,var(--surface))}
 .dag-time{font-size:12px;font-weight:600;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
-.dag-time.behind{color:var(--amber)}
+.dag-time.behind{color:var(--amber-ink)}
 .dag-dot{position:relative;z-index:1;width:18px;height:18px;border-radius:50%;border:2px solid var(--c);
   background:var(--surface);display:grid;place-items:center;transition:background .15s}
 .dag-dot .ic{width:10px;height:10px;stroke:var(--on-accent);stroke-width:3;opacity:0}
@@ -808,7 +829,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .dag-row.done .drow-body b{text-decoration:line-through;color:var(--muted)}
 .dag-row.past .drow-body b{color:var(--muted)}
 .dag-now{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-  padding:3px 8px;border-radius:20px;background:var(--c);color:var(--on-accent)}
+  padding:3px 8px;border-radius:20px;background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));color:var(--on-accent)}
 .dag-allday{display:flex;flex-wrap:wrap;gap:6px;padding:0 8px 8px}
 .dag-allday .gchip{width:auto;max-width:100%}
 
@@ -900,7 +921,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .gev{gap:10px}
 .gev p{display:flex;align-items:center;gap:9px;margin:0;font-size:13.5px;color:var(--ink)}
 .gev p .ic{color:var(--muted)}
-.gev a{color:var(--accent-2);font-weight:600}
+.gev a{color:var(--accent-ink);font-weight:600}
 .gev .gev-note{font-size:12px;color:var(--faint);margin-top:6px}
 
 .set-field .inp-wide{width:100%;max-width:440px}
@@ -912,7 +933,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .set-who b{font-weight:600}
 .set-stack{display:flex;flex-direction:column;gap:10px}
 .set-steps{margin-top:16px;font-size:12.5px;color:var(--muted);max-width:60ch}
-.set-steps summary{cursor:pointer;font-weight:600;color:var(--accent-2)}
+.set-steps summary{cursor:pointer;font-weight:600;color:var(--accent-ink)}
 .set-steps ol{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.55}
 .set-steps b{color:var(--ink-2);font-weight:600}
 .gcals{display:flex;flex-direction:column;gap:7px}
@@ -1039,9 +1060,9 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
   border:1px solid var(--line);border-radius:var(--r-s);padding:5px 7px;font-size:12.5px}
 .lk{display:flex;align-items:center;gap:6px;flex:1;min-width:0;text-align:left;color:var(--ink-2);font-weight:500}
 .lk span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lk:hover{color:var(--accent-2)}
+.lk:hover{color:var(--accent-ink)}
 .lk-inline{color:var(--ink-2);font-weight:500;text-align:left}
-.lk-inline:hover{color:var(--accent-2);text-decoration:underline}
+.lk-inline:hover{color:var(--accent-ink);text-decoration:underline}
 .rowx{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;color:var(--faint);flex:none}
 .rowx:hover{background:var(--danger-soft);color:var(--danger)}
 .filerow .ic{color:var(--faint)}
@@ -1061,7 +1082,7 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .sh-tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .sh-tab .num{font-size:11px;font-weight:600;color:var(--faint);background:var(--surface-3);
   border-radius:20px;padding:1px 7px}
-.sh-tab[aria-selected="true"] .num{background:var(--accent-soft);color:var(--accent-2)}
+.sh-tab[aria-selected="true"] .num{background:var(--accent-soft);color:var(--accent-ink)}
 
 /* ---------- activity feed ---------- */
 .feed{display:flex;flex-direction:column;gap:9px;margin-bottom:12px}

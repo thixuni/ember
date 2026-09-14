@@ -1186,18 +1186,39 @@ const relLum=c=>{const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1
 const contrast=(a,b)=>{const x=relLum(a),y=relLum(b);
   return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
 
-/* The two clamps are what keep a bad pick readable rather than refusing it:
-   the mid shade has to carry white text on a light page, and the light shade
-   has to be legible on a dark panel. Pick neon yellow and it comes back
-   darkened; pick black and the light shade comes back grey. */
-const WHITE=[255,255,255],DARK_PANEL=[28,32,35];
+/* Clamps keep a bad pick readable rather than refusing it. Each shade is
+   moved, in lightness only, until every place it is used clears WCAG AA
+   (4.5:1) against what it is actually used on:
+
+     base  a fill under white text, and text on a white page       (light)
+     dark  text on white, and on the accent's own soft tint        (light)
+     lift  text and marks on a dark panel and on its soft tint,
+           and a fill under the dark on-accent text                (dark)
+
+   Checking against plain white and plain dark grey was not enough: text in
+   the accent sits on a tint *of* the accent, and a black accent put black
+   text on a near-black tint. Pick neon yellow and it comes back darkened;
+   pick black and the light shade comes back a grey you can read. */
+const WHITE=[255,255,255],DARK_PANEL=[28,32,35],ON_DARK=[14,17,19],AA=4.5;
+const mixRGB=(a,p,b)=>a.map((v,i)=>v*p/100+b[i]*(1-p/100));
+/* The same mixes the stylesheet makes: a tint is 13% accent into the panel,
+   and the dark panel itself carries 5% of the light shade. */
+const softOn=(c,panel)=>mixRGB(c,13,panel);
+const darkPanelFor=lift=>mixRGB(lift,5,DARK_PANEL);
+/* Checked on the colour as it will be written out -- rounded to whole RGB
+   values -- since rounding alone can take 4.50 to 4.49. */
+const shade=(h,s,l)=>hex2rgb(rgb2hex(hsl2rgb(h,s,l)));
 function accentTrio(hex){
   const c=rgb2hsl(hex2rgb(hex)),h=c[0],s=Math.min(92,c[1]);
-  let l=c[2],base=hsl2rgb(h,s,l);
-  while(contrast(base,WHITE)<4.5&&l>10){l-=1;base=hsl2rgb(h,s,l);}
-  let li=Math.min(94,l+15),lift=hsl2rgb(h,s,li);
-  while(contrast(lift,DARK_PANEL)<4.5&&li<94){li+=1;lift=hsl2rgb(h,s,li);}
-  return {base:rgb2hex(base),dark:rgb2hex(hsl2rgb(h,s,Math.max(0,l-9))),lift:rgb2hex(lift)};
+  let l=c[2],base=shade(h,s,l);
+  while(contrast(base,WHITE)<AA&&l>0){l-=1;base=shade(h,s,l);}
+  let ld=Math.max(0,l-9),dark=shade(h,s,ld);
+  while(contrast(dark,softOn(base,WHITE))<AA&&ld>0){ld-=1;dark=shade(h,s,ld);}
+  const liftOk=x=>{const p=darkPanelFor(x);
+    return contrast(x,p)>=AA&&contrast(x,softOn(x,p))>=AA&&contrast(x,ON_DARK)>=AA;};
+  let li=Math.min(96,l+15),lift=shade(h,s,li);
+  while(!liftOk(lift)&&li<100){li+=1;lift=shade(h,s,li);}
+  return {base:rgb2hex(base),dark:rgb2hex(dark),lift:rgb2hex(lift)};
 }
 function setCustomAccent(hex){
   S.prefs.accent="custom";

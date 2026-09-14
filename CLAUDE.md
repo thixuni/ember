@@ -280,10 +280,38 @@ colour that does not exist yet — so `accentTrio()` works them out from a
 single colour and `applyAppearance()` writes them onto the root element. The
 CSS holds one default so the page has an accent before any script runs, and
 `ACCENTS` in app.js is the palette: presets are just colours that happen to
-have names. Two clamps keep a bad pick readable rather than refusing it — the
-mid shade is darkened until white text on it clears 4.5:1, the light shade is
-lightened until it clears 4.5:1 on a dark panel. Pick neon yellow and it comes
-back darkened; pick black and the light shade comes back grey.
+have names. Clamps keep a bad pick readable rather than refusing it: each
+shade moves in lightness until every place it is used clears 4.5:1 against
+what it is *actually* used on — white text on the mid shade; the dark shade
+as text on white and on the accent's own tint; the light shade as text on a
+dark panel and on its tint, and under the dark on-accent text. Checking only
+against plain white and plain grey is what let a black accent put black text
+on a near-black tint. The check runs on the rounded colour, because rounding
+alone can take 4.50 to 4.49.
+
+**Accent as text is `--accent-ink`**, never `--accent` on a tint and never a
+"dark" shade: it is the dark shade in light mode and the light shade in dark.
+`--accent-2` used to be the dark shade in both themes and every use of it was
+text, which is why it is gone. A pressed primary button is `--accent-hover`,
+moved away from the text on it in either theme.
+
+**Every other hue used as text has an `-ink` too** — `--amber-ink`,
+`--apricot-ink`, `--danger-ink`, `--blue-ink` — half hue, half the theme's
+ink. The bare hues are for fills, edges and icons. A category colour as text
+uses the calendar recipe (`--ev-label`); a solid category fill under text uses
+`--solid-mix`. Quadrants carry `--q` (hue) and `--qt` (text).
+
+**Nothing is faded below AA.** A finished item is struck through and takes a
+quieter colour that still reads (`--label-done`, `--muted`); `--done-fade` is
+1 in light mode. The four text greys clear 4.5:1 on the darkest background
+they can land on in either theme, for any accent. The steps between them are
+tighter than a designer might like — AA leaves no room for a grey that is only
+suggested.
+
+`test/contrast.test.js` holds all of this: it lifts `accentTrio()` out of
+app.js and sweeps some 450 colours through it, and reads the ramp straight out
+of app.css and checks every grey on every panel. A colour change that breaks
+AA fails `npm test`.
 
 A swatch paints itself from `--dot`, set inline, and shows the shade the
 theme in force would actually use. Reading `--a-base` in the rule was the old
