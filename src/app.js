@@ -354,18 +354,43 @@ function eventsFor(d){
     const[h,m]=(r.time||"09:00").split(":").map(Number);
     return {kind:"routine",r:r,start:h*60+m,dur:r.dur||30,date:s,done:doneR(r,s)};
   });
-  /* Time you actually spent, drawn at the hour you spent it and as long as it
-     ran — no rounding, so the block is the duration. */
-  S.sessions.forEach(x=>{
-    const st=new Date(x.start);
-    if(ymd(st)!==s)return;
-    const t=taskById(x.task);
-    if(!t||!visibleCat(t.cat))return;
-    evs.push({kind:"session",s:x,t:t,date:s,
+  /* Time you actually spent, drawn at the hour you spent it. Runs of one task
+     close together are one sitting with pauses in it, so they draw as one
+     block from the first start to the last stop, labelled with the time
+     actually tracked. */
+  const dayEnd=addDays(d,1).setHours(0,0,0,0);
+  sittings(s).forEach(g=>{
+    const st=new Date(g.start);
+    evs.push({kind:"session",g:g,t:g.t,date:s,secs:g.secs,
       start:st.getHours()*60+st.getMinutes(),
-      dur:(x.secs||0)/60});
+      dur:Math.max(1,(Math.min(g.end,dayEnd)-g.start)/60000)});
   });
   return evs.sort((a,b)=>a.start-b.start);
+}
+/* A gap longer than this starts a new block: a morning run and an afternoon
+   run are two sittings, and one block across them would claim the hours in
+   between. */
+const RUN_GAP=30*60*1000;
+const runEnd=x=>x.end||(x.start+(x.secs||0)*1000);
+function sittings(dayStr){
+  const by={},out=[];
+  S.sessions.forEach(x=>{if(ymd(new Date(x.start))===dayStr)(by[x.task]=by[x.task]||[]).push(x);});
+  Object.keys(by).forEach(id=>{
+    const t=taskById(id);if(!t||!visibleCat(t.cat))return;
+    let cur=null;
+    by[id].sort((a,b)=>a.start-b.start).forEach(x=>{
+      if(cur&&x.start-cur.end<=RUN_GAP){cur.end=Math.max(cur.end,runEnd(x));cur.secs+=x.secs||0;cur.runs.push(x);}
+      else{cur={t:t,start:x.start,end:runEnd(x),secs:x.secs||0,runs:[x]};out.push(cur);}
+    });
+  });
+  return out;
+}
+/* Tracked time the way a person says it: 45s, 12m, 1h 5m. */
+function fmtTracked(secs){
+  const s=Math.max(0,Math.round(secs||0));
+  if(s<60)return s+"s";
+  const m=Math.floor(s/60),h=Math.floor(m/60);
+  return h?h+"h"+(m%60?" "+m%60+"m":""):m+"m";
 }
 function layoutEvents(evs){
   const out=[];let cluster=[],end=-1;
@@ -430,7 +455,9 @@ function weekGrid(){
       }
       const isS=e.kind==="session";
       const c=cat(isS?e.t.cat:e.r.cat),top=(e.start/60-H0)*PX;
-      const ht=isS?Math.max(5,(e.dur/60)*PX-2):Math.max(20,(e.dur/60)*PX-2);
+      /* A sitting is drawn its true length, with a floor only big enough to
+         click: a minute of tracking would otherwise be a one-pixel line. */
+      const ht=isS?Math.max(16,(e.dur/60)*PX-2):Math.max(20,(e.dur/60)*PX-2);
       const w=100/e._n,left=e._c*w;
       const pos='--c:'+c.color+';top:'+top.toFixed(1)+'px;height:'+ht.toFixed(1)+'px;left:calc('+left+'% + 3px);width:calc('+w+'% - 6px)';
       // A stacked title and time needs about 40px. Shorter blocks put them on
@@ -439,11 +466,13 @@ function weekGrid(){
       const compact=ht<40;
 
       if(isS){
-        const st=new Date(e.s.start);
-        const began=pad(st.getHours())+":"+pad(st.getMinutes());
+        const hm=ms=>{const x=new Date(ms);return fmtTime(pad(x.getHours())+":"+pad(x.getMinutes()));};
+        const n=e.g.runs.length;
         return '<button class="ev tracked'+(compact?" sm":"")+'" style="'+pos+'" data-act="task" data-id="'+e.t.id+
-          '" title="'+esc(e.t.title+" · "+fmtDur(e.s.secs)+" tracked from "+fmtTime(began))+'">'+
-          '<b>'+icon("i-timer","ic-14")+esc(e.t.title)+'</b><i class="num">'+esc(fmtDur(e.s.secs))+'</i></button>';
+          '" title="'+esc(e.t.title+" · "+fmtTracked(e.secs)+" tracked, "+hm(e.g.start)+"–"+hm(e.g.end)+(n>1?", in "+n+" runs":""))+'">'+
+          /* The timer icon only where there is room for it; squeezed into a
+             short block it read as a stray bracket. */
+          '<b>'+(compact?"":icon("i-timer","ic-14"))+esc(e.t.title)+'</b><i class="num">'+esc(fmtTracked(e.secs))+'</i></button>';
       }
       const when=compact?fmtTime(e.r.time):fmtRange(e.r.time,e.r.dur);
       return '<button class="ev'+(e.done?" done":"")+(compact?" sm":"")+'" style="'+pos+'" data-act="routine" data-id="'+e.r.id+'" data-date="'+s+'" title="'+esc(e.r.title+" · "+fmtRange(e.r.time,e.r.dur))+'"><b>'+esc(e.r.title)+'</b><i class="num">'+esc(when)+'</i></button>';}).join("");
@@ -474,7 +503,7 @@ function monthGrid(){
     if(ts.length-show.length>0)parts.push((ts.length-show.length)+" more");
     if(gcount)parts.push(gcount+" event"+(gcount===1?"":"s"));
     if(routines.length)parts.push(routines.length+" routine"+(routines.length===1?"":"s"));
-    if(tracked.length)parts.push(fmtDur(tracked.reduce((n,e)=>n+(e.s.secs||0),0))+" tracked");
+    if(tracked.length)parts.push(fmtTracked(tracked.reduce((n,e)=>n+(e.secs||0),0))+" tracked");
     const more=parts.join(" · ");
     cells+='<div class="mcell'+(d.getMonth()!==m?" out":"")+(s===tstr?" today":"")+'" data-act="new-task" data-date="'+s+'">'+
       '<div class="mtop"><span class="mnum num">'+d.getDate()+'</span><span class="mdots">'+dots.map(c=>'<span class="mdot" style="--c:'+c+'"></span>').join("")+'</span></div>'+
@@ -1621,7 +1650,7 @@ function peekModal(date){
     (gev.length?'<div><div class="sec-label" style="margin-bottom:6px">Events</div>'+gev.map(e=>'<div class="qrow" data-act="gcal-ev" data-id="'+esc(e.id)+'"><span class="gdot" style="--c:'+e.color+'"></span><div class="t"><b>'+esc(e.title)+'</b></div><span class="chip num">'+esc(e.allDay?"All day":fmtTime(pad(new Date(e.st).getHours())+":"+pad(new Date(e.st).getMinutes())))+'</span></div>').join("")+'</div>':"")+
     (ts.length?'<div><div class="sec-label" style="margin-bottom:6px">Tasks</div>'+ts.map(t=>'<div class="qrow" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+'<div class="t"><b>'+esc(t.title)+'</b></div>'+catChip(t.cat)+'</div>').join("")+'</div>':"")+
     (routines.length?'<div><div class="sec-label" style="margin-bottom:6px">Routines</div>'+routines.map(e=>'<div class="qrow"><button class="tick'+(e.done?" on":"")+'" data-act="routine-done" data-id="'+e.r.id+'" data-date="'+date+'" aria-label="Toggle">'+icon("i-check")+'</button><div class="t"><b>'+esc(e.r.title)+'</b></div><span class="chip num">'+esc(fmtTime(e.r.time))+'</span></div>').join("")+'</div>':"")+
-    (tracked.length?'<div><div class="sec-label" style="margin-bottom:6px">Time tracked</div>'+tracked.map(e=>'<div class="qrow">'+icon("i-timer","ic-14")+'<div class="t"><b>'+esc(e.t.title)+'</b></div><span class="chip num">'+esc(fmtDur(e.s.secs))+'</span></div>').join("")+'</div>':"")+
+    (tracked.length?'<div><div class="sec-label" style="margin-bottom:6px">Time tracked</div>'+tracked.map(e=>'<div class="qrow">'+icon("i-timer","ic-14")+'<div class="t"><b>'+esc(e.t.title)+'</b></div><span class="chip num">'+esc(fmtTracked(e.secs))+'</span></div>').join("")+'</div>':"")+
     (!ts.length&&!evs.length&&!gev.length?'<div class="empty">'+icon("i-calendar")+'<p>Nothing scheduled. A clear day.</p></div>':"")+
     '</div><div class="mfoot"><button class="btn btn-primary" data-act="new-task" data-date="'+date+'">'+icon("i-plus")+'Add task</button><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Close</button></div></div>');
 }
@@ -1868,6 +1897,7 @@ document.addEventListener("click",function(e){
     case "remind-test":remindTest();break;
     case "remind-allow":if(typeof Notification!=="undefined")
       Promise.resolve(Notification.requestPermission()).then(()=>{settingsModal();remindSoon();});break;
+    case "tm-break":if(V.tmBreak===id)closeTimeBreakdown();else{V.tmBreak=id;renderSheet();}break;
     case "dash-more":V.dashAll=!V.dashAll;renderView();break;
     case "dash-note":V.view="notes";V.noteId=id;V.q="";render();break;
     case "note-tag":V.noteTag=n.dataset.v;renderView();break;
@@ -1974,6 +2004,7 @@ document.addEventListener("input",function(e){
 });
 document.addEventListener("keydown",function(e){
   if(e.key==="Escape"&&el("modalRoot").innerHTML&&!welcomeOpen){closeModal();return;}
+  if(e.key==="Escape"&&V.tmBreak){closeTimeBreakdown();return;}
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
   if(e.key==="Enter"&&e.target.id==="linkUrl"){e.preventDefault();
@@ -2332,12 +2363,13 @@ function deleteDoc(id){
 
 function openSheet(id,preset){
   if(id&&!taskById(id))return;
+  V.tmBreak=null;
   V.sheet={id:id||null,tab:"details",
     draft:id?null:Object.assign({title:"",desc:"",due:"",start:"",cat:S.categories[0].id,
       status:"backlog",urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[]},preset||{})};
   renderSheet();
 }
-function closeSheet(){V.sheet=null;renderSheet();}
+function closeSheet(){V.sheet=null;V.tmBreak=null;renderSheet();}
 
 /* The task being shown, or the unsaved draft for a new one. */
 const sheetTask=()=>{const s=V.sheet;return s?(s.id?taskById(s.id):s.draft):null;};
@@ -2393,13 +2425,8 @@ function sheetTime(t,isNew){
   const est=tEst(t),estSecs=est*60;
   const over=estSecs&&secs>estSecs;
 
-  /* Hovering the total shows what it is made of, rather than needing a page. */
-  const ss=sessionsFor(t.id);
-  const tip=ss.length
-    ? ss.map(x=>{const d=new Date(x.start);
-        return fmtDate(ymd(d))+" · "+fmtTime(pad(d.getHours())+":"+pad(d.getMinutes()))+" · "+fmtDur(x.secs);})
-        .join("\n")+(ss.length>1?"\n"+ss.length+" sessions":"")
-    : "No time tracked yet";
+  /* The total opens what it is made of on a click, not a hover. */
+  const open=V.tmBreak===t.id;
 
   return '<div class="tm">'+
     '<div class="tm-controls">'+
@@ -2408,7 +2435,9 @@ function sheetTime(t,isNew){
       (live?'<button class="btn btn-sm btn-danger" data-act="timer-stop">'+icon("i-stop","ic-14")+'Stop</button>':"")+
     '</div>'+
     '<div class="tm-read">'+
-      '<span class="num tm-total" title="'+esc(tip)+'"><b>'+fmtDur(secs)+'</b>'+(estSecs?' of '+fmtMins(est):' tracked')+'</span>'+
+      '<span class="tm-anchor"><button class="num tm-total" data-act="tm-break" data-id="'+t.id+'" aria-haspopup="dialog" aria-expanded="'+open+'">'+
+        '<b>'+fmtDur(secs)+'</b>'+(estSecs?' of '+fmtMins(est):' tracked')+icon("i-chev-d","ic-14")+'</button>'+
+        (open?timeBreakdown(t,secs,live):"")+'</span>'+
       (estSecs?'<span class="tm-delta'+(over?" over":"")+'">'+
         (over?"over by "+fmtDur(secs-estSecs):fmtDur(estSecs-secs)+" left")+'</span>':"")+
     '</div>'+
@@ -2416,6 +2445,70 @@ function sheetTime(t,isNew){
       Math.min(100,secs/estSecs*100).toFixed(1)+'%"></i></div>':"")+
     '</div>';
 }
+
+/* ---- the time breakdown ----
+   Opened from the total. Every run on a line of the day, grouped by day, so
+   you see not only how long but when -- the same 6am-to-midnight strip the
+   dashboard draws, at a smaller scale. Against an estimate, the bar is scaled
+   to whichever is longer and the overrun is hatched red past a marker. */
+function timeBreakdown(t,total,live){
+  const r=running(),est=tEst(t)*60,c=cat(t.cat).color;
+  const runs=sessionsFor(t.id).map(x=>({start:x.start,end:runEnd(x),secs:x.secs||0}));
+  if(live&&r)runs.push({start:r.began,end:Date.now(),secs:liveSecs(),live:true});
+  const days={};runs.forEach(x=>{const k=ymd(new Date(x.start));(days[k]=days[k]||[]).push(x);});
+  const keys=Object.keys(days).sort().reverse(),shown=keys.slice(0,7),rest=keys.slice(7);
+  const from=H0*60,span=(H1-H0)*60;
+  const pos=ms=>{const d=new Date(ms);return Math.max(0,Math.min(100,(d.getHours()*60+d.getMinutes()-from)/span*100));};
+  const hm=ms=>{const d=new Date(ms);return fmtTime(pad(d.getHours())+":"+pad(d.getMinutes()));};
+  const dayName=k=>k===TODAY()?"Today":k===ymd(addDays(today(),-1))?"Yesterday":
+    parseD(k).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
+  const plural=(n,w)=>n+" "+w+(n===1?"":"s");
+
+  let meter="";
+  if(est){
+    const top=Math.max(total,est),fill=Math.min(total,est)/top*100,over=total>est?(total-est)/top*100:0;
+    meter='<div class="tmb-meter" role="img" aria-label="'+esc(fmtTracked(total)+" of a "+fmtTracked(est)+" estimate")+'">'+
+      '<i style="width:'+fill.toFixed(1)+'%"></i>'+(over?'<i class="tmb-overrun" style="left:'+fill.toFixed(1)+'%;width:'+over.toFixed(1)+'%"></i>':"")+
+      '<span class="tmb-mark" style="left:'+(est/top*100).toFixed(1)+'%"></span></div>'+
+      '<div class="tmb-scale"><span>0</span><span>Estimate '+esc(fmtTracked(est))+'</span></div>';
+  }
+  const pill=est?(total>est?'<span class="tmb-pill is-over">'+esc(fmtTracked(total-est))+' over</span>'
+    :'<span class="tmb-pill">'+esc(fmtTracked(est-total))+' left</span>'):"";
+
+  const body=!runs.length
+    ? '<p class="tmb-empty">Nothing tracked yet. Press Start, and each run will show here at the time you did it.</p>'
+    : '<div class="tmb-axis"><span>6am</span><span>noon</span><span>6pm</span><span>midnight</span></div>'+
+      '<div class="tmb-days">'+shown.map(k=>{
+        const list=days[k].sort((a,b)=>a.start-b.start),sum=list.reduce((n,x)=>n+x.secs,0);
+        return '<div class="tmb-day"><div class="tmb-dh"><span>'+esc(dayName(k))+'</span><b class="num">'+esc(fmtTracked(sum))+'</b></div>'+
+          '<div class="tmb-track">'+list.map(x=>{const l=pos(x.start),w=Math.max(1.4,pos(x.end)-l);
+            return '<i class="'+(x.live?"live":"")+'" style="left:'+l.toFixed(2)+'%;width:'+w.toFixed(2)+'%"></i>';}).join("")+'</div>'+
+          '<div class="tmb-runs">'+list.map(x=>{
+            /* A run inside one minute is one time, not 5pm–5pm. */
+            const when=x.live?hm(x.start)+'–now':hm(x.start)===hm(x.end)?hm(x.start):hm(x.start)+'–'+hm(x.end);
+            return '<span class="num'+(x.live?" live":"")+'">'+esc(when)+'<b>'+esc(fmtTracked(x.secs))+'</b></span>';}).join("")+'</div></div>';}).join("")+
+        (rest.length?'<p class="tmb-more">and '+plural(rest.length,"earlier day")+', '+
+          esc(fmtTracked(rest.reduce((n,k)=>n+days[k].reduce((m,x)=>m+x.secs,0),0)))+'</p>':"")+
+      '</div>';
+
+  return '<div class="tmb" role="dialog" aria-label="Time breakdown" style="--c:'+c+'">'+
+    '<div class="tmb-eyebrow">Time breakdown</div>'+
+    '<div class="tmb-head"><span class="tmb-total num">'+esc(fmtTracked(total))+'</span>'+
+      '<span class="tmb-sub">'+(runs.length?plural(runs.length,"run")+" over "+plural(keys.length,"day"):"tracked")+'</span>'+pill+'</div>'+
+    meter+body+'</div>';
+}
+/* Closed by a click anywhere else, or Escape, and taken out in place: a full
+   panel redraw for a pop-over would be the flicker the panel once had. */
+function closeTimeBreakdown(){
+  if(!V.tmBreak)return;V.tmBreak=null;
+  const p=document.querySelector(".tmb");if(p)p.remove();
+  const b=document.querySelector('[data-act="tm-break"]');if(b)b.setAttribute("aria-expanded","false");
+}
+document.addEventListener("click",function(e){
+  if(!V.tmBreak||!e.target.closest)return;
+  if(e.target.closest('.tmb,[data-act="tm-break"]'))return;
+  closeTimeBreakdown();
+},true);
 
 function sheetTags(t){
   const tags=tTags(t);
@@ -3223,6 +3316,7 @@ setInterval(function(){
   if(V.sheet&&V.sheet.id===r.task){
     const total=trackedSecs(r.task)+secs;
     const b=document.querySelector(".tm-total b");if(b)b.textContent=fmtDur(total);
+    const tb=document.querySelector(".tmb-total");if(tb)tb.textContent=fmtTracked(total);
     const d=document.querySelector(".tm-delta");
     if(d&&est){d.textContent=total>est?"over by "+fmtDur(total-est):fmtDur(est-total)+" left";
       d.classList.toggle("over",total>est);}

@@ -97,10 +97,22 @@ file events for two seconds after its own write, and `applyVaultChange()`
 never writes back to the vault.
 
 Tracked time is drawn on the calendar rather than summarised elsewhere:
-`eventsFor()` returns routines and `S.sessions` rows together, and the week
-grid lays them out side by side. A session block is its true length — routines
-keep a 20px floor so their label stays legible, sessions do not, because a
-block that claims a duration has to be that duration.
+`eventsFor()` returns routines and tracked time together, and the week grid
+lays them out side by side. Tracked time is drawn as *sittings*, not runs:
+`sittings()` merges a task's runs on a day when the gap between them is
+under `RUN_GAP` (30 minutes), so pausing and restarting reads as one block
+from the first start to the last stop, labelled with the time actually
+tracked. A longer gap starts a new block — one block across a morning run
+and an afternoon run would claim the hours between. A sitting is its true
+length with a 16px floor, just enough to click; readers of a session event
+use `e.g` (the sitting) and `e.secs`, not a single row.
+
+In the task panel the total is a button, not a hover: it opens the time
+breakdown (`timeBreakdown()`) — a meter against the estimate with the
+overrun hatched past a marker, then each day as a 6am–midnight strip with
+its runs laid where they happened. It is open while `V.tmBreak` holds the
+task id; a click elsewhere or Escape takes it out in place rather than
+redrawing the panel.
 
 Time tracking has one control, Start, and no modes. A run counts up; if the
 task has an estimate the readouts say "elapsed of estimate" and turn red past

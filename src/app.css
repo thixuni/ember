@@ -1036,16 +1036,72 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .switch input:checked + span::after{transform:translateX(16px);background:var(--on-accent)}
 .switch input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
 .switch i{font-style:normal}
-.tm-total{cursor:help;border-bottom:1px dotted var(--line-2)}
+/* The total is a button now: it opens the breakdown on a click. */
+.tm-anchor{position:relative;display:inline-flex}
+.tm-total{display:inline-flex;align-items:center;gap:5px;margin:-3px 0 -3px -8px;padding:3px 7px 3px 8px;border-radius:8px;
+  font-size:12px;color:var(--muted)}
+.tm-total > *{pointer-events:none}
+.tm-total .ic{color:var(--faint);transition:transform .15s}
+.tm-total:hover,.tm-total[aria-expanded="true"]{background:var(--surface-3)}
+.tm-total[aria-expanded="true"] .ic{transform:rotate(180deg)}
+
+/* ---- the time breakdown ----
+   A small card hung off the total by a notch, in the task's own colour: a
+   meter against the estimate, then each day as a strip of the day with its
+   runs laid on it where they happened. */
+.tmb{position:absolute;top:calc(100% + 10px);left:-8px;z-index:8;width:340px;max-width:calc(100vw - 48px);
+  padding:14px 14px 12px;border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh-3);
+  background:radial-gradient(120% 70% at 0% 0%,color-mix(in srgb,var(--c) 10%,transparent),transparent 70%),var(--surface);
+  color:var(--ink);cursor:default;text-align:left}
+.tmb::before{content:"";position:absolute;top:-6px;left:20px;width:10px;height:10px;transform:rotate(45deg);
+  background:var(--surface);border-left:1px solid var(--line);border-top:1px solid var(--line)}
+.tmb-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink)}
+.tmb-head{display:flex;align-items:baseline;gap:9px;margin-top:6px;flex-wrap:wrap}
+.tmb-total{font-family:var(--fd);font-size:27px;font-weight:600;line-height:1;color:var(--ink)}
+.tmb-sub{font-size:12px;color:var(--muted)}
+.tmb-pill{margin-left:auto;align-self:center;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:20px;
+  background:var(--accent-soft);color:var(--accent-ink)}
+/* is-over, not over: .tm-read .over further down would win and paint it raw red. */
+.tmb-pill.is-over{background:var(--danger-soft);color:var(--danger-ink)}
+/* against the estimate: the overrun is hatched, past a marker at the estimate */
+.tmb-meter{position:relative;height:8px;margin:14px 0 5px;border-radius:8px;background:var(--surface-3)}
+.tmb-meter i{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--c)}
+.tmb-meter i.tmb-overrun{border-radius:0 8px 8px 0;
+  background:repeating-linear-gradient(135deg,var(--danger) 0 4px,color-mix(in srgb,var(--danger) 45%,var(--surface)) 4px 8px)}
+.tmb-mark{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;border-radius:2px;background:var(--ink)}
+.tmb-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint)}
+/* the days */
+.tmb-axis{display:flex;justify-content:space-between;margin:14px 0 6px;font-size:10px;font-weight:600;color:var(--faint);
+  letter-spacing:.02em}
+.tmb-days{display:flex;flex-direction:column;gap:12px;max-height:280px;overflow-y:auto;padding-right:2px}
+.tmb-dh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.tmb-dh b{font-weight:700;color:var(--ink)}
+/* a strip of the day, with faint lines at noon and six */
+.tmb-track{position:relative;height:10px;border-radius:10px;
+  background:
+    linear-gradient(to right,transparent calc(33.33% - .5px),var(--line) calc(33.33% - .5px) calc(33.33% + .5px),transparent calc(33.33% + .5px)),
+    linear-gradient(to right,transparent calc(66.67% - .5px),var(--line) calc(66.67% - .5px) calc(66.67% + .5px),transparent calc(66.67% + .5px)),
+    color-mix(in srgb,var(--ink) 6%,transparent)}
+.tmb-track i{position:absolute;top:0;bottom:0;min-width:5px;border-radius:10px;background:var(--c);
+  box-shadow:0 0 0 2px var(--surface)}
+.tmb-track i.live{animation:tmbpulse 2s ease-in-out infinite}
+@keyframes tmbpulse{50%{box-shadow:0 0 0 2px var(--surface),0 0 0 5px color-mix(in srgb,var(--c) 35%,transparent)}}
+.tmb-runs{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.tmb-runs span{display:inline-flex;align-items:center;gap:6px;padding:2px 4px 2px 8px;border-radius:20px;
+  font-size:11px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-soft)}
+.tmb-runs b{font-weight:700;color:var(--ink);padding:1px 6px;border-radius:20px;background:var(--surface-3)}
+.tmb-runs span.live{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.tmb-more{margin:0;font-size:11.5px;color:var(--muted)}
+.tmb-empty{margin:12px 0 2px;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .tm-delta{font-size:12px;font-weight:600;color:var(--muted)}
-.tm-delta.over{color:var(--danger)}
+.tm-delta.over{color:var(--danger-ink)}
 .tm-bar{height:4px;border-radius:3px;background:var(--surface-3);overflow:hidden;margin-top:8px;max-width:280px}
 .tm-bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
 .tm-bar.over i{background:var(--danger)}
 .tbar-time em{font-style:normal;font-weight:500;color:var(--faint)}
 .tm-read{display:flex;flex-wrap:wrap;gap:5px 14px;font-size:12px;color:var(--muted)}
 .tm-read b{color:var(--ink);font-weight:700}
-.tm-read .over{color:var(--danger);font-weight:600}
+.tm-read .over{color:var(--danger-ink);font-weight:600}
 
 .tagbox{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .chip-tag{background:var(--surface-3);color:var(--ink-2);padding-right:3px}
