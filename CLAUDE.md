@@ -172,7 +172,8 @@ never overridden.
 The top of it is a welcome panel (`dashHero()`): a greeting by time of day,
 a sentence on how today stands, the day's progress drawn as an orbit — a
 planet that travels round as today's tasks and routines get done, the app's
-name made literal — and the whole day on one strip (`dayStripHtml()`). It is
+name made literal, and the only orbit on the panel (a large faint one behind
+it was tried and taken out as clutter) — and the whole day on one strip (`dayStripHtml()`). It is
 the one place on the page with atmosphere, so the lists below stay calm. The
 schedule lays routines and Google events on a timeline; a routine's dot is its
 tick box, an event's is a square because it is Google's to change.

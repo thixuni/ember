@@ -769,13 +769,7 @@ function dashHero(d){
     '</svg>'+
     '<div class="dorbit-mid">'+(total?'<b class="num">'+done+'<i>/'+total+'</i></b><span>done</span>':icon("i-sun"))+'</div></div>';
 
-  /* Two faint orbits behind it, the app's own mark drawn large. */
-  const art='<svg class="dhero-art" viewBox="0 0 400 300" aria-hidden="true">'+
-    '<ellipse cx="250" cy="130" rx="190" ry="70" transform="rotate(-14 250 130)"/>'+
-    '<ellipse cx="250" cy="130" rx="130" ry="46" transform="rotate(-14 250 130)"/>'+
-    '<circle cx="84" cy="176" r="4"/><circle cx="372" cy="70" r="3"/></svg>';
-
-  return '<section class="dhero">'+art+
+  return '<section class="dhero">'+
     '<div class="dhero-top"><div class="dhero-text">'+
       '<div class="dhero-eyebrow">'+esc(today().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}))+'</div>'+
       '<h2 class="dhero-hi">'+esc(dashGreeting())+'</h2>'+
@@ -871,7 +865,7 @@ function timeTodayCard(){
     (d.rows.length?'<div class="dtime">'+d.rows.map(x=>{const c=cat(x.t.cat),live=r&&r.task===x.t.id;
       return '<button class="dtrow" data-act="task" data-id="'+x.t.id+'" style="--c:'+c.color+'">'+
         '<span class="dtrow-t">'+esc(x.t.title)+'</span>'+
-        '<span class="dtrow-v num'+(live?" live":"")+'"'+(live?' data-live-total="'+x.t.id+'"':"")+'>'+esc(live?fmtDur(x.secs):fmtMins(x.secs/60))+'</span>'+
+        '<span class="dtrow-v num'+(live?" live":"")+'"'+(live?' data-live-total="'+x.t.id+'"':"")+'>'+esc(live?fmtDur(x.secs):fmtTracked(x.secs))+'</span>'+
         '<span class="dtrow-bar"><i style="width:'+Math.max(3,x.secs/max*100).toFixed(1)+'%"></i></span></button>';}).join("")+'</div>'
       :'<p class="dempty dtime-empty">Nothing tracked yet. Press '+icon("i-play","ic-14")+' on a task to start.</p>')+
     '</section>';
