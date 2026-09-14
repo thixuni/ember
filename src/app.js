@@ -1347,12 +1347,12 @@ const contrast=(a,b)=>{const x=relLum(a),y=relLum(b);
    the accent sits on a tint *of* the accent, and a black accent put black
    text on a near-black tint. Pick neon yellow and it comes back darkened;
    pick black and the light shade comes back a grey you can read. */
-const WHITE=[255,255,255],DARK_PANEL=[28,32,35],ON_DARK=[14,17,19],AA=4.5;
+const WHITE=[255,255,255],DARK_PANEL=[40,40,43],ON_DARK=[14,17,19],AA=4.5;
 const mixRGB=(a,p,b)=>a.map((v,i)=>v*p/100+b[i]*(1-p/100));
-/* The same mixes the stylesheet makes: a tint is 13% accent into the panel,
-   and the dark panel itself carries 5% of the light shade. */
+/* The same mix the stylesheet makes: a tint is 13% accent into the panel.
+   The dark panel is --surface, a plain grey the accent does not touch. */
 const softOn=(c,panel)=>mixRGB(c,13,panel);
-const darkPanelFor=lift=>mixRGB(lift,5,DARK_PANEL);
+const darkPanelFor=()=>DARK_PANEL;
 /* Checked on the colour as it will be written out -- rounded to whole RGB
    values -- since rounding alone can take 4.50 to 4.49. */
 const shade=(h,s,l)=>hex2rgb(rgb2hex(hsl2rgb(h,s,l)));

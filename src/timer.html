@@ -7,8 +7,8 @@
 /* The same greys as the planner, which clear WCAG AA; this window has its
    own stylesheet and did not get them when the planner's were raised. */
 :root{
-  --surface:#FFFFFF; --surface-2:#FAFBF8; --line:#E5E9E1; --line-2:#D5DCCE;
-  --ink:#222A24; --ink-2:#3E433F; --muted:#545955; --faint:#616662;
+  --surface:#FFFFFF; --surface-2:#FAFAFB; --line:#E6E6E9; --line-2:#D6D6DA;
+  --ink:#232428; --ink-2:#3E3F44; --muted:#54555B; --faint:#606167;
   --accent:#3F7D5C; --danger:#C25340; --danger-soft:#FAE8E4; --danger-ink:#7A4133;
   --on-accent:#FFFFFF; --tint-base:#FFFFFF;
   --ff:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -20,18 +20,18 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme: dark;
-    --surface:#1C2023; --surface-2:#262B2E; --line:#333A3E; --line-2:#454D51;
-    --ink:#E6EAEB; --ink-2:#CDD2D4; --muted:#B4BBBE; --faint:#A0A8AB;
+    --surface:#28282B; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
+    --ink:#EDEDEF; --ink-2:#D2D2D6; --muted:#B6B6BB; --faint:#A4A4AA;
     --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#E58270;
-    --on-accent:#0E1113; --tint-base:#1C2023;
+    --on-accent:#0E1113; --tint-base:#28282B;
   }
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  --surface:#1C2023; --surface-2:#262B2E; --line:#333A3E; --line-2:#454D51;
-  --ink:#E6EAEB; --ink-2:#CDD2D4; --muted:#B4BBBE; --faint:#A0A8AB;
+  --surface:#28282B; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
+  --ink:#EDEDEF; --ink-2:#D2D2D6; --muted:#B6B6BB; --faint:#A4A4AA;
   --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#E58270;
-  --on-accent:#0E1113; --tint-base:#1C2023;
+  --on-accent:#0E1113; --tint-base:#28282B;
 }
 *{box-sizing:border-box}
 html,body{height:100%}

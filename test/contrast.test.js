@@ -37,13 +37,13 @@ for (let h = 0; h < 360; h += 24)
   for (const s of [0, 35, 70, 100])
     for (const l of [4, 20, 40, 55, 70, 85, 97]) sweep.push(rgb2hex(hsl2rgb(h, s, l)));
 
-const WHITE = [255, 255, 255], ON_DARK = [14, 17, 19], DARK_PANEL = [28, 32, 35];
+const WHITE = [255, 255, 255], ON_DARK = [14, 17, 19], DARK_PANEL = [40, 40, 43];
 
 test('any accent colour keeps its text readable in both themes', () => {
   const bad = [];
   for (const hex of sweep) {
     const t = accentTrio(hex), base = hex2rgb(t.base), dark = hex2rgb(t.dark), lift = hex2rgb(t.lift);
-    const panel = mix(lift, 5, DARK_PANEL);
+    const panel = DARK_PANEL;
     const checks = {
       'white text on a light-mode button': contrast(WHITE, base),
       'accent text on its light tint': contrast(dark, mix(base, 13, WHITE)),

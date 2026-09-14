@@ -335,15 +335,21 @@ hue. Both live as attributes on the root element — `data-theme` and
 sets no attribute at all, which is the only way the media query can keep
 tracking the OS.
 
-The neutrals are not fixed greys either: each is a pure grey with a trace of
-the accent mixed in, so the greys shift with the hue. Fixed green-grey
-neutrals looked wrong the moment the accent was not green.
+**The accent never touches the neutrals.** The page, panels, cards and lines
+are fixed, plain greys in both themes; changing the accent changes only the
+places that *are* the accent — primary buttons, the current page in the
+sidebar, ticks, switches, selected options, progress, the date on the
+dashboard. The greys once carried a trace of the accent, so every change of
+accent repainted the whole page, and large accent washes (the dashboard's
+welcome panel, the quick-add row, a category glow on board cards) did the
+same; all of those are neutral now. Keep a new background out of the accent.
 
-Dark is a near-black `--ground` with panels a clear step above it, the way
-Notion, ClickUp and Gmail build theirs. A mid-charcoal page was tried first
-and read as washed out: nothing can lift off a ground that is already halfway
-up the ramp. Text is measured against `--surface`, not `--ground`, because
-that is the panel it actually sits on — ink 12.1, muted 6.3, faint 4.7.
+Dark follows ClickUp: a near-black `--ground` (#1B1B1D), board columns and
+side panels a shade above it (`--surface-2`), and cards, panels and modals a
+clear step above those (`--surface`, #28282B) with a fine `--line`. A
+mid-charcoal page was tried once and read as washed out: nothing can lift off
+a ground that is already halfway up the ramp. Text is measured on the
+lightest background it lands on, a hover fill or an accent tint.
 
 Main sections — the calendar, the board, notes, the dashboard — are painted
 `--canvas`, not `--surface`. In light mode the two are the same white. In dark,

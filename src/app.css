@@ -1,10 +1,12 @@
 /* ---------------------------------------------------------------- tokens
  * Two things vary: the neutral ramp (light or dark) and the accent hue.
  *
- * The neutrals are not fixed greys. Each is a pure grey with a trace of the
- * accent mixed in, so the whole page shifts with the hue you pick — pick
- * violet and the greys go faintly violet. Fixed green-grey neutrals looked
- * wrong the moment the accent was not green.
+ * The neutrals are fixed, plain greys, and the accent never touches them:
+ * changing the accent changes the places that are the accent -- buttons, the
+ * current page in the sidebar, ticks, switches, selections, progress -- and
+ * nothing else. The page, the panels and the cards stay where they are.
+ * (They used to carry a trace of the accent, and every change of accent
+ * repainted the whole page.)
  *
  * Everything tinted derives with color-mix() from --surface rather than being
  * written twice, so a soft background, a category chip and an event block all
@@ -13,23 +15,21 @@
  */
 :root{
   color-scheme: light;
-  /* A trace of accent in every neutral; heavier on the lines, which is where
-     the tint is legible without muddying text. */
-  --ground:color-mix(in srgb,var(--a-base) 6%,#F5F6F5);
+  --ground:#F5F5F6;
   --surface:#FFFFFF;
-  --surface-2:color-mix(in srgb,var(--a-base) 3%,#FBFBFB);
-  --surface-3:color-mix(in srgb,var(--a-base) 7%,#F0F1F0);
-  --line:color-mix(in srgb,var(--a-base) 9%,#E7E8E7);
-  --line-2:color-mix(in srgb,var(--a-base) 14%,#D8DAD9);
-  --ink:color-mix(in srgb,var(--a-base) 6%,#232725);
+  --surface-2:#FAFAFB;
+  --surface-3:#F0F0F2;
+  --line:#E6E6E9;
+  --line-2:#D6D6DA;
+  --ink:#232428;
   /* Every text grey clears WCAG AA (4.5:1) on the darkest light background
      it can land on -- a raised panel, the page, the settings sidebar -- for
      any accent, a custom one included. Faint was 2.9:1 and muted 3.9:1 at
      their worst; the steps between the four are closer than they were,
      because AA leaves no room for a grey that is merely suggested. */
-  --ink-2:color-mix(in srgb,var(--a-base) 7%,#3E433F);
-  --muted:color-mix(in srgb,var(--a-base) 8%,#545955);
-  --faint:color-mix(in srgb,var(--a-base) 9%,#616662);
+  --ink-2:#3E3F44;
+  --muted:#54555B;
+  --faint:#606167;
   --apricot:#E0854A;
   --danger:#C25340;
   --amber:#BC841A;
@@ -68,8 +68,8 @@
   --ev-time:38%;
   --ev-time-base:var(--ink-2);
   --ev-done-mix:0%;
-  --surface-today:color-mix(in srgb,var(--a-base) 4%,#FDFDFD);
-  --line-soft:color-mix(in srgb,var(--a-base) 6%,#F2F3F2);
+  --surface-today:#FCFCFD;
+  --line-soft:#F1F1F3;
   --scrim:rgba(24,28,26,.38);
   /* How far a finished thing fades. Dark needs far less, or it disappears. */
   --done-fade:1;
@@ -118,27 +118,28 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme: dark;
-    /* Near-black ground, panels lifted off it. The apps this borrows from --
-       Notion, ClickUp, Gmail -- all sit a barely-lit page behind panels that are
-       a clear step above it; a mid-charcoal page has nothing to lift off. */
-    --ground:color-mix(in srgb,var(--a-lift) 4%,#0E1012);
-    --surface:color-mix(in srgb,var(--a-lift) 5%,#1C2023);
-    --surface-2:color-mix(in srgb,var(--a-lift) 6%,#22272A);
-    --surface-3:color-mix(in srgb,var(--a-lift) 8%,#2A3034);
-    --line:color-mix(in srgb,var(--a-lift) 9%,#333A3E);
-    --line-2:color-mix(in srgb,var(--a-lift) 12%,#454D51);
-    /* Measured on the lightest dark background text lands on -- a raised
-       panel or an accent tint -- over every accent: faint 4.8, muted 5.8. */
-    --ink:color-mix(in srgb,var(--a-lift) 5%,#E6EAEB);
-    --ink-2:color-mix(in srgb,var(--a-lift) 6%,#CDD2D4);
-    --muted:color-mix(in srgb,var(--a-lift) 8%,#B4BBBE);
-    --faint:color-mix(in srgb,var(--a-lift) 9%,#A0A8AB);
+    /* ClickUp's dark: a near-black page, board columns a shade above it, and
+       cards a clear step above those with a fine border -- neutral greys, the
+       same whatever the accent. A mid-charcoal page was tried once and read as
+       washed out; nothing can lift off a ground already halfway up the ramp. */
+    --ground:#1B1B1D;
+    --surface:#28282B;
+    --surface-2:#212124;
+    --surface-3:#323236;
+    --line:#39393E;
+    --line-2:#4C4C52;
+    /* Measured on the lightest dark background text lands on -- a hover
+       fill or an accent tint -- over every accent. */
+    --ink:#EDEDEF;
+    --ink-2:#D2D2D6;
+    --muted:#B6B6BB;
+    --faint:#A4A4AA;
     --apricot:#EDA470;
     --danger:#E58270;
     --amber:#DDAE52;
     --blue:#7BA8DD;
-    --surface-today:color-mix(in srgb,var(--a-lift) 6%,#202529);
-    --line-soft:color-mix(in srgb,var(--a-lift) 7%,#282E31);
+    --surface-today:#242427;
+    --line-soft:#2E2E32;
     --scrim:rgba(0,0,0,.68);
     /* A struck-through line at .55 vanished on a dark ground. */
     --done-fade:.9;
@@ -163,27 +164,28 @@
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  /* Near-black ground, panels lifted off it. The apps this borrows from --
-     Notion, ClickUp, Gmail -- all sit a barely-lit page behind panels that are
-     a clear step above it; a mid-charcoal page has nothing to lift off. */
-  --ground:color-mix(in srgb,var(--a-lift) 4%,#0E1012);
-  --surface:color-mix(in srgb,var(--a-lift) 5%,#1C2023);
-  --surface-2:color-mix(in srgb,var(--a-lift) 6%,#22272A);
-  --surface-3:color-mix(in srgb,var(--a-lift) 8%,#2A3034);
-  --line:color-mix(in srgb,var(--a-lift) 9%,#333A3E);
-  --line-2:color-mix(in srgb,var(--a-lift) 12%,#454D51);
-  /* Measured on the lightest dark background text lands on -- a raised
-     panel or an accent tint -- over every accent: faint 4.8, muted 5.8. */
-  --ink:color-mix(in srgb,var(--a-lift) 5%,#E6EAEB);
-  --ink-2:color-mix(in srgb,var(--a-lift) 6%,#CDD2D4);
-  --muted:color-mix(in srgb,var(--a-lift) 8%,#B4BBBE);
-  --faint:color-mix(in srgb,var(--a-lift) 9%,#A0A8AB);
+  /* ClickUp's dark: a near-black page, board columns a shade above it, and
+     cards a clear step above those with a fine border -- neutral greys, the
+     same whatever the accent. A mid-charcoal page was tried once and read as
+     washed out; nothing can lift off a ground already halfway up the ramp. */
+  --ground:#1B1B1D;
+  --surface:#28282B;
+  --surface-2:#212124;
+  --surface-3:#323236;
+  --line:#39393E;
+  --line-2:#4C4C52;
+  /* Measured on the lightest dark background text lands on -- a hover
+     fill or an accent tint -- over every accent. */
+  --ink:#EDEDEF;
+  --ink-2:#D2D2D6;
+  --muted:#B6B6BB;
+  --faint:#A4A4AA;
   --apricot:#EDA470;
   --danger:#E58270;
   --amber:#DDAE52;
   --blue:#7BA8DD;
-  --surface-today:color-mix(in srgb,var(--a-lift) 6%,#202529);
-  --line-soft:color-mix(in srgb,var(--a-lift) 7%,#282E31);
+  --surface-today:#242427;
+  --line-soft:#2E2E32;
   --scrim:rgba(0,0,0,.68);
   /* A struck-through line at .55 vanished on a dark ground. */
   --done-fade:.9;
@@ -505,13 +507,12 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .col-head h3{font-size:12.5px;font-weight:700;flex:1}
 .col-head .n{font-size:11px;font-weight:700;color:var(--faint)}
 .col-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:26px}
-/* No coloured edge. The category is a pill in the top row and a faint wash
-   of its colour from that corner -- the same glow the dashboard's welcome
-   panel and the time breakdown wear -- so a column reads by category at a
-   glance without a stripe down every card. */
+/* No coloured edge and no wash: a plain card a step above its column, with
+   a fine border, as ClickUp draws them. The category is the pill in the top
+   row. */
 .tcard{position:relative;border:1px solid var(--line);border-radius:var(--r-m);padding:11px 12px 12px;box-shadow:var(--sh-1);
   cursor:grab;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;
-  background:radial-gradient(110% 80% at 0% 0%,color-mix(in srgb,var(--c) 9%,transparent),transparent 62%),var(--surface)}
+  background:var(--surface)}
 .tcard:hover{border-color:var(--line-2);box-shadow:var(--sh-2)}
 .tcard.dragging{opacity:.4}
 .tcard .top{display:flex;align-items:flex-start;gap:7px}
@@ -645,7 +646,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .rte-bar button:hover{background:var(--surface-3)}
 .rte-sep{width:1px;background:var(--line);margin:5px 4px}
 .link-bar{display:flex;gap:7px;align-items:center;padding:9px 20px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
-.welcome .wel-top{padding:26px 22px 16px;text-align:center;background:linear-gradient(180deg,var(--accent-soft),var(--surface));border-bottom:1px solid var(--line)}
+.welcome .wel-top{padding:26px 22px 16px;text-align:center;background:linear-gradient(180deg,var(--surface-2),var(--surface));border-bottom:1px solid var(--line)}
 .welcome .wel-top h2{font-size:23px;margin:11px 0 6px}
 .welcome .wel-top p{margin:0 auto;max-width:44ch;color:var(--ink-2);font-size:13px;line-height:1.6}
 .welcome .brand-mark{margin:0 auto}
@@ -853,8 +854,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 /* ---------- dashboard ----------
    A welcome panel across the top, then two columns: today and what needs
    you on the left, time and the scratch pad on the right. The panel is the
-   one place on the page with atmosphere -- an accent glow behind the
-   greeting and the progress orbit -- so the lists below it can stay calm. */
+   one place on the page with atmosphere -- a faint neutral sheen behind the
+   greeting, the accent kept to the date and the progress orbit -- so the
+   lists below it can stay calm. */
 .dash{height:100%;min-height:0;background:var(--canvas);padding:20px 24px 24px;
   display:flex;flex-direction:column;gap:18px;overflow:hidden}
 .dash-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);gap:18px}
@@ -865,8 +867,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .dhero{position:relative;flex:none;overflow:hidden;border:1px solid var(--line);border-radius:var(--r-l);
   padding:22px 26px 14px;
   background:
-    radial-gradient(70% 130% at 0% 0%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 70%),
-    radial-gradient(45% 110% at 100% 10%,color-mix(in srgb,var(--accent-lift) 12%,transparent),transparent 72%),
+    radial-gradient(70% 130% at 0% 0%,color-mix(in srgb,var(--ink) 5%,transparent),transparent 70%),
     var(--surface)}
 .dhero-top{position:relative;display:flex;align-items:center;gap:28px}
 .dhero-text{flex:1;min-width:0}
@@ -959,7 +960,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 /* quick add */
 .dquick{display:flex;align-items:center;gap:9px;margin:2px 16px 8px;padding:8px 12px;border-radius:12px;
   border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent-ink);
-  background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+  background:var(--surface-2)}
 .dquick:focus-within{border-style:solid;border-color:var(--accent)}
 .dquick input{flex:1;min-width:0;border:0;background:none;outline:0;font-size:13.5px;color:var(--ink)}
 .dquick input::placeholder{color:var(--muted)}
