@@ -729,7 +729,50 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .sh-title:hover{border-color:var(--line)}
 .sh-title:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
 
-.sh-meta{display:flex;flex-direction:column;gap:4px;margin-bottom:30px}
+.sh-meta{display:flex;flex-direction:column;margin-bottom:26px}
+/* the four groups of the form, each under a small heading */
+.sh-group{padding:4px 0 8px;border-top:1px solid var(--line-soft)}
+.sh-group:first-child{border-top:0}
+.sh-gh{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:12px 0 2px}
+.sh-group:first-child .sh-gh{padding-top:4px}
+
+/* dates: a caption over each field, and words in place of an empty one */
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+.dfield{display:flex;flex-direction:column;gap:5px;min-width:0}
+.dcap{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.dclr{font-size:11px;font-weight:600;color:var(--muted);padding:0 4px;border-radius:5px}
+.dclr:hover{color:var(--danger-ink);background:var(--danger-soft)}
+.dbox{position:relative;display:block}
+.dbox .inp{width:100%;cursor:pointer}
+/* is-empty, not empty: .empty is the empty-state block, which centres and
+   pads 44px, and it pushed two of the three fields down the row. */
+.dfield.is-empty .inp:not(:focus){color:transparent}
+.dph{position:absolute;left:9px;right:30px;top:0;bottom:0;display:flex;align-items:center;pointer-events:none;
+  font-size:12.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dfield.is-empty .inp:focus + .dph{display:none}
+.dfield .inp:disabled{cursor:not-allowed;background:var(--surface-2)}
+
+/* category: every one a pill in its own colour */
+.catpick{display:flex;flex-wrap:wrap;gap:6px}
+.cp{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px 0 9px;border-radius:20px;border:1px solid transparent;
+  font-size:12px;font-weight:600;background:color-mix(in srgb,var(--c) 11%,var(--tint-base));
+  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));transition:background .12s,border-color .12s}
+.cp > *{pointer-events:none}
+.cp .ic{width:13px;height:13px;flex:none}
+.cp:hover{background:color-mix(in srgb,var(--c) 18%,var(--tint-base))}
+.cp.on{background:color-mix(in srgb,var(--c) 16%,var(--tint-base));border-color:color-mix(in srgb,var(--c) 70%,var(--tint-base));
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 22%,transparent)}
+.cp .cp-tick{stroke-width:2.6;margin-left:1px}
+
+/* priority: two yes-or-no questions and what they add up to */
+.prio2{display:flex;flex-direction:column;gap:8px}
+.prio-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.prio-k{width:84px;flex:none;font-size:12px;font-weight:600;color:var(--muted)}
+.prio-row .seg button{padding:4px 11px;font-size:12px}
+.prio-res{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-height:24px}
+
+.est-wrap{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.est-wrap .est-in{width:88px}
 .mrow{display:grid;grid-template-columns:132px minmax(0,1fr);gap:16px;align-items:start;padding:8px 0}
 .mlab{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--muted);padding-top:8px}
 .mlab .ic{color:var(--faint)}

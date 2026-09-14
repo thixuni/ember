@@ -1899,6 +1899,8 @@ document.addEventListener("click",function(e){
     case "sh-tab":V.sheet.tab=n.dataset.v;renderSheet();break;
     case "sh-done":{const t=sheetTask();if(t&&V.sheet.id)toggleTaskDone(t.id),renderSheet();break;}
     case "sh-delete":if(arm(n,"Delete for good?"))deleteTask(V.sheet.id);break;
+    case "sh-cat":{const t=sheetTask();if(t&&t.cat!==n.dataset.v)patchCurrent({cat:n.dataset.v});break;}
+    case "sh-clear":{const k=n.dataset.k;patchCurrent(k==="due"?{due:"",dueTime:""}:{[k]:""});break;}
     case "sh-flag":{const t=sheetTask();if(!t)break;
       const k=n.dataset.k,cur=flagVal(t[k]);
       patchCurrent({[k]:cur===n.dataset.v?null:n.dataset.v==="1"});break;}
@@ -2138,7 +2140,10 @@ document.addEventListener("change",function(e){
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);
     if(k==="remind")v=v==="d"?null:v==="off"?false:Number(v);
     if(k==="dueTime"){patchCurrent({dueTime:v},false);
-      const box=el("shRemind"),cur=sheetTask();if(box&&cur)box.innerHTML=taskRemindHtml(cur);return;}
+      const box=el("shRemind"),cur=sheetTask();if(box&&cur)box.innerHTML=taskRemindHtml(cur);
+      /* No redraw, so the field shows its new value itself. */
+      const df=t.closest(".dfield");if(df){df.classList.toggle("is-empty",!v);const ph=df.querySelector(".dph");if(v&&ph)ph.remove();}
+      return;}
     if(k==="title"){v=v.trim();if(!v){const cur=sheetTask();t.value=cur?cur.title:"";return;}}
     // Re-rendering while the caret is in a text field would throw it away.
     patchCurrent({[k]:v},k!=="title"&&k!=="desc");
@@ -2481,16 +2486,38 @@ function createFromDraft(){
 
 const metaRow=(label,inner,ic)=>'<div class="mrow"><div class="mlab">'+(ic?icon(ic,"ic-14"):"")+esc(label)+'</div><div class="mval">'+inner+'</div></div>';
 
+/* Three fields that say what they are: a caption over each, and plain words
+   when one is empty rather than the browser's dd-----yyyy and --:-- --. */
+function sheetDates(t){
+  const f=(k,type,cap,val,empty,extra)=>'<label class="dfield'+(val?"":" is-empty")+'">'+
+    '<span class="dcap">'+esc(cap)+(val?'<button class="dclr" data-act="sh-clear" data-k="'+k+'" aria-label="Clear '+esc(cap.toLowerCase())+'">Clear</button>':"")+'</span>'+
+    '<span class="dbox"><input class="inp inp-sm" type="'+type+'" value="'+esc(val||"")+'" data-act="sh-set" data-k="'+k+'" aria-label="'+esc(cap)+'"'+(extra||"")+'>'+
+    (val?"":'<span class="dph">'+esc(empty)+'</span>')+'</span></label>';
+  return '<div class="dgrid">'+
+    f("start","date","Start",tStart(t),"Add a start date")+
+    f("due","date","Due",t.due,"Add a due date")+
+    f("dueTime","time","Time",t.dueTime,t.due?"Add a time":"Set a due date first",t.due?"":" disabled")+
+    '</div>';
+}
+/* Every category as a pill in its own colour, the chosen one outlined and
+   ticked: one click to change it, and the colours become familiar. */
+function sheetCats(t){
+  return '<div class="catpick" role="radiogroup" aria-label="Category">'+S.categories.map(x=>{
+    const on=t.cat===x.id;
+    return '<button class="cp'+(on?" on":"")+'" style="--c:'+x.color+'" data-act="sh-cat" data-v="'+x.id+'" role="radio" aria-checked="'+on+'">'+
+      icon(x.icon,"ic-14")+esc(x.name)+(on?icon("i-check","ic-14 cp-tick"):"")+'</button>';}).join("")+'</div>';
+}
+/* Two questions, each a yes or a no, and the quadrant they add up to --
+   rather than four checkboxes whose pairing had to be guessed. */
 function sheetPrio(t){
   const st={urgent:flagVal(t.urgent),important:flagVal(t.important)};
   const q=quadFromFlags(st.urgent,st.important),Q=q?QUADS.find(x=>x.id===q):null;
-  return '<div class="prio-mini">'+PRIO_OPTS.map(o=>{
-      const on=st[o.k]===o.v;
-      return '<button class="pick flag sm'+(on?" on":"")+'" data-act="sh-flag" data-k="'+o.k+'" data-v="'+o.v+
-        '" role="switch" aria-checked="'+on+'"><span class="flag-box">'+icon("i-check")+'</span>'+esc(o.name)+'</button>';
-    }).join("")+'</div>'+
-    (Q?'<span class="chip chip-q '+Q.cls+'" style="margin-top:7px">'+icon(Q.icon,"ic-14")+esc(Q.name)+'</span>'
-      :'<span class="chip" style="margin-top:7px">Not prioritised</span>');
+  const row=(k,label,yes,no)=>'<div class="prio-row"><span class="prio-k">'+esc(label)+'</span><div class="seg">'+
+    [["1",yes],["0",no]].map(o=>'<button data-act="sh-flag" data-k="'+k+'" data-v="'+o[0]+'" aria-pressed="'+(st[k]===o[0])+'">'+esc(o[1])+'</button>').join("")+
+    '</div></div>';
+  return '<div class="prio2">'+row("urgent","Urgency","Urgent","Not urgent")+row("important","Importance","Important","Not important")+
+    '<div class="prio-res">'+(Q?'<span class="chip chip-q '+Q.cls+'">'+icon(Q.icon,"ic-14")+esc(Q.name)+'</span><span class="prio-note">'+esc(Q.tag)+'</span>'
+      :'<span class="prio-note">Answer both to place it in the matrix.</span>')+'</div></div>';
 }
 
 function sheetTime(t,isNew){
@@ -2579,6 +2606,10 @@ function closeTimeBreakdown(){
   const p=document.querySelector(".tmb");if(p)p.remove();
   const b=document.querySelector('[data-act="tm-break"]');if(b)b.setAttribute("aria-expanded","false");
 }
+document.addEventListener("click",function(e){
+  const f=e.target.closest&&e.target.closest(".dfield input");
+  if(f&&!f.disabled&&typeof f.showPicker==="function"){try{f.showPicker();}catch(err){}}
+},true);
 document.addEventListener("click",function(e){
   if(!V.tmBreak||!e.target.closest)return;
   if(e.target.closest('.tmb,[data-act="tm-break"]'))return;
@@ -2729,22 +2760,27 @@ function renderSheet(){
         '<button class="sh-tab" data-act="sh-tab" data-v="activity" role="tab" aria-selected="'+(s.tab==="activity")+'">Activity'+
           (histCount(t)?'<span class="num">'+histCount(t)+'</span>':"")+'</button></div>')+
 
+      /* Grouped under four small headings rather than one long list, so the
+         form reads as when, what, how long, and what it is tied to. */
       (s.tab==="activity"?historyPane(t):'<div class="sh-meta">'+
-        metaRow("Dates",'<div class="dpair">'+
-          '<input class="inp inp-sm" type="date" value="'+esc(tStart(t))+'" data-act="sh-set" data-k="start" aria-label="Start date">'+
-          '<span class="arrow">'+icon("i-chev-r","ic-14")+'</span>'+
-          '<input class="inp inp-sm" type="date" value="'+esc(t.due||"")+'" data-act="sh-set" data-k="due" aria-label="Due date">'+
-          '<input class="inp inp-sm dtime-in" type="time" value="'+esc(t.dueTime||"")+'" data-act="sh-set" data-k="dueTime" aria-label="Due time"'+(t.due?"":" disabled title=\"Set a due date first\"")+'>'+
-          '</div>',"i-calendar")+
-        metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell")+
-        metaRow("Category",'<select class="inp inp-sm" data-act="sh-set" data-k="cat">'+
-          S.categories.map(x=>'<option value="'+x.id+'"'+(t.cat===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>',c.icon)+
-        metaRow("Priority",sheetPrio(t),"i-flag")+
-        metaRow("Estimate",'<input class="inp inp-sm est-in" type="number" min="0" step="5" value="'+(tEst(t)||"")+'" placeholder="minutes" data-act="sh-set" data-k="est" aria-label="Time estimate in minutes">',"i-timer")+
-        metaRow("Time",sheetTime(t,isNew),"i-clock")+
-        metaRow("Tags",sheetTags(t),"i-tag")+
-        metaRow("Linked",sheetLinks(t,isNew),"i-link")+
-        metaRow("Files",sheetFiles(t,isNew),"i-clip")+
+        '<div class="sh-group"><div class="sh-gh">Schedule</div>'+
+          metaRow("Dates",sheetDates(t),"i-calendar")+
+          metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell")+
+        '</div>'+
+        '<div class="sh-group"><div class="sh-gh">Organise</div>'+
+          metaRow("Category",sheetCats(t),c.icon)+
+          metaRow("Priority",sheetPrio(t),"i-flag")+
+          metaRow("Tags",sheetTags(t),"i-tag")+
+        '</div>'+
+        '<div class="sh-group"><div class="sh-gh">Effort</div>'+
+          metaRow("Estimate",'<div class="est-wrap"><input class="inp inp-sm est-in" type="number" min="0" step="5" value="'+(tEst(t)||"")+
+            '" placeholder="0" data-act="sh-set" data-k="est" aria-label="Time estimate in minutes"><span>minutes</span></div>',"i-timer")+
+          metaRow("Time",sheetTime(t,isNew),"i-clock")+
+        '</div>'+
+        '<div class="sh-group"><div class="sh-gh">Attached</div>'+
+          metaRow("Linked",sheetLinks(t,isNew),"i-link")+
+          metaRow("Files",sheetFiles(t,isNew),"i-clip")+
+        '</div>'+
       '</div>'+
 
       '<div class="sh-sec"><label class="sec-label">Description</label>'+
