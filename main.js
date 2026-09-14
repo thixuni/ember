@@ -264,7 +264,21 @@ ipcMain.on('doc:delete', (e, doc) => {
  * gets connect, disconnect, status, and a request call that only reaches the
  * Calendar API.
  */
-const gcal = require('./gcal')(readSettings, writeSettings);
+/* The app's own Google client. It is not in the repository: the release
+   workflow writes google-client.json from the repository's secrets, and a
+   developer can drop the file Google Cloud offers for download next to
+   main.js, or set the two environment variables. Google treats a desktop
+   client's secret as not really secret, but it still has no business in a
+   public repo. */
+function googleClient(){
+  try{
+    const j = JSON.parse(fs.readFileSync(path.join(__dirname, 'google-client.json'), 'utf8'));
+    const c = j.installed || j;
+    if(c.client_id || c.clientId) return {clientId: c.client_id || c.clientId, clientSecret: c.client_secret || c.clientSecret || ''};
+  }catch(e){}
+  return {clientId: process.env.ORBIT_GOOGLE_CLIENT_ID || '', clientSecret: process.env.ORBIT_GOOGLE_CLIENT_SECRET || ''};
+}
+const gcal = require('./gcal')(readSettings, writeSettings, {builtIn: googleClient()});
 ipcMain.handle('gcal:connect', (e, input) => gcal.connect(input));
 ipcMain.handle('gcal:cancel', () => gcal.cancel());
 ipcMain.handle('gcal:disconnect', () => gcal.disconnect());

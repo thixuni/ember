@@ -53,7 +53,7 @@ src/timer.html   The floating timer window
 src/app.css      Every style. All colours are tokens on :root
 src/app.js       The whole application, in one IIFE
 main.js          Electron shell: windows, menu, vault sync, backups, updates
-gcal.js          Google Calendar sign-in and requests, main process only
+gcal.js          Google sign-in, Calendar and Drive requests, main process only
 preload.js       The only bridge between the app and the shell
 scripts/         build-standalone.js (the single file), serve.js (dev server)
 test/            Guards for the conventions in CLAUDE.md
@@ -153,9 +153,60 @@ sides cannot loop.
 Vault sync is desktop only, for the same reason: a browser tab has no access to
 a folder on your disk.
 
+## Your account and setup
+
+The desktop app is used signed in with a Google account. The first launch is a
+setup of its own:
+
+1. **Sign in with Google.** The system browser opens Google's sign-in; the app
+   asks only who you are.
+2. **Your data.** Back up to your own Google Drive — a copy goes into one file
+   there, *Everyday Orbit backup.json*, after every change, and signing in on
+   another computer offers to bring it back — or keep it on this device only.
+   The app can see only the file it makes, not the rest of your Drive.
+3. **About you, categories, starter routines** — your name for the greeting,
+   the categories made yours, and a few common routines with their times.
+4. **Google Calendar** and **Obsidian**, each skippable.
+5. **Appearance** and **notifications**.
+
+Someone who already had a planner signs in and picks where it lives, and that
+is all. **Settings ▸ Account** shows who is signed in, has the Drive backup
+(back up now, restore) and signs out; signing out keeps the planner on the
+computer. The browser build cannot sign in with Google, so its setup has the
+same steps without the ones that need the account.
+
+Access is asked for a piece at a time — who you are at sign-in, Drive when you
+choose it, Calendar when you connect it — and every later ask keeps what was
+granted before, so there is one key for all of it.
+
+### The app's Google client
+
+Signing in needs a Google OAuth client of type **Desktop app**, in a Google
+Cloud project with the **Google Calendar API** and **Google Drive API**
+enabled, and the scopes `openid`, `email`, `profile`,
+`calendar.readonly`, `calendar.events` and `drive.file` on its consent
+screen. It is **not** kept in the repository:
+
+- **Releases** read it from two repository secrets, `GOOGLE_CLIENT_ID` and
+  `GOOGLE_CLIENT_SECRET` (Settings ▸ Secrets and variables ▸ Actions); the
+  workflow writes `google-client.json` at build time and the installers
+  carry it.
+- **Running from source**, put the JSON Google Cloud offers for download next
+  to `main.js` as `google-client.json` (it is git-ignored), or set
+  `ORBIT_GOOGLE_CLIENT_ID` and `ORBIT_GOOGLE_CLIENT_SECRET`.
+- A build with neither asks for a Client ID and secret on the sign-in page, and
+  keeps them, encrypted, on that computer.
+
+Calendar is a *sensitive* scope, so until Google verifies the app, the sign-in
+page warns that it is unverified, and only up to 100 people can use it. In
+*Testing* mode, sign-ins also expire every seven days — publish the app under
+**Audience** to stop that. Verification is Google's process, done once, in the
+Cloud console.
+
 ## Google Calendar
 
-Connect in **Settings ▸ Connections ▸ Google Calendar** (desktop app only).
+Connect it during setup, or later in **Settings ▸ Connections ▸ Google
+Calendar** (desktop app only). It uses the account you signed in with.
 Two things then happen:
 
 - **Your Google events show in the planner** — on the calendar, the day
@@ -174,19 +225,20 @@ task or routine, and when you press **Sync now**.
 
 ### Getting a Client ID
 
-Google only lets an app into a calendar through a Client ID, and for a
-personal app you make your own. It takes about five minutes, once:
+Needed only when the app has no Google client of its own (see above). It takes
+about five minutes, once:
 
 1. Open [console.cloud.google.com](https://console.cloud.google.com) and
    create a project — call it Everyday Orbit.
-2. **APIs & Services ▸ Library**: find **Google Calendar API** and enable it.
+2. **APIs & Services ▸ Library**: enable the **Google Calendar API** and the
+   **Google Drive API**.
 3. **Google Auth Platform**: set up the consent screen. Choose **External**
    and give it a name and your email.
 4. **Audience**: press **Publish app**. An app left in *Testing* has its
    sign-in expire every seven days.
 5. **Clients**: create a client of type **Desktop app**, and copy its
-   **Client ID** and **Client secret** into Settings.
-6. Press **Connect**. Your browser opens; sign in and allow access. Google
+   **Client ID** and **Client secret** into the sign-in page.
+6. Press **Continue with Google**. Your browser opens; sign in and allow access. Google
    warns that it has not verified the app — it is yours, not a published
    one — so choose **Advanced**, then go to the app.
 

@@ -6,7 +6,7 @@ A personal planner desktop app. Electron shell around a single-page web app.
 
 ```
 main.js            Electron main process: windows, menu, vault sync, updates
-gcal.js            Google Calendar sign-in, tokens and requests (main process)
+gcal.js            Google sign-in, tokens, Calendar and Drive requests (main process)
 preload.js         The only bridge to the shell; exposes window.orbit
 src/index.html     Page shell, SVG icon sprite, app markup
 src/timer.html     The floating timer window (desktop only)
@@ -284,6 +284,59 @@ behind a permission prompt, and only while the tab is open.
   than that out of date.
 - Quiet hours have no default and may wrap midnight. A reminder inside them
   is skipped, not queued for later.
+
+### Account and setup
+
+The desktop app is used signed in with a Google account, and the first launch
+is a setup page of its own (`#obRoot`, the account + setup section of app.js),
+not a dialog. Steps (`obSteps()`): sign in → where the planner lives (Google
+Drive backup, or this device only) → name → categories → starter routines →
+Google Calendar → Obsidian → appearance → notifications → all set. Where it
+has got to is in `prefs.onboard` (`{done, step, mode, made}`), so closing half
+way picks up at the same step; `made` is the ids of the routines setup
+created, replaced rather than added to when someone goes back and forth.
+
+- `mode` decides the steps: `"new"`; `"returning"` — someone with a planner
+  from before setup existed, who signs in, picks where it lives, and is done;
+  `"restored"` — a planner brought back from Drive or a file, which skips
+  everything that came back with it; `"again"` — signed out after setup,
+  which shows the sign-in and nothing else.
+- `obNeeded()` is the gate: on the desktop, setup not done or not signed in;
+  in a browser, which cannot sign in with Google, only a brand-new copy. At
+  start-up the page is hidden (`body.ob-wait`) until the account status is
+  in, so nobody sees their planner flash up only to be asked to sign in.
+- The steps reuse the settings' own controls — `set-pref` switches and time
+  fields, `set-theme`, `set-accent`, `vault-pick` — and those handlers call
+  `panels()`, which redraws Settings if it is open and setup if it is. Call
+  `panels()`, not `settingsModal()`, anywhere that redraws after a change;
+  `settingsModal()` itself *opens* Settings.
+- **The account is Google's, and nothing else is involved.** `gcal.js` signs
+  in and holds the key. Access is asked for a piece at a time with
+  `gcalConnect({want:[...]})` — `"account"` (openid, email, profile) at sign
+  in, `"drive"` (drive.file: only files this app made) when Drive backup is
+  chosen, `"calendar"` when Calendar is connected — and every ask carries the
+  earlier grants (`include_granted_scopes`), so one key covers all three.
+  `status().parts` says which are granted; `signedIn()` and `acctParts()`
+  read it. A key saved before any of this is treated as Calendar only.
+- Calendar is one part of the account, so disconnecting it sets
+  `prefs.gcal.off` and keeps the key; only Sign out (Settings ▸ Account)
+  revokes it, and the planner stays on the computer.
+- The app's own Google client is not in the repo. main.js reads
+  `google-client.json` (written by the release workflow from the
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` secrets, git-ignored) or two
+  environment variables, and hands it to gcal.js as `builtIn`; a shipped
+  client is never written into settings, so a new build's keys take over. A
+  build with none asks for a Client ID on the sign-in page.
+
+**Drive backup** (google drive backup section): with `prefs.storage` at
+`"drive"`, every `save()` schedules `driveBackup()` twenty seconds after the
+last change — one upload for a burst of edits — into one file, *Everyday
+Orbit backup.json*, the same payload as a backup by hand (`backupPayload()`).
+Recording when it last backed up is itself a save of prefs, which would
+schedule another backup forever; `DB.quiet` holds that one off. A restore
+(`applyBackup()`) brings back everything except what belongs to the computer
+it lands on: the vault path, the backup folder, a running timer, setup's own
+state and the storage choice.
 
 ### Google Calendar
 

@@ -44,6 +44,7 @@
       "main.js",
       "preload.js",
       "gcal.js",
+      "google-client.json",
       "src/**/*",
       "build/icon.ico",
       "build/icon.png"

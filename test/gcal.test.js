@@ -58,7 +58,7 @@ test('secrets are sealed with the OS keychain, and say so when they cannot be', 
 test('requests outside the Calendar API are refused before any network', async () => {
   let called = 0;
   const g = makeGcal(() => ({}), () => ({}), {fetch: async () => { called++; return json(200, {}); }});
-  for(const p of ['/../drive/v3/files', 'https://evil.example/', '/calendars/primary/acl', '/users/me/settings']){
+  for(const p of ['/../drive/v3/files', 'https://evil.example/', '/calendars/primary/acl', '/users/me/settings', '/files']){
     const r = await g.request({method: 'GET', path: p});
     assert.strictEqual(r.ok, false, p + ' should be refused');
   }
@@ -113,7 +113,10 @@ test('the full sign-in: browser, loopback, PKCE, tokens, account', async () => {
   const saved = st.read().gcal;
   assert.ok(saved.refresh.startsWith('enc:') && saved.refresh.indexOf('RT1') < 0, 'refresh token must be sealed');
   assert.ok(saved.secret.indexOf('shh') < 0, 'client secret must be sealed');
-  assert.deepStrictEqual(g.status(), {connected: true, email: 'someone@example.com', clientId: ID, hasSecret: true});
+  const s = g.status();
+  assert.deepStrictEqual([s.connected, s.email, s.clientId, s.hasSecret], [true, 'someone@example.com', ID, true]);
+  assert.deepStrictEqual(s.parts, {account: false, calendar: true, drive: false});
+  assert.strictEqual(a.get('include_granted_scopes'), 'true', 'a later ask must keep what was granted before');
 });
 
 test('a callback with the wrong state is rejected, not trusted', async () => {
@@ -161,4 +164,69 @@ test('a dead refresh token disconnects instead of retrying forever', async () =>
   assert.deepStrictEqual([r.ok, r.error], [false, 'reconnect']);
   assert.strictEqual(g.status().connected, false);
   assert.strictEqual(g.status().clientId, ID, 'the Client ID should survive, so reconnecting is one click');
+});
+
+/* ---- signing in with Google, and Drive ---- */
+
+const fakeIdToken = c => 'x.' + b64url(Buffer.from(JSON.stringify(c))) + '.y';
+
+test('signing in with Google asks only who you are, and uses the shipped client', async () => {
+  const st = store();
+  let authUrl = '', sent = null;
+  const g = makeGcal(st.read, st.write, {builtIn: {clientId: ID, clientSecret: 'shipped'},
+    fetch: async (url, init) => {
+      if(url.startsWith('https://oauth2.googleapis.com/token')){
+        sent = Object.fromEntries(new URLSearchParams(init.body));
+        return json(200, {access_token: 'AT', refresh_token: 'RT', expires_in: 3600, scope: 'openid email profile',
+          id_token: fakeIdToken({email: 'ana@example.com', name: 'Ana Silva', given_name: 'Ana'})});
+      }
+      throw new Error('signing in should not touch any API: ' + url);
+    },
+    openExternal: u => { authUrl = u; comeBack(u, a => ({code: 'c', state: a.searchParams.get('state')})); }});
+  const r = await g.connect({want: ['account']});
+  assert.deepStrictEqual(r, {ok: true, email: 'ana@example.com', name: 'Ana Silva'});
+  assert.strictEqual(new URL(authUrl).searchParams.get('scope'), 'openid email profile');
+  assert.strictEqual(sent.client_secret, 'shipped');
+  const s = g.status();
+  assert.deepStrictEqual([s.email, s.first, s.builtIn, s.clientId], ['ana@example.com', 'Ana', true, ''],
+    'the shipped client is not written down, so the keys of a new build take over');
+  assert.deepStrictEqual(s.parts, {account: true, calendar: false, drive: false});
+});
+
+test('adding Drive later keeps the account, and Drive reaches only files', async () => {
+  const st = store();
+  const g0 = makeGcal(st.read, st.write);
+  st.write({gcal: {refresh: g0._seal('RT0'), scopes: ['openid', 'email', 'profile'], email: 'ana@example.com', name: 'Ana Silva', first: 'Ana'}});
+  let authUrl = '';
+  const calls = [];
+  const g = makeGcal(st.read, st.write, {builtIn: {clientId: ID, clientSecret: 's'},
+    fetch: async (url, init) => {
+      if(url.startsWith('https://oauth2.googleapis.com/token'))
+        return json(200, {access_token: 'AT', refresh_token: 'RT1', expires_in: 3600,
+          scope: 'openid email profile https://www.googleapis.com/auth/drive.file'});
+      calls.push({url, init});
+      return json(200, {id: 'F1'});
+    },
+    openExternal: u => { authUrl = u; comeBack(u, a => ({code: 'c', state: a.searchParams.get('state')})); }});
+  const r = await g.connect({want: ['drive']});
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(new URL(authUrl).searchParams.get('scope'), 'https://www.googleapis.com/auth/drive.file');
+  const s = g.status();
+  assert.deepStrictEqual([s.email, s.name], ['ana@example.com', 'Ana Silva'], 'the profile from signing in survives');
+  assert.deepStrictEqual(s.parts, {account: true, calendar: false, drive: true});
+
+  for(const p of ['/about', '/files/abc/permissions', '/files/../x', '/changes']){
+    assert.strictEqual((await g.request({api: 'drive', method: 'GET', path: p})).ok, false, p + ' should be refused');
+  }
+  assert.strictEqual((await g.request({api: 'photos', method: 'GET', path: '/files'})).ok, false);
+  assert.strictEqual(calls.length, 0);
+
+  const up = await g.request({api: 'upload', method: 'POST', path: '/files', query: {uploadType: 'multipart'},
+    upload: {meta: {name: 'backup.json'}, content: '{"tasks":[]}', type: 'application/json'}});
+  assert.strictEqual(up.ok, true);
+  const c = calls[0];
+  assert.strictEqual(c.url, 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart');
+  const boundary = c.init.headers['Content-Type'].split('boundary=')[1];
+  assert.ok(boundary && c.init.body.indexOf('--' + boundary + '--') > 0, 'the multipart body should close its boundary');
+  assert.ok(c.init.body.indexOf('{"name":"backup.json"}') > 0 && c.init.body.indexOf('{"tasks":[]}') > 0);
 });

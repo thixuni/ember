@@ -184,6 +184,7 @@ function save(key){
   dirty[key]=true;touched[key]=true;saveLocal();setSync("warn","Saving…");
   if((key==="tasks"||key==="routines")&&!GC.applying)gcalSoon();
   if(key==="tasks"||key==="routines"||key==="completions"||key==="prefs")remindSoon();
+  driveSoon();
   clearTimeout(timers[key]);
   timers[key]=setTimeout(()=>{
     timers[key]=null;
@@ -217,7 +218,7 @@ async function connect(){
     }else{
       const snaps=await Promise.all(KEYS.map(k=>db.doc("state/"+k).get()));
       KEYS.forEach((k,i)=>{if(!touched[k])readDoc(k,snaps[i]);});
-      if(S.prefs.setup||S.tasks.length||S.routines.length||S.notes.length)closeWelcome();
+      if(S.prefs.setup||S.tasks.length||S.routines.length||S.notes.length)obRecheck();
       saveLocal();render();
     }
     setSync("ok","All changes saved");
@@ -906,7 +907,7 @@ function dashHero(d){
   return '<section class="dhero">'+
     '<div class="dhero-top"><div class="dhero-text">'+
       '<div class="dhero-eyebrow">'+esc(today().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}))+'</div>'+
-      '<h2 class="dhero-hi">'+esc(dashGreeting())+'</h2>'+
+      '<h2 class="dhero-hi">'+esc(dashGreeting()+(S.prefs.name?", "+S.prefs.name:""))+'</h2>'+
       '<p class="dhero-line">'+esc(line)+'</p>'+
       '<div class="dnext-list" id="dashNext">'+upNextHtml()+'</div>'+
     '</div>'+ring+'</div>'+
@@ -1368,32 +1369,384 @@ function toast(msg){
   const n=document.createElement("div");n.className="toast";n.textContent=msg;document.body.appendChild(n);
   setTimeout(()=>n.remove(),2200);
 }
-/* ============ first run + settings ============ */
-let welcomeOpen=false;
-function welcomeModal(){
-  welcomeOpen=true;
-  el("modalRoot").innerHTML='<div class="scrim"><div class="modal narrow welcome" role="dialog" aria-modal="true" aria-label="Welcome">'+
-    '<div class="wel-top"><span class="brand-mark" style="width:44px;height:44px;border-radius:15px">'+icon("i-orbit","ic-18")+'</span>'+
-    '<h2>Everyday Orbit</h2>'+
-    '<p>A calendar, a task board, an Eisenhower matrix, routines and notes — all sharing one set of categories, so a task you write once shows up wherever you look for it.</p></div>'+
-    '<div class="mbody">'+
+/* ============ account + setup ============
+   The planner is used signed in with a Google account. The first launch is a
+   setup of its own, a page rather than a dialog: sign in with Google, choose
+   where the planner lives -- backed up to the person's own Google Drive, or on
+   this device alone -- then their name, categories and a few routines,
+   Google Calendar, Obsidian, how it looks and what it tells them.
 
-    '<div class="wel-choice">'+
-      '<button class="btn btn-primary" data-act="welcome-sample">'+icon("i-sparkle")+'Load a sample week</button>'+
-      '<button class="btn" data-act="welcome-empty">Start empty</button>'+
-    '</div>'+
-    '<p class="wel-fine">The sample fills a week with example tasks and routines plus a short guide note, so you can see how each view behaves. Clear it any time from Settings.</p>'+
-    '<p class="wel-fine">Coming from another computer? <button class="linkish" data-act="import">Restore a backup file</button> instead.</p>'+
-    '</div>'+
-    '<div class="mfoot"><span class="wel-fine" style="margin:0">Everything you enter stays in this browser on this device. Use the backup icon in the sidebar to save a copy or move it to another computer.</span></div>'+
-    '</div></div>';
+   The account is Google's: gcal.js signs in and holds the key, and access is
+   asked for a piece at a time, when the step that needs it is reached. No
+   other service is involved, so what someone plans only ever goes to their
+   own Google account, and only if they ask for it.
+
+   Someone who already has a planner signs in and chooses where it lives, and
+   that is all: their categories and routines are already theirs. Signing out
+   brings back the sign-in and nothing else; the planner stays on the device.
+   A browser copy cannot sign in -- Google's sign-in needs the desktop app --
+   so it goes through the same setup without the steps that need the account.
+
+   Where setup has got to is kept in prefs.onboard, so closing the app half
+   way through picks up at the same step. */
+const OB={open:false,step:"signin",mode:"new",busy:false,err:"",store:"drive",found:null,rt:null};
+const signedIn=()=>!!(GC.status&&GC.status.connected&&GC.status.email);
+const acctParts=()=>(GC.status&&GC.status.parts)||{};
+const hasData=()=>!!(S.tasks.length||S.routines.length||S.notes.length);
+const OB_LABEL={signin:"Sign in",data:"Your data",name:"About you",cats:"Categories",routines:"Routines",
+  calendar:"Google Calendar",obsidian:"Obsidian",look:"Appearance",notify:"Notifications",done:"All set"};
+/* The steps skipping ahead is harmless for: nothing is lost by leaving them. */
+const OB_SKIP=["routines","calendar","obsidian"];
+function obSteps(){
+  const d=hasDesktop();
+  if(OB.mode==="again")return ["signin"];
+  if(OB.mode==="returning")return ["signin"].concat(d?["data"]:[],["done"]);
+  if(OB.mode==="restored")return ["signin","data"].concat(d?["calendar","obsidian"]:[],["done"]);
+  return ["signin"].concat(d?["data"]:[],["name","cats","routines"],d?["calendar","obsidian"]:[],["look","notify","done"]);
 }
-function closeWelcome(){if(welcomeOpen){welcomeOpen=false;closeModal();}}
-function startWith(state){
-  S=state;S.prefs.setup=true;
-  KEYS.forEach(function(k){touched[k]=true;save(k);});
-  welcomeOpen=false;closeModal();render();
+function obNeeded(){
+  const done=!!(S.prefs.onboard&&S.prefs.onboard.done);
+  if(hasDesktop())return !done||!signedIn();
+  /* A browser copy that was in use before setup existed simply carries on. */
+  return !done&&!hasData()&&!S.prefs.setup;
 }
+function obStart(){
+  const ob=S.prefs.onboard||{};
+  OB.mode=ob.done?"again":(ob.mode||((hasData()||S.prefs.setup)?"returning":"new"));
+  if(!hasDesktop()&&OB.mode!=="new"){S.prefs.onboard={done:true};save("prefs");return;}
+  OB.step=obSteps().indexOf(ob.step)>-1?ob.step:"signin";
+  if(OB.step==="signin"&&signedIn()&&OB.mode!=="again")OB.step=obSteps()[1];
+  OB.open=true;OB.err="";obRender();
+}
+/* Everything the app loaded behind setup stays drawn but hidden, so the page
+   appears the moment setup is done. */
+function obRootEl(){
+  let r=el("obRoot");
+  if(!r){r=document.createElement("div");r.id="obRoot";document.body.appendChild(r);}
+  return r;
+}
+function obGo(step){
+  if(!step){obFinish();return;}
+  OB.step=step;OB.err="";OB.busy=false;
+  S.prefs.onboard={done:false,step:step,mode:OB.mode,made:(S.prefs.onboard&&S.prefs.onboard.made)||[]};
+  save("prefs");obRender();
+  const r=el("obRoot"),f=el("obName")||(r&&r.querySelector(".ob-body h1"));
+  if(f){if(f.tagName==="H1")f.setAttribute("tabindex","-1");f.focus({preventScroll:true});}
+}
+const obNext=()=>{const s=obSteps();return s[s.indexOf(OB.step)+1]||null;};
+const obPrev=()=>{const s=obSteps();return s[s.indexOf(OB.step)-1]||null;};
+function obFinish(){
+  S.prefs.onboard={done:true};S.prefs.setup=true;save("prefs");
+  OB.open=false;const r=el("obRoot");if(r)r.remove();
+  document.body.classList.remove("ob-open");
+  applyAppearance();render();remindSoon();
+  if(driveOn())driveBackup();
+  if(gcalOn())gcalSync();
+  toast(S.prefs.name?"Welcome, "+S.prefs.name:"You're all set");
+}
+/* Anything that changes what setup shows while it is open redraws it here,
+   as the settings do -- the same controls sit in both. */
+function panels(){
+  if(el("modalRoot").querySelector(".modal.settings"))panels();
+  if(OB.open)obRender();
+}
+function obRecheck(){if(OB.open&&!obNeeded()){OB.open=false;const r=el("obRoot");if(r)r.remove();document.body.classList.remove("ob-open");}}
+
+const G_LOGO='<svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true">'+
+  '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>'+
+  '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>'+
+  '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>'+
+  '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+const obAvatar=()=>'<span class="ob-av" aria-hidden="true">'+esc(((GC.status&&(GC.status.first||GC.status.name||GC.status.email))||S.prefs.name||"?").charAt(0).toUpperCase())+'</span>';
+const obWaiting=what=>'<div class="ob-waiting"><span class="ob-spin" aria-hidden="true"></span><span>'+esc(what)+'</span>'+
+  '<button class="btn btn-sm" data-act="ob-cancel">Cancel</button></div>';
+const obErr=()=>OB.err?'<p class="ob-err" role="alert">'+icon("i-alert","ic-14")+esc(OB.err)+'</p>':"";
+
+function obRender(){
+  if(!OB.open)return;
+  document.body.classList.add("ob-open");
+  const root=obRootEl(),marks=scrollMarks(root);
+  if(OB.step==="signin"){root.innerHTML='<div class="ob ob-first">'+obSignin()+'</div>';putScroll(root,marks);return;}
+  const steps=obSteps().filter(s=>s!=="signin"),i=steps.indexOf(OB.step);
+  const side='<aside class="ob-side">'+
+    '<div class="ob-brand"><span class="brand-mark">'+icon("i-orbit","ic-18")+'</span>Everyday Orbit</div>'+
+    '<ol class="ob-steps">'+steps.map((s,j)=>'<li class="'+(j<i?"done":j===i?"now":"")+'"'+(j===i?' aria-current="step"':"")+'>'+
+      '<i>'+(j<i?icon("i-check"):j+1)+'</i>'+esc(OB_LABEL[s])+'</li>').join("")+'</ol>'+
+    '<p class="ob-progress">Step '+(i+1)+' of '+steps.length+'</p>'+
+    (signedIn()?'<div class="ob-who">'+obAvatar()+'<span><b>'+esc(GC.status.name||GC.status.email)+'</b>'+esc(GC.status.name?GC.status.email:"")+'</span></div>':"")+
+    '</aside>';
+  root.innerHTML='<div class="ob"><div class="ob-card">'+side+
+    '<section class="ob-main" aria-label="'+esc(OB_LABEL[OB.step])+'"><div class="ob-body">'+obStepHtml()+'</div>'+obFoot()+'</section></div></div>';
+  putScroll(root,marks);
+}
+function obFoot(){
+  if(OB.step==="done")return '<footer class="ob-foot"><div class="spacer" style="flex:1"></div>'+
+    '<button class="btn btn-primary ob-go" data-act="ob-finish">Open my planner'+icon("i-chev-r","ic-14")+'</button></footer>';
+  const back=obPrev()&&obPrev()!=="signin";
+  return '<footer class="ob-foot">'+
+    (back?'<button class="btn btn-ghost" data-act="ob-back"'+(OB.busy?" disabled":"")+'>'+icon("i-chev-l","ic-14")+'Back</button>':"")+
+    '<div class="spacer" style="flex:1"></div>'+
+    (OB_SKIP.indexOf(OB.step)>-1&&!(OB.step==="calendar"&&gcalOn())&&!(OB.step==="obsidian"&&vaultPath())?'<button class="btn btn-ghost" data-act="ob-skip"'+(OB.busy?" disabled":"")+'>Skip for now</button>':"")+
+    (OB.found?"":'<button class="btn btn-primary ob-go" data-act="ob-next"'+(OB.busy?" disabled":"")+'>'+obNextLabel()+icon("i-chev-r","ic-14")+'</button>')+
+    '</footer>';
+}
+function obNextLabel(){
+  if(OB.step==="routines"){const n=obRt().filter(x=>x.on).length;return n?"Add "+n+" routine"+(n===1?"":"s"):"Continue";}
+  if(OB.step==="data"&&OB.store==="drive"&&!acctParts().drive)return "Continue with Google Drive";
+  return "Continue";
+}
+function obHead(eyebrow,title,lead){
+  return '<p class="ob-eyebrow">'+esc(eyebrow)+'</p><h1>'+esc(title)+'</h1>'+(lead?'<p class="ob-lead">'+lead+'</p>':"");
+}
+function obStepHtml(){
+  switch(OB.step){
+    case "data":return obData();
+    case "name":return obName();
+    case "cats":return obCats();
+    case "routines":return obRoutines();
+    case "calendar":return obCalendar();
+    case "obsidian":return obObsidian();
+    case "look":return obLook();
+    case "notify":return obNotify();
+    default:return obDone();
+  }
+}
+
+/* ---- sign in ---- */
+function obSignin(){
+  const d=hasDesktop(),st=GC.status||{};
+  /* A copy built without the app's Google client asks for one here, once. */
+  const keys=d&&!st.builtIn&&!st.clientId;
+  const again=OB.mode==="again";
+  let act;
+  if(!d)act='<p class="ob-note">'+icon("i-laptop","ic-14")+'<span>Signing in with Google needs the Everyday Orbit desktop app. In a browser, the planner is kept in this browser on this device.</span></p>'+
+    '<button class="btn btn-primary ob-wide" data-act="ob-local">Continue in this browser</button>';
+  else if(OB.busy)act=obWaiting("Finish signing in in your browser.");
+  else act='<button class="ob-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
+  return '<div class="ob-hero">'+
+    '<span class="brand-mark ob-mark">'+icon("i-orbit","ic-18")+'</span>'+
+    '<h1>'+(again?"Welcome back":"Welcome to Everyday Orbit")+'</h1>'+
+    '<p class="ob-lead">'+(again?"Sign in with your Google account to open your planner."
+      :"A calendar, a task board, an Eisenhower matrix, routines and notes — all sharing one set of categories, so a task you write once shows up wherever you look for it.")+'</p>'+
+    (keys&&!OB.busy?'<div class="ob-keys"><p class="ob-fine">This copy of the app was built without its Google sign-in keys. Paste the <b>Desktop app</b> client from Google Cloud once, and they are kept, encrypted, on this computer.</p>'+
+      '<input class="inp" id="gcId" autocomplete="off" spellcheck="false" placeholder="Client ID  ….apps.googleusercontent.com" value="'+esc(GC.draft.id||"")+'">'+
+      '<input class="inp" id="gcSecret" type="password" autocomplete="off" placeholder="Client secret" value="'+esc(GC.draft.secret||"")+'"></div>':"")+
+    act+obErr()+
+    (d?'<p class="ob-fine">Your Google account is how you sign in. What you plan stays on this computer unless you choose to back it up to your own Google Drive, and it goes nowhere else.</p>':"")+
+    '</div>';
+}
+async function obSignIn(){
+  const o=desktop();if(!o||OB.busy)return;
+  OB.busy=true;OB.err="";obRender();
+  let r;
+  try{r=await o.gcalConnect({want:["account"],clientId:GC.draft.id,clientSecret:GC.draft.secret});}
+  catch(e){r={ok:false,error:"Could not start the sign-in."};}
+  OB.busy=false;
+  if(!(r&&r.ok)){if(!r||r.error!=="Cancelled.")OB.err=(r&&r.error)||"Could not sign in.";obRender();return;}
+  GC.draft={id:"",secret:""};
+  try{GC.status=await o.gcalStatus();}catch(e){}
+  if(!S.prefs.name&&GC.status&&GC.status.first){S.prefs.name=GC.status.first;save("prefs");}
+  if(OB.mode==="again"){obFinish();return;}
+  obGo(obNext());
+}
+/* Asks Google for one more part of the account -- Calendar or Drive -- from
+   setup or from Settings. Resolves true once it is granted. */
+async function googleAsk(part){
+  const o=desktop();if(!o)return false;
+  let r;
+  try{r=await o.gcalConnect({want:[part]});}catch(e){r={ok:false,error:"Could not start the sign-in."};}
+  try{GC.status=await o.gcalStatus();}catch(e){}
+  if(r&&r.ok&&acctParts()[part])return true;
+  if(r&&r.ok)throw new Error("Google did not grant it. Tick the box for "+(part==="drive"?"Google Drive":"Google Calendar")+" on Google's page and try again.");
+  if(r&&r.error==="Cancelled.")return false;
+  throw new Error((r&&r.error)||"Could not reach Google.");
+}
+
+/* ---- where the planner lives ---- */
+function obData(){
+  if(OB.found){
+    const f=OB.found,c=f.counts,when=f.at?new Date(f.at).toLocaleString(undefined,{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"";
+    const local=hasData();
+    return obHead("Your data","There is already a planner in your Google Drive",
+      "Backed up "+esc(when)+", with <b>"+c.tasks+"</b> tasks, <b>"+c.routines+"</b> routines and <b>"+c.notes+"</b> notes.")+
+      '<div class="ob-choices">'+
+        '<button class="ob-choice" data-act="ob-restore">'+icon("i-download")+'<b>'+(local?"Use the one in Drive":"Restore it here")+'</b>'+
+          '<span>'+(local?"Replaces what is on this computer with the backup.":"Everything comes back: tasks, routines, notes, categories and settings.")+'</span></button>'+
+        '<button class="ob-choice" data-act="ob-fresh">'+icon(local?"i-laptop":"i-plus")+'<b>'+(local?"Keep this computer's":"Start fresh")+'</b>'+
+          '<span>'+(local?"Backs up this computer's planner over the one in Drive.":"Begins an empty planner. Its first backup replaces the one in Drive.")+'</span></button>'+
+      '</div>'+(OB.busy?obWaiting("Working…"):"")+obErr();
+  }
+  const card=(v,ic,title,body,tag)=>'<button class="ob-choice" data-act="ob-store" data-v="'+v+'" aria-pressed="'+(OB.store===v)+'">'+
+    '<span class="ob-choice-top">'+icon(ic)+(tag?'<em class="ob-tag">'+tag+'</em>':"")+'</span><b>'+title+'</b><span>'+body+'</span></button>';
+  return obHead("Your data","Where should your planner live?",
+      "Either way it works offline and is saved on this computer as you go. The difference is whether there is also a copy that follows you.")+
+    '<div class="ob-choices">'+
+      card("drive","i-cloud","Back up to Google Drive","A copy goes into your own Google Drive after every change. Sign in on another computer and your planner comes back.","Recommended")+
+      card("local","i-laptop","Only on this device","Nothing leaves this computer. You can still save a backup file by hand, from Settings, whenever you like.")+
+    '</div>'+
+    (OB.busy?obWaiting(acctParts().drive?"Looking for an earlier backup…":"Finish in your browser: allow access to Google Drive."):"")+obErr()+
+    '<p class="ob-fine">Everyday Orbit can only see the one file it makes in your Drive, not the rest of it. Coming from a backup file instead? <button class="linkish" data-act="import">Restore a backup file</button></p>';
+}
+async function obDataNext(){
+  if(OB.store==="local"){S.prefs.storage="local";save("prefs");obGo(obNext());return;}
+  OB.busy=true;OB.err="";obRender();
+  try{
+    if(!acctParts().drive&&!(await googleAsk("drive"))){OB.busy=false;obRender();return;}
+    S.prefs.storage="drive";save("prefs");
+    const f=await driveFind();
+    if(f){
+      const d=await driveRead(f.id),data=d&&(d.data||d);
+      if(data&&Array.isArray(data.tasks)){
+        OB.found={id:f.id,at:d.exported||f.modifiedTime,data:data,
+          counts:{tasks:data.tasks.length,routines:(data.routines||[]).length,notes:(data.notes||[]).length}};
+        OB.busy=false;obRender();return;
+      }
+    }
+    await driveBackup();
+    obGo(obNext());
+  }catch(e){OB.busy=false;OB.err=e.message||"Could not reach Google Drive.";obRender();}
+}
+
+/* ---- about you ---- */
+function obName(){
+  return obHead("About you","What should we call you?","It goes in the greeting on your dashboard. Nowhere else.")+
+    '<input class="inp ob-big" id="obName" autocomplete="given-name" maxlength="40" placeholder="Your first name" value="'+esc(S.prefs.name||"")+'">';
+}
+
+/* ---- categories ---- */
+function obCats(){
+  return obHead("Categories","Make the categories yours",
+      "Everything you plan wears one: a task, a routine, a note. Rename these, change a colour, remove what you will not use. You can change them any time.")+
+    '<div class="ob-list">'+S.categories.map(c=>'<div class="ob-row">'+
+      '<button class="ob-cdot" style="--c:'+c.color+'" data-act="ob-cat-color" data-id="'+c.id+'" title="Change the colour" aria-label="Change the colour of '+esc(c.name)+'"></button>'+
+      '<input class="inp inp-sm" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="30" aria-label="Category name">'+
+      (S.categories.length>1?'<button class="icon-btn" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
+      '</div>').join("")+'</div>'+
+    '<button class="btn btn-sm ob-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add a category</button>';
+}
+
+/* ---- starter routines ---- */
+const OB_RT=[
+  {k:"standup",title:"Morning stand-up",cat:"office",days:[1,2,3,4,5],time:"09:30",dur:15},
+  {k:"deep",title:"Deep work block",cat:"office",days:[1,2,3,4,5],time:"10:00",dur:90},
+  {k:"workout",title:"Workout",cat:"goals",days:[1,3,5],time:"07:00",dur:45},
+  {k:"walk",title:"Evening walk",cat:"goals",days:[0,1,2,3,4,5,6],time:"18:30",dur:30},
+  {k:"read",title:"Read before bed",cat:"personal",days:[0,1,2,3,4,5,6],time:"21:30",dur:20},
+  {k:"review",title:"Weekly review",cat:"goals",days:[5],time:"16:00",dur:45},
+  {k:"plants",title:"Water the plants",cat:"home",days:[1,4],time:"08:00",dur:10}];
+function obRt(){
+  if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:false},x));
+  return OB.rt;
+}
+const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
+function obRoutines(){
+  return obHead("Routines","Start with a few routines",
+      "Tick the ones that are already part of your week, and set the time you do them. They show on your calendar and dashboard, and remind you before they start.")+
+    '<div class="ob-list">'+obRt().map(x=>{const c=cat(obRtCat(x));
+      return '<div class="ob-row ob-rt'+(x.on?" on":"")+'" style="--c:'+c.color+'">'+
+        '<label class="ob-rt-pick"><input type="checkbox" data-act="ob-rt" data-k="'+x.k+'"'+(x.on?" checked":"")+'>'+
+        '<span><b>'+esc(x.title)+'</b><small><i class="cdot"></i>'+esc(c.name)+' · '+esc(freqLabel({freq:"weekly",days:x.days}))+' · '+esc(fmtMins(x.dur))+'</small></span></label>'+
+        timeField('data-act="ob-rt-time" data-k="'+x.k+'"',x.time,{sm:1,req:1,label:x.title+" time",cls:"ob-rt-time"})+'</div>';}).join("")+'</div>'+
+    '<p class="ob-fine">Anything else can be added from Routines later, on any days and at any time.</p>';
+}
+/* Going back and forth must not make them twice: the ones setup made are
+   remembered, and replaced rather than added to. */
+function obRtCommit(){
+  const made=(S.prefs.onboard&&S.prefs.onboard.made)||[];
+  S.routines=S.routines.filter(r=>made.indexOf(r.id)<0);
+  const ids=[];
+  obRt().filter(x=>x.on).forEach(x=>{const id=uid("r");ids.push(id);
+    S.routines.push({id:id,title:x.title,cat:obRtCat(x),freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""});});
+  save("routines");
+  S.prefs.onboard=Object.assign({},S.prefs.onboard||{},{made:ids});save("prefs");
+}
+
+/* ---- Google Calendar ---- */
+function obCalendar(){
+  const on=gcalOn(),g=gcalPrefs();
+  const tg=(k,v,l)=>'<label class="switch"><input type="checkbox" data-act="set-pref" data-k="'+k+'"'+(v?" checked":"")+'><span></span><i>'+esc(l)+'</i></label>';
+  return obHead("Google Calendar","Bring in your Google Calendar",
+      "Your Google events show on your calendar and dashboard beside everything else, and your tasks and routines go into your Google calendar, so your phone knows about them too.")+
+    (on?'<p class="ob-ok">'+icon("i-check","ic-14")+'Connected as <b>'+esc(GC.status.email)+'</b></p>'+
+      '<div class="ob-stack">'+tg("gcal.pushTasks",g.pushTasks,"Put tasks that have a date into Google Calendar")+
+        tg("gcal.pushRoutines",g.pushRoutines,"Put routines into Google Calendar")+'</div>'
+    :OB.busy?obWaiting("Finish in your browser: allow access to Google Calendar.")
+    :'<button class="btn btn-primary ob-connect" data-act="ob-cal">'+icon("i-calendar","ic-14")+'Connect Google Calendar</button>')+obErr()+
+    '<p class="ob-fine">It uses the Google account you signed in with. Change what syncs, or disconnect, from Settings.</p>';
+}
+
+/* ---- Obsidian ---- */
+function obObsidian(){
+  const v=vaultPath();
+  return obHead("Obsidian","Keep your documents in Obsidian",
+      "Documents you write on a task are saved into your Obsidian vault as ordinary Markdown files, and edits you make in Obsidian come back to the planner.")+
+    (v?'<p class="ob-ok">'+icon("i-check","ic-14")+'Syncing with <b>'+esc(v)+'/Everyday Orbit</b></p>'+
+      '<button class="btn btn-sm" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose another vault</button>'
+    :'<button class="btn btn-primary ob-connect" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose your vault folder</button>')+
+    '<p class="ob-fine">Not using Obsidian? Skip this; documents stay in the planner either way.</p>';
+}
+
+/* ---- appearance ---- */
+function obLook(){
+  return obHead("Appearance","Make it look like yours",
+      "Light, dark, or following Windows as it switches at dusk, and an accent for the buttons and highlights. Every choice keeps the text readable.")+
+    '<div class="ob-set"><div class="ob-flabel">Theme</div>'+themePickHtml()+'</div>'+
+    '<div class="ob-set"><div class="ob-flabel">Accent colour</div>'+accentPickHtml()+'</div>';
+}
+
+/* ---- notifications ---- */
+function obNotify(){
+  const rp=remindPrefs();
+  const tg=(k,v,l)=>'<label class="switch"><input type="checkbox" data-act="set-pref" data-k="remind.'+k+'"'+(v?" checked":"")+'><span></span><i>'+esc(l)+'</i></label>';
+  const tin=(k,v,l)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{sm:1,cls:"inp-time",label:l,ph:"Pick a time",req:k==="overdueAt"});
+  const web=!hasDesktop(),canWeb=typeof Notification!=="undefined";
+  return obHead("Notifications","What should it tell you?",
+      "A nudge before a routine or a task starts, one daily count of anything overdue, and quiet hours when nothing gets through.")+
+    '<div class="ob-set">'+tg("on",rp.on,"Remind me before routines and timed tasks start")+
+      '<p class="ob-fine">30 minutes before, unless you choose otherwise on the task or routine.'+(web?" In a browser they arrive only while the tab is open.":" They arrive even with the window closed.")+'</p>'+
+      (web&&canWeb&&Notification.permission!=="granted"?'<button class="btn btn-sm" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button>':"")+'</div>'+
+    '<div class="ob-set"><div class="ob-inline">'+tg("overdue",rp.overdue,"A daily count of overdue tasks, at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div></div>'+
+    '<div class="ob-set"><div class="ob-inline">'+tg("quiet",rp.quiet,"Quiet hours")+
+      (rp.quiet?tin("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+tin("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div></div>';
+}
+
+/* ---- done ---- */
+function obDone(){
+  const row=(ok,text)=>'<li class="'+(ok?"ok":"")+'">'+icon(ok?"i-check":"i-minus","ic-14")+'<span>'+text+'</span></li>';
+  const d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
+  return obHead("All set",S.prefs.name?"You're all set, "+S.prefs.name:"You're all set",
+      "Here is how your planner is set up. Everything here can be changed later from Settings.")+
+    '<ul class="ob-sum">'+
+      (d?row(signedIn(),"Signed in as <b>"+esc((GC.status&&GC.status.email)||"")+"</b>"):"")+
+      row(true,S.prefs.storage==="drive"&&d?"Backed up to your Google Drive after every change":"Saved on this "+(d?"computer":"browser")+" as you go")+
+      (OB.mode==="new"?row(true,"<b>"+S.categories.length+"</b> categories"+(rts?", and <b>"+rts+"</b> routine"+(rts===1?"":"s")+" to start with":"")):"")+
+      (d?row(gcalOn(),gcalOn()?"Google Calendar connected":"Google Calendar not connected"):"")+
+      (d?row(!!vaultPath(),vaultPath()?"Documents sync with your Obsidian vault":"Obsidian not connected"):"")+
+    '</ul>';
+}
+
+/* ---- Settings ▸ Account ---- */
+function accountPane(sec,field,toggle){
+  const p=S.prefs;
+  const nameIn='<input class="inp" data-act="set-pref" data-k="name" maxlength="40" value="'+esc(p.name||"")+'" placeholder="Your first name">';
+  if(!hasDesktop())return sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
+    sec("Google account",field("",'<span class="mnone">Signing in with Google needs the desktop app.</span>',
+      "In a browser, the planner is kept in this browser. Back it up from Your data."));
+  const st=GC.status||{},drive=p.storage==="drive"&&acctParts().drive;
+  const last=p.drive&&p.drive.last?"Last backed up "+relTime(p.drive.last):"Not backed up yet";
+  return sec("Google account",field("",
+      '<div class="acct">'+obAvatar()+'<span class="acct-who"><b>'+esc(st.name||st.email||"")+'</b>'+esc(st.name?st.email:"")+'</span>'+
+      '<button class="btn btn-sm btn-danger" data-act="acct-signout">Sign out</button></div>',
+      "Signing out keeps your planner on this computer; you sign in again to open it."))+
+    sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
+    sec("Google Drive backup",field("",
+      '<label class="switch"><input type="checkbox" data-act="drive-toggle"'+(drive?" checked":"")+'><span></span><i>Back up to Google Drive</i></label>'+
+      (drive?'<div class="set-actions" style="margin-top:12px"><button class="btn btn-sm" data-act="drive-now"'+(DB.busy?" disabled":"")+'>'+icon("i-upload","ic-14")+(DB.busy?"Backing up…":"Back up now")+'</button>'+
+        '<button class="btn btn-sm" data-act="drive-restore">'+icon("i-download","ic-14")+'Restore from Drive</button></div>':""),
+      (drive?esc(last)+". A copy goes into “"+esc(DRIVE_FILE)+"” in your Drive after every change.":"Your planner is kept on this computer only.")+
+      (DB.err?'<br><span class="set-err-inline">'+esc(DB.err)+'</span>':"")));
+}
+
 /* ============ appearance ============ */
 /* Theme and accent live on the root element, so a change is one attribute and
    the whole app follows. "system" sets nothing and lets the media query
@@ -1508,6 +1861,8 @@ function applyAppearance(){
    setting stacked in one long column. The open pane lives in V, not prefs:
    which tab you were on is not a setting. */
 const SET_TABS=[
+  {group:"You"},
+  {id:"account",    name:"Account",        icon:"i-user"},
   {group:"Preferences"},
   {id:"appearance", name:"Appearance",     icon:"i-palette"},
   {id:"dates",      name:"Dates and times",icon:"i-clock"},
@@ -1516,6 +1871,27 @@ const SET_TABS=[
   {id:"connections",name:"Connections",    icon:"i-link"},
   {id:"data",       name:"Your data",      icon:"i-folder"}];
 
+function themePickHtml(){
+  const p=S.prefs||{};
+  return '<div class="seg">'+THEMES.map(t=>
+    '<button data-act="set-theme" data-v="'+t.id+'" aria-pressed="'+((p.theme||"system")===t.id)+'">'+
+    icon(t.icon,"ic-14")+esc(t.name)+'</button>').join("")+'</div>';
+}
+/* A swatch shows the shade the theme in force would actually use, so what
+   you press is what you get rather than the light-mode version of it. */
+function accentPickHtml(){
+  const p=S.prefs||{},dark=isDark(),cur=p.accent||"green",curHex=accentHex();
+  const shade=h=>{const t=accentTrio(h);return dark?t.lift:t.base;};
+  const swatch=a=>'<button class="accent-dot'+(cur===a.id?" on":"")+'" style="--dot:'+shade(a.hex)+'"'+
+    ' data-act="set-accent" data-v="'+a.id+'" title="'+esc(a.name)+'" aria-label="'+esc(a.name)+'"'+
+    ' aria-pressed="'+(cur===a.id)+'"></button>';
+  return '<div class="accents">'+ACCENTS.map(swatch).join("")+
+    '<input type="color" class="accent-dot accent-custom'+(cur==="custom"?" on":" empty")+'"'+
+      ' style="--dot:'+shade(curHex)+'" value="'+esc(curHex)+'" data-act="set-accent-hex"'+
+      ' title="Any colour you like" aria-label="Custom accent colour"></div>'+
+    '<div class="accent-note"><span>'+(cur==="custom"?"Your own colour":
+      esc((ACCENTS.filter(a=>a.id===cur)[0]||ACCENTS[0]).name))+'</span><b>'+esc(curHex)+'</b></div>';
+}
 function settingsModal(){
   const n=S.tasks.length+S.routines.length+S.notes.length;
   const p=S.prefs||{};
@@ -1529,24 +1905,9 @@ function settingsModal(){
     (on?" checked":"")+'><span></span><i>'+esc(label)+'</i></label>';
 
   let pane="";
-  if(tab==="appearance"){
-    const themePick='<div class="seg">'+THEMES.map(t=>
-      '<button data-act="set-theme" data-v="'+t.id+'" aria-pressed="'+((p.theme||"system")===t.id)+'">'+
-      icon(t.icon,"ic-14")+esc(t.name)+'</button>').join("")+'</div>';
-
-    /* A swatch shows the shade the theme in force would actually use, so what
-       you press is what you get rather than the light-mode version of it. */
-    const dark=isDark(),cur=p.accent||"green",curHex=accentHex();
-    const shade=h=>{const t=accentTrio(h);return dark?t.lift:t.base;};
-    const swatch=a=>'<button class="accent-dot'+(cur===a.id?" on":"")+'" style="--dot:'+shade(a.hex)+'"'+
-      ' data-act="set-accent" data-v="'+a.id+'" title="'+esc(a.name)+'" aria-label="'+esc(a.name)+'"'+
-      ' aria-pressed="'+(cur===a.id)+'"></button>';
-    const accentPick='<div class="accents">'+ACCENTS.map(swatch).join("")+
-      '<input type="color" class="accent-dot accent-custom'+(cur==="custom"?" on":" empty")+'"'+
-        ' style="--dot:'+shade(curHex)+'" value="'+esc(curHex)+'" data-act="set-accent-hex"'+
-        ' title="Any colour you like" aria-label="Custom accent colour"></div>'+
-      '<div class="accent-note"><span>'+(cur==="custom"?"Your own colour":
-        esc((ACCENTS.filter(a=>a.id===cur)[0]||ACCENTS[0]).name))+'</span><b>'+esc(curHex)+'</b></div>';
+  if(tab==="account")pane=accountPane(sec,field,toggle);
+  else if(tab==="appearance"){
+    const themePick=themePickHtml(),accentPick=accentPickHtml();
 
     pane=sec("Theme",field("",themePick,"System follows Windows, and switches when it does."))+
       sec("Accent colour",field("",accentPick,
@@ -1664,6 +2025,14 @@ function gcalSettings(toggle){
     "Your Google events show in the planner, and your dated tasks and routines go into Google.");
   const st=GC.status||{},g=gcalPrefs(),err=GC.err?'<p class="set-err">'+icon("i-alert","ic-14")+esc(GC.err)+'</p>':"";
 
+  /* Signed in with Google: Calendar is one more permission on that account. */
+  if(signedIn()&&!gcalOn()){
+    return field("",GC.connecting
+        ? '<div class="set-actions"><span class="set-wait">Waiting for Google. Finish in your browser.</span>'+
+          '<button class="btn btn-sm" data-act="gcal-cancel">Cancel</button></div>'
+        : '<div class="set-actions"><button class="btn btn-sm btn-primary" data-act="gcal-connect">'+icon("i-calendar","ic-14")+'Connect Google Calendar</button></div>',
+      "Uses the Google account you signed in with, <b>"+esc(st.email)+"</b>. Your Google events show in the planner, and your dated tasks and routines go into Google.")+err;
+  }
   if(!st.connected){
     const steps='<details class="set-steps"><summary>How to get these — about five minutes, once</summary><ol>'+
       '<li>Open <b>console.cloud.google.com</b> and create a project. Call it Everyday Orbit.</li>'+
@@ -1710,7 +2079,7 @@ function pickBackupFolder(){
   Promise.resolve(o.chooseBackupDir()).then(dir=>{
     if(!dir)return;
     S.prefs.autoBackup=Object.assign({on:true,every:"week",last:0},S.prefs.autoBackup||{},{dir:dir});
-    save("prefs");settingsModal();toast("Backups will be written to "+dir);
+    save("prefs");panels();toast("Backups will be written to "+dir);
   }).catch(()=>{});
 }
 /* Runs at most once a launch, and only when the interval has actually passed. */
@@ -1720,8 +2089,7 @@ function maybeAutoBackup(){
   if(!b||!b.on||!b.dir)return;
   const gap=BACKUP_EVERY[b.every||"week"]||BACKUP_EVERY.week;
   if(b.last&&Date.now()-b.last<gap)return;
-  const payload={app:"everyday-orbit",version:1,exported:new Date().toISOString(),data:{}};
-  KEYS.forEach(k=>{payload.data[k]=S[k];});
+  const payload=backupPayload();
   try{
     o.writeBackup({dir:b.dir,name:"everyday-orbit-"+TODAY()+".json",text:JSON.stringify(payload,null,2)});
     S.prefs.autoBackup=Object.assign({},b,{last:Date.now()});
@@ -1730,8 +2098,7 @@ function maybeAutoBackup(){
 }
 
 function exportData(){
-  const payload={app:"everyday-orbit",version:1,exported:new Date().toISOString(),data:{}};
-  KEYS.forEach(k=>{payload.data[k]=S[k];});
+  const payload=backupPayload();
   const text=JSON.stringify(payload,null,2);
   const name="everyday-orbit-"+TODAY()+".json";
   function viaBlob(){
@@ -1779,9 +2146,10 @@ function applyImport(){
     else if(k==="prefs"){S.prefs=Object.assign({hidden:[],scratch:""},d.prefs||{});}
     else if(Array.isArray(d[k]))S[k]=d[k];
   });
-  hiddenCats();S.prefs.setup=true;pendingImport=null;V.noteId=null;welcomeOpen=false;
+  hiddenCats();S.prefs.setup=true;pendingImport=null;V.noteId=null;
   KEYS.forEach(function(k){touched[k]=true;save(k);});
   closeModal();render();toast("Backup restored");
+  if(OB.open){OB.mode="restored";OB.found=null;obGo(obNext());}
 }
 /* The priority section is two either/or pairs shown as four boxes, in the
    order they appear on the matrix table: urgency and importance each stay
@@ -2180,7 +2548,7 @@ document.addEventListener("click",function(e){
     case "gcal-disconnect":if(arm(n,"Disconnect?"))gcalDisconnect();break;
     case "remind-test":remindTest();break;
     case "remind-allow":if(typeof Notification!=="undefined")
-      Promise.resolve(Notification.requestPermission()).then(()=>{settingsModal();remindSoon();});break;
+      Promise.resolve(Notification.requestPermission()).then(()=>{panels();remindSoon();});break;
     case "tm-break":if(V.tmBreak===id)closeTimeBreakdown();else{V.tmBreak=id;renderSheet();}break;
     case "dash-more":V.dashAll=!V.dashAll;renderView();break;
     case "dash-note":V.view="notes";V.noteId=id;V.q="";render();break;
@@ -2195,12 +2563,43 @@ document.addEventListener("click",function(e){
       const it=(x.actions||[]).find(y=>y.id===id);
       if(it&&it.taskId)S.tasks=S.tasks.filter(t=>t.id!==it.taskId);
       x.actions=(x.actions||[]).filter(y=>y.id!==id);x.updated=Date.now();save("notes");save("tasks");render();toast("Action item and its task removed");break;}
-    case "welcome-sample":startWith(sampleState());toast("Sample week loaded — clear it any time from Settings");break;
-    case "welcome-empty":startWith(blankState());toast("Ready — add your first task");break;
+    /* ---- setup ---- */
+    case "ob-google":obSignIn();break;
+    case "ob-cancel":{const o=desktop();if(o&&o.gcalCancel)o.gcalCancel();break;}
+    case "ob-local":S.prefs.storage="local";save("prefs");obGo(obNext());break;
+    case "ob-back":OB.found=null;obGo(obPrev());break;
+    case "ob-skip":obGo(obNext());break;
+    case "ob-next":{
+      if(OB.step==="data"){obDataNext();break;}
+      if(OB.step==="name"){const v=(el("obName")||{}).value||"";S.prefs.name=v.trim();save("prefs");}
+      if(OB.step==="routines")obRtCommit();
+      obGo(obNext());break;}
+    case "ob-finish":obFinish();break;
+    case "ob-store":OB.store=n.dataset.v;obRender();break;
+    case "ob-restore":if(OB.found){const d=OB.found.data;OB.found=null;applyBackup(d);OB.mode="restored";obGo(obNext());toast("Your planner is back");}break;
+    case "ob-fresh":OB.found=null;OB.busy=true;obRender();driveBackup().then(()=>obGo(obNext()));break;
+    case "ob-cal":OB.busy=true;OB.err="";obRender();
+      googleAsk("calendar").then(ok=>{OB.busy=false;if(ok){gcalPrefs().off=false;save("prefs");gcalSync();}obRender();},
+        e=>{OB.busy=false;OB.err=e.message;obRender();});break;
+    case "ob-cat-color":{const c=S.categories.find(x=>x.id===id);if(!c)break;
+      c.color=CAT_COLORS[(CAT_COLORS.indexOf(c.color)+1)%CAT_COLORS.length];save("categories");obRender();break;}
+    case "ob-cat-del":if(S.categories.length>1){S.categories=S.categories.filter(x=>x.id!==id);save("categories");obRender();}break;
+    case "ob-cat-add":{const used=S.categories.map(x=>x.color),col=CAT_COLORS.find(x=>used.indexOf(x)<0)||CAT_COLORS[0],nid=uid("c");
+      S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});save("categories");obRender();
+      const f=document.querySelector('[data-act="ob-cat-name"][data-id="'+nid+'"]');if(f){f.focus();f.select();}break;}
+    /* ---- the Google account, in Settings ---- */
+    case "acct-signout":if(arm(n,"Sign out?")){const o=desktop();if(!o)break;
+      Promise.resolve(o.gcalDisconnect()).then(()=>o.gcalStatus()).then(st=>{GC.status=st;GC.events=[];GC.cals=[];
+        closeModal();render();obStart();});}break;
+    case "drive-now":driveBackup().then(ok=>{if(ok)toast("Backed up to Google Drive");});break;
+    case "drive-restore":if(arm(n,"Replace this planner?")){
+      driveFind().then(f=>f?driveRead(f.id):null).then(d=>{const data=d&&(d.data||d);
+        if(!data||!Array.isArray(data.tasks)){toast("There is no backup in your Drive yet");return;}
+        applyBackup(data);closeModal();toast("Restored from Google Drive");}).catch(e=>toast(e.message));}break;
     case "settings":V.setTab="appearance";settingsModal();break;
     case "set-tab":V.setTab=n.dataset.v;settingsModal();break;
-    case "set-theme":S.prefs.theme=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();settingsModal();break;
-    case "set-accent":S.prefs.accent=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();settingsModal();break;
+    case "set-theme":S.prefs.theme=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();panels();break;
+    case "set-accent":S.prefs.accent=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();panels();break;
     case "backup-dir":pickBackupFolder();break;
     case "load-sample":{const keep=S.prefs;S=sampleState();S.prefs=Object.assign(S.prefs,keep,{setup:true});KEYS.forEach(function(k){touched[k]=true;save(k);});closeModal();applyAppearance();render();toast("Sample week loaded");break;}
     case "reset-all":if(arm(n,"Clear everything?")){
@@ -2221,12 +2620,12 @@ document.addEventListener("click",function(e){
         if(!pth)return;
         S.prefs.vault=pth;save("prefs");
         S.docs.forEach(pushDocToVault);               // seed the folder with what exists
-        settingsModal();toast("Vault connected");
+        panels();toast("Vault connected");
       });break;}
     case "vault-open":{const o=desktop();if(o&&o.openVault)o.openVault();break;}
     case "vault-forget":if(arm(n,"Disconnect?")){const o=desktop();
       if(o&&o.forgetVault)Promise.resolve(o.forgetVault()).then(function(){
-        S.prefs.vault="";save("prefs");settingsModal();toast("Vault disconnected");});}
+        S.prefs.vault="";save("prefs");panels();toast("Vault disconnected");});}
       break;
     case "rte":document.execCommand(n.dataset.cmd,false,n.dataset.v||null);
       if(n.dataset.scratch){S.prefs.scratch=el("scratchPad").innerHTML;save("prefs");}
@@ -2287,7 +2686,7 @@ document.addEventListener("input",function(e){
   }
 });
 document.addEventListener("keydown",function(e){
-  if(e.key==="Escape"&&el("modalRoot").innerHTML&&!welcomeOpen){closeModal();return;}
+  if(e.key==="Escape"&&el("modalRoot").innerHTML){closeModal();return;}
   if(e.key==="Escape"&&V.tmBreak){closeTimeBreakdown();return;}
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
@@ -2325,12 +2724,12 @@ document.addEventListener("change",function(e){
   if(t.id==="dashQuickCat"){S.prefs.quickCat=t.value;save("prefs");return;}
   if(t.dataset&&t.dataset.act==="gcal-cal"){
     gcalPrefs().cals[t.dataset.id]=t.checked;save("prefs");GC.from="";
-    gcalFetchShown(true).catch(e=>{GC.err=e.message;}).then(()=>{softRender();settingsModal();});
+    gcalFetchShown(true).catch(e=>{GC.err=e.message;}).then(()=>{softRender();panels();});
     return;
   }
   if(t.dataset&&t.dataset.act==="f"){V.f[t.dataset.k]=t.value;renderView();return;}
   if(t.dataset&&t.dataset.act==="set-accent-hex"){
-    setCustomAccent(t.value);save("prefs");syncTimerWindow();render();settingsModal();return;
+    setCustomAccent(t.value);save("prefs");syncTimerWindow();render();panels();return;
   }
   if(t.dataset&&t.dataset.act==="set-pref"){
     const k=t.dataset.k,v=t.type==="checkbox"?t.checked:t.value;
@@ -2341,7 +2740,20 @@ document.addEventListener("change",function(e){
       if(a==="gcal")gcalSoon();
     }else S.prefs[k]=(k==="weekStart")?Number(v):v;
     if(k==="launch")S.prefs.launchSet=true;
-    save("prefs");applyAppearance();render();settingsModal();return;
+    save("prefs");applyAppearance();render();panels();return;
+  }
+  /* setup: a category renamed, a starter routine ticked or given a time */
+  if(t.dataset&&t.dataset.act==="ob-cat-name"){const c=S.categories.find(x=>x.id===t.dataset.id);
+    if(c){c.name=t.value.trim()||c.name;t.value=c.name;save("categories");}return;}
+  if(t.dataset&&t.dataset.act==="ob-rt"){const x=obRt().find(r=>r.k===t.dataset.k);if(x)x.on=t.checked;obRender();return;}
+  if(t.dataset&&t.dataset.act==="ob-rt-time"){const x=obRt().find(r=>r.k===t.dataset.k);if(x&&t.value)x.time=t.value;return;}
+  /* Drive backup switched on asks Google for Drive first, if it has not yet. */
+  if(t.dataset&&t.dataset.act==="drive-toggle"){
+    if(!t.checked){S.prefs.storage="local";save("prefs");panels();return;}
+    const on=()=>{S.prefs.storage="drive";save("prefs");driveBackup().then(ok=>{if(ok)toast("Backed up to Google Drive");});panels();};
+    if(acctParts().drive)on();
+    else googleAsk("drive").then(ok=>{if(ok)on();else panels();},e=>{DB.err=e.message;panels();});
+    return;
   }
   if(t.dataset&&t.dataset.act==="sh-set"){
     const k=t.dataset.k;let v=t.value;
@@ -2405,12 +2817,6 @@ window.addEventListener("unhandledrejection",function(e){
   const m=e&&e.reason&&(e.reason.message||e.reason.code);
   if(m)toast("Sync issue: "+m);
 });
-let welcomeShown=false;
-function maybeWelcome(){
-  if(welcomeShown||welcomeOpen)return;
-  if(S.prefs.setup||S.tasks.length||S.routines.length||S.notes.length)return;
-  welcomeShown=true;welcomeModal();
-}
 /* ============ activity log ============ */
 /* Everything that happens to a task lands here: comments and documents you
    write, plus an automatic entry for every field that changes. */
@@ -3550,7 +3956,11 @@ function gcalPrefs(){
   return g;
 }
 const gcalBridge=()=>{const o=desktop();return o&&o.gcalRequest?o:null;};
-const gcalOn=()=>!!(gcalBridge()&&GC.status&&GC.status.connected);
+/* Calendar is one part of the Google account: connected when that part was
+   granted and not switched off here. Switching it off keeps the account --
+   the same key signs in and backs up. */
+const gcalOn=()=>!!(gcalBridge()&&GC.status&&GC.status.connected&&
+  (!GC.status.parts||GC.status.parts.calendar)&&!(S.prefs.gcal&&S.prefs.gcal.off));
 function gcalSoon(){
   try{if(!gcalOn())return;}catch(e){return;}
   clearTimeout(GC.soon);GC.soon=setTimeout(()=>gcalSync(),4000);
@@ -3835,24 +4245,28 @@ function paintGcal(){
 
 async function gcalConnect(){
   const o=gcalBridge();if(!o||GC.connecting)return;
-  GC.connecting=true;GC.err="";settingsModal();
+  GC.connecting=true;GC.err="";panels();
   let r;
-  try{r=await o.gcalConnect({clientId:GC.draft.id,clientSecret:GC.draft.secret});}
+  try{r=await o.gcalConnect(signedIn()?{want:["calendar"]}:{clientId:GC.draft.id,clientSecret:GC.draft.secret});}
   catch(e){r={ok:false,error:"Could not start the sign-in."};}
   GC.connecting=false;
   if(r&&r.ok){
+    if(S.prefs.gcal)S.prefs.gcal.off=false;save("prefs");
     GC.draft={id:"",secret:""};
     try{GC.status=await o.gcalStatus();}catch(e){}
     toast("Connected to Google Calendar");
-    settingsModal();gcalSync();
+    panels();gcalSync();
   }else{
     if(r&&r.error!=="Cancelled.")GC.err=r&&r.error||"Could not connect.";
-    settingsModal();
+    panels();
   }
 }
 async function gcalDisconnect(){
   const o=gcalBridge();if(!o)return;
-  try{await o.gcalDisconnect();GC.status=await o.gcalStatus();}catch(e){}
+  /* Signed in, the key is the account's too: switch Calendar off and keep
+     it. Only the Calendar-only sign-in of before is revoked outright. */
+  if(signedIn()&&GC.status.parts&&GC.status.parts.account)gcalPrefs().off=true;
+  else try{await o.gcalDisconnect();GC.status=await o.gcalStatus();}catch(e){}
   /* The events stay in Google; only the links go. Connect again and the
      planner finds its own events by the orbitId they carry, so nothing is
      written twice. The links kept are the ones you stopped by deleting the
@@ -3860,13 +4274,82 @@ async function gcalDisconnect(){
      should not undo it. */
   const g=gcalPrefs();Object.keys(g.links).forEach(id=>{if(!g.links[id].off)delete g.links[id];});save("prefs");
   GC.events=[];GC.cals=[];GC.from=GC.to="";GC.err="";
-  settingsModal();softRender();toast("Google Calendar disconnected");
+  panels();softRender();toast("Google Calendar disconnected");
 }
 async function gcalBoot(){
   const o=gcalBridge();if(!o||!o.gcalStatus)return;
   try{GC.status=await o.gcalStatus();}catch(e){return;}
-  if(GC.status&&GC.status.connected){gcalSync();}
+  if(gcalOn())gcalSync();
   setInterval(()=>{if(gcalOn())gcalSync();},5*60*1000);
+}
+
+/* ============ google drive backup ============
+   With the planner kept in Drive, a copy goes into one file there after every
+   change, twenty seconds after the last one, so a burst of edits is one
+   upload. It is the same file a backup by hand makes. The Drive permission
+   reaches only the files this app made, so the file is found by name among
+   those and nothing else in someone's Drive is visible to it.
+
+   Writing down when it last backed up is itself a save of prefs, which would
+   schedule another backup, and so on forever: DB.quiet holds that off. */
+const DRIVE_FILE="Everyday Orbit backup.json";
+const DB={soon:null,busy:false,err:"",quiet:false};
+const driveOn=()=>!!(hasDesktop()&&S.prefs&&S.prefs.storage==="drive"&&acctParts().drive);
+function backupPayload(){
+  const p={app:"everyday-orbit",version:1,exported:new Date().toISOString(),data:{}};
+  KEYS.forEach(k=>{p.data[k]=S[k];});
+  return p;
+}
+function driveSoon(){
+  if(DB.quiet||!driveOn())return;
+  clearTimeout(DB.soon);DB.soon=setTimeout(()=>{driveBackup().catch(()=>{});},20000);
+}
+async function driveFind(){
+  const o=desktop();
+  const r=await o.gcalRequest({api:"drive",method:"GET",path:"/files",
+    query:{q:"name = '"+DRIVE_FILE+"' and trashed = false",fields:"files(id,modifiedTime)",orderBy:"modifiedTime desc",pageSize:"5",spaces:"drive"}});
+  if(!r.ok)throw new Error(r.error==="reconnect"?"Sign in again to reach Google Drive.":r.error==="offline"?"You are offline.":"Google Drive said: "+r.error);
+  return (r.data&&r.data.files&&r.data.files[0])||null;
+}
+async function driveRead(id){
+  const r=await desktop().gcalRequest({api:"drive",method:"GET",path:"/files/"+id,query:{alt:"media"}});
+  return r.ok?r.data:null;
+}
+async function driveBackup(){
+  if(!driveOn()||DB.busy)return false;
+  DB.busy=true;
+  try{
+    const o=desktop(),d=S.prefs.drive||{},text=JSON.stringify(backupPayload());
+    const up=(method,path,meta)=>o.gcalRequest({api:"upload",method:method,path:path,
+      query:{uploadType:"multipart",fields:"id,modifiedTime"},upload:{meta:meta,content:text,type:"application/json"}});
+    let id=d.fileId,r=id?await up("PATCH","/files/"+id,{}):null;
+    if(!r||!r.ok){
+      const f=await driveFind();id=f&&f.id;
+      r=id?await up("PATCH","/files/"+id,{}):await up("POST","/files",{name:DRIVE_FILE,mimeType:"application/json",
+        description:"Everyday Orbit keeps a copy of your planner here. Sign in on another computer to bring it back."});
+    }
+    if(!r.ok)throw new Error(r.error==="reconnect"?"Sign in again to back up to Google Drive.":r.error==="offline"?"Offline; it will back up when you are back.":"Google Drive said: "+r.error);
+    DB.err="";DB.quiet=true;
+    S.prefs.drive=Object.assign({},d,{fileId:r.data.id,last:Date.now()});save("prefs");
+    DB.quiet=false;
+    return true;
+  }catch(e){DB.err=e.message;return false;}
+  finally{DB.busy=false;panels();}
+}
+/* A restore brings back everything, except what belongs to this computer:
+   where its vault is, where its backups go, the timer running on it, and
+   this very setup. */
+function applyBackup(d){
+  const keep=S.prefs,dev={vault:keep.vault||"",autoBackup:keep.autoBackup,running:keep.running||null,
+    onboard:keep.onboard,storage:keep.storage,drive:keep.drive,setup:true};
+  KEYS.forEach(function(k){
+    if(k==="completions")S.completions=(d.completions&&typeof d.completions==="object")?d.completions:{};
+    else if(k==="prefs")S.prefs=Object.assign({hidden:[],scratch:""},d.prefs||{},dev);
+    else if(Array.isArray(d[k]))S[k]=d[k];
+  });
+  hiddenCats();V.noteId=null;
+  KEYS.forEach(function(k){touched[k]=true;save(k);});
+  applyAppearance();render();
 }
 
 /* ============ time analytics ============ */
@@ -3915,8 +4398,21 @@ function applyVaultChange(d){
 
 /* In the hosted copy, wait for the cloud check before offering a fresh start,
    so a slow connection can never invite someone to overwrite existing data. */
-if(window.claude&&window.claude.use)connect().then(maybeWelcome,maybeWelcome);
-else{maybeWelcome();connect();}
+/* Setup, or the sign-in, before anything else. On the desktop the account is
+   asked about first, and the page stays hidden until the answer is in, so
+   nobody sees their planner flash up only to be asked to sign in. In the
+   hosted copy, wait for the cloud check first, so a slow connection can never
+   invite someone to set up over existing data. */
+async function accountBoot(){
+  const o=desktop();
+  if(o&&o.gcalStatus){try{GC.status=await o.gcalStatus();}catch(e){}}
+  document.body.classList.remove("ob-wait");
+  if(obNeeded())obStart();
+  else if(driveOn()&&!(S.prefs.drive&&S.prefs.drive.last&&Date.now()-S.prefs.drive.last<36e5))driveSoon();
+}
+if(hasDesktop())document.body.classList.add("ob-wait");
+if(window.claude&&window.claude.use)connect().then(accountBoot,accountBoot);
+else{connect();accountBoot();}
 /* The theme is applied before anything draws, so there is no flash of the
    wrong one on a dark setup. */
 applyAppearance();

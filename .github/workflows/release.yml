@@ -80,6 +80,23 @@ jobs:
             echo "APPLE_TEAM_ID=$NOTARY_TEAM"                 >> "$GITHUB_ENV"
           fi
 
+      # Signing in with Google needs the app's own Google client. It lives in
+      # two repository secrets and is written out only here, at build time,
+      # so it is never committed. Without them the app still builds, and
+      # asks for a Client ID on first launch instead.
+      - name: Google sign-in client
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            node -e 'require("fs").writeFileSync("google-client.json", JSON.stringify({clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET}))'
+            echo "Google sign-in client written."
+          else
+            echo "No Google client configured; the app will ask for one."
+          fi
+
       - name: Build and publish
         run: npm run build -- --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
         env:
