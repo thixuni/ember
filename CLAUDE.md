@@ -147,6 +147,19 @@ summed from those rows, never cached on the task. The timer in flight lives in
 `prefs.running` so it survives a reload, and it is paused rather than resumed
 on start-up, so a timer left running overnight does not bank the hours.
 
+### Routines
+
+A routine's schedule is a plan, not a rule. `routineOn(r, d)` says when it
+is *due* — reminders, the calendar's recurring events in Google and the
+missed list all go by that — but any day's square can be ticked, and
+`routineHere(r, d)` (due, or done anyway) is what decides where it *shows*:
+the calendar, the dashboard's today and the day popup. `streak()` counts
+every day it was done, scheduled or not; an off day left empty is neutral;
+a scheduled day missed ends the streak unless `madeUp()` finds it done on an
+off day after it and before the next day it is due. That window is one per
+missed day, so one extra tick never covers two, and a made-up day is not
+listed as missed either.
+
 ### Dashboard
 
 `viewDashboard` is today on one page and owns no data of its own. The

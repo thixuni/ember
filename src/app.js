@@ -126,7 +126,7 @@ function sampleState(){
       "<h2>Calendar</h2><p>Week and month. Tasks sit in the band across the top, routines sit in the time grid. The <b>Catch-up</b> panel on the right collects anything overdue so you can clear it in one place.</p>"+
       "<h2>Tasks</h2><p>A board you can drag cards across, or a list grouped by month. Quick filters sit on one row, and Advanced opens status, category, priority and date range.</p>"+
       "<h2>Matrix</h2><p>Every task lands in a quadrant based on whether it is urgent, important, both or neither. Closest due date comes first. Anything you have not judged yet waits in the tray at the bottom.</p>"+
-      "<h2>Routines</h2><p>Anything that repeats: daily, weekdays, chosen days, or every few days. Tick the day squares to keep a streak going.</p>"+
+      "<h2>Routines</h2><p>Anything that repeats: daily, weekdays, chosen days, or every few days. Tick the day squares to keep a streak going: any day counts, and doing it on a day off makes up for a missed one.</p>"+
       "<h2>Notes</h2><p>Write freely, tag by category, and turn any line into an action item. Action items become real tasks on your board and calendar.</p>"+
       "<p><b>Your data stays on this device</b>, in this browser. Use the download icon at the bottom of the sidebar to back it up, and the upload icon to restore it or move it to another computer.</p>",
     actions:[{id:uid("a"),t:"Add your own first task",done:false,taskId:null}]},
@@ -234,13 +234,34 @@ function routineOn(r,d){
   return (r.days||[]).indexOf(d.getDay())>-1;
 }
 const doneR=(r,s)=>!!S.completions[r.id+"|"+s];
+/* A routine's schedule is a plan, not a rule. It can be ticked on any day,
+   and a routine kept on a different day is still kept: it shows on the day it
+   was done, counts towards the streak, and makes up for a missed day. */
+const routineHere=(r,d)=>routineOn(r,d)||doneR(r,ymd(d));
+/* A missed day is made up by doing it on an off day after it, before the next
+   day it is due -- each missed day has its own window, so one extra tick
+   never covers two. */
+function madeUp(r,d){
+  for(let i=1;i<60;i++){const x=addDays(d,i),s=ymd(x);
+    if(s>TODAY()||routineOn(r,x))return false;
+    if(doneR(r,s))return true;}
+  return false;
+}
 function matchQ(t,q){
   if(!q)return true;q=q.toLowerCase();
   return (t.title||"").toLowerCase().indexOf(q)>-1||(t.desc||"").toLowerCase().indexOf(q)>-1||
     cat(t.cat).name.toLowerCase().indexOf(q)>-1||(t.subtasks||[]).some(s=>s.t.toLowerCase().indexOf(q)>-1);
 }
+/* Every day it was done counts, scheduled or not. A scheduled day missed
+   ends the streak unless it was made up; an off day left empty is neutral,
+   and so is today until it is over. */
 function streak(r){
-  let n=0;for(let i=0;i<180;i++){const d=addDays(today(),-i);if(!routineOn(r,d))continue;if(doneR(r,ymd(d)))n++;else if(i>0)break;else continue;}
+  if(!r.active)return 0;
+  let n=0;
+  for(let i=0;i<366;i++){const d=addDays(today(),-i);
+    if(doneR(r,ymd(d))){n++;continue;}
+    if(i===0||!routineOn(r,d)||madeUp(r,d))continue;
+    break;}
   return n;
 }
 function overdueItems(){
@@ -248,7 +269,7 @@ function overdueItems(){
   const miss=[];
   S.routines.filter(r=>visibleCat(r.cat)).forEach(r=>{
     for(let i=1;i<=7;i++){const d=addDays(today(),-i),s=ymd(d);
-      if(routineOn(r,d)&&!doneR(r,s))miss.push({r:r,date:s});}
+      if(routineOn(r,d)&&!doneR(r,s)&&!madeUp(r,d))miss.push({r:r,date:s});}
   });
   miss.sort((a,b)=>a.date<b.date?1:-1);
   return {tasks:tasks,miss:miss.slice(0,12)};
@@ -326,7 +347,7 @@ function renderTopbar(){
     title="Eisenhower Matrix";sub="Open tasks by urgency and importance, closest due date first";
     right=topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="routines"){
-    const due=S.routines.filter(r=>routineOn(r,today())).length,done=S.routines.filter(r=>routineOn(r,today())&&doneR(r,TODAY())).length;
+    const due=S.routines.filter(r=>routineHere(r,today())).length,done=S.routines.filter(r=>doneR(r,TODAY())).length;
     title="Routines & Habits";sub=S.routines.length+" routines · "+done+" of "+due+" done today";
     right=topSearch("Search routines")+'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>';
     }else{
@@ -354,7 +375,7 @@ function tickBtn(t){return '<button class="tick'+(t.status==="completed"?" on":"
 /* ============ calendar ============ */
 function eventsFor(d){
   const s=ymd(d);
-  const evs=S.routines.filter(r=>visibleCat(r.cat)&&routineOn(r,d)).map(r=>{
+  const evs=S.routines.filter(r=>visibleCat(r.cat)&&routineHere(r,d)).map(r=>{
     const[h,m]=(r.time||"09:00").split(":").map(Number);
     return {kind:"routine",r:r,start:h*60+m,dur:r.dur||30,date:s,done:doneR(r,s)};
   });
@@ -608,7 +629,7 @@ function todayItems(){
      than as clutter. */
   const tasks=S.tasks.filter(t=>t.due===ts&&visibleCat(t.cat)&&t.status!=="dropped")
     .sort((a,b)=>(isOpen(a)?0:1)-(isOpen(b)?0:1));
-  const routines=S.routines.filter(r=>visibleCat(r.cat)&&routineOn(r,today()))
+  const routines=S.routines.filter(r=>visibleCat(r.cat)&&routineHere(r,today()))
     .sort((a,b)=>(a.time||"99")<(b.time||"99")?-1:1);
   return {tasks:tasks,routines:routines};
 }
@@ -1103,7 +1124,11 @@ function viewRoutines(){
     const c=cat(r.cat),st=streak(r);
     const days='<div class="week-dots">'+[0,1,2,3,4,5,6].map(i=>{
       const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY();
-      return '<div class="wd"><small>'+DOWS[i][0]+'</small><button class="cell'+(sched?" sched":"")+(done?" done":"")+(isT?" today":"")+'" '+(sched?'data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'"':'disabled')+' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
+      /* Every square takes a tick, the days off the schedule included. */
+      return '<div class="wd"><small>'+DOWS[i][0]+'</small><button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+'"'+
+        ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+
+        ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
+        ' title="'+(done?"Done":sched?"Mark done":"Not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
     return '<article class="rcard'+(r.active?"":" paused")+'" style="--c:'+c.color+'">'+
       '<div class="rtop"><span class="ravatar">'+icon(c.icon,"ic-18")+'</span>'+
       '<div style="flex:1;min-width:0"><h3>'+esc(r.title)+'</h3><div class="rsub">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+r.dur+' min</span><span>·</span><span>'+esc(freqLabel(r))+'</span>'+

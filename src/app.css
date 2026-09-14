@@ -616,6 +616,12 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .wd .cell.done{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));border-color:transparent;color:var(--on-accent)}
 .wd .cell.today{box-shadow:0 0 0 2px var(--accent-soft)}
 .wd .cell .ic{width:13px;height:13px;stroke-width:3}
+.wd .cell > *{pointer-events:none}
+/* Any square can be ticked, so each one answers the pointer: the edge takes
+   the category colour and a faint tick shows what a click will do. */
+.wd .cell{cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.wd .cell:not(.done):hover{border-color:color-mix(in srgb,var(--c) 75%,var(--line));color:color-mix(in srgb,var(--c) 55%,transparent)}
+.wd .cell.off:not(.done):hover{background:color-mix(in srgb,var(--c) 6%,var(--tint-base))}
 .streak{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--apricot-ink);background:var(--apricot-soft);padding:2px 8px;border-radius:20px}
 
 /* ---------- notes ---------- */
