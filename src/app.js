@@ -944,11 +944,17 @@ function taskCard(t){
   const q=quadOf(t),Q=q?QUADS.find(x=>x.id===q):null;
   const over=isOverdue(t),soon=!over&&t.due&&dayDiff(t.due,TODAY())<=1;
 
-  /* One muted line carries category, date and priority. Three filled pills
-     per card turned a column into a wall of colour. */
-  const meta=[];
-  meta.push('<span class="m-cat" style="--c:'+c.color+'">'+icon(c.icon,"ic-14")+esc(c.name)+'</span>');
-  if(t.due)meta.push('<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due))+'</span>');
+  /* The category is a tinted pill at the top of the card, and its colour
+     washes faintly in from that corner. One pill, not three: a row of filled
+     pills per card turned a column into a wall of colour. The due date and
+     the priority sit opposite it, the priority as a small badge wearing its
+     quadrant's icon, where the coloured left edge used to be the only clue. */
+  const head='<div class="tc-head">'+
+    '<span class="tc-cat">'+icon(c.icon,"ic-14")+esc(c.name)+'</span>'+
+    '<span class="tc-right">'+
+      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+
+      (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':"")+
+    '</span></div>';
 
   /* What is attached to this task, counted straight off state so the card does
      not depend on helpers declared further down the file. */
@@ -962,12 +968,12 @@ function taskCard(t){
   if(tFiles(t).length)marks.push(mark("i-clip",tFiles(t).length,"attachment","attachments"));
   if(tLinks(t).length)marks.push(mark("i-link",tLinks(t).length,"linked task","linked tasks"));
 
-  /* The quadrant reads off the coloured left edge. Its name is on the card
-     itself so it survives for anyone not going by colour. */
+  /* The quadrant's name is in the label too, for anyone not going by the
+     badge's colour or icon. */
   const label=Q?esc(t.title)+" — "+Q.name+", "+Q.tag.toLowerCase():esc(t.title);
-  return '<div class="tcard'+(t.status==="completed"?" done":"")+(Q?" "+Q.cls:"")+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
+  return '<div class="tcard'+(t.status==="completed"?" done":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
+    head+
     '<div class="top">'+tickBtn(t)+'<span class="ttl">'+esc(t.title)+'</span></div>'+
-    '<div class="meta">'+meta.join("")+'</div>'+
     (marks.length?'<div class="marks">'+marks.join("")+'</div>':"")+
     (subs.length?'<div class="bar" title="'+dn+' of '+subs.length+' subtasks done"><i style="width:'+Math.round(dn/subs.length*100)+'%"></i></div>':"")+
     '</div>';

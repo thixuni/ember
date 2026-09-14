@@ -471,16 +471,29 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .col-head h3{font-size:12.5px;font-weight:700;flex:1}
 .col-head .n{font-size:11px;font-weight:700;color:var(--faint)}
 .col-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:26px}
-.tcard{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line-2);border-radius:var(--r-s);padding:12px 13px;box-shadow:var(--sh-1);cursor:grab;display:flex;flex-direction:column;gap:9px;text-align:left;width:100%}
+/* No coloured edge. The category is a pill in the top row and a faint wash
+   of its colour from that corner -- the same glow the dashboard's welcome
+   panel and the time breakdown wear -- so a column reads by category at a
+   glance without a stripe down every card. */
+.tcard{position:relative;border:1px solid var(--line);border-radius:var(--r-m);padding:11px 12px 12px;box-shadow:var(--sh-1);
+  cursor:grab;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;
+  background:radial-gradient(110% 80% at 0% 0%,color-mix(in srgb,var(--c) 9%,transparent),transparent 62%),var(--surface)}
 .tcard:hover{border-color:var(--line-2);box-shadow:var(--sh-2)}
 .tcard.dragging{opacity:.4}
 .tcard .top{display:flex;align-items:flex-start;gap:7px}
 .tcard .ttl{font-size:13.5px;font-weight:600;line-height:1.4;flex:1;min-width:0}
 .tcard.done .ttl{text-decoration:line-through;color:var(--muted)}
-.tcard .meta{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:11.5px;font-weight:500;color:var(--muted);padding-left:25px}
-.tcard .meta .ic{flex:none}
-.m-cat{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}
-.m-cat .ic{color:var(--c)}
+.tc-head{display:flex;align-items:center;gap:8px;min-width:0}
+/* The pill takes the calendar's label recipe, so its text clears AA on its
+   own tint in either theme; the icon wears the same colour. */
+.tc-cat{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:65%;height:22px;padding:0 9px 0 7px;border-radius:20px;
+  font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:color-mix(in srgb,var(--c) 14%,var(--tint-base));color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
+.tc-cat .ic{flex:none;width:13px;height:13px}
+.tc-right{margin-left:auto;display:inline-flex;align-items:center;gap:7px;flex:none;font-size:11.5px;font-weight:500;color:var(--muted)}
+.tc-q{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--qs);color:var(--qt)}
+.tc-q .ic{width:12px;height:12px;stroke-width:2.2}
+.tcard.done .tc-cat{background:var(--surface-3);color:var(--muted)}
 .m-due.soon{color:var(--amber-ink);font-weight:600}
 .m-due.over{color:var(--danger-ink);font-weight:600}
 .m-subs{color:var(--faint)}
@@ -489,10 +502,6 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .marks{display:flex;flex-wrap:wrap;gap:4px 11px;align-items:center;padding-left:25px;font-size:11px;color:var(--faint)}
 .m-mark{display:inline-flex;align-items:center;gap:4px}
 .m-mark .num{font-weight:600}
-.tcard.q-do{border-left-color:var(--accent)}
-.tcard.q-decide{border-left-color:var(--amber)}
-.tcard.q-delegate{border-left-color:var(--blue)}
-.tcard.q-drop{border-left-color:var(--danger)}
 .bar{height:4px;border-radius:4px;background:var(--surface-3);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
 .addcard{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 4px;border-radius:8px}
