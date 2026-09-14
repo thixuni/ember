@@ -1094,7 +1094,10 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
   color:var(--ink);cursor:default;text-align:left}
 .tmb::before{content:"";position:absolute;top:-6px;left:20px;width:10px;height:10px;transform:rotate(45deg);
   background:var(--surface);border-left:1px solid var(--line);border-top:1px solid var(--line)}
-.tmb-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink)}
+/* The title wears the task's own colour, like the rest of the card, through
+   the label recipe so it still clears AA on the card in either theme. */
+.tmb-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
 .tmb-head{display:flex;align-items:baseline;gap:9px;margin-top:6px;flex-wrap:wrap}
 .tmb-total{font-family:var(--fd);font-size:27px;font-weight:600;line-height:1;color:var(--ink)}
 .tmb-sub{font-size:12px;color:var(--muted)}
