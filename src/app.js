@@ -1012,11 +1012,16 @@ function taskCard(t){
      pills per card turned a column into a wall of colour. The due date and
      the priority sit opposite it, the priority as a small badge wearing its
      quadrant's icon, where the coloured left edge used to be the only clue. */
+  /* Once a task is finished or dropped its due date and priority no longer
+     matter; what it says instead is that it is done, and when. */
+  const doneWhen=d=>!d?"":d===TODAY()?" today":d===ymd(addDays(today(),-1))?" yesterday":" "+fmtDate(d);
+  const state=t.status==="completed"?'<span class="tc-state done">'+icon("i-check","ic-14")+'Done'+esc(doneWhen(t.completedAt))+'</span>'
+    :t.status==="dropped"?'<span class="tc-state dropped">'+icon("i-x","ic-14")+'Dropped</span>':"";
   const head='<div class="tc-head">'+
     '<span class="tc-cat">'+icon(c.icon,"ic-14")+esc(c.name)+'</span>'+
-    '<span class="tc-right">'+
+    '<span class="tc-right">'+(state?state:
       (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+
-      (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':"")+
+      (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':""))+
     '</span></div>';
 
   /* What is attached to this task, counted straight off state so the card does
@@ -1034,7 +1039,7 @@ function taskCard(t){
   /* The quadrant's name is in the label too, for anyone not going by the
      badge's colour or icon. */
   const label=Q?esc(t.title)+" — "+Q.name+", "+Q.tag.toLowerCase():esc(t.title);
-  return '<div class="tcard'+(t.status==="completed"?" done":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
+  return '<div class="tcard'+(t.status==="completed"?" done":t.status==="dropped"?" dropped":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
     head+
     '<div class="top">'+tickBtn(t)+'<span class="ttl">'+esc(t.title)+'</span></div>'+
     (marks.length?'<div class="marks">'+marks.join("")+'</div>':"")+

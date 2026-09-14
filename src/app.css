@@ -53,6 +53,10 @@
   /* A solid category colour under text is darkened (light) or lightened
      (dark) the same way; raw, the yellower ones gave white text 2:1. */
   --solid-mix:48%;
+  /* How far a finished or dropped board card fades. */
+  /* Measured over every category colour, after the fade: the lowest text on
+     a faded card is 4.8:1 in light and 5.5:1 in dark. */
+  --card-fade:.78;
   /* Accent as text: the dark shade on white, the light shade on a dark panel. */
   --accent-ink:var(--a-dark);
   /* Calendar blocks and chips: how much of the category colour goes into the
@@ -512,7 +516,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .tcard.dragging{opacity:.4}
 .tcard .top{display:flex;align-items:flex-start;gap:7px}
 .tcard .ttl{font-size:13.5px;font-weight:600;line-height:1.4;flex:1;min-width:0}
-.tcard.done .ttl{text-decoration:line-through;color:var(--muted)}
+
 .tc-head{display:flex;align-items:center;gap:8px;min-width:0}
 /* The pill takes the calendar's label recipe, so its text clears AA on its
    own tint in either theme; the icon wears the same colour. */
@@ -523,7 +527,22 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .tc-right{margin-left:auto;display:inline-flex;align-items:center;gap:7px;flex:none;font-size:11.5px;font-weight:500;color:var(--muted)}
 .tc-q{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--qs);color:var(--qt)}
 .tc-q .ic{width:12px;height:12px;stroke-width:2.2}
-.tcard.done .tc-cat{background:var(--surface-3);color:var(--muted)}
+/* Finished and dropped cards step back: a little transparent, flat, their
+   title struck through, and a word saying which -- but they keep their
+   category colour, so a done column still reads by category. Hovering one
+   brings it back to full strength. The fade would take text under AA, so
+   inside a faded card the text is set that much deeper to begin with:
+   measured after the fade, it still clears 4.5:1. */
+.tcard.done,.tcard.dropped{opacity:var(--card-fade);box-shadow:none;transition:opacity .15s}
+.tcard.done:hover,.tcard.dropped:hover,.tcard.done:focus-within,.tcard.dropped:focus-within{opacity:1}
+.tcard.dropped{border-style:dashed;background:var(--surface)}
+.tcard.done .ttl,.tcard.dropped .ttl{text-decoration:line-through;color:var(--ink-2)}
+.tcard.done .tc-cat,.tcard.dropped .tc-cat{color:color-mix(in srgb,var(--c) calc(var(--ev-label) * .45),var(--ink))}
+.tcard.done .marks,.tcard.dropped .marks{color:var(--ink-2)}
+.tc-state{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.tc-state .ic{width:13px;height:13px;stroke-width:2.4}
+.tc-state.done{color:color-mix(in srgb,var(--accent-ink) 70%,var(--ink))}
+.tc-state.dropped{color:var(--ink-2)}
 .m-due.soon{color:var(--amber-ink);font-weight:600}
 .m-due.over{color:var(--danger-ink);font-weight:600}
 .m-subs{color:var(--faint)}
