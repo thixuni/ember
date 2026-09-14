@@ -88,6 +88,10 @@ const tTags=t=>Array.isArray(t.tags)?t.tags:[];
 const tLinks=t=>Array.isArray(t.links)?t.links:[];
 const tFiles=t=>Array.isArray(t.attachments)?t.attachments:[];
 const tEst=t=>Number(t.est)||0;
+/* A task's time is when you mean to start it. It is stored as dueTime, a
+   name older than the idea, and it belongs to the start date when there is
+   one and to the due date when there is not. */
+const tTimeDay=t=>tStart(t)||t.due||"";
 function sampleState(){
   const st=blankState(),o=n=>ymd(addDays(today(),n));
   const T=(title,due,cat,status,u,i,extra)=>Object.assign({id:uid("t"),title:title,desc:"",due:due,cat:cat,status:status,
@@ -341,7 +345,7 @@ function catChip(id){const c=cat(id);return '<span class="chip chip-cat" style="
 function dueChip(t){
   if(!t.due)return"";
   const d=dayDiff(t.due,TODAY());const k=isOpen(t)?(d<0?"over":(d<=1?"soon":"")):"";
-  return '<span class="chip chip-due '+k+'">'+icon("i-clock")+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>';
+  return '<span class="chip chip-due '+k+'">'+icon("i-clock")+esc(relDue(t.due)+(t.dueTime&&tTimeDay(t)===t.due?" "+fmtTime(t.dueTime):""))+'</span>';
 }
 function quadChip(t){const q=quadOf(t);if(!q)return"";const Q=QUADS.find(x=>x.id===q);
   return '<span class="chip chip-q '+Q.cls+'">'+esc(Q.name)+'</span>';}
@@ -648,7 +652,7 @@ function viewDashboard(){
   /* ---- to do: tasks due today ---- */
   const taskRow=t=>{const c=cat(t.cat),done=t.status==="completed",est=tEst(t);
     return dashRow({color:c.color,done:done,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
-      meta:esc(c.name)+(t.dueTime?' · due '+esc(fmtTime(t.dueTime)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
+      meta:esc(c.name)+(t.dueTime&&tTimeDay(t)===TODAY()?' · starts '+esc(fmtTime(t.dueTime)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
       end:done?"":timerBtn(t)});};
   const openT=d.tasks.filter(isOpen).length;
 
@@ -1020,7 +1024,7 @@ function taskCard(t){
   const head='<div class="tc-head">'+
     '<span class="tc-cat">'+icon(c.icon,"ic-14")+esc(c.name)+'</span>'+
     '<span class="tc-right">'+(state?state:
-      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+
+      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime&&tTimeDay(t)===t.due?" "+fmtTime(t.dueTime):""))+'</span>':"")+
       (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':""))+
     '</span></div>';
 
@@ -1900,7 +1904,11 @@ document.addEventListener("click",function(e){
     case "sh-done":{const t=sheetTask();if(t&&V.sheet.id)toggleTaskDone(t.id),renderSheet();break;}
     case "sh-delete":if(arm(n,"Delete for good?"))deleteTask(V.sheet.id);break;
     case "sh-cat":{const t=sheetTask();if(t&&t.cat!==n.dataset.v)patchCurrent({cat:n.dataset.v});break;}
-    case "sh-clear":{const k=n.dataset.k;patchCurrent(k==="due"?{due:"",dueTime:""}:{[k]:""});break;}
+    case "tp-open":if(V.tp)closeTimePicker();else openTimePicker();break;
+    case "tp-pick":setStartTime(n.dataset.v);break;
+    case "tp-clear":setStartTime("");break;
+    case "tp-type":{const v=parseTimeStr((el("tpInput")||{}).value);
+      if(v)setStartTime(v);else{toast("Try a time like 9, 9:30, 2:15pm or 14:15");const i=el("tpInput");if(i)i.focus();}break;}
     case "sh-flag":{const t=sheetTask();if(!t)break;
       const k=n.dataset.k,cur=flagVal(t[k]);
       patchCurrent({[k]:cur===n.dataset.v?null:n.dataset.v==="1"});break;}
@@ -2081,6 +2089,7 @@ document.addEventListener("input",function(e){
 });
 document.addEventListener("keydown",function(e){
   if(e.key==="Escape"&&el("modalRoot").innerHTML&&!welcomeOpen){closeModal();return;}
+  if(e.key==="Escape"&&V.tp){closeTimePicker();return;}
   if(e.key==="Escape"&&V.tmBreak){closeTimeBreakdown();return;}
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
@@ -2089,6 +2098,7 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Enter"&&e.target.id==="aiText"){e.preventDefault();
     const b=document.querySelector('[data-act="ai-add"]');if(b)addAction(b.dataset.nid);return;}
   if(e.key==="Enter"&&e.target.id==="dashQuick"){e.preventDefault();quickAdd();return;}
+  if(e.key==="Enter"&&e.target.id==="tpInput"){e.preventDefault();const b=document.querySelector('[data-act="tp-type"]');if(b)b.click();return;}
   if(e.key==="Enter"&&e.target.id==="rTitle"){e.preventDefault();
     const b=document.querySelector('[data-act="routine-save"]');if(b)b.click();return;}
   /* The sheet has no save button: leaving the field is what commits it. */
@@ -2139,11 +2149,8 @@ document.addEventListener("change",function(e){
     const k=t.dataset.k;let v=t.value;
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);
     if(k==="remind")v=v==="d"?null:v==="off"?false:Number(v);
-    if(k==="dueTime"){patchCurrent({dueTime:v},false);
-      const box=el("shRemind"),cur=sheetTask();if(box&&cur)box.innerHTML=taskRemindHtml(cur);
-      /* No redraw, so the field shows its new value itself. */
-      const df=t.closest(".dfield");if(df){df.classList.toggle("is-empty",!v);const ph=df.querySelector(".dph");if(v&&ph)ph.remove();}
-      return;}
+    if((k==="start"||k==="due")&&!v){const cur=sheetTask();
+      if(cur&&!(k==="start"?cur.due:tStart(cur))){patchCurrent({[k]:"",dueTime:""});return;}}
     if(k==="title"){v=v.trim();if(!v){const cur=sheetTask();t.value=cur?cur.title:"";return;}}
     // Re-rendering while the caret is in a text field would throw it away.
     patchCurrent({[k]:v},k!=="title"&&k!=="desc");
@@ -2195,7 +2202,7 @@ function maybeWelcome(){
 const FIELD_LABEL={title:"Title",desc:"Description",due:"Due date",start:"Start date",
   status:"Status",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
-  dueTime:"Due time",remind:"Reminder"};
+  dueTime:"Start time",remind:"Reminder"};
 
 const actFor=id=>S.activity.filter(a=>a.task===id).sort((a,b)=>a.at-b.at);
 
@@ -2443,13 +2450,13 @@ function deleteDoc(id){
 
 function openSheet(id,preset){
   if(id&&!taskById(id))return;
-  V.tmBreak=null;
+  V.tmBreak=null;V.tp=null;
   V.sheet={id:id||null,tab:"details",
     draft:id?null:Object.assign({title:"",desc:"",due:"",start:"",cat:S.categories[0].id,
       status:"backlog",urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[]},preset||{})};
   renderSheet();
 }
-function closeSheet(){V.sheet=null;V.tmBreak=null;renderSheet();}
+function closeSheet(){V.sheet=null;V.tmBreak=null;V.tp=null;renderSheet();}
 
 /* The task being shown, or the unsaved draft for a new one. */
 const sheetTask=()=>{const s=V.sheet;return s?(s.id?taskById(s.id):s.draft):null;};
@@ -2487,18 +2494,70 @@ function createFromDraft(){
 const metaRow=(label,inner,ic)=>'<div class="mrow"><div class="mlab">'+(ic?icon(ic,"ic-14"):"")+esc(label)+'</div><div class="mval">'+inner+'</div></div>';
 
 /* Three fields that say what they are: a caption over each, and plain words
-   when one is empty rather than the browser's dd-----yyyy and --:-- --. */
+   when one is empty rather than the browser's dd-----yyyy. The time is the
+   start time, so it sits beside the start date; it opens the planner's own
+   picker rather than the browser's. Clearing is done in each picker. */
 function sheetDates(t){
-  const f=(k,type,cap,val,empty,extra)=>'<label class="dfield'+(val?"":" is-empty")+'">'+
-    '<span class="dcap">'+esc(cap)+(val?'<button class="dclr" data-act="sh-clear" data-k="'+k+'" aria-label="Clear '+esc(cap.toLowerCase())+'">Clear</button>':"")+'</span>'+
-    '<span class="dbox"><input class="inp inp-sm" type="'+type+'" value="'+esc(val||"")+'" data-act="sh-set" data-k="'+k+'" aria-label="'+esc(cap)+'"'+(extra||"")+'>'+
+  const f=(k,cap,val,empty)=>'<label class="dfield'+(val?"":" is-empty")+'">'+
+    '<span class="dcap">'+esc(cap)+'</span>'+
+    '<span class="dbox"><input class="inp inp-sm" type="date" value="'+esc(val||"")+'" data-act="sh-set" data-k="'+k+'" aria-label="'+esc(cap)+'">'+
     (val?"":'<span class="dph">'+esc(empty)+'</span>')+'</span></label>';
-  return '<div class="dgrid">'+
-    f("start","date","Start",tStart(t),"Add a start date")+
-    f("due","date","Due",t.due,"Add a due date")+
-    f("dueTime","time","Time",t.dueTime,t.due?"Add a time":"Set a due date first",t.due?"":" disabled")+
-    '</div>';
+  const day=tTimeDay(t),open=V.tp===(t.id||"draft");
+  const time='<div class="dfield tfield-wrap"><span class="dcap">Start time</span>'+
+    '<button class="inp inp-sm tfield'+(t.dueTime?"":" is-empty")+'" data-act="tp-open"'+(day?"":" disabled")+
+      ' aria-haspopup="listbox" aria-expanded="'+open+'" aria-label="Start time">'+
+      '<span>'+esc(t.dueTime?fmtTime(t.dueTime):day?"Add a start time":"Set a date first")+'</span>'+icon("i-clock","ic-14")+'</button>'+
+    (open?timePicker(t):"")+'</div>';
+  return '<div class="dgrid">'+f("start","Start",tStart(t),"Add a start date")+time+f("due","Due",t.due,"Add a due date")+'</div>';
 }
+
+/* ---- the start-time picker ----
+   Type a time, or pick one: a list in quarter hours grouped by part of the
+   day, opened at the time already set or at the next quarter hour from now. */
+const TP_PARTS=[["Night",0,6],["Morning",6,12],["Afternoon",12,17],["Evening",17,24]];
+function parseTimeStr(s){
+  const m=String(s||"").trim().toLowerCase().replace(/\s+/g,"").match(/^(\d{1,2})(?:[:.]?(\d{2}))?(a|am|p|pm)?$/);
+  if(!m)return "";
+  let h=Number(m[1]);const mm=Number(m[2]||0),ap=m[3];
+  if(mm>59||h>24)return "";
+  if(ap){if(h<1||h>12)return "";if(ap[0]==="p"&&h<12)h+=12;if(ap[0]==="a"&&h===12)h=0;}
+  if(h===24)h=0;
+  return pad(h)+":"+pad(mm);
+}
+function timePicker(t){
+  const cur=t.dueTime||"";
+  const n=new Date(),next=Math.min(23*60+45,Math.ceil((n.getHours()*60+n.getMinutes())/15)*15);
+  const aim=cur||pad(Math.floor(next/60))+":"+pad(next%60);
+  const groups=TP_PARTS.map(g=>{let items="";
+    for(let mins=g[1]*60;mins<g[2]*60;mins+=15){const v=pad(Math.floor(mins/60))+":"+pad(mins%60);
+      items+='<button class="tp-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="tp-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'">'+
+        esc(fmtTime(v))+(v===cur?icon("i-check","ic-14"):"")+'</button>';}
+    return '<div class="tp-group"><div class="tp-gh">'+g[0]+'</div><div class="tp-opts">'+items+'</div></div>';}).join("");
+  return '<div class="tp" role="dialog" aria-label="Pick a start time">'+
+    '<div class="tp-type"><input id="tpInput" class="inp inp-sm" placeholder="Type a time, like 8:15pm" autocomplete="off" value="'+esc(cur?fmtTime(cur):"")+'">'+
+      '<button class="btn btn-sm btn-primary" data-act="tp-type">Set</button></div>'+
+    '<div class="tp-list" id="tpList">'+groups+'</div>'+
+    '<div class="tp-foot"><span>'+(clock24()?"24-hour clock":"Enter a time or pick one")+'</span>'+
+      (cur?'<button class="tp-clear" data-act="tp-clear">'+icon("i-x","ic-14")+'Clear time</button>':"")+'</div></div>';
+}
+function openTimePicker(){
+  const t=sheetTask();if(!t||!tTimeDay(t))return;
+  V.tp=t.id||"draft";renderSheet();
+  const list=el("tpList"),aim=list&&list.querySelector(".tp-opt.aim");
+  if(list&&aim)list.scrollTop=aim.offsetTop-list.offsetTop-list.clientHeight/2+aim.offsetHeight/2;
+  const inp=el("tpInput");if(inp){inp.focus();inp.select();}
+}
+function setStartTime(v){V.tp=null;patchCurrent({dueTime:v});}
+function closeTimePicker(){
+  if(!V.tp)return;V.tp=null;
+  const p=document.querySelector(".tp");if(p)p.remove();
+  const b=document.querySelector('[data-act="tp-open"]');if(b)b.setAttribute("aria-expanded","false");
+}
+document.addEventListener("click",function(e){
+  if(!V.tp||!e.target.closest)return;
+  if(e.target.closest('.tp,[data-act="tp-open"]'))return;
+  closeTimePicker();
+},true);
 /* Every category as a pill in its own colour, the chosen one outlined and
    ticked: one click to change it, and the colours become familiar. */
 function sheetCats(t){
@@ -2516,7 +2575,7 @@ function sheetPrio(t){
     [["1",yes],["0",no]].map(o=>'<button data-act="sh-flag" data-k="'+k+'" data-v="'+o[0]+'" aria-pressed="'+(st[k]===o[0])+'">'+esc(o[1])+'</button>').join("")+
     '</div></div>';
   return '<div class="prio2">'+row("urgent","Urgency","Urgent","Not urgent")+row("important","Importance","Important","Not important")+
-    '<div class="prio-res">'+(Q?'<span class="chip chip-q '+Q.cls+'">'+icon(Q.icon,"ic-14")+esc(Q.name)+'</span><span class="prio-note">'+esc(Q.tag)+'</span>'
+    '<div class="prio-res">'+(Q?'<span class="chip chip-q '+Q.cls+'">'+icon(Q.icon,"ic-14")+esc(Q.name)+'</span>'
       :'<span class="prio-note">Answer both to place it in the matrix.</span>')+'</div></div>';
 }
 
@@ -2607,7 +2666,7 @@ function closeTimeBreakdown(){
   const b=document.querySelector('[data-act="tm-break"]');if(b)b.setAttribute("aria-expanded","false");
 }
 document.addEventListener("click",function(e){
-  const f=e.target.closest&&e.target.closest(".dfield input");
+  const f=e.target.closest&&e.target.closest(".dfield input[type=date]");
   if(f&&!f.disabled&&typeof f.showPicker==="function"){try{f.showPicker();}catch(err){}}
 },true);
 document.addEventListener("click",function(e){
@@ -2887,8 +2946,8 @@ function remindOptions(x){
     '<option value="off"'+(v==="off"?" selected":"")+'>No reminder</option>';
 }
 function taskRemindHtml(t){
-  if(!t.due)return '<span class="mnone">Give it a due date and time to get a reminder</span>';
-  if(!t.dueTime)return '<span class="mnone">Add a due time above to get a reminder</span>';
+  if(!tTimeDay(t))return '<span class="mnone">Give it a date and a start time to get a reminder</span>';
+  if(!t.dueTime)return '<span class="mnone">Add a start time above to get a reminder</span>';
   return '<select class="inp inp-sm" data-act="sh-set" data-k="remind" aria-label="Reminder">'+remindOptions(t)+'</select>';
 }
 /* Defaults filled in on the one object, as with gcalPrefs, since the nested
@@ -2936,11 +2995,12 @@ function buildReminders(){
     });
   }
   S.tasks.forEach(t=>{
-    if(!isOpen(t)||!t.due||!t.dueTime)return;
+    const day=tTimeDay(t);
+    if(!isOpen(t)||!day||!t.dueTime)return;
     const m=remindMins(t);if(m===null)return;
-    const due=at(t.due,t.dueTime),fire=due-m*60000;if(!keep(fire))return;
-    out.push({id:"t:"+t.id+":"+t.due+"T"+t.dueTime+":"+m,at:fire,title:t.title,
-      body:(m?"Due "+leadText(m)+", at "+clock(due):"Due now")+" · "+cat(t.cat).name,
+    const due=at(day,t.dueTime),fire=due-m*60000;if(!keep(fire))return;
+    out.push({id:"t:"+t.id+":"+day+"T"+t.dueTime+":"+m,at:fire,title:t.title,
+      body:(m?"Starts "+leadText(m)+", at "+clock(due):"Starting now")+" · "+cat(t.cat).name,
       open:{kind:"task",id:t.id}});
   });
   if(p.overdue){

@@ -205,8 +205,14 @@ task or the dashboard. In a plain browser the page keeps the timers itself,
 behind a permission prompt, and only while the tab is open.
 
 - An item's `remind` is unset (the default, 30 minutes before), a number of
-  minutes, or `false`. Tasks need a `dueTime` to have a reminder at all;
-  "before" needs something to be before.
+  minutes, or `false`. Tasks need a time to have a reminder at all; "before"
+  needs something to be before.
+- A task's time is its **start time**. It is stored as `dueTime`, a name older
+  than the idea, and it belongs to the start date when there is one and to the
+  due date when there is not (`tTimeDay()`). Reminders count back from that
+  moment; a chip shows the time only beside the date it belongs to. It is set
+  with the planner's own picker (`timePicker()`, open while `V.tp` is set):
+  type a time, or pick from quarter hours grouped by part of the day.
 - A reminder's id carries what it was worked out from — item, day, time,
   lead — so changing any of them makes a new reminder rather than one the
   shell has already marked as sent.
