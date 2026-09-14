@@ -990,8 +990,8 @@ function filterBar(){
       field("Status",'<select class="inp" data-act="f" data-k="status"><option value="">Any status</option>'+STATUSES.map(s=>'<option value="'+s.id+'"'+(V.f.status===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select>')+
       field("Category",'<select class="inp" data-act="f" data-k="cat"><option value="">All categories</option>'+S.categories.map(c=>'<option value="'+c.id+'"'+(V.f.cat===c.id?" selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select>')+
       field("Matrix quadrant",'<select class="inp" data-act="f" data-k="quad"><option value="">Any priority</option>'+QUADS.map(q=>'<option value="'+q.id+'"'+(V.f.quad===q.id?" selected":"")+'>'+esc(q.name)+'</option>').join("")+'<option value="none"'+(V.f.quad==="none"?" selected":"")+'>Not prioritised</option></select>')+
-      field("Due from",'<input class="inp" type="date" data-act="f" data-k="from" value="'+esc(V.f.from)+'">')+
-      field("Due until",'<input class="inp" type="date" data-act="f" data-k="to" value="'+esc(V.f.to)+'">')+
+      field("Due from",dateField('data-act="f" data-k="from"',V.f.from,{label:"Due from",ph:"Any date"}))+
+      field("Due until",dateField('data-act="f" data-k="to"',V.f.to,{label:"Due until",ph:"Any date"}))+
       field("Sort by",'<select class="inp" data-act="f" data-k="sort"><option value="due"'+(V.f.sort==="due"?" selected":"")+'>Due date</option><option value="priority"'+(V.f.sort==="priority"?" selected":"")+'>Matrix priority</option><option value="title"'+(V.f.sort==="title"?" selected":"")+'>Title A–Z</option><option value="created"'+(V.f.sort==="created"?" selected":"")+'>Recently added</option></select>')+
       '</div>';
   }
@@ -1173,7 +1173,7 @@ function viewNotes(){
         '<span class="t">'+esc(a.t)+'</span>'+(t&&t.due?'<span class="chip chip-due">'+esc(relDue(t.due))+'</span>':"")+
         (t?'<button class="rowbtn" style="opacity:1" data-act="task" data-id="'+t.id+'" aria-label="Open task">'+icon("i-edit","ic-14")+'</button>':"")+
         '<button class="rowbtn" style="opacity:1" data-act="ai-del" data-nid="'+n.id+'" data-id="'+a.id+'" aria-label="Remove">'+icon("i-x","ic-14")+'</button></div>';}).join("")+
-    '<div class="ai-add"><input class="inp" id="aiText" placeholder="Add an action item…" style="flex:1"><input class="inp" id="aiDate" type="date" value="'+TODAY()+'" style="width:auto">'+
+    '<div class="ai-add"><input class="inp" id="aiText" placeholder="Add an action item…" style="flex:1">'+dateField('id="aiDate"',TODAY(),{label:"Due",ph:"No due date",cls:"ai-date"})+''+
     '<button class="btn btn-sm" data-act="ai-add" data-nid="'+n.id+'">'+icon("i-plus","ic-14")+'Add</button></div></div>';
   return '<div class="notes">'+side+'<div class="neditor">'+
     '<div class="ned-head"><input class="ned-title" id="noteTitle" value="'+esc(n.title)+'" placeholder="Note title">'+meta+'</div>'+
@@ -1419,7 +1419,7 @@ function settingsModal(){
   else if(tab==="reminders"){
     const rp=remindPrefs(),web=!hasDesktop();
     const canWeb=typeof Notification!=="undefined";
-    const timeIn=(k,v,label)=>'<input class="inp inp-time" type="time" data-act="set-pref" data-k="remind.'+k+'" value="'+esc(v||"")+'" aria-label="'+esc(label)+'">';
+    const timeIn=(k,v,label,req)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{cls:"inp-time",label:label,ph:"Pick a time",req:req});
     const reach=!web?"":!canWeb
       ? '<p class="set-err">'+icon("i-alert","ic-14")+'This browser cannot show notifications. The desktop app can.</p>'
       : Notification.permission!=="granted"
@@ -1435,7 +1435,7 @@ function settingsModal(){
         reach)+
       sec("Overdue tasks",
         field("",'<div class="set-actions">'+toggle("remind.overdue",rp.overdue,"A daily count of overdue tasks, at")+
-          timeIn("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>',
+          timeIn("overdueAt",rp.overdueAt,"Time of the overdue count",1)+'</div>',
           "One notification with how many tasks are overdue, not one per task, and only when there are any."))+
       sec("Quiet hours",
         field("",'<div class="set-actions">'+toggle("remind.quiet",rp.quiet,"Quiet hours")+
@@ -1669,7 +1669,7 @@ function routineModal(id){
     field("Routine",'<input class="inp" id="rTitle" value="'+esc(r.title)+'" placeholder="Skincare routine, stand-up, weekly review…">')+
     '<div class="grid3">'+
       field("Category",'<select class="inp" id="rCat">'+S.categories.map(c=>'<option value="'+c.id+'"'+(r.cat===c.id?" selected":"")+'>'+esc(c.name)+'</option>').join("")+'</select>')+
-      field("Time",'<input class="inp" type="time" id="rTime" value="'+esc(r.time)+'">')+
+      field("Time",timeField('id="rTime"',r.time,{label:"Time",req:1}))+
       field("Minutes",'<input class="inp" type="number" min="5" step="5" id="rDur" value="'+(r.dur||30)+'">')+
     '</div>'+
     field("Reminder",'<select class="inp" id="rRemind">'+remindOptions(r)+'</select>')+
@@ -1680,8 +1680,8 @@ function routineModal(id){
     '<div class="grid2"><div class="field" id="rDaysWrap"><label>Days of the week</label><div class="dow-pick" id="rDays">'+
       [1,2,3,4,5,6,0].map((d,i)=>'<button class="'+((r.days||[]).indexOf(d)>-1?"on":"")+'" data-act="r-day" data-v="'+d+'">'+DOWS[i][0]+'</button>').join("")+'</div></div>'+
       field("Every N days",'<input class="inp" type="number" min="1" max="60" id="rEvery" value="'+(r.every||2)+'">')+'</div>'+
-    '<div class="grid2">'+field("Starts",'<input class="inp" type="date" id="rStart" value="'+esc(r.start||TODAY())+'">')+
-      field("Ends (optional)",'<input class="inp" type="date" id="rEnd" value="'+esc(r.end||"")+'">')+'</div>'+
+    '<div class="grid2">'+field("Starts",dateField('id="rStart"',r.start||TODAY(),{label:"Starts",req:1}))+
+      field("Ends (optional)",dateField('id="rEnd"',r.end,{label:"Ends",ph:"No end date"}))+'</div>'+
     field("Active",'<div class="pickers"><button class="pick'+(r.active?" on":"")+'" data-act="r-active">'+icon("i-repeat")+'<span id="rActiveLbl">'+(r.active?"Running":"Paused")+'</span></button></div>')+
     '</div><div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Cancel</button>'+
     '<button class="btn btn-primary" data-act="routine-save" data-id="'+(id||"")+'">'+icon("i-check")+'Save routine</button></div></div>');
@@ -1898,11 +1898,12 @@ document.addEventListener("click",function(e){
     case "sh-done":{const t=sheetTask();if(t&&V.sheet.id)toggleTaskDone(t.id),renderSheet();break;}
     case "sh-delete":if(arm(n,"Delete for good?"))deleteTask(V.sheet.id);break;
     case "sh-cat":{const t=sheetTask();if(t&&t.cat!==n.dataset.v)patchCurrent({cat:n.dataset.v});break;}
-    case "tp-open":if(V.tp)closeTimePicker();else openTimePicker();break;
-    case "tp-pick":setStartTime(n.dataset.v);break;
-    case "tp-clear":setStartTime("");break;
-    case "tp-type":{const v=parseTimeStr((el("tpInput")||{}).value);
-      if(v)setStartTime(v);else{toast("Try a time like 9, 9:30, 2:15pm or 14:15");const i=el("tpInput");if(i)i.focus();}break;}
+    case "pk-open":pkOpen(n);break;
+    case "pk-pick":case "pk-day":pkPick(n.dataset.v);break;
+    case "pk-clear":pkPick("");break;
+    case "pk-type":pkTyped();break;
+    case "pk-month":pkMonth(Number(n.dataset.v));break;
+    case "pk-opt":{const o=PK.src&&PK.src.options[Number(n.dataset.i)];if(o)pkPick(o.value);break;}
     case "sh-flag":{const t=sheetTask();if(!t)break;
       const k=n.dataset.k,cur=flagVal(t[k]);
       patchCurrent({[k]:cur===n.dataset.v?null:n.dataset.v==="1"});break;}
@@ -2083,7 +2084,6 @@ document.addEventListener("input",function(e){
 });
 document.addEventListener("keydown",function(e){
   if(e.key==="Escape"&&el("modalRoot").innerHTML&&!welcomeOpen){closeModal();return;}
-  if(e.key==="Escape"&&V.tp){closeTimePicker();return;}
   if(e.key==="Escape"&&V.tmBreak){closeTimeBreakdown();return;}
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
@@ -2092,7 +2092,6 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Enter"&&e.target.id==="aiText"){e.preventDefault();
     const b=document.querySelector('[data-act="ai-add"]');if(b)addAction(b.dataset.nid);return;}
   if(e.key==="Enter"&&e.target.id==="dashQuick"){e.preventDefault();quickAdd();return;}
-  if(e.key==="Enter"&&e.target.id==="tpInput"){e.preventDefault();const b=document.querySelector('[data-act="tp-type"]');if(b)b.click();return;}
   if(e.key==="Enter"&&e.target.id==="rTitle"){e.preventDefault();
     const b=document.querySelector('[data-act="routine-save"]');if(b)b.click();return;}
   /* The sheet has no save button: leaving the field is what commits it. */
@@ -2136,7 +2135,6 @@ document.addEventListener("change",function(e){
       if(a==="gcal")gcalSoon();
     }else S.prefs[k]=(k==="weekStart")?Number(v):v;
     if(k==="launch")S.prefs.launchSet=true;
-    if(t.type==="time"){save("prefs");return;}
     save("prefs");applyAppearance();render();settingsModal();return;
   }
   if(t.dataset&&t.dataset.act==="sh-set"){
@@ -2444,13 +2442,13 @@ function deleteDoc(id){
 
 function openSheet(id,preset){
   if(id&&!taskById(id))return;
-  V.tmBreak=null;V.tp=null;
+  V.tmBreak=null;
   V.sheet={id:id||null,tab:"details",
     draft:id?null:Object.assign({title:"",desc:"",due:"",start:"",cat:S.categories[0].id,
       status:"backlog",urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[]},preset||{})};
   renderSheet();
 }
-function closeSheet(){V.sheet=null;V.tmBreak=null;V.tp=null;renderSheet();}
+function closeSheet(){V.sheet=null;V.tmBreak=null;renderSheet();}
 
 /* The task being shown, or the unsaved draft for a new one. */
 const sheetTask=()=>{const s=V.sheet;return s?(s.id?taskById(s.id):s.draft):null;};
@@ -2488,27 +2486,187 @@ function createFromDraft(){
 const metaRow=(label,inner,ic)=>'<div class="mrow"><div class="mlab">'+(ic?icon(ic,"ic-14"):"")+esc(label)+'</div><div class="mval">'+inner+'</div></div>';
 
 /* Three fields that say what they are: a caption over each, and plain words
-   when one is empty rather than the browser's dd-----yyyy. The time is the
-   start time, so it sits beside the start date; it opens the planner's own
-   picker rather than the browser's. Clearing is done in each picker. */
+   when one is empty. The time is the start time, so it sits beside the start
+   date, and it waits for a date to hang on. All three open the planner's own
+   pickers (see the pickers section); clearing is done in the picker. */
 function sheetDates(t){
-  const f=(k,cap,val,empty)=>'<label class="dfield'+(val?"":" is-empty")+'">'+
-    '<span class="dcap">'+esc(cap)+'</span>'+
-    '<span class="dbox"><input class="inp inp-sm" type="date" value="'+esc(val||"")+'" data-act="sh-set" data-k="'+k+'" aria-label="'+esc(cap)+'">'+
-    (val?"":'<span class="dph">'+esc(empty)+'</span>')+'</span></label>';
-  const day=tTimeDay(t),open=V.tp===(t.id||"draft");
-  const time='<div class="dfield tfield-wrap"><span class="dcap">Start time</span>'+
-    '<button class="inp inp-sm tfield'+(t.dueTime?"":" is-empty")+'" data-act="tp-open"'+(day?"":" disabled")+
-      ' aria-haspopup="listbox" aria-expanded="'+open+'" aria-label="Start time">'+
-      '<span>'+esc(t.dueTime?fmtTime(t.dueTime):day?"Add a start time":"Set a date first")+'</span>'+icon("i-clock","ic-14")+'</button>'+
-    (open?timePicker(t):"")+'</div>';
-  return '<div class="dgrid">'+f("start","Start",tStart(t),"Add a start date")+time+f("due","Due",t.due,"Add a due date")+'</div>';
+  const day=tTimeDay(t);
+  const f=(cap,html)=>'<div class="dfield"><span class="dcap">'+esc(cap)+'</span>'+html+'</div>';
+  return '<div class="dgrid">'+
+    f("Start",dateField('data-act="sh-set" data-k="start"',tStart(t),{sm:1,label:"Start date",ph:"Add a start date"}))+
+    f("Start time",timeField('data-act="sh-set" data-k="dueTime"',t.dueTime,{sm:1,label:"Start time",
+      ph:day?"Add a start time":"Set a date first",disabled:!day}))+
+    f("Due",dateField('data-act="sh-set" data-k="due"',t.due,{sm:1,label:"Due date",ph:"Add a due date"}))+
+    '</div>';
 }
 
-/* ---- the start-time picker ----
-   Type a time, or pick one: a list in quarter hours grouped by part of the
-   day, opened at the time already set or at the next quarter hour from now. */
+/* ============ pickers ============
+   Every date, time and drop-down in the planner opens the same pop-over: a
+   card in the panel colours with a header, a body and a footer, and options
+   that are the same rows everywhere, the chosen one filled in the accent.
+   The browser's own pickers came in whatever grey the operating system
+   chose, and matched nothing else on the page.
+
+   A date or time field is a button showing the value in words, beside a
+   hidden input that holds it. Picking writes the input and fires a real
+   change event from it, so every handler that already existed --
+   data-act="sh-set", "set-pref", "f", or a read by id when a form saves --
+   goes on working untouched.
+
+   A <select> keeps its own element, so its value, its handlers and its
+   keyboard arrows stay native: only the mousedown that would open the
+   browser's list is stopped, and the pop-over lists its options instead.
+   On a touch screen the phone's own picker is the better one, so there it
+   is left alone.
+
+   The pop-over lives on <body>, not in the field, so the overflow of a
+   modal or the panel cannot clip it; it is placed against the field and
+   follows it when the page scrolls. */
+const PK={el:null,src:null,btn:null,kind:"",month:null,focus:""};
 const TP_PARTS=[["Night",0,6],["Morning",6,12],["Afternoon",12,17],["Evening",17,24]];
+const pkDateText=v=>{const d=parseD(v);return DOWS[(d.getDay()+6)%7]+" "+fmtDate(v);};
+const pkText=(kind,v)=>kind==="date"?pkDateText(v):fmtTime(v);
+function pickField(kind,attrs,val,o){
+  o=o||{};val=val||"";
+  const txt=val?pkText(kind,val):(o.ph||(kind==="date"?"Pick a date":"Pick a time"));
+  return '<span class="pkf">'+
+    '<button type="button" class="inp'+(o.sm?" inp-sm":"")+(o.cls?" "+o.cls:"")+' pk-btn'+(val?"":" is-empty")+'" data-act="pk-open" data-pk="'+kind+'"'+
+      ' data-ph="'+esc(o.ph||(kind==="date"?"Pick a date":"Pick a time"))+'"'+(o.req?' data-req="1"':"")+' data-label="'+esc(o.label||"")+'"'+
+      ' aria-label="'+esc((o.label?o.label+": ":"")+txt)+'" aria-haspopup="dialog" aria-expanded="false"'+(o.disabled?" disabled":"")+'>'+
+      '<span class="pk-val">'+esc(txt)+'</span>'+icon(kind==="date"?"i-calendar":"i-clock","ic-14")+'</button>'+
+    '<input type="hidden" '+attrs+' value="'+esc(val)+'"></span>';
+}
+const dateField=(attrs,val,o)=>pickField("date",attrs,val,o);
+const timeField=(attrs,val,o)=>pickField("time",attrs,val,o);
+const pkCoarse=()=>{try{return matchMedia("(pointer:coarse)").matches;}catch(e){return false;}};
+const pkSelectable=s=>s&&s.tagName==="SELECT"&&!s.multiple&&!(s.size>1)&&!s.disabled&&!pkCoarse();
+
+/* Redraws replace the field under an open pop-over -- a sync landing, the
+   panel refreshing. The field is found again by what it writes to, so the
+   pop-over stays with it rather than writing into a detached copy. */
+function pkKey(s){
+  if(s.id)return "#"+CSS.escape(s.id);
+  const a=s.dataset.act,k=s.dataset.k;
+  return s.tagName.toLowerCase()+(s.tagName==="INPUT"?'[type="hidden"]':"")+
+    (a?'[data-act="'+a+'"]':"")+(k?'[data-k="'+k+'"]':"");
+}
+function pkRelink(){
+  if(!PK.el)return;
+  if(PK.src.isConnected&&PK.btn.isConnected)return;
+  const s=PK.key&&document.querySelector(PK.key);
+  if(!s||s.closest(".pk")){pkClose();return;}
+  PK.src=s;PK.btn=s.tagName==="SELECT"?s:s.parentNode.querySelector(".pk-btn");
+  if(!PK.btn){pkClose();return;}
+  pkMark(true);pkPlace();
+}
+function pkMark(on){
+  const b=PK.btn;if(!b)return;
+  b.classList.toggle("pk-on",on);
+  if(b.tagName!=="SELECT")b.setAttribute("aria-expanded",String(on));
+}
+
+function pkOpen(btn){
+  const sel=btn.tagName==="SELECT";
+  const src=sel?btn:btn.parentNode.querySelector('input[type="hidden"]');
+  if(!src||btn.disabled)return;
+  if(PK.src===src){pkClose();return;}
+  pkClose();
+  Object.assign(PK,{src:src,btn:btn,kind:sel?"select":btn.dataset.pk,key:pkKey(src)});
+  if(PK.kind==="date"){const d=src.value?parseD(src.value):today();
+    PK.month=new Date(d.getFullYear(),d.getMonth(),1);PK.focus=src.value||TODAY();}
+  const p=document.createElement("div");
+  p.className="pk pk-"+PK.kind;p.setAttribute("role","dialog");
+  p.setAttribute("aria-label",sel?"Choose an option":PK.kind==="date"?"Pick a date":"Pick a time");
+  document.body.appendChild(p);PK.el=p;
+  pkDraw();pkMark(true);pkPlace();
+  if(PK.kind==="time"){
+    const list=p.querySelector(".pk-body"),aim=p.querySelector(".pk-opt.aim");
+    if(list&&aim)list.scrollTop=aim.offsetTop-list.offsetTop-list.clientHeight/2+aim.offsetHeight/2;
+    const inp=el("pkType");if(inp){inp.focus();inp.select();}
+  }else if(PK.kind==="date"){pkFocusDay();}
+  else{
+    const on=p.querySelector(".pk-opt.on")||p.querySelector(".pk-opt");
+    const find=el("pkFind");
+    if(on){const list=p.querySelector(".pk-body");list.scrollTop=on.offsetTop-list.offsetTop-list.clientHeight/2+on.offsetHeight/2;}
+    if(find)find.focus();else if(on)on.focus();
+  }
+}
+function pkClose(refocus){
+  if(!PK.el)return;
+  const b=PK.btn;
+  PK.el.remove();pkMark(false);
+  Object.assign(PK,{el:null,src:null,btn:null,kind:"",key:""});
+  if(refocus&&b&&b.isConnected)b.focus({preventScroll:true});
+}
+/* Below the field, or above it when there is no room below; never off the
+   side of the window. A select's list is at least as wide as the select. */
+function pkPlace(){
+  const p=PK.el,b=PK.btn;if(!p||!b)return;
+  if(!b.isConnected){pkRelink();return;}
+  const r=b.getBoundingClientRect(),vw=innerWidth,vh=innerHeight,gap=6;
+  if(PK.kind==="select")p.style.width=Math.max(200,Math.min(340,r.width))+"px";
+  const w=p.offsetWidth,h=p.offsetHeight;
+  let top=r.bottom+gap;
+  if(top+h>vh-8)top=r.top-gap-h>8?r.top-gap-h:Math.max(8,vh-h-8);
+  p.style.left=Math.round(Math.min(Math.max(8,r.left),vw-w-8))+"px";
+  p.style.top=Math.round(top)+"px";
+}
+function pkDraw(){
+  const p=PK.el;if(!p)return;
+  p.innerHTML=PK.kind==="date"?pkDateHtml():PK.kind==="time"?pkTimeHtml():pkSelectHtml();
+}
+function pkFoot(left,clear){
+  return '<div class="pk-foot"><span>'+left+'</span>'+
+    (clear?'<button type="button" class="pk-clear" data-act="pk-clear">'+icon("i-x","ic-14")+esc(clear)+'</button>':"")+'</div>';
+}
+const pkClearable=()=>PK.src.value&&!PK.btn.dataset.req;
+
+/* ---- the date picker ----
+   A month at a time, always six rows so it does not change height as you
+   page through, the week starting on the day Settings says. Today is ringed,
+   the chosen day filled. The shortcuts across the top are the three dates
+   most tasks get. */
+function pkDateHtml(){
+  const v=PK.src.value,m=PK.month,t=TODAY(),y=m.getFullYear(),mo=m.getMonth();
+  const start=startOfWeek(m),quick=[["Today",t],["Tomorrow",ymd(addDays(today(),1))],
+    ["Next week",ymd(addDays(startOfWeek(today()),7))]];
+  let days="";
+  for(let i=0;i<42;i++){const d=addDays(start,i),s=ymd(d);
+    days+='<button type="button" class="pk-day'+(d.getMonth()!==mo?" out":"")+(s===t?" today":"")+(s===v?" on":"")+'"'+
+      ' data-act="pk-day" data-v="'+s+'" tabindex="'+(s===PK.focus?0:-1)+'" aria-label="'+esc(d.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"}))+'"'+
+      (s===t?' aria-current="date"':"")+' aria-pressed="'+(s===v)+'">'+d.getDate()+'</button>';}
+  return '<div class="pk-top">'+quick.map(q=>'<button type="button" class="pk-chip'+(q[1]===v?" on":"")+'" data-act="pk-day" data-v="'+q[1]+'" title="'+esc(pkDateText(q[1]))+'">'+q[0]+'</button>').join("")+'</div>'+
+    '<div class="pk-mh"><b>'+MON[mo]+' '+y+'</b>'+
+      '<button type="button" class="pk-nav" data-act="pk-month" data-v="-1" aria-label="Previous month">'+icon("i-chev-l","ic-14")+'</button>'+
+      '<button type="button" class="pk-nav" data-act="pk-month" data-v="1" aria-label="Next month">'+icon("i-chev-r","ic-14")+'</button></div>'+
+    '<div class="pk-cal"><div class="pk-dow">'+dowLabels().map(x=>'<span>'+x.slice(0,2)+'</span>').join("")+'</div>'+
+      '<div class="pk-days">'+days+'</div></div>'+
+    pkFoot(v?esc(parseD(v).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})):"Pick a day, or use the arrow keys",
+      pkClearable()?"Clear date":"");
+}
+function pkMonth(n){PK.month=new Date(PK.month.getFullYear(),PK.month.getMonth()+n,1);
+  const f=parseD(PK.focus);PK.focus=ymd(new Date(PK.month.getFullYear(),PK.month.getMonth(),Math.min(f.getDate(),28)));
+  pkDraw();pkPlace();
+  const b=PK.el.querySelector('.pk-nav[data-v="'+n+'"]');if(b)b.focus({preventScroll:true});}
+function pkFocusDay(){const b=PK.el&&PK.el.querySelector('.pk-day[tabindex="0"]');if(b)b.focus({preventScroll:true});}
+/* Arrow keys move a day or a week, Page Up and Down a month, Home and End
+   to the ends of the week; the month turns over by itself. */
+function pkDayKey(e){
+  const step={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7}[e.key];
+  let d=parseD(PK.focus);
+  if(step)d=addDays(d,step);
+  else if(e.key==="PageUp"||e.key==="PageDown")d=new Date(d.getFullYear(),d.getMonth()+(e.key==="PageUp"?-1:1),Math.min(d.getDate(),28));
+  else if(e.key==="Home")d=startOfWeek(d);
+  else if(e.key==="End")d=addDays(startOfWeek(d),6);
+  else return;
+  e.preventDefault();PK.focus=ymd(d);
+  if(d.getMonth()!==PK.month.getMonth()||d.getFullYear()!==PK.month.getFullYear())PK.month=new Date(d.getFullYear(),d.getMonth(),1);
+  pkDraw();pkFocusDay();
+}
+
+/* ---- the time picker ----
+   Type a time, or pick one: quarter hours grouped by part of the day, opened
+   at the time already set or at the next quarter hour from now. */
 function parseTimeStr(s){
   const m=String(s||"").trim().toLowerCase().replace(/\s+/g,"").match(/^(\d{1,2})(?:[:.]?(\d{2}))?(a|am|p|pm)?$/);
   if(!m)return "";
@@ -2518,40 +2676,109 @@ function parseTimeStr(s){
   if(h===24)h=0;
   return pad(h)+":"+pad(mm);
 }
-function timePicker(t){
-  const cur=t.dueTime||"";
+function pkTimeHtml(){
+  const cur=PK.src.value;
   const n=new Date(),next=Math.min(23*60+45,Math.ceil((n.getHours()*60+n.getMinutes())/15)*15);
   const aim=cur||pad(Math.floor(next/60))+":"+pad(next%60);
   const groups=TP_PARTS.map(g=>{let items="";
     for(let mins=g[1]*60;mins<g[2]*60;mins+=15){const v=pad(Math.floor(mins/60))+":"+pad(mins%60);
-      items+='<button class="tp-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="tp-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'">'+
-        esc(fmtTime(v))+(v===cur?icon("i-check","ic-14"):"")+'</button>';}
-    return '<div class="tp-group"><div class="tp-gh">'+g[0]+'</div><div class="tp-opts">'+items+'</div></div>';}).join("");
-  return '<div class="tp" role="dialog" aria-label="Pick a start time">'+
-    '<div class="tp-type"><input id="tpInput" class="inp inp-sm" placeholder="Type a time, like 8:15pm" autocomplete="off" value="'+esc(cur?fmtTime(cur):"")+'">'+
-      '<button class="btn btn-sm btn-primary" data-act="tp-type">Set</button></div>'+
-    '<div class="tp-list" id="tpList">'+groups+'</div>'+
-    '<div class="tp-foot"><span>'+(clock24()?"24-hour clock":"Enter a time or pick one")+'</span>'+
-      (cur?'<button class="tp-clear" data-act="tp-clear">'+icon("i-x","ic-14")+'Clear time</button>':"")+'</div></div>';
+      items+='<button type="button" class="pk-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="pk-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'">'+
+        '<span>'+esc(fmtTime(v))+'</span>'+(v===cur?icon("i-check","ic-14"):"")+'</button>';}
+    return '<div class="pk-gh">'+g[0]+'</div><div class="pk-opts">'+items+'</div>';}).join("");
+  return '<div class="pk-top"><input id="pkType" class="inp inp-sm" placeholder="Type a time, like 8:15pm" autocomplete="off" value="'+esc(cur?fmtTime(cur):"")+'">'+
+      '<button type="button" class="btn btn-sm btn-primary" data-act="pk-type">Set</button></div>'+
+    '<div class="pk-body" role="listbox">'+groups+'</div>'+
+    pkFoot(clock24()?"24-hour clock":"Enter a time or pick one",pkClearable()?"Clear time":"");
 }
-function openTimePicker(){
-  const t=sheetTask();if(!t||!tTimeDay(t))return;
-  V.tp=t.id||"draft";renderSheet();
-  const list=el("tpList"),aim=list&&list.querySelector(".tp-opt.aim");
-  if(list&&aim)list.scrollTop=aim.offsetTop-list.offsetTop-list.clientHeight/2+aim.offsetHeight/2;
-  const inp=el("tpInput");if(inp){inp.focus();inp.select();}
+function pkTyped(){
+  const i=el("pkType"),v=parseTimeStr(i&&i.value);
+  if(v)pkPick(v);else{toast("Try a time like 9, 9:30, 2:15pm or 14:15");if(i)i.focus();}
 }
-function setStartTime(v){V.tp=null;patchCurrent({dueTime:v});}
-function closeTimePicker(){
-  if(!V.tp)return;V.tp=null;
-  const p=document.querySelector(".tp");if(p)p.remove();
-  const b=document.querySelector('[data-act="tp-open"]');if(b)b.setAttribute("aria-expanded","false");
+
+/* ---- the drop-down ----
+   The select's own options, as rows. A list of categories shows each one's
+   colour, as the category pills do; a long list gets a box to narrow it. */
+function pkSelectHtml(){
+  const s=PK.src,opts=[...s.options];
+  const cats=opts.filter(o=>o.value).every(o=>S.categories.some(c=>c.id===o.value));
+  let last=null,rows="";
+  opts.forEach((o,i)=>{
+    if(o.hidden)return;
+    const g=o.parentNode.tagName==="OPTGROUP"?o.parentNode.label:null;
+    if(g!==last&&g)rows+='<div class="pk-gh">'+esc(g)+'</div>';last=g;
+    const on=o.selected,c=cats&&o.value?cat(o.value):null;
+    rows+='<button type="button" class="pk-opt'+(on?" on":"")+(o.value?"":" blank")+'" data-act="pk-opt" data-i="'+i+'" role="option" aria-selected="'+on+'"'+
+      (o.disabled?" disabled":"")+(c?' style="--c:'+c.color+'"':"")+'>'+
+      (c?'<i class="pk-dot"></i>':"")+'<span>'+esc(o.text)+'</span>'+(on?icon("i-check","ic-14"):"")+'</button>';
+  });
+  return (opts.length>12?'<div class="pk-top"><input id="pkFind" class="inp inp-sm" placeholder="Find…" autocomplete="off" aria-label="Narrow the list"></div>':"")+
+    '<div class="pk-body" role="listbox"><div class="pk-opts">'+rows+'</div></div>';
 }
-document.addEventListener("click",function(e){
-  if(!V.tp||!e.target.closest)return;
-  if(e.target.closest('.tp,[data-act="tp-open"]'))return;
-  closeTimePicker();
+function pkFind(q){
+  q=q.trim().toLowerCase();
+  PK.el.querySelectorAll(".pk-opt").forEach(b=>{b.hidden=!!q&&b.textContent.toLowerCase().indexOf(q)===-1;});
+}
+
+/* Writes the value, closes, and lets the field's own change handler do the
+   rest -- for a date or time field, after putting the new value in words. */
+function pkPick(v){
+  pkRelink();
+  const src=PK.src,key=PK.key;if(!src)return;
+  pkClose(true);
+  if(src.value===v)return;
+  src.value=v;
+  const b=src.tagName==="INPUT"&&src.parentNode.querySelector(".pk-btn");
+  if(b){const txt=v?pkText(b.dataset.pk,v):(b.dataset.ph||"");
+    b.querySelector(".pk-val").textContent=txt;b.classList.toggle("is-empty",!v);
+    b.setAttribute("aria-label",(b.dataset.label?b.dataset.label+": ":"")+txt);}
+  src.dispatchEvent(new Event("change",{bubbles:true}));
+  /* The handler usually redraws the field; keep the keyboard on it. */
+  if(!src.isConnected&&document.activeElement===document.body){
+    const s=document.querySelector(key),nb=s&&(s.tagName==="SELECT"?s:s.parentNode.querySelector(".pk-btn"));
+    if(nb)nb.focus({preventScroll:true});
+  }
+}
+
+document.addEventListener("mousedown",function(e){
+  const t=e.target;if(!t||!t.closest)return;
+  const s=t.closest("select");
+  if(pkSelectable(s)){
+    e.preventDefault();
+    if(PK.src===s){pkClose();return;}
+    pkClose();s.focus({preventScroll:true});pkOpen(s);return;
+  }
+  if(PK.el&&!PK.el.contains(t)&&!(PK.btn&&PK.btn.contains(t)))pkClose();
 },true);
+document.addEventListener("focusin",function(e){
+  if(PK.el&&!PK.el.contains(e.target)&&e.target!==PK.btn)pkClose();
+});
+document.addEventListener("keydown",function(e){
+  const t=e.target;
+  /* A closed select opens the planner's list from the keys that would have
+     opened the browser's. */
+  if(!PK.el&&pkSelectable(t)&&(e.key==="Enter"||e.key===" "||e.key==="F4"||(e.altKey&&e.key==="ArrowDown"))){
+    e.preventDefault();pkOpen(t);return;
+  }
+  if(!PK.el)return;
+  if(e.key==="Escape"){e.preventDefault();e.stopPropagation();pkClose(true);return;}
+  if(e.key==="Tab"&&PK.kind==="select"){pkClose();return;}
+  if(!PK.el.contains(t))return;
+  if(t.id==="pkType"&&e.key==="Enter"){e.preventDefault();pkTyped();return;}
+  if(PK.kind==="date"&&t.classList.contains("pk-day")){pkDayKey(e);return;}
+  if(PK.kind==="select"&&(e.key==="ArrowDown"||e.key==="ArrowUp"||(t.id==="pkFind"&&e.key==="Enter"))){
+    const list=[...PK.el.querySelectorAll(".pk-opt:not([hidden]):not(:disabled)")];if(!list.length)return;
+    e.preventDefault();
+    if(t.id==="pkFind"){if(e.key==="Enter")list[0].click();else if(e.key==="ArrowDown")list[0].focus();return;}
+    const i=list.indexOf(t),n=e.key==="ArrowDown"?Math.min(list.length-1,i+1):i-1;
+    if(n<0){const f=el("pkFind");if(f)f.focus();}else list[n].focus();
+  }
+},true);
+document.addEventListener("input",function(e){if(e.target&&e.target.id==="pkFind")pkFind(e.target.value);});
+document.addEventListener("scroll",function(e){if(PK.el&&!PK.el.contains(e.target))pkPlace();},true);
+window.addEventListener("resize",function(){if(PK.el)pkPlace();});
+try{new MutationObserver(function(){if(PK.el&&!(PK.btn&&PK.btn.isConnected))pkRelink();})
+  .observe(document.body,{childList:true,subtree:true});}catch(e){}
+
 /* Every category as a pill in its own colour, the chosen one outlined and
    ticked: one click to change it, and the colours become familiar. */
 function sheetCats(t){
@@ -2659,10 +2886,6 @@ function closeTimeBreakdown(){
   const p=document.querySelector(".tmb");if(p)p.remove();
   const b=document.querySelector('[data-act="tm-break"]');if(b)b.setAttribute("aria-expanded","false");
 }
-document.addEventListener("click",function(e){
-  const f=e.target.closest&&e.target.closest(".dfield input[type=date]");
-  if(f&&!f.disabled&&typeof f.showPicker==="function"){try{f.showPicker();}catch(err){}}
-},true);
 document.addEventListener("click",function(e){
   if(!V.tmBreak||!e.target.closest)return;
   if(e.target.closest('.tmb,[data-act="tm-break"]'))return;

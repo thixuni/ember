@@ -74,6 +74,14 @@ test('every data-act is handled somewhere', () => {
   assert.deepStrictEqual(orphans, [], 'data-act values nothing handles: ' + orphans.join(', '));
 });
 
+test('dates and times open the planner pickers, not the browser ones', () => {
+  // The browser's pickers come in the operating system's colours and match
+  // nothing on the page; dateField() and timeField() draw the planner's own.
+  const hits = [...(html + jsCode).matchAll(/type=\\?"(date|time|datetime-local|month|week)\\?"/g)].map(m => m[0]);
+  assert.deepStrictEqual(hits, [], 'use dateField()/timeField() instead of ' + hits.join(', '));
+  assert.match(jsCode, /function pickField\(/, 'the picker fields are gone from app.js');
+});
+
 test('colours come from tokens, not hardcoded hex in rules', () => {
   // A token block is any rule whose declarations are all custom properties —
   // :root, the accent hues, the dark ramp. Literal colours belong only there;

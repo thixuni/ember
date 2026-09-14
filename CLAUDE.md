@@ -263,6 +263,29 @@ What to sync lives in app.js with the data, in the google calendar section:
 - A sync finishing redraws through `softRender()`, which waits if the caret
   is in a field in the viewport — the scratch pad, most likely.
 
+### Pickers
+
+Every date, time and drop-down opens the planner's own pop-over (the
+pickers section of app.js), never the browser's: those came in whatever
+grey the operating system chose and matched nothing on the page.
+
+- **Dates and times** are written with `dateField(attrs, value, opts)` and
+  `timeField(...)`, never `<input type="date|time">`. Each is a button
+  showing the value in words beside a hidden input carrying `attrs` — the
+  `id`, or `data-act`/`data-k`. Picking sets that input and fires a real
+  `change` from it, so the existing handlers (`sh-set`, `set-pref`, `f`, a
+  read by id on save) see what they always saw. `req` hides "Clear" for a
+  field that must have a value; `ph` is the words shown when it is empty.
+- **Selects** stay real `<select>` elements, so values, handlers and arrow
+  keys stay native. A capturing `mousedown` stops the browser's list and
+  opens the same pop-over over the options; a list of categories shows their
+  colours. On a touch screen the phone's own picker is better, so there it
+  is left alone (`pkSelectable`).
+- The pop-over is appended to `<body>`, so a modal's or the panel's
+  overflow cannot clip it, and is placed against its field. A redraw under an
+  open one is common — a sync lands, the panel refreshes — so it finds its
+  field again by `pkKey()` rather than writing into a detached copy.
+
 ### Settings
 
 Settings is a sidebar of sections with one pane open at a time — the tab
