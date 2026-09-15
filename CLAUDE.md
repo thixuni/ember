@@ -296,6 +296,21 @@ has got to is in `prefs.onboard` (`{done, step, mode, made}`), so closing half
 way picks up at the same step; `made` is the ids of the routines setup
 created, replaced rather than added to when someone goes back and forth.
 
+- **How it looks.** The sign-in is a sky of turning orbits (`obSky()`: rings
+  with planets in the category colours, the planner's parts drifting between)
+  around the welcome. Every later step is a question on the left and, on the
+  right, a live picture of the answer (`obShow()`): the greeting with the
+  name being typed, the categories as planets round you, the week filling in
+  as routines are ticked, the app in miniature in the theme being chosen, a
+  reminder arriving and the day as a 24-hour clock with quiet hours shaded,
+  and a final orbit with what was set up lit. The steps run along a track at
+  the top that can be clicked back along; Enter moves on; the footer sticks to
+  the bottom. A step's entrance plays only when the step changes
+  (`OB.drawn`), and `OB.pop` animates only the routine just ticked — a redraw
+  replaying every animation made each click look like a new page. All of it
+  stops under `prefers-reduced-motion`. Live bits that must not cost the caret
+  (the greeting, a category's planet label) are written into the DOM by the
+  `input` listener rather than redrawn.
 - `mode` decides the steps: `"new"`; `"returning"` — someone with a planner
   from before setup existed, who signs in, picks where it lives, and is done;
   `"restored"` — a planner brought back from Drive or a file, which skips

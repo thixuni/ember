@@ -1430,7 +1430,7 @@ function obGo(step){
   OB.step=step;OB.err="";OB.busy=false;
   S.prefs.onboard={done:false,step:step,mode:OB.mode,made:(S.prefs.onboard&&S.prefs.onboard.made)||[]};
   save("prefs");obRender();
-  const r=el("obRoot"),f=el("obName")||(r&&r.querySelector(".ob-body h1"));
+  const r=el("obRoot"),f=el("obName")||(r&&r.querySelector(".obx-q h1,.obx-hero h1"));
   if(f){if(f.tagName==="H1")f.setAttribute("tabindex","-1");f.focus({preventScroll:true});}
 }
 const obNext=()=>{const s=obSteps();return s[s.indexOf(OB.step)+1]||null;};
@@ -1458,36 +1458,51 @@ const G_LOGO='<svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true">'+
   '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>'+
   '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
 const obAvatar=()=>'<span class="ob-av" aria-hidden="true">'+esc(((GC.status&&(GC.status.first||GC.status.name||GC.status.email))||S.prefs.name||"?").charAt(0).toUpperCase())+'</span>';
-const obWaiting=what=>'<div class="ob-waiting"><span class="ob-spin" aria-hidden="true"></span><span>'+esc(what)+'</span>'+
-  '<button class="btn btn-sm" data-act="ob-cancel">Cancel</button></div>';
-const obErr=()=>OB.err?'<p class="ob-err" role="alert">'+icon("i-alert","ic-14")+esc(OB.err)+'</p>':"";
+const obWaiting=what=>'<div class="obx-wait" role="status"><span class="obx-spin" aria-hidden="true"></span><span>'+esc(what)+'</span>'+
+  '<button class="btn btn-sm btn-ghost" data-act="ob-cancel">Cancel</button></div>';
+const obErr=()=>OB.err?'<p class="obx-err" role="alert">'+icon("i-alert","ic-14")+esc(OB.err)+'</p>':"";
 
+/* ---- the page ----
+   Each step is a question on the left and, on the right, a live picture of
+   what the answer does -- the greeting with your name in it, your categories
+   circling you, your week filling in as routines are ticked, the app itself
+   in the theme you are choosing. Across the top, the steps as a track you can
+   click back along. Enter moves on. A step's entrance plays when the step
+   changes, not when something inside it is changed, which would make every
+   click look like a new page. */
 function obRender(){
   if(!OB.open)return;
   document.body.classList.add("ob-open");
-  const root=obRootEl(),marks=scrollMarks(root);
-  if(OB.step==="signin"){root.innerHTML='<div class="ob ob-first">'+obSignin()+'</div>';putScroll(root,marks);return;}
-  const steps=obSteps().filter(s=>s!=="signin"),i=steps.indexOf(OB.step);
-  const side='<aside class="ob-side">'+
-    '<div class="ob-brand"><span class="brand-mark">'+icon("i-orbit","ic-18")+'</span>Everyday Orbit</div>'+
-    '<ol class="ob-steps">'+steps.map((s,j)=>'<li class="'+(j<i?"done":j===i?"now":"")+'"'+(j===i?' aria-current="step"':"")+'>'+
-      '<i>'+(j<i?icon("i-check"):j+1)+'</i>'+esc(OB_LABEL[s])+'</li>').join("")+'</ol>'+
-    '<p class="ob-progress">Step '+(i+1)+' of '+steps.length+'</p>'+
-    (signedIn()?'<div class="ob-who">'+obAvatar()+'<span><b>'+esc(GC.status.name||GC.status.email)+'</b>'+esc(GC.status.name?GC.status.email:"")+'</span></div>':"")+
-    '</aside>';
-  root.innerHTML='<div class="ob"><div class="ob-card">'+side+
-    '<section class="ob-main" aria-label="'+esc(OB_LABEL[OB.step])+'"><div class="ob-body">'+obStepHtml()+'</div>'+obFoot()+'</section></div></div>';
+  const root=obRootEl(),marks=scrollMarks(root),fresh=OB.drawn!==OB.step;
+  OB.drawn=OB.step;
+  if(OB.step==="signin"){root.innerHTML=obSignin(fresh);putScroll(root,marks);return;}
+  const steps=obSteps().filter(s=>s!=="signin"),i=steps.indexOf(OB.step),last=Math.max(1,steps.length-1);
+  const top='<header class="obx-top">'+
+    '<div class="obx-brand"><span class="brand-mark">'+icon("i-orbit","ic-18")+'</span><span>Everyday Orbit</span></div>'+
+    '<nav class="obx-track" aria-label="Setup steps"><div class="obx-rail"><i style="width:'+(i/last*100).toFixed(1)+'%"></i></div>'+
+      steps.map((s,j)=>'<button class="obx-dot'+(j<i?" done":j===i?" now":"")+'" style="left:'+(j/last*100).toFixed(1)+'%"'+
+        (j<i?' data-act="ob-jump" data-v="'+s+'" title="Back to '+esc(OB_LABEL[s])+'"':' tabindex="-1"')+
+        ' aria-label="'+esc(OB_LABEL[s]+(j<i?", done":j===i?", this step":""))+'"'+(j===i?' aria-current="step"':"")+'>'+
+        (j<i?icon("i-check"):"")+'<span class="obx-tip">'+esc(OB_LABEL[s])+'</span></button>').join("")+
+    '</nav>'+
+    '<div class="obx-count"><b>'+esc(OB_LABEL[OB.step])+'</b><span class="num">'+(i+1)+' of '+steps.length+'</span></div>'+
+    '</header>';
+  root.innerHTML='<div class="obx'+(fresh?" enter":"")+'" data-step="'+OB.step+'">'+top+
+    '<main class="obx-stage"><section class="obx-q" aria-label="'+esc(OB_LABEL[OB.step])+'">'+obStepHtml()+'</section>'+
+    '<aside class="obx-show" aria-hidden="true">'+obShow()+'</aside></main>'+obFoot()+'</div>';
   putScroll(root,marks);
 }
 function obFoot(){
-  if(OB.step==="done")return '<footer class="ob-foot"><div class="spacer" style="flex:1"></div>'+
-    '<button class="btn btn-primary ob-go" data-act="ob-finish">Open my planner'+icon("i-chev-r","ic-14")+'</button></footer>';
+  const s=OB.step,enter='<span class="obx-hint">or press <kbd>Enter</kbd></span>';
+  if(s==="done")return '<footer class="obx-foot"><span></span><div class="spacer"></div>'+enter+
+    '<button class="btn btn-primary obx-go" data-act="ob-finish">Open my planner'+icon("i-chev-r","ic-14")+'</button></footer>';
   const back=obPrev()&&obPrev()!=="signin";
-  return '<footer class="ob-foot">'+
-    (back?'<button class="btn btn-ghost" data-act="ob-back"'+(OB.busy?" disabled":"")+'>'+icon("i-chev-l","ic-14")+'Back</button>':"")+
-    '<div class="spacer" style="flex:1"></div>'+
-    (OB_SKIP.indexOf(OB.step)>-1&&!(OB.step==="calendar"&&gcalOn())&&!(OB.step==="obsidian"&&vaultPath())?'<button class="btn btn-ghost" data-act="ob-skip"'+(OB.busy?" disabled":"")+'>Skip for now</button>':"")+
-    (OB.found?"":'<button class="btn btn-primary ob-go" data-act="ob-next"'+(OB.busy?" disabled":"")+'>'+obNextLabel()+icon("i-chev-r","ic-14")+'</button>')+
+  const skip=OB_SKIP.indexOf(s)>-1&&!(s==="calendar"&&gcalOn())&&!(s==="obsidian"&&vaultPath());
+  return '<footer class="obx-foot">'+
+    (back?'<button class="btn btn-ghost" data-act="ob-back"'+(OB.busy?" disabled":"")+'>'+icon("i-chev-l","ic-14")+'Back</button>':'<span></span>')+
+    '<div class="spacer"></div>'+
+    (skip?'<button class="btn btn-ghost" data-act="ob-skip"'+(OB.busy?" disabled":"")+'>Skip for now</button>':"")+
+    (OB.found?"":enter+'<button class="btn btn-primary obx-go" data-act="ob-next"'+(OB.busy?" disabled":"")+'>'+obNextLabel()+icon("i-chev-r","ic-14")+'</button>')+
     '</footer>';
 }
 function obNextLabel(){
@@ -1495,9 +1510,8 @@ function obNextLabel(){
   if(OB.step==="data"&&OB.store==="drive"&&!acctParts().drive)return "Continue with Google Drive";
   return "Continue";
 }
-function obHead(eyebrow,title,lead){
-  return '<p class="ob-eyebrow">'+esc(eyebrow)+'</p><h1>'+esc(title)+'</h1>'+(lead?'<p class="ob-lead">'+lead+'</p>':"");
-}
+/* title is written by the caller, so it may carry a highlighted word */
+const obHead=(eyebrow,title,lead)=>'<p class="obx-eyebrow">'+esc(eyebrow)+'</p><h1>'+title+'</h1>'+(lead?'<p class="obx-lead">'+lead+'</p>':"");
 function obStepHtml(){
   switch(OB.step){
     case "data":return obData();
@@ -1511,29 +1525,55 @@ function obStepHtml(){
     default:return obDone();
   }
 }
+function obShow(){
+  switch(OB.step){
+    case "data":return obShowData();
+    case "name":return obShowName();
+    case "cats":return obShowCats();
+    case "routines":return obShowWeek();
+    case "calendar":return obShowCalendar();
+    case "obsidian":return obShowVault();
+    case "look":return obShowApp();
+    case "notify":return obShowNotify();
+    default:return obShowDone();
+  }
+}
 
-/* ---- sign in ---- */
-function obSignin(){
+/* ---- sign in: the sky ----
+   Three rings turning at their own pace, planets on them in the category
+   colours, and the things the planner holds drifting between them. */
+function obSky(){
+  const cols=S.categories.map(c=>c.color).concat(CAT_COLORS);
+  const ring=(n,size,dur,count,off,rev)=>{let p="";
+    for(let k=0;k<count;k++)p+='<i class="obx-planet" style="--a:'+(off+k*360/count)+'deg;--c:'+cols[(n*4+k)%cols.length]+'"></i>';
+    return '<div class="obx-ring'+(rev?" rev":"")+'" style="--s:'+size+'px;--d:'+dur+'s">'+p+'</div>';};
+  const chip=(ic,label,x,y,d)=>'<span class="obx-float" style="left:'+x+'%;top:'+y+'%;--dl:'+d+'s">'+icon(ic,"ic-14")+label+'</span>';
+  return '<div class="obx-sky" aria-hidden="true">'+ring(0,440,70,3,20)+ring(1,700,110,4,65,true)+ring(2,980,160,5,10)+
+    chip("i-check","Tasks",12,24,0)+chip("i-repeat","Routines",78,18,1.2)+chip("i-calendar","Calendar",8,70,2.1)+
+    chip("i-note","Notes",82,72,.6)+chip("i-timer","Focus timer",64,88,1.7)+chip("i-target","Priorities",26,90,2.6)+'</div>';
+}
+function obSignin(fresh){
   const d=hasDesktop(),st=GC.status||{};
   /* A copy built without the app's Google client asks for one here, once. */
   const keys=d&&!st.builtIn&&!st.clientId;
   const again=OB.mode==="again";
   let act;
-  if(!d)act='<p class="ob-note">'+icon("i-laptop","ic-14")+'<span>Signing in with Google needs the Everyday Orbit desktop app. In a browser, the planner is kept in this browser on this device.</span></p>'+
-    '<button class="btn btn-primary ob-wide" data-act="ob-local">Continue in this browser</button>';
+  if(!d)act='<p class="obx-note">'+icon("i-laptop","ic-14")+'<span>Signing in with Google needs the Everyday Orbit desktop app. In a browser, the planner is kept in this browser on this device.</span></p>'+
+    '<button class="btn btn-primary obx-wide" data-act="ob-local">Continue in this browser'+icon("i-chev-r","ic-14")+'</button>';
   else if(OB.busy)act=obWaiting("Finish signing in in your browser.");
-  else act='<button class="ob-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
-  return '<div class="ob-hero">'+
-    '<span class="brand-mark ob-mark">'+icon("i-orbit","ic-18")+'</span>'+
-    '<h1>'+(again?"Welcome back":"Welcome to Everyday Orbit")+'</h1>'+
-    '<p class="ob-lead">'+(again?"Sign in with your Google account to open your planner."
-      :"A calendar, a task board, an Eisenhower matrix, routines and notes — all sharing one set of categories, so a task you write once shows up wherever you look for it.")+'</p>'+
-    (keys&&!OB.busy?'<div class="ob-keys"><p class="ob-fine">This copy of the app was built without its Google sign-in keys. Paste the <b>Desktop app</b> client from Google Cloud once, and they are kept, encrypted, on this computer.</p>'+
-      '<input class="inp" id="gcId" autocomplete="off" spellcheck="false" placeholder="Client ID  ….apps.googleusercontent.com" value="'+esc(GC.draft.id||"")+'">'+
-      '<input class="inp" id="gcSecret" type="password" autocomplete="off" placeholder="Client secret" value="'+esc(GC.draft.secret||"")+'"></div>':"")+
-    act+obErr()+
-    (d?'<p class="ob-fine">Your Google account is how you sign in. What you plan stays on this computer unless you choose to back it up to your own Google Drive, and it goes nowhere else.</p>':"")+
-    '</div>';
+  else act='<button class="obx-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
+  return '<div class="obx-first'+(fresh?" enter":"")+'">'+obSky()+
+    '<div class="obx-hero">'+
+      '<span class="brand-mark obx-mark">'+icon("i-orbit","ic-18")+'</span>'+
+      '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one orbit</em>.")+'</h1>'+
+      '<p class="obx-lead">'+(again?"Sign in with your Google account to open your planner."
+        :"Tasks, routines, your calendar and your notes, sharing one set of categories — so something you write once shows up wherever you look for it.")+'</p>'+
+      (keys&&!OB.busy?'<div class="obx-keys"><p class="obx-fine">This copy of the app was built without its Google sign-in keys. Paste the <b>Desktop app</b> client from Google Cloud once, and they are kept, encrypted, on this computer.</p>'+
+        '<input class="inp" id="gcId" autocomplete="off" spellcheck="false" placeholder="Client ID  ….apps.googleusercontent.com" value="'+esc(GC.draft.id||"")+'">'+
+        '<input class="inp" id="gcSecret" type="password" autocomplete="off" placeholder="Client secret" value="'+esc(GC.draft.secret||"")+'"></div>':"")+
+      act+obErr()+
+      (d?'<p class="obx-fine">Your Google account is how you sign in. What you plan stays on this computer unless you choose to back it up to your own Google Drive, and it goes nowhere else.</p>':"")+
+    '</div></div>';
 }
 async function obSignIn(){
   const o=desktop();if(!o||OB.busy)return;
@@ -1562,30 +1602,49 @@ async function googleAsk(part){
   throw new Error((r&&r.error)||"Could not reach Google.");
 }
 
+
 /* ---- where the planner lives ---- */
 function obData(){
   if(OB.found){
-    const f=OB.found,c=f.counts,when=f.at?new Date(f.at).toLocaleString(undefined,{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"";
     const local=hasData();
-    return obHead("Your data","There is already a planner in your Google Drive",
-      "Backed up "+esc(when)+", with <b>"+c.tasks+"</b> tasks, <b>"+c.routines+"</b> routines and <b>"+c.notes+"</b> notes.")+
-      '<div class="ob-choices">'+
-        '<button class="ob-choice" data-act="ob-restore">'+icon("i-download")+'<b>'+(local?"Use the one in Drive":"Restore it here")+'</b>'+
-          '<span>'+(local?"Replaces what is on this computer with the backup.":"Everything comes back: tasks, routines, notes, categories and settings.")+'</span></button>'+
-        '<button class="ob-choice" data-act="ob-fresh">'+icon(local?"i-laptop":"i-plus")+'<b>'+(local?"Keep this computer's":"Start fresh")+'</b>'+
-          '<span>'+(local?"Backs up this computer's planner over the one in Drive.":"Begins an empty planner. Its first backup replaces the one in Drive.")+'</span></button>'+
+    return obHead("Your data","Your planner is <em>already</em> in your Drive",
+        "Sign in anywhere and it comes back. Bring it onto this computer, or begin again.")+
+      '<div class="obx-cards">'+
+        obCard("ob-restore","","i-download",local?"Use the one in Drive":"Restore it here",
+          local?"Replaces what is on this computer with the backup.":"Tasks, routines, notes, categories and settings, all of it.",false,"")+
+        obCard("ob-fresh","",local?"i-laptop":"i-plus",local?"Keep this computer's":"Start fresh",
+          local?"Backs this computer's planner up over the one in Drive.":"An empty planner. Its first backup replaces the one in Drive.",false,"")+
       '</div>'+(OB.busy?obWaiting("Working…"):"")+obErr();
   }
-  const card=(v,ic,title,body,tag)=>'<button class="ob-choice" data-act="ob-store" data-v="'+v+'" aria-pressed="'+(OB.store===v)+'">'+
-    '<span class="ob-choice-top">'+icon(ic)+(tag?'<em class="ob-tag">'+tag+'</em>':"")+'</span><b>'+title+'</b><span>'+body+'</span></button>';
-  return obHead("Your data","Where should your planner live?",
-      "Either way it works offline and is saved on this computer as you go. The difference is whether there is also a copy that follows you.")+
-    '<div class="ob-choices">'+
-      card("drive","i-cloud","Back up to Google Drive","A copy goes into your own Google Drive after every change. Sign in on another computer and your planner comes back.","Recommended")+
-      card("local","i-laptop","Only on this device","Nothing leaves this computer. You can still save a backup file by hand, from Settings, whenever you like.")+
+  return obHead("Your data","Where should your planner <em>live</em>?",
+      "Either way it works offline and saves as you go. The difference is whether a copy follows you.")+
+    '<div class="obx-cards">'+
+      obCard("ob-store","drive","i-cloud","Back up to Google Drive","A copy goes to your own Drive after every change. Sign in on another computer and it all comes back.",OB.store==="drive","Recommended")+
+      obCard("ob-store","local","i-laptop","Only on this device","Nothing leaves this computer. Save a backup file by hand from Settings, any time.",OB.store==="local","")+
     '</div>'+
     (OB.busy?obWaiting(acctParts().drive?"Looking for an earlier backup…":"Finish in your browser: allow access to Google Drive."):"")+obErr()+
-    '<p class="ob-fine">Everyday Orbit can only see the one file it makes in your Drive, not the rest of it. Coming from a backup file instead? <button class="linkish" data-act="import">Restore a backup file</button></p>';
+    '<p class="obx-fine">Everyday Orbit sees only the one file it makes in your Drive, never the rest. Moving from a backup file? <button class="linkish" data-act="import">Restore a backup file</button></p>';
+}
+/* A big choice: an illustration, a title, a line on what it means, and a
+   tick that pops in when it is the one chosen. */
+function obCard(act,v,ic,title,body,on,tag){
+  return '<button class="obx-card'+(on?" on":"")+'" data-act="'+act+'"'+(v?' data-v="'+v+'" aria-pressed="'+on+'"':"")+'>'+
+    '<span class="obx-card-art">'+icon(ic)+'</span>'+(tag?'<em class="obx-tag">'+esc(tag)+'</em>':"")+
+    '<span class="obx-card-tick">'+icon("i-check")+'</span>'+
+    '<b>'+esc(title)+'</b><span>'+esc(body)+'</span></button>';
+}
+function obShowData(){
+  if(OB.found){
+    const f=OB.found,c=f.counts,when=f.at?new Date(f.at).toLocaleString(undefined,{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"";
+    return '<div class="obx-panel obx-found"><div class="obx-found-h">'+icon("i-cloud")+'<span><b>Everyday Orbit backup</b><small>'+esc(when)+'</small></span></div>'+
+      '<div class="obx-stats">'+[[c.tasks,"tasks"],[c.routines,"routines"],[c.notes,"notes"]].map(x=>'<div><b class="num">'+x[0]+'</b><span>'+x[1]+'</span></div>').join("")+'</div></div>';
+  }
+  const drive=OB.store==="drive";
+  return '<div class="obx-panel obx-sync'+(drive?" on":"")+'">'+
+    '<div class="obx-node">'+icon("i-laptop")+'<b>This computer</b><small>Always saved here</small></div>'+
+    '<div class="obx-wire"><i></i><i></i><i></i></div>'+
+    '<div class="obx-node far">'+icon("i-cloud")+'<b>Google Drive</b><small>'+(drive?"A copy after every change":"Not used")+'</small></div>'+
+    '</div><p class="obx-cap">'+(drive?"Lose a laptop, keep your planner.":"Private to this computer, and nowhere else.")+'</p>';
 }
 async function obDataNext(){
   if(OB.store==="local"){S.prefs.storage="local";save("prefs");obGo(obNext());return;}
@@ -1607,47 +1666,86 @@ async function obDataNext(){
   }catch(e){OB.busy=false;OB.err=e.message||"Could not reach Google Drive.";obRender();}
 }
 
+
 /* ---- about you ---- */
 function obName(){
-  return obHead("About you","What should we call you?","It goes in the greeting on your dashboard. Nowhere else.")+
-    '<input class="inp ob-big" id="obName" autocomplete="given-name" maxlength="40" placeholder="Your first name" value="'+esc(S.prefs.name||"")+'">';
+  return obHead("About you","What should we <em>call you</em>?","It goes in the greeting on your dashboard, and nowhere else.")+
+    '<label class="obx-big"><span>I’m</span><input id="obName" autocomplete="given-name" maxlength="40" placeholder="your first name" value="'+esc(S.prefs.name||"")+'"></label>';
+}
+function obShowName(){
+  const n=S.prefs.name||"",d=today();
+  const date=d.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+  return '<div class="obx-panel obx-hi">'+
+    '<p class="obx-hi-date">'+esc(date)+'</p>'+
+    '<h2 id="obxHi">'+esc(dashGreeting()+(n?", "+n:""))+'</h2>'+
+    '<p class="obx-hi-sub">Here is your day, all in one place.</p>'+
+    '<div class="obx-hi-row"><div class="obx-ring-mini"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15"/><circle class="arc" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="60 100"/></svg><b class="num">3/5</b></div>'+
+      '<div class="obx-strip">'+S.categories.slice(0,4).map((c,k)=>'<i style="--c:'+c.color+';left:'+(8+k*22)+'%;width:'+(10+(k%2)*6)+'%"></i>').join("")+'<em style="left:58%"></em></div></div>'+
+    '</div><p class="obx-cap">This is the top of your dashboard.</p>';
 }
 
 /* ---- categories ---- */
 function obCats(){
-  return obHead("Categories","Make the categories yours",
-      "Everything you plan wears one: a task, a routine, a note. Rename these, change a colour, remove what you will not use. You can change them any time.")+
-    '<div class="ob-list">'+S.categories.map(c=>'<div class="ob-row">'+
-      '<button class="ob-cdot" style="--c:'+c.color+'" data-act="ob-cat-color" data-id="'+c.id+'" title="Change the colour" aria-label="Change the colour of '+esc(c.name)+'"></button>'+
-      '<input class="inp inp-sm" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="30" aria-label="Category name">'+
-      (S.categories.length>1?'<button class="icon-btn" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
-      '</div>').join("")+'</div>'+
-    '<button class="btn btn-sm ob-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add a category</button>';
+  return obHead("Categories","Make the categories <em>yours</em>",
+      "Everything you plan wears one. Rename them, pick a colour, drop what you will not use.")+
+    '<div class="obx-cats">'+S.categories.map(c=>{const open=OB.pal===c.id;
+      return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+'">'+
+        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Colour of '+esc(c.name)+'"></button>'+
+        '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" size="'+Math.max(4,c.name.length)+'" maxlength="30" aria-label="Category name">'+
+        (S.categories.length>1?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
+        (open?'<div class="obx-pal" role="group" aria-label="Colours">'+CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>':"")+
+        '</div>';}).join("")+
+      '<button class="obx-cat obx-cat-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add</button></div>';
+}
+/* Your categories as planets round you: the page's name, made literal. */
+function obShowCats(){
+  const cs=S.categories,n=cs.length;
+  return '<div class="obx-orbit">'+
+    '<div class="obx-orbit-ring r1"></div><div class="obx-orbit-ring r2"></div>'+
+    '<div class="obx-core">'+obAvatar()+'<span>'+esc(S.prefs.name||"You")+'</span></div>'+
+    cs.map((c,k)=>{const outer=n>6&&k%2===1,r=outer?46:33,a=(k/n)*Math.PI*2-Math.PI/2;
+      return '<div class="obx-moon" data-planet="'+c.id+'" style="--c:'+c.color+';left:'+(50+r*Math.cos(a)).toFixed(1)+'%;top:'+(50+r*Math.sin(a)).toFixed(1)+'%;--dl:'+(k*60)+'ms">'+
+        '<i>'+icon(c.icon,"ic-14")+'</i><span>'+esc(c.name)+'</span></div>';}).join("")+
+    '</div>';
 }
 
 /* ---- starter routines ---- */
 const OB_RT=[
-  {k:"standup",title:"Morning stand-up",cat:"office",days:[1,2,3,4,5],time:"09:30",dur:15},
-  {k:"deep",title:"Deep work block",cat:"office",days:[1,2,3,4,5],time:"10:00",dur:90},
-  {k:"workout",title:"Workout",cat:"goals",days:[1,3,5],time:"07:00",dur:45},
-  {k:"walk",title:"Evening walk",cat:"goals",days:[0,1,2,3,4,5,6],time:"18:30",dur:30},
-  {k:"read",title:"Read before bed",cat:"personal",days:[0,1,2,3,4,5,6],time:"21:30",dur:20},
-  {k:"review",title:"Weekly review",cat:"goals",days:[5],time:"16:00",dur:45},
-  {k:"plants",title:"Water the plants",cat:"home",days:[1,4],time:"08:00",dur:10}];
+  {k:"standup",title:"Morning stand-up",cat:"office",days:[1,2,3,4,5],time:"09:30",dur:15,ic:"i-coffee"},
+  {k:"deep",title:"Deep work block",cat:"office",days:[1,2,3,4,5],time:"10:00",dur:90,ic:"i-bolt"},
+  {k:"workout",title:"Workout",cat:"goals",days:[1,3,5],time:"07:00",dur:45,ic:"i-dumbbell"},
+  {k:"walk",title:"Evening walk",cat:"goals",days:[0,1,2,3,4,5,6],time:"18:30",dur:30,ic:"i-sun"},
+  {k:"read",title:"Read before bed",cat:"personal",days:[0,1,2,3,4,5,6],time:"21:30",dur:20,ic:"i-book"},
+  {k:"review",title:"Weekly review",cat:"goals",days:[5],time:"16:00",dur:45,ic:"i-target"},
+  {k:"plants",title:"Water the plants",cat:"home",days:[1,4],time:"08:00",dur:10,ic:"i-leaf"}];
 function obRt(){
   if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:false},x));
   return OB.rt;
 }
 const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
 function obRoutines(){
-  return obHead("Routines","Start with a few routines",
-      "Tick the ones that are already part of your week, and set the time you do them. They show on your calendar and dashboard, and remind you before they start.")+
-    '<div class="ob-list">'+obRt().map(x=>{const c=cat(obRtCat(x));
-      return '<div class="ob-row ob-rt'+(x.on?" on":"")+'" style="--c:'+c.color+'">'+
-        '<label class="ob-rt-pick"><input type="checkbox" data-act="ob-rt" data-k="'+x.k+'"'+(x.on?" checked":"")+'>'+
-        '<span><b>'+esc(x.title)+'</b><small><i class="cdot"></i>'+esc(c.name)+' · '+esc(freqLabel({freq:"weekly",days:x.days}))+' · '+esc(fmtMins(x.dur))+'</small></span></label>'+
-        timeField('data-act="ob-rt-time" data-k="'+x.k+'"',x.time,{sm:1,req:1,label:x.title+" time",cls:"ob-rt-time"})+'</div>';}).join("")+'</div>'+
-    '<p class="ob-fine">Anything else can be added from Routines later, on any days and at any time.</p>';
+  return obHead("Routines","What already <em>repeats</em> in your week?",
+      "Tap the ones you do and set their time. They land on your calendar and remind you before they start.")+
+    '<div class="obx-rts">'+obRt().map(x=>{const c=cat(obRtCat(x));
+      return '<div class="obx-rt'+(x.on?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+'">'+
+        '<label class="obx-rt-hit"><input type="checkbox" class="obx-sr" data-act="ob-rt" data-k="'+x.k+'"'+(x.on?" checked":"")+'>'+
+          '<span class="obx-rt-ic">'+icon(x.ic,"ic-18 obx-rt-own")+icon("i-check","ic-18 obx-rt-ok")+'</span>'+
+          '<span class="obx-rt-txt"><b>'+esc(x.title)+'</b><small>'+esc(freqLabel({freq:"weekly",days:x.days}))+' · '+esc(fmtMins(x.dur))+'</small></span></label>'+
+        '<div class="obx-rt-when">'+timeField('data-act="ob-rt-time" data-k="'+x.k+'"',x.time,{sm:1,req:1,label:x.title+" time",cls:"obx-rt-time"})+'</div>'+
+        '</div>';}).join("")+'</div>';
+}
+/* The week filling in: one row per routine ticked, a dot on each day it is due. */
+function obShowWeek(){
+  const on=obRt().filter(x=>x.on),order=[1,2,3,4,5,6,0];
+  const checks=on.reduce((n,x)=>n+x.days.length,0);
+  return '<div class="obx-panel obx-week">'+
+    '<div class="obx-week-h"><b>Your week</b><span class="num">'+(on.length?on.length+" routine"+(on.length===1?"":"s")+" · "+checks+" check-ins":"Nothing yet")+'</span></div>'+
+    '<div class="obx-week-grid"><span></span>'+DOWS.map(d=>'<span class="obx-wd">'+d[0]+'</span>').join("")+
+      (on.length?on.map((x,k)=>{const c=cat(obRtCat(x));
+        return '<span class="obx-wk-name" style="--c:'+c.color+'"><i></i>'+esc(x.title)+'<small class="num">'+esc(fmtTime(x.time))+'</small></span>'+
+          order.map((d,j)=>'<span class="obx-cell'+(x.days.indexOf(d)>-1?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms"></span>').join("");}).join("")
+      :'<p class="obx-week-empty">Tap a routine on the left and watch your week fill in.</p>')+
+    '</div></div>';
 }
 /* Going back and forth must not make them twice: the ones setup made are
    remembered, and replaced rather than added to. */
@@ -1665,33 +1763,71 @@ function obRtCommit(){
 function obCalendar(){
   const on=gcalOn(),g=gcalPrefs();
   const tg=(k,v,l)=>'<label class="switch"><input type="checkbox" data-act="set-pref" data-k="'+k+'"'+(v?" checked":"")+'><span></span><i>'+esc(l)+'</i></label>';
-  return obHead("Google Calendar","Bring in your Google Calendar",
-      "Your Google events show on your calendar and dashboard beside everything else, and your tasks and routines go into your Google calendar, so your phone knows about them too.")+
-    (on?'<p class="ob-ok">'+icon("i-check","ic-14")+'Connected as <b>'+esc(GC.status.email)+'</b></p>'+
-      '<div class="ob-stack">'+tg("gcal.pushTasks",g.pushTasks,"Put tasks that have a date into Google Calendar")+
+  return obHead("Google Calendar","Bring your <em>Google Calendar</em> in",
+      "Your events appear beside everything else, and your tasks and routines go the other way — so your phone knows about them too.")+
+    (on?'<p class="obx-ok">'+icon("i-check","ic-14")+'Connected as <b>'+esc(GC.status.email)+'</b></p>'+
+      '<div class="obx-stack">'+tg("gcal.pushTasks",g.pushTasks,"Put tasks that have a date into Google Calendar")+
         tg("gcal.pushRoutines",g.pushRoutines,"Put routines into Google Calendar")+'</div>'
     :OB.busy?obWaiting("Finish in your browser: allow access to Google Calendar.")
-    :'<button class="btn btn-primary ob-connect" data-act="ob-cal">'+icon("i-calendar","ic-14")+'Connect Google Calendar</button>')+obErr()+
-    '<p class="ob-fine">It uses the Google account you signed in with. Change what syncs, or disconnect, from Settings.</p>';
+    :'<button class="btn btn-primary obx-connect" data-act="ob-cal">'+icon("i-calendar","ic-14")+'Connect Google Calendar</button>')+obErr()+
+    '<p class="obx-fine">It uses the Google account you signed in with. Change what syncs, or disconnect, from Settings.</p>';
+}
+function obShowCalendar(){
+  const on=gcalOn(),c=S.categories;
+  const row=(dir,title,when,col,from)=>'<div class="obx-flow '+dir+'" style="--c:'+col+'"><i></i><b>'+esc(title)+'</b><small class="num">'+esc(when)+'</small><em>'+icon(from?"i-chev-l":"i-chev-r","ic-14")+'</em></div>';
+  return '<div class="obx-panel obx-cal'+(on?" on":"")+'">'+
+    '<div class="obx-pair"><span class="obx-tile brand-mark">'+icon("i-orbit","ic-18")+'</span>'+
+      '<span class="obx-beam"><i></i><i></i></span>'+
+      '<span class="obx-tile gcal"><b class="num">'+today().getDate()+'</b><small>'+esc(MONS[today().getMonth()])+'</small></span></div>'+
+    '<div class="obx-flows">'+
+      row("out","Deep work block","10am",(c[0]||{}).color||CAT_COLORS[0],false)+
+      row("in","Team sync","2pm","var(--blue)",true)+
+      row("out","Evening walk","6:30pm",(c[4]||c[1]||{}).color||CAT_COLORS[4],false)+
+    '</div></div><p class="obx-cap">'+(on?"Syncing with "+esc(GC.status.email):"Both ways, every few minutes.")+'</p>';
 }
 
 /* ---- Obsidian ---- */
 function obObsidian(){
   const v=vaultPath();
-  return obHead("Obsidian","Keep your documents in Obsidian",
-      "Documents you write on a task are saved into your Obsidian vault as ordinary Markdown files, and edits you make in Obsidian come back to the planner.")+
-    (v?'<p class="ob-ok">'+icon("i-check","ic-14")+'Syncing with <b>'+esc(v)+'/Everyday Orbit</b></p>'+
+  return obHead("Obsidian","Keep your documents in <em>Obsidian</em>",
+      "Documents you write on a task are saved into your vault as ordinary Markdown, and edits you make in Obsidian come back.")+
+    (v?'<p class="obx-ok">'+icon("i-check","ic-14")+'Syncing with <b>'+esc(v)+'/Everyday Orbit</b></p>'+
       '<button class="btn btn-sm" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose another vault</button>'
-    :'<button class="btn btn-primary ob-connect" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose your vault folder</button>')+
-    '<p class="ob-fine">Not using Obsidian? Skip this; documents stay in the planner either way.</p>';
+    :'<button class="btn btn-primary obx-connect" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose your vault folder</button>')+
+    '<p class="obx-fine">Not an Obsidian person? Skip it: documents stay in the planner either way.</p>';
+}
+function obShowVault(){
+  const v=vaultPath(),docs=["Project brief","Meeting notes","Reading list"];
+  return '<div class="obx-panel obx-vault'+(v?" on":"")+'">'+
+    '<div class="obx-docs">'+docs.map((d,k)=>'<div class="obx-doc" style="--k:'+k+'"><b># '+esc(d)+'</b><i></i><i></i><i class="short"></i><small>'+esc(d.toLowerCase().replace(/ /g,"-"))+'.md</small></div>').join("")+'</div>'+
+    '<div class="obx-folder">'+icon("i-folder")+'<span><b>'+(v?esc(v.split(/[\\/]/).pop()):"Your vault")+'</b><small>/ Everyday Orbit</small></span></div>'+
+    '</div><p class="obx-cap">'+(v?"Edits flow both ways.":"Plain Markdown files, yours to keep.")+'</p>';
 }
 
 /* ---- appearance ---- */
 function obLook(){
-  return obHead("Appearance","Make it look like yours",
-      "Light, dark, or following Windows as it switches at dusk, and an accent for the buttons and highlights. Every choice keeps the text readable.")+
-    '<div class="ob-set"><div class="ob-flabel">Theme</div>'+themePickHtml()+'</div>'+
-    '<div class="ob-set"><div class="ob-flabel">Accent colour</div>'+accentPickHtml()+'</div>';
+  const cur=S.prefs.theme||"system";
+  const card=(v,label)=>'<button class="obx-theme'+(cur===v?" on":"")+'" data-act="set-theme" data-v="'+v+'" aria-pressed="'+(cur===v)+'">'+
+    '<span class="obx-thumb '+v+'"><i></i><i></i><i></i></span><b>'+label+'</b></button>';
+  return obHead("Appearance","Make it look like <em>yours</em>",
+      "Light, dark, or following Windows as it switches at dusk — and an accent for the buttons and highlights. Every choice keeps the text readable.")+
+    '<div class="obx-themes">'+card("light","Light")+card("dark","Dark")+card("system","System")+'</div>'+
+    '<div class="obx-set"><div class="obx-flabel">Accent colour</div>'+accentPickHtml()+'</div>';
+}
+/* The app in miniature, drawn from the real tokens, so it changes the moment
+   the theme or accent does. */
+function obShowApp(){
+  const c=S.categories,n=S.prefs.name||"";
+  const card=(cc,title,done)=>'<div class="obx-mcard'+(done?" done":"")+'" style="--c:'+cc.color+'"><span class="obx-mpill">'+esc(cc.name)+'</span>'+
+    '<span class="obx-mline"><i class="obx-mtick">'+(done?icon("i-check"):"")+'</i>'+esc(title)+'</span></div>';
+  return '<div class="obx-app">'+
+    '<div class="obx-app-rail"><span class="brand-mark">'+icon("i-orbit","ic-14")+'</span>'+
+      ["Dashboard","Calendar","Tasks","Routines"].map((x,k)=>'<i class="'+(k===0?"on":"")+'"><em></em>'+x+'</i>').join("")+'</div>'+
+    '<div class="obx-app-main"><div class="obx-app-top"><b>'+esc(dashGreeting()+(n?", "+n:""))+'</b><span class="obx-app-btn">'+icon("i-plus","ic-14")+'New task</span></div>'+
+      card(c[0]||{color:CAT_COLORS[0],name:"Office"},"Draft the project brief",false)+
+      card(c[3]||c[1]||{color:CAT_COLORS[3],name:"Personal"},"Book the dentist",true)+
+      '<div class="obx-app-row"><span class="obx-app-switch"></span>Reminders on<span class="obx-app-chip">Today</span></div>'+
+    '</div></div><p class="obx-cap">Everything follows as you choose.</p>';
 }
 
 /* ---- notifications ---- */
@@ -1700,29 +1836,81 @@ function obNotify(){
   const tg=(k,v,l)=>'<label class="switch"><input type="checkbox" data-act="set-pref" data-k="remind.'+k+'"'+(v?" checked":"")+'><span></span><i>'+esc(l)+'</i></label>';
   const tin=(k,v,l)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{sm:1,cls:"inp-time",label:l,ph:"Pick a time",req:k==="overdueAt"});
   const web=!hasDesktop(),canWeb=typeof Notification!=="undefined";
-  return obHead("Notifications","What should it tell you?",
-      "A nudge before a routine or a task starts, one daily count of anything overdue, and quiet hours when nothing gets through.")+
-    '<div class="ob-set">'+tg("on",rp.on,"Remind me before routines and timed tasks start")+
-      '<p class="ob-fine">30 minutes before, unless you choose otherwise on the task or routine.'+(web?" In a browser they arrive only while the tab is open.":" They arrive even with the window closed.")+'</p>'+
-      (web&&canWeb&&Notification.permission!=="granted"?'<button class="btn btn-sm" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button>':"")+'</div>'+
-    '<div class="ob-set"><div class="ob-inline">'+tg("overdue",rp.overdue,"A daily count of overdue tasks, at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div></div>'+
-    '<div class="ob-set"><div class="ob-inline">'+tg("quiet",rp.quiet,"Quiet hours")+
-      (rp.quiet?tin("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+tin("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div></div>';
+  const opt=(ic,body)=>'<div class="obx-opt">'+'<span class="obx-opt-ic">'+icon(ic,"ic-14")+'</span><div>'+body+'</div></div>';
+  return obHead("Notifications","A nudge at the <em>right</em> moment",
+      "Before a routine or a task starts, one daily count of anything overdue — and quiet hours when nothing gets through.")+
+    '<div class="obx-opts">'+
+      opt("i-bell",tg("on",rp.on,"Remind me before things start")+
+        '<p class="obx-fine">30 minutes before, unless you choose otherwise on the task or routine.'+(web?" In a browser, only while the tab is open.":" Even with the window closed.")+'</p>'+
+        (web&&canWeb&&Notification.permission!=="granted"?'<button class="btn btn-sm" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button>':""))+
+      opt("i-alert",'<div class="obx-inline">'+tg("overdue",rp.overdue,"A daily count of overdue tasks, at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>')+
+      opt("i-moon",'<div class="obx-inline">'+tg("quiet",rp.quiet,"Quiet hours")+
+        (rp.quiet?tin("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+tin("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>')+
+    '</div>';
+}
+/* A reminder as it will arrive, and the whole day as a clock: quiet hours the
+   shaded arc, the overdue count a marker on the rim. */
+function obShowNotify(){
+  const rp=remindPrefs(),R=78,C=2*Math.PI*R,frac=hm=>hm2m(hm)/1440;
+  const first=obRt().find(x=>x.on)||{title:"Morning stand-up",time:"09:30"};
+  let arc="";
+  if(rp.quiet&&rp.quietFrom&&rp.quietTo){
+    /* A dash one circumference apart from the next wraps past midnight by
+       itself: quiet hours from 10pm to 7am are one arc over the top. */
+    const a=frac(rp.quietFrom),len=((frac(rp.quietTo)-a)+1)%1||1;
+    arc='<circle class="quiet" cx="100" cy="100" r="'+R+'" stroke-dasharray="'+(len*C).toFixed(1)+' '+(C-len*C).toFixed(1)+'" stroke-dashoffset="'+(-a*C).toFixed(1)+'" transform="rotate(-90 100 100)"/>';
+  }
+  const at=frac(rp.overdueAt||"12:00")*Math.PI*2-Math.PI/2,mx=100+R*Math.cos(at),my=100+R*Math.sin(at);
+  let ticks="";for(let h=0;h<24;h++){const t=h/24*Math.PI*2-Math.PI/2,r1=h%6?R-5:R-9;
+    ticks+='<line x1="'+(100+r1*Math.cos(t)).toFixed(1)+'" y1="'+(100+r1*Math.sin(t)).toFixed(1)+'" x2="'+(100+(R-1)*Math.cos(t)).toFixed(1)+'" y2="'+(100+(R-1)*Math.sin(t)).toFixed(1)+'"/>';}
+  const n=new Date(),nowA=(n.getHours()*60+n.getMinutes())/1440*Math.PI*2-Math.PI/2;
+  return '<div class="obx-toast'+(rp.on?"":" off")+'"><span class="brand-mark">'+icon("i-orbit","ic-14")+'</span>'+
+      '<div><b>'+esc(first.title)+'</b><small>'+(rp.on?"Starts in 30 minutes · "+esc(fmtTime(first.time)):"Reminders are off")+'</small></div></div>'+
+    '<div class="obx-clock"><svg viewBox="0 0 200 200">'+
+      '<circle class="rim" cx="100" cy="100" r="'+R+'"/>'+arc+'<g class="ticks">'+ticks+'</g>'+
+      '<line class="hand" x1="100" y1="100" x2="'+(100+(R-18)*Math.cos(nowA)).toFixed(1)+'" y2="'+(100+(R-18)*Math.sin(nowA)).toFixed(1)+'"/><circle class="hub" cx="100" cy="100" r="3.5"/>'+
+      (rp.overdue?'<circle class="mark" cx="'+mx.toFixed(1)+'" cy="'+my.toFixed(1)+'" r="6"/>':"")+
+      '<text x="100" y="14">12am</text><text x="190" y="104">6am</text><text x="100" y="197">12pm</text><text x="10" y="104">6pm</text>'+
+      '</svg><div class="obx-clock-key">'+
+        (rp.quiet&&rp.quietFrom&&rp.quietTo?'<span><i class="k-quiet"></i>Quiet '+esc(fmtTime(rp.quietFrom))+'–'+esc(fmtTime(rp.quietTo))+'</span>':'<span><i class="k-none"></i>No quiet hours</span>')+
+        (rp.overdue?'<span><i class="k-mark"></i>Overdue count at '+esc(fmtTime(rp.overdueAt||"12:00"))+'</span>':"")+
+      '</div></div>';
 }
 
 /* ---- done ---- */
 function obDone(){
-  const row=(ok,text)=>'<li class="'+(ok?"ok":"")+'">'+icon(ok?"i-check":"i-minus","ic-14")+'<span>'+text+'</span></li>';
   const d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
-  return obHead("All set",S.prefs.name?"You're all set, "+S.prefs.name:"You're all set",
-      "Here is how your planner is set up. Everything here can be changed later from Settings.")+
-    '<ul class="ob-sum">'+
-      (d?row(signedIn(),"Signed in as <b>"+esc((GC.status&&GC.status.email)||"")+"</b>"):"")+
-      row(true,S.prefs.storage==="drive"&&d?"Backed up to your Google Drive after every change":"Saved on this "+(d?"computer":"browser")+" as you go")+
-      (OB.mode==="new"?row(true,"<b>"+S.categories.length+"</b> categories"+(rts?", and <b>"+rts+"</b> routine"+(rts===1?"":"s")+" to start with":"")):"")+
-      (d?row(gcalOn(),gcalOn()?"Google Calendar connected":"Google Calendar not connected"):"")+
-      (d?row(!!vaultPath(),vaultPath()?"Documents sync with your Obsidian vault":"Obsidian not connected"):"")+
-    '</ul>';
+  const item=(ok,ic,title,sub)=>'<div class="obx-sum'+(ok?" ok":"")+'"><span class="obx-sum-ic">'+icon(ok?ic:"i-minus","ic-14")+'</span><span><b>'+title+'</b><small>'+sub+'</small></span></div>';
+  return obHead("All set",S.prefs.name?"You’re all set, <em>"+esc(S.prefs.name)+"</em>":"You’re <em>all set</em>",
+      "Here is your planner. Every one of these can be changed later in Settings.")+
+    '<div class="obx-sums">'+
+      (d?item(signedIn(),"i-user","Signed in",esc((GC.status&&GC.status.email)||"")):"")+
+      item(true,S.prefs.storage==="drive"&&d?"i-cloud":"i-laptop",S.prefs.storage==="drive"&&d?"Backed up to Google Drive":"Saved on this "+(d?"computer":"browser"),
+        S.prefs.storage==="drive"&&d?"After every change":"As you go")+
+      (OB.mode==="new"?item(true,"i-tag",S.categories.length+" categories",rts?rts+" routine"+(rts===1?"":"s")+" to start with":"Ready for your first task"):"")+
+      (d?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Not connected — any time from Settings"):"")+
+      (d?item(!!vaultPath(),"i-folder",vaultPath()?"Obsidian vault linked":"Obsidian",vaultPath()?esc(vaultPath()):"Not linked — any time from Settings"):"")+
+    '</div>';
+}
+/* The finish: you at the centre, what you set up in orbit round you, lit
+   when it is on, and a burst of your colours as it opens. */
+function obShowDone(){
+  const d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
+  const sats=[[true,"i-tag",S.categories.length+" categories"]];
+  if(rts)sats.push([true,"i-repeat",rts+" routine"+(rts===1?"":"s")]);
+  if(d){sats.push([S.prefs.storage==="drive","i-cloud","Drive"]);sats.push([gcalOn(),"i-calendar","Calendar"]);sats.push([!!vaultPath(),"i-folder","Obsidian"]);}
+  sats.push([true,"i-bell","Reminders"]);
+  const cols=S.categories.map(c=>c.color);
+  let burst="";for(let k=0;k<18;k++){const a=k/18*Math.PI*2;
+    burst+='<i style="--c:'+cols[k%cols.length]+';--x:'+(Math.cos(a)*(120+(k%3)*40)).toFixed(0)+'px;--y:'+(Math.sin(a)*(120+(k%3)*40)).toFixed(0)+'px;--dl:'+(k%5)*40+'ms"></i>';}
+  return '<div class="obx-orbit done">'+
+    '<div class="obx-burst">'+burst+'</div>'+
+    '<div class="obx-orbit-ring r1 turn"></div><div class="obx-orbit-ring r2 turn rev"></div>'+
+    '<div class="obx-core big">'+obAvatar()+'<span>'+esc(S.prefs.name||"You")+'</span></div>'+
+    sats.map((s,k)=>{const a=(k/sats.length)*Math.PI*2-Math.PI/2,r=k%2?44:36;
+      return '<div class="obx-moon sat'+(s[0]?" lit":"")+'" style="left:'+(50+r*Math.cos(a)).toFixed(1)+'%;top:'+(50+r*Math.sin(a)).toFixed(1)+'%;--dl:'+(200+k*90)+'ms">'+
+        '<i>'+icon(s[1],"ic-14")+'</i><span>'+esc(s[2])+'</span></div>';}).join("")+
+    '</div>';
 }
 
 /* ---- Settings ▸ Account ---- */
@@ -2581,8 +2769,10 @@ document.addEventListener("click",function(e){
     case "ob-cal":OB.busy=true;OB.err="";obRender();
       googleAsk("calendar").then(ok=>{OB.busy=false;if(ok){gcalPrefs().off=false;save("prefs");gcalSync();}obRender();},
         e=>{OB.busy=false;OB.err=e.message;obRender();});break;
-    case "ob-cat-color":{const c=S.categories.find(x=>x.id===id);if(!c)break;
-      c.color=CAT_COLORS[(CAT_COLORS.indexOf(c.color)+1)%CAT_COLORS.length];save("categories");obRender();break;}
+    case "ob-cat-pal":OB.pal=OB.pal===id?null:id;obRender();break;
+    case "ob-cat-swatch":{const c=S.categories.find(x=>x.id===id);if(!c)break;
+      c.color=n.dataset.v;OB.pal=null;save("categories");obRender();break;}
+    case "ob-jump":OB.found=null;obGo(n.dataset.v);break;
     case "ob-cat-del":if(S.categories.length>1){S.categories=S.categories.filter(x=>x.id!==id);save("categories");obRender();}break;
     case "ob-cat-add":{const used=S.categories.map(x=>x.color),col=CAT_COLORS.find(x=>used.indexOf(x)<0)||CAT_COLORS[0],nid=uid("c");
       S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});save("categories");obRender();
@@ -2655,6 +2845,9 @@ document.addEventListener("input",function(e){
   if(t.id==="q"){V.q=t.value;renderView();return;}
   if(t.id==="rte"){const x=noteById(V.noteId);if(x){x.html=t.innerHTML;x.updated=Date.now();save("notes");}return;}
   if(t.id==="scratchPad"){S.prefs.scratch=t.innerHTML;save("prefs");return;}
+  if(t.id==="obName"){const h=el("obxHi"),v=t.value.trim();if(h)h.textContent=dashGreeting()+(v?", "+v:"");return;}
+  if(t.dataset&&t.dataset.act==="ob-cat-name"){t.size=Math.max(4,t.value.length);
+    const p=document.querySelector('[data-planet="'+t.dataset.id+'"] span');if(p)p.textContent=t.value||"…";return;}
   if(t.id==="gcId"){GC.draft.id=t.value;return;}
   if(t.id==="gcSecret"){GC.draft.secret=t.value;return;}
   if(t.id==="noteTitle"){const x=noteById(V.noteId);if(x){x.title=t.value;x.updated=Date.now();save("notes");
@@ -2690,6 +2883,11 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Escape"&&V.tmBreak){closeTimeBreakdown();return;}
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
+  if(e.key==="Enter"&&OB.open&&!PK.el){const t=e.target;
+    if(t.dataset&&t.dataset.act==="ob-cat-name"){e.preventDefault();t.blur();return;}
+    if(t.id==="obName"||t===document.body||(t.closest&&t.closest("#obRoot")&&/^(H1|SECTION|MAIN|DIV)$/.test(t.tagName))){
+      e.preventDefault();const b=document.querySelector('#obRoot [data-act="ob-next"],#obRoot [data-act="ob-finish"]');
+      if(b&&!b.disabled)b.click();return;}}
   if(e.key==="Enter"&&e.target.id==="linkUrl"){e.preventDefault();
     const b=document.querySelector('[data-act="rte-link-apply"]');if(b)b.click();return;}
   if(e.key==="Enter"&&e.target.id==="aiText"){e.preventDefault();
@@ -2745,7 +2943,8 @@ document.addEventListener("change",function(e){
   /* setup: a category renamed, a starter routine ticked or given a time */
   if(t.dataset&&t.dataset.act==="ob-cat-name"){const c=S.categories.find(x=>x.id===t.dataset.id);
     if(c){c.name=t.value.trim()||c.name;t.value=c.name;save("categories");}return;}
-  if(t.dataset&&t.dataset.act==="ob-rt"){const x=obRt().find(r=>r.k===t.dataset.k);if(x)x.on=t.checked;obRender();return;}
+  if(t.dataset&&t.dataset.act==="ob-rt"){const x=obRt().find(r=>r.k===t.dataset.k);if(x){x.on=t.checked;OB.pop=x.on?x.k:null;}obRender();
+    const f=document.querySelector('#obRoot [data-act="ob-rt"][data-k="'+t.dataset.k+'"]');if(f)f.focus({preventScroll:true});return;}
   if(t.dataset&&t.dataset.act==="ob-rt-time"){const x=obRt().find(r=>r.k===t.dataset.k);if(x&&t.value)x.time=t.value;return;}
   /* Drive backup switched on asks Google for Drive first, if it has not yet. */
   if(t.dataset&&t.dataset.act==="drive-toggle"){

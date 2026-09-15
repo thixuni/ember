@@ -92,6 +92,9 @@
   --fd:"Gabarito","Plus Jakarta Sans",system-ui,sans-serif;
   /* Shown on the "any colour" swatch before one is picked. It stands for the
      whole spectrum, so it belongs to neither theme and never changes. */
+  /* The Light and Dark pictures in setup show those themes whichever one is on. */
+  --thumb-l-bg:#F5F5F6;--thumb-l-card:#FFFFFF;--thumb-l-line:#E6E6E9;
+  --thumb-d-bg:#1B1B1D;--thumb-d-card:#28282B;--thumb-d-line:#39393E;
   --wheel:conic-gradient(from .25turn,#C0517A,#B5791C,#6D7A2E,#2F7D7A,#3A6DA6,#6B5AC4,#C0517A);
 }
 
@@ -663,123 +666,420 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .rte-sep{width:1px;background:var(--line);margin:5px 4px}
 .link-bar{display:flex;gap:7px;align-items:center;padding:9px 20px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
 /* ---- setup ----
-   A page of its own over the app, not a dialog: the sign-in as one card in
-   the middle, then every step in a card with the steps listed down its side.
-   The card is the panel colour on the page's ground, as everything else is. */
+   A page of its own over the app. The sign-in is a sky of turning orbits
+   with the welcome in the middle; every step after it is a question on the
+   left and a live picture of the answer on the right, under a track of the
+   steps. Motion is the point of it, so all of it stops for anyone whose
+   system asks for less (the reduced-motion rule at the end). */
 body.ob-wait .app{visibility:hidden}
 body.ob-open{overflow:hidden}
-#obRoot{position:fixed;inset:0;z-index:60;background:var(--ground);overflow:auto;padding:0 16px}
-.ob{min-height:100%;display:grid;place-items:center;padding-block:32px}
-.ob-card{width:min(960px,100%);min-height:min(640px,calc(100dvh - 64px));display:grid;grid-template-columns:248px minmax(0,1fr);
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--sh-3);overflow:hidden}
-.ob-side{background:var(--surface-2);border-right:1px solid var(--line);padding:24px 16px 20px;display:flex;flex-direction:column;gap:20px;min-width:0}
-.ob-brand{display:flex;align-items:center;gap:10px;padding:0 6px;font-family:var(--fd);font-weight:600;font-size:15px;color:var(--ink)}
-.ob-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
-.ob-steps li{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;font-size:13px;font-weight:500;color:var(--muted)}
-.ob-steps li i{width:22px;height:22px;flex:none;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;
-  font-style:normal;font-size:11px;font-weight:700;color:var(--muted)}
-.ob-steps li i .ic{width:12px;height:12px;stroke-width:3}
-.ob-steps li.done{color:var(--ink-2)}
-.ob-steps li.done i{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.ob-steps li.now{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--sh-1)}
-.ob-steps li.now i{border-color:var(--accent);color:var(--accent-ink)}
-.ob-progress{display:none;margin:0;font-size:12px;font-weight:600;color:var(--muted)}
-.ob-who{margin-top:auto;display:flex;align-items:center;gap:10px;padding:0 6px;min-width:0;font-size:11.5px;color:var(--muted)}
-.ob-who span{min-width:0;display:flex;flex-direction:column}
-.ob-who b,.acct b{color:var(--ink);font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#obRoot{position:fixed;inset:0;z-index:60;background:var(--ground);overflow:auto}
 .ob-av{width:32px;height:32px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);font-weight:700;font-size:13.5px}
-.ob-main{display:flex;flex-direction:column;min-width:0}
-.ob-body{flex:1;padding:44px 48px 28px;display:flex;flex-direction:column;align-items:flex-start;gap:18px}
-.ob-eyebrow{margin:0;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink)}
-.ob-body h1{margin:-8px 0 0;font-size:27px;line-height:1.2;letter-spacing:-.02em;color:var(--ink);outline:0}
-.ob-lead{margin:-4px 0 4px;max-width:58ch;font-size:14px;line-height:1.6;color:var(--ink-2)}
-.ob-fine{margin:0;max-width:60ch;font-size:12px;line-height:1.6;color:var(--muted)}
-.ob-foot{display:flex;align-items:center;gap:8px;padding:16px 48px 22px;border-top:1px solid var(--line-soft)}
-.ob-foot .btn{height:38px;padding:0 16px}
-.ob-go .ic{margin-left:2px}
-.ob-err{display:flex;align-items:flex-start;gap:7px;margin:0;max-width:56ch;font-size:12.5px;line-height:1.5;color:var(--danger-ink)}
-.ob-err .ic{flex:none;margin-top:2px}
-.ob-ok{display:flex;align-items:center;gap:7px;margin:0;font-size:13px;color:var(--ink-2)}
-.ob-ok .ic{color:var(--accent-ink)}
-.ob-waiting{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--ink-2)}
-.ob-spin{width:20px;height:20px;flex:none;border-radius:50%;border:2.5px solid var(--line-2);border-top-color:var(--accent);animation:obspin .8s linear infinite}
-@keyframes obspin{to{transform:rotate(360deg)}}
-.ob-connect{height:40px;padding:0 18px}
-/* sign in */
-.ob-hero{width:min(460px,100%);display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;
-  padding:42px 38px 32px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--sh-3)}
-.ob-hero h1{margin:4px 0 -4px;font-size:26px;letter-spacing:-.02em}
-.ob-hero .ob-lead{margin:0;font-size:13.5px}
-.ob-hero .ob-waiting{justify-content:center;flex-wrap:wrap}
-.ob-mark{width:54px;height:54px;border-radius:18px}
-.ob-mark .ic{width:24px;height:24px}
-.ob-google{width:100%;height:46px;display:flex;align-items:center;justify-content:center;gap:12px;border-radius:11px;
-  border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-size:14px;font-weight:600;transition:background .12s,border-color .12s}
-.ob-google > *{pointer-events:none}
-.ob-google:hover{background:var(--surface-3)}
 .g-logo{width:19px;height:19px;flex:none}
-.ob-wide{width:100%;height:42px;justify-content:center}
-.ob-note{display:flex;gap:9px;margin:0;padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);
+@keyframes obspin{to{transform:rotate(360deg)}}
+@keyframes obup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes obside{from{opacity:0;transform:translateX(26px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes obpop{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes obtick{from{transform:scale(.35)}to{transform:scale(1)}}
+@keyframes obbob{50%{transform:translateY(-10px)}}
+
+/* the frame */
+.obx{min-height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  background:radial-gradient(70% 60% at 88% 30%,color-mix(in srgb,var(--ink) 4%,transparent),transparent 70%),var(--ground)}
+.obx-top{display:grid;grid-template-columns:220px minmax(0,1fr) 220px;align-items:center;gap:28px;padding:22px 40px 10px}
+.obx-brand{display:flex;align-items:center;gap:10px;font-family:var(--fd);font-weight:600;font-size:15px;color:var(--ink)}
+.obx-count{justify-self:end;display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-size:11.5px;color:var(--muted)}
+.obx-count b{font-size:13px;color:var(--ink)}
+.obx-track{position:relative;height:30px;margin:0 12px}
+.obx-rail{position:absolute;left:0;right:0;top:50%;height:3px;margin-top:-1.5px;border-radius:3px;background:var(--line)}
+.obx-rail i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.obx-dot{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;padding:0;border-radius:50%;
+  background:var(--ground);border:2px solid var(--line-2);display:grid;place-items:center;cursor:default}
+.obx-dot > *{pointer-events:none}
+.obx-dot.done{width:20px;height:20px;margin:-10px 0 0 -10px;background:var(--accent);border-color:var(--accent);cursor:pointer;transition:transform .15s}
+.obx-dot.done:hover{transform:scale(1.15)}
+.obx-dot.done .ic{width:11px;height:11px;stroke:var(--on-accent);stroke-width:3.2}
+.obx-dot.now{width:24px;height:24px;margin:-12px 0 0 -12px;border-color:var(--accent);box-shadow:0 0 0 6px var(--accent-soft)}
+.obx-dot.now::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent)}
+.obx.enter .obx-dot.now{animation:obtick .45s cubic-bezier(.3,1.6,.5,1)}
+.obx-tip{position:absolute;top:calc(100% + 9px);left:50%;transform:translate(-50%,-4px);white-space:nowrap;padding:4px 9px;border-radius:8px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-2);font-size:11.5px;font-weight:600;color:var(--ink-2);
+  opacity:0;transition:opacity .15s,transform .15s;z-index:2}
+.obx-dot:hover .obx-tip,.obx-dot:focus-visible .obx-tip{opacity:1;transform:translate(-50%,0)}
+
+/* the stage: the question, and the picture of the answer */
+.obx-stage{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:64px;align-items:center;
+  width:100%;max-width:1320px;margin:0 auto;padding:10px 48px 10px 80px}
+.obx-q{display:flex;flex-direction:column;align-items:flex-start;gap:18px;min-width:0;padding:24px 0}
+.obx-eyebrow{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--accent-ink)}
+.obx-q h1{margin:-6px 0 0;max-width:17ch;font-size:clamp(30px,3.4vw,44px);line-height:1.08;letter-spacing:-.028em;font-weight:600;color:var(--ink);outline:0}
+.obx-q h1 em,.obx-hero h1 em{font-style:normal;padding:0 .06em;border-radius:4px;background:linear-gradient(transparent 58%,var(--accent-soft) 58%)}
+.obx-lead{margin:0;max-width:50ch;font-size:15.5px;line-height:1.6;color:var(--ink-2)}
+.obx-fine{margin:0;max-width:56ch;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.obx-show{position:relative;min-height:440px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-width:0}
+.obx-panel{width:min(440px,100%);padding:24px;border-radius:24px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3)}
+.obx-cap{margin:0;font-size:12.5px;color:var(--muted);text-align:center}
+.obx.enter .obx-q > *{animation:obup .55s cubic-bezier(.2,.7,.3,1) both}
+.obx.enter .obx-q > :nth-child(2){animation-delay:.05s}
+.obx.enter .obx-q > :nth-child(3){animation-delay:.1s}
+.obx.enter .obx-q > :nth-child(4){animation-delay:.16s}
+.obx.enter .obx-q > :nth-child(5){animation-delay:.22s}
+.obx.enter .obx-q > :nth-child(n+6){animation-delay:.28s}
+.obx.enter .obx-show{animation:obside .7s .1s cubic-bezier(.2,.7,.3,1) both}
+/* Always in reach, however long the step: it rides the bottom of the page. */
+.obx-foot{position:sticky;bottom:0;z-index:4;display:flex;align-items:center;gap:10px;width:100%;max-width:1320px;margin:0 auto;padding:18px 48px 26px 80px;
+  background:linear-gradient(transparent,var(--ground) 34%)}
+.obx-foot .spacer{flex:1}
+.obx-foot .btn-ghost{height:42px;padding:0 14px}
+.obx-hint{margin-right:8px;font-size:12px;color:var(--muted)}
+.obx-hint kbd{font:inherit;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid var(--line-2);border-bottom-width:2px;background:var(--surface);color:var(--ink-2)}
+.obx-go{height:46px;padding:0 22px;border-radius:13px;font-size:14px}
+.obx-go .ic{transition:transform .15s}
+.obx-go:hover .ic{transform:translateX(3px)}
+.obx-connect{height:46px;padding:0 22px;border-radius:13px;font-size:14px}
+.obx-wait{display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--ink-2)}
+.obx-spin{width:20px;height:20px;flex:none;border-radius:50%;border:2.5px solid var(--line-2);border-top-color:var(--accent);animation:obspin .8s linear infinite}
+.obx-err{display:flex;align-items:flex-start;gap:7px;margin:0;max-width:56ch;font-size:13px;line-height:1.5;color:var(--danger-ink)}
+.obx-err .ic{flex:none;margin-top:2px}
+.obx-ok{display:flex;align-items:center;gap:8px;margin:0;padding:8px 14px 8px 10px;border-radius:30px;background:var(--surface);border:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+.obx-ok .ic{width:18px;height:18px;padding:3px;border-radius:50%;background:var(--accent);stroke:var(--on-accent);stroke-width:3}
+.obx-stack{display:flex;flex-direction:column;gap:12px}
+
+/* sign in: the sky */
+.obx-first{position:relative;min-height:100%;display:grid;place-items:center;padding:40px 16px;overflow:hidden;
+  background:radial-gradient(50% 50% at 50% 50%,color-mix(in srgb,var(--ink) 4%,transparent),transparent 75%),var(--ground)}
+.obx-sky{position:absolute;inset:0;pointer-events:none}
+.obx-ring{position:absolute;left:50%;top:50%;width:var(--s);height:var(--s);margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  border:1px solid var(--line);border-radius:50%;animation:obspin var(--d) linear infinite}
+.obx-ring.rev{animation-direction:reverse}
+.obx-planet{position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--c);
+  transform:rotate(var(--a)) translateX(calc(var(--s) / 2));box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 20%,transparent)}
+.obx-float{position:absolute;display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:22px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-2);font-size:12.5px;font-weight:600;color:var(--ink-2);
+  animation:obbob 6s var(--dl) ease-in-out infinite}
+.obx-float .ic{color:var(--muted)}
+.obx-hero{position:relative;width:min(480px,100%);display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;
+  padding:42px 38px 32px;border-radius:28px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3)}
+.obx-first.enter .obx-hero{animation:obpop .7s cubic-bezier(.2,.7,.3,1) both}
+.obx-first.enter .obx-float{animation:obpop .7s both,obbob 6s var(--dl) ease-in-out infinite}
+.obx-mark{width:62px;height:62px;border-radius:20px}
+.obx-mark .ic{width:28px;height:28px}
+.obx-hero h1{margin:2px 0 -2px;font-size:34px;line-height:1.1;letter-spacing:-.028em;color:var(--ink)}
+.obx-hero .obx-lead{font-size:14px}
+.obx-hero .obx-wait{justify-content:center;flex-wrap:wrap}
+.obx-google{width:100%;height:50px;display:flex;align-items:center;justify-content:center;gap:12px;border-radius:14px;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-size:14.5px;font-weight:600;transition:background .12s,transform .12s,box-shadow .12s}
+.obx-google > *{pointer-events:none}
+.obx-google:hover{background:var(--surface-3);transform:translateY(-1px);box-shadow:var(--sh-2)}
+.obx-wide{width:100%;height:46px;justify-content:center;border-radius:13px}
+.obx-note{display:flex;gap:9px;margin:0;padding:12px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);
   text-align:left;font-size:12.5px;line-height:1.55;color:var(--ink-2)}
-.ob-note .ic{flex:none;margin-top:2px;color:var(--muted)}
-.ob-keys{width:100%;display:flex;flex-direction:column;gap:8px;text-align:left}
-/* choosing where it lives */
-.ob-choices{width:100%;max-width:640px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.ob-choice{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px 16px 18px;text-align:left;
-  border:1.5px solid var(--line);border-radius:14px;background:var(--surface);transition:border-color .12s,box-shadow .12s}
-.ob-choice > *{pointer-events:none}
-.ob-choice:hover{border-color:var(--line-2)}
-.ob-choice[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.ob-choice-top{width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-.ob-choice .ic{width:22px;height:22px;color:var(--accent-ink)}
-.ob-choice b{font-size:14px;color:var(--ink)}
-.ob-choice span{font-size:12.5px;line-height:1.55;color:var(--muted)}
-.ob-tag{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent-ink)}
-/* name */
-.ob-big{height:46px;max-width:360px;font-size:16px;padding:0 14px}
-/* categories and routines */
-.ob-list{width:100%;max-width:600px;display:flex;flex-direction:column;gap:6px}
-.ob-row{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-.ob-row > .inp{flex:1;min-width:0;border-color:transparent;background:none;font-weight:600}
-.ob-row > .inp:hover{border-color:var(--line)}
-.ob-row > .inp:focus{border-color:var(--accent)}
-.ob-cdot{width:20px;height:20px;flex:none;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 22%,transparent)}
-.ob-add{margin-top:-4px}
-.ob-rt{padding-left:10px}
-.ob-rt.on{border-color:color-mix(in srgb,var(--c) 55%,var(--line))}
-.ob-rt-pick{flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:pointer}
-.ob-rt-pick input{width:16px;height:16px;margin:0;flex:none;accent-color:var(--accent);cursor:pointer}
-.ob-rt-pick span{min-width:0;display:flex;flex-direction:column}
-.ob-rt-pick b{font-size:13px;font-weight:600;color:var(--ink)}
-.ob-rt-pick small{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted)}
-.ob-rt-pick .cdot{width:7px;height:7px;border-radius:50%;background:var(--c);flex:none}
-.ob-rt-time{width:100px}
-/* settings pieces reused in setup */
-.ob-set{display:flex;flex-direction:column;gap:9px}
-.ob-flabel{font-size:12px;font-weight:700;color:var(--muted)}
-.ob-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ob-inline .inp-time{width:124px}
-.ob-stack{display:flex;flex-direction:column;gap:10px}
+.obx-note .ic{flex:none;margin-top:2px;color:var(--muted)}
+.obx-keys{width:100%;display:flex;flex-direction:column;gap:8px;text-align:left}
+
+/* a big choice */
+.obx-cards{width:100%;max-width:620px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.obx-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:20px 20px 22px;text-align:left;
+  border:1.5px solid var(--line);border-radius:20px;background:var(--surface);transition:transform .15s,border-color .15s,box-shadow .15s}
+.obx-card > *{pointer-events:none}
+.obx-card:hover{transform:translateY(-3px);border-color:var(--line-2);box-shadow:var(--sh-2)}
+.obx-card.on{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.obx-card-art{width:50px;height:50px;margin-bottom:8px;border-radius:15px;display:grid;place-items:center;background:var(--surface-3);color:var(--ink-2);transition:background .15s,color .15s}
+.obx-card-art .ic{width:25px;height:25px}
+.obx-card.on .obx-card-art{background:var(--accent-soft);color:var(--accent-ink)}
+.obx-card b{font-size:15.5px;color:var(--ink)}
+.obx-card > span:last-child{font-size:12.5px;line-height:1.55;color:var(--muted)}
+.obx-tag{position:absolute;top:22px;right:54px;font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:20px;background:var(--accent-soft);color:var(--accent-ink)}
+.obx-card-tick{position:absolute;top:18px;right:18px;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center}
+.obx-card-tick .ic{width:13px;height:13px;stroke:var(--on-accent);stroke-width:3.2;opacity:0}
+.obx-card:not([aria-pressed]) .obx-card-tick{display:none}
+.obx-card:not([aria-pressed]) .obx-tag{right:18px}
+.obx-card.on .obx-card-tick{background:var(--accent);border-color:var(--accent);animation:obtick .4s cubic-bezier(.3,1.6,.5,1)}
+.obx-card.on .obx-card-tick .ic{opacity:1}
+/* this computer and Drive, with the backup flowing between */
+.obx-sync{display:flex;align-items:flex-start;padding:30px 22px 26px}
+.obx-node{flex:none;width:128px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
+.obx-node .ic{width:56px;height:56px;padding:14px;margin-bottom:8px;border-radius:18px;background:var(--surface-3);color:var(--ink-2)}
+.obx-node b{font-size:13px;color:var(--ink)}
+.obx-node small{font-size:11.5px;line-height:1.4;color:var(--muted)}
+.obx-sync.on .obx-node .ic{background:var(--accent-soft);color:var(--accent-ink)}
+.obx-wire{position:relative;flex:1;height:2px;margin-top:28px;background:repeating-linear-gradient(90deg,var(--line-2) 0 6px,transparent 6px 12px)}
+.obx-wire i{position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--accent);opacity:0}
+.obx-sync.on .obx-wire i{animation:obflow 2.4s linear infinite}
+.obx-sync.on .obx-wire i:nth-child(2){animation-delay:.8s}
+.obx-sync.on .obx-wire i:nth-child(3){animation-delay:1.6s}
+@keyframes obflow{0%{left:0;opacity:0}12%{opacity:1}88%{opacity:1}100%{left:calc(100% - 10px);opacity:0}}
+.obx-found{display:flex;flex-direction:column;gap:18px}
+.obx-found-h{display:flex;align-items:center;gap:12px}
+.obx-found-h > .ic{width:44px;height:44px;padding:10px;border-radius:14px;background:var(--accent-soft);color:var(--accent-ink)}
+.obx-found-h span{display:flex;flex-direction:column}
+.obx-found-h b{font-size:14px;color:var(--ink)}
+.obx-found-h small{font-size:12px;color:var(--muted)}
+.obx-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.obx-stats div{display:flex;flex-direction:column;align-items:center;padding:14px 8px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line)}
+.obx-stats b{font-family:var(--fd);font-size:30px;line-height:1.1;color:var(--ink)}
+.obx-stats span{font-size:12px;color:var(--muted)}
+
+/* your name, written large, and the greeting it makes */
+.obx-big{display:flex;align-items:baseline;gap:14px;width:100%;max-width:540px;padding-bottom:10px;border-bottom:2px solid var(--line-2);cursor:text;transition:border-color .15s}
+.obx-big:focus-within{border-color:var(--accent)}
+.obx-big span,.obx-big input{font-family:var(--fd);font-size:34px;font-weight:600;letter-spacing:-.02em}
+.obx-big span{color:var(--muted)}
+.obx-big input{flex:1;min-width:0;padding:0;border:0;outline:0;background:none;color:var(--ink)}
+.obx-big input::placeholder{color:var(--faint)}
+.obx-hi{display:flex;flex-direction:column;gap:6px;padding:28px}
+.obx-hi-date{margin:0;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-ink)}
+.obx-hi h2{margin:0;font-size:30px;line-height:1.15;letter-spacing:-.02em;color:var(--ink);word-break:break-word}
+.obx-hi-sub{margin:0 0 14px;font-size:13.5px;color:var(--ink-2)}
+.obx-hi-row{display:flex;align-items:center;gap:16px}
+.obx-ring-mini{position:relative;width:54px;height:54px;flex:none;display:grid;place-items:center}
+.obx-ring-mini svg{position:absolute;inset:0}
+.obx-ring-mini circle{fill:none;stroke:var(--line);stroke-width:3.5}
+.obx-ring-mini .arc{stroke:var(--accent);stroke-linecap:round;transform:rotate(-90deg);transform-origin:center}
+.obx-ring-mini b{font-size:12px;color:var(--ink)}
+.obx-strip{position:relative;flex:1;height:12px;border-radius:6px;background:var(--surface-3)}
+.obx-strip i{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--c)}
+.obx-strip em{position:absolute;top:-5px;bottom:-5px;width:2px;border-radius:2px;background:var(--accent)}
+
+/* categories: chips, and the same as planets round you */
+.obx-cats{display:flex;flex-wrap:wrap;gap:9px;width:100%;max-width:620px}
+.obx-cat{position:relative;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 7px 0 9px;border-radius:22px;
+  border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));background:color-mix(in srgb,var(--c) 10%,var(--tint-base));transition:transform .12s,box-shadow .12s}
+.obx-cat:hover{transform:translateY(-1px);box-shadow:var(--sh-1)}
+.obx-cat.open{z-index:6}
+.obx-swatch{width:24px;height:24px;flex:none;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 25%,transparent);transition:transform .12s}
+.obx-swatch:hover,.obx-cat.open .obx-swatch{transform:scale(1.14)}
+.obx-cat-name{min-width:3ch;padding:0 2px;border:0;outline:0;background:none;font:inherit;font-size:13.5px;font-weight:600;color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
+.obx-cat-name:focus{text-decoration:underline;text-underline-offset:4px}
+.obx-x{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.obx-x:hover{background:var(--surface-3);color:var(--ink)}
+.obx-x > *{pointer-events:none}
+.obx-pal{position:absolute;top:calc(100% + 8px);left:0;display:grid;grid-template-columns:repeat(6,24px);gap:9px;padding:11px;
+  border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:obpop .18s ease both}
+.obx-pal button{width:24px;height:24px;border-radius:50%;background:var(--c);transition:transform .12s}
+.obx-pal button:hover{transform:scale(1.15)}
+.obx-pal button.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.obx-cat.obx-cat-add{border:1px dashed var(--line-2);background:none;padding:0 15px 0 12px;font-size:13px;font-weight:600;color:var(--muted)}
+.obx-cat.obx-cat-add:hover{color:var(--ink);border-color:var(--muted)}
+.obx-orbit{position:relative;width:min(440px,100%);aspect-ratio:1}
+.obx-orbit-ring{position:absolute;border:1px dashed var(--line-2);border-radius:50%}
+.obx-orbit-ring.r1{inset:17%}
+.obx-orbit-ring.r2{inset:4%}
+.obx-orbit-ring.turn{animation:obspin 80s linear infinite}
+.obx-orbit-ring.turn.rev{animation-direction:reverse}
+.obx-core{position:absolute;left:50%;top:50%;width:108px;height:108px;transform:translate(-50%,-50%);border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-2);
+  font-size:12.5px;font-weight:600;color:var(--ink)}
+.obx-core .ob-av{width:40px;height:40px;font-size:16px}
+.obx-core span{max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.obx-core.big{width:136px;height:136px;font-size:14px}
+.obx-core.big .ob-av{width:52px;height:52px;font-size:20px}
+.obx-moon{position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;transform:translate(-50%,-50%)}
+.obx.enter .obx-moon{animation:obmoon .55s var(--dl,0ms) cubic-bezier(.3,1.5,.5,1) both}
+@keyframes obmoon{from{opacity:0;transform:translate(-50%,-50%) scale(.3)}to{opacity:1;transform:translate(-50%,-50%)}}
+.obx-moon i{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--c);
+  background:color-mix(in srgb,var(--c) 18%,var(--tint-base));color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
+.obx-moon span{padding:1px 7px;border-radius:7px;background:var(--ground);font-size:11.5px;font-weight:600;white-space:nowrap;color:var(--ink-2)}
+.obx-moon.sat i{border-color:var(--line-2);background:var(--surface);color:var(--muted)}
+.obx-moon.sat.lit i{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+.obx-burst{position:absolute;left:50%;top:50%;width:0;height:0}
+.obx-burst i{position:absolute;width:9px;height:9px;margin:-4.5px;border-radius:50%;background:var(--c);opacity:0}
+.obx.enter .obx-burst i{animation:obburst 1.2s var(--dl) cubic-bezier(.2,.7,.3,1) both}
+@keyframes obburst{0%{opacity:1;transform:translate(0,0) scale(.4)}70%{opacity:1}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(1)}}
+
+/* routines: cards to tap, and the week they fill */
+.obx-rts{width:100%;max-width:660px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.obx-rt{position:relative;display:flex;align-items:center;gap:6px;padding-right:10px;border:1.5px solid var(--line);border-radius:18px;background:var(--surface);transition:transform .15s,border-color .15s,box-shadow .15s}
+.obx-rt:hover{transform:translateY(-2px);box-shadow:var(--sh-2)}
+.obx-rt.on{border-color:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 20%,transparent)}
+.obx-rt-hit{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:10px 4px 10px 12px;cursor:pointer}
+.obx-sr{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.obx-rt-ic{width:34px;height:34px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--surface-3);color:var(--muted);transition:background .15s,color .15s}
+/* Ticking one turns its icon into a tick on its own colour. */
+.obx-rt.on .obx-rt-ic{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));color:var(--on-accent)}
+.obx-rt-ic .obx-rt-ok{display:none;stroke-width:3}
+.obx-rt.on .obx-rt-own{display:none}
+.obx-rt.on .obx-rt-ok{display:block}
+.obx-rt.pop .obx-rt-ic{animation:obtick .4s cubic-bezier(.3,1.6,.5,1)}
+.obx-sr:focus-visible + .obx-rt-ic{outline:2px solid var(--accent);outline-offset:2px}
+.obx-rt-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.obx-rt-txt b{font-size:13.5px;color:var(--ink)}
+.obx-rt-txt small{font-size:11.5px;color:var(--muted)}
+.obx-rt-when{flex:none}
+.obx-rt-time{width:92px}
+.obx-rt-txt b,.obx-rt-txt small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.obx-week{padding:22px 22px 24px}
+.obx-week-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:16px}
+.obx-week-h b{font-family:var(--fd);font-size:17px;color:var(--ink)}
+.obx-week-h span{font-size:12px;color:var(--muted)}
+.obx-week-grid{display:grid;grid-template-columns:minmax(0,1fr) repeat(7,26px);gap:8px 6px;align-items:center}
+.obx-wd{text-align:center;font-size:10.5px;font-weight:700;color:var(--faint)}
+.obx-wk-name{display:flex;align-items:center;gap:7px;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden}
+.obx-wk-name i{width:8px;height:8px;flex:none;border-radius:50%;background:var(--c)}
+.obx-wk-name small{margin-left:auto;padding-left:6px;font-weight:500;color:var(--muted)}
+.obx-cell{width:26px;height:26px;border-radius:8px;background:var(--surface-3)}
+.obx-cell.on{background:var(--c)}
+.obx-cell.pop.on{animation:obcell .45s var(--dl) cubic-bezier(.3,1.6,.5,1) both}
+@keyframes obcell{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+.obx-week-empty{grid-column:1/-1;margin:16px 0 4px;text-align:center;font-size:13px;color:var(--muted)}
+
+/* Google Calendar: the two, and things passing between */
+.obx-cal{display:flex;flex-direction:column;gap:20px}
+.obx-pair{display:flex;align-items:center;justify-content:center}
+.obx-tile{width:66px;height:66px;flex:none;border-radius:20px;display:grid;place-items:center}
+.obx-tile.brand-mark .ic{width:28px;height:28px}
+.obx-tile.gcal{display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--line-2);box-shadow:var(--sh-1)}
+.obx-tile.gcal b{font-family:var(--fd);font-size:25px;line-height:1;color:var(--blue-ink)}
+.obx-tile.gcal small{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.obx-beam{position:relative;width:120px;height:26px}
+.obx-beam i{position:absolute;left:10px;right:10px;height:2px;background:repeating-linear-gradient(90deg,var(--line-2) 0 5px,transparent 5px 10px)}
+.obx-beam i:first-child{top:6px}
+.obx-beam i:last-child{bottom:6px}
+.obx-beam i::after{content:"";position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;opacity:0}
+.obx-cal.on .obx-beam i:first-child::after{background:var(--accent);animation:obflow 2.2s linear infinite}
+.obx-cal.on .obx-beam i:last-child::after{background:var(--blue);animation:obflow 2.2s 1.1s linear infinite reverse}
+.obx-flows{display:flex;flex-direction:column;gap:8px}
+.obx-flow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) var(--ev-fill),var(--tint-base))}
+.obx-flow i{display:none}
+.obx-flow b{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink)}
+.obx-flow small{font-size:11.5px;color:var(--ink-2)}
+.obx-flow em{display:grid;color:var(--muted)}
+.obx.enter .obx-flow{animation:obup .5s cubic-bezier(.2,.7,.3,1) both}
+.obx.enter .obx-flow:nth-child(2){animation-delay:.15s}
+.obx.enter .obx-flow:nth-child(3){animation-delay:.3s}
+
+/* Obsidian: the documents, and the vault they go to */
+.obx-vault{display:flex;flex-direction:column;align-items:center;gap:22px;padding:30px 22px 24px}
+.obx-docs{position:relative;width:300px;height:150px}
+.obx-doc:nth-child(2){z-index:2}
+.obx-doc{position:absolute;left:50%;top:0;width:168px;padding:14px;display:flex;flex-direction:column;gap:7px;border-radius:13px;
+  background:var(--surface-2);border:1px solid var(--line);box-shadow:var(--sh-2);
+  transform:translateX(-50%) translateX(calc((var(--k) - 1) * 72px)) translateY(calc(var(--k) * var(--k) * 4px - 8px * var(--k) + 8px)) rotate(calc((var(--k) - 1) * 9deg));transition:transform .35s cubic-bezier(.2,.7,.3,1)}
+.obx-vault:hover .obx-doc{transform:translateX(-50%) translateX(calc((var(--k) - 1) * 86px)) rotate(calc((var(--k) - 1) * 12deg))}
+.obx-doc b{font-size:12px;color:var(--ink)}
+.obx-doc i{display:block;height:5px;border-radius:3px;background:var(--surface-3)}
+.obx-doc i.short{width:60%}
+.obx-doc small{font-size:10.5px;color:var(--muted)}
+.obx-folder{display:flex;align-items:center;gap:11px;padding:10px 16px 10px 12px;border-radius:15px;background:var(--surface-2);border:1px solid var(--line)}
+.obx-folder > .ic{width:28px;height:28px;color:var(--apricot)}
+.obx-folder span{display:flex;flex-direction:column}
+.obx-folder b{font-size:13px;color:var(--ink)}
+.obx-folder small{font-size:11.5px;color:var(--muted)}
+
+/* appearance: three pictures, and the app itself in miniature */
+.obx-themes{width:100%;max-width:540px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.obx-theme{display:flex;flex-direction:column;gap:9px;padding:8px 8px 11px;text-align:left;border-radius:18px;border:1.5px solid var(--line);background:var(--surface);transition:transform .15s,border-color .15s,box-shadow .15s}
+.obx-theme > *{pointer-events:none}
+.obx-theme:hover{transform:translateY(-2px)}
+.obx-theme.on{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.obx-theme b{padding:0 4px;font-size:13px;color:var(--ink)}
+.obx-thumb{position:relative;height:78px;border-radius:11px;overflow:hidden;background:var(--thumb-l-bg);border:1px solid var(--thumb-l-line)}
+.obx-thumb.dark{background:var(--thumb-d-bg);border-color:var(--thumb-d-line)}
+.obx-thumb.system{background:linear-gradient(115deg,var(--thumb-l-bg) 50%,var(--thumb-d-bg) 50%)}
+.obx-thumb i{position:absolute;border-radius:5px;background:var(--thumb-l-card);border:1px solid var(--thumb-l-line)}
+.obx-thumb.dark i{background:var(--thumb-d-card);border-color:var(--thumb-d-line)}
+.obx-thumb i:nth-child(1){left:8px;top:8px;bottom:8px;width:18px}
+.obx-thumb i:nth-child(2){left:32px;right:8px;top:8px;height:24px}
+.obx-thumb i:nth-child(3){left:32px;width:40%;top:39px;height:14px;border-color:transparent;background:var(--accent)}
+.obx-thumb.system i:nth-child(2){background:var(--thumb-d-card);border-color:var(--thumb-d-line)}
+.obx-set{display:flex;flex-direction:column;gap:10px}
+.obx-flabel{font-size:12px;font-weight:700;color:var(--muted)}
+.obx-app{width:min(460px,100%);height:310px;display:grid;grid-template-columns:120px minmax(0,1fr);border-radius:20px;overflow:hidden;
+  border:1px solid var(--line);box-shadow:var(--sh-3);background:var(--canvas)}
+.obx-app-rail{display:flex;flex-direction:column;gap:3px;padding:14px 9px;background:var(--surface);border-right:1px solid var(--line)}
+.obx-app-rail .brand-mark{width:26px;height:26px;margin:0 0 10px 5px;border-radius:9px}
+.obx-app-rail i{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:8px;font-style:normal;font-size:11px;font-weight:600;color:var(--muted)}
+.obx-app-rail i em{width:10px;height:10px;flex:none;border-radius:3px;background:var(--line-2)}
+.obx-app-rail i.on{background:var(--accent-soft);color:var(--accent-ink)}
+.obx-app-rail i.on em{background:var(--accent)}
+.obx-app-main{display:flex;flex-direction:column;gap:10px;padding:16px;min-width:0}
+.obx-app-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.obx-app-top b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--fd);font-size:15px;color:var(--ink)}
+.obx-app-btn{display:inline-flex;align-items:center;gap:4px;flex:none;padding:5px 10px;border-radius:9px;background:var(--accent);color:var(--on-accent);font-size:11px;font-weight:700}
+.obx-app-btn .ic{width:11px;height:11px}
+.obx-mcard{display:flex;flex-direction:column;gap:7px;padding:10px 11px;border-radius:11px;background:var(--surface);border:1px solid var(--line)}
+.obx-mpill{align-self:flex-start;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;
+  background:color-mix(in srgb,var(--c) 14%,var(--tint-base));color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
+.obx-mline{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink)}
+.obx-mtick{width:14px;height:14px;flex:none;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center}
+.obx-mtick .ic{width:8px;height:8px;stroke:var(--on-accent);stroke-width:3.4}
+.obx-mcard.done .obx-mtick{background:var(--accent);border-color:var(--accent)}
+.obx-mcard.done .obx-mline{text-decoration:line-through;color:var(--muted)}
+.obx-app-row{margin-top:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.obx-app-switch{position:relative;width:28px;height:16px;border-radius:10px;background:var(--accent)}
+.obx-app-switch::after{content:"";position:absolute;top:2px;right:2px;width:12px;height:12px;border-radius:50%;background:var(--on-accent)}
+.obx-app-chip{margin-left:auto;padding:2px 9px;border-radius:10px;background:var(--accent-soft);color:var(--accent-ink);font-size:10.5px}
+
+/* notifications: each as a row, then a reminder as it arrives and the day as a clock */
+.obx-opts{width:100%;max-width:580px;display:flex;flex-direction:column;gap:10px}
+.obx-opt{display:flex;gap:14px;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line)}
+.obx-opt-ic{width:34px;height:34px;flex:none;border-radius:11px;display:grid;place-items:center;background:var(--surface-3);color:var(--ink-2)}
+.obx-opt > div{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.obx-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.obx-inline .inp-time{width:120px}
+.obx-toast{display:flex;align-items:center;gap:12px;width:min(340px,100%);padding:12px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:obtoast 5.5s ease-in-out infinite}
+.obx-toast .brand-mark{width:36px;height:36px;flex:none;border-radius:12px}
+.obx-toast div{display:flex;flex-direction:column;min-width:0}
+.obx-toast b{font-size:13px;color:var(--ink)}
+.obx-toast small{font-size:12px;color:var(--muted)}
+.obx-toast.off{animation:none}
+@keyframes obtoast{0%{opacity:0;transform:translateY(-14px)}9%,82%{opacity:1;transform:none}94%,100%{opacity:0;transform:translateY(-6px)}}
+.obx-clock{display:flex;flex-direction:column;align-items:center;gap:12px}
+.obx-clock svg{width:236px;height:236px;overflow:visible}
+.obx-clock .rim{fill:var(--surface);stroke:var(--line);stroke-width:15}
+.obx-clock .quiet{fill:none;stroke:color-mix(in srgb,var(--blue) 60%,var(--surface));stroke-width:15}
+.obx-clock .ticks line{stroke:var(--line-2);stroke-width:1.5}
+.obx-clock .hand{stroke:var(--ink-2);stroke-width:2.5;stroke-linecap:round}
+.obx-clock .hub{fill:var(--ink-2)}
+.obx-clock .mark{fill:var(--danger);stroke:var(--surface);stroke-width:3}
+.obx-clock text{font-size:9.5px;font-weight:700;fill:var(--muted);text-anchor:middle}
+.obx-clock-key{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;font-size:12px;color:var(--ink-2)}
+.obx-clock-key span{display:flex;align-items:center;gap:6px}
+.obx-clock-key i{width:10px;height:10px;border-radius:3px}
+.obx-clock-key .k-quiet{background:color-mix(in srgb,var(--blue) 60%,var(--surface))}
+.obx-clock-key .k-none{background:var(--surface-3)}
+.obx-clock-key .k-mark{border-radius:50%;background:var(--danger)}
+
 /* all set */
-.ob-sum{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:var(--muted)}
-.ob-sum li{display:flex;align-items:center;gap:10px}
-.ob-sum li .ic{width:22px;height:22px;padding:4px;flex:none;border-radius:50%;background:var(--surface-3);color:var(--muted);stroke-width:2.6}
-.ob-sum li.ok{color:var(--ink-2)}
-.ob-sum li.ok .ic{background:var(--accent);color:var(--on-accent)}
-.ob-sum b{color:var(--ink)}
+.obx-sums{width:100%;max-width:620px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.obx-sum{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.obx-sum-ic{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--surface-3);color:var(--muted)}
+.obx-sum.ok .obx-sum-ic{background:var(--accent);color:var(--on-accent)}
+.obx-sum > span:last-child{min-width:0;display:flex;flex-direction:column}
+.obx-sum b{font-size:13px;color:var(--ink)}
+.obx-sum small{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.obx.enter .obx-sum{animation:obup .5s cubic-bezier(.2,.7,.3,1) both}
+.obx.enter .obx-sum:nth-child(2){animation-delay:.08s}
+.obx.enter .obx-sum:nth-child(3){animation-delay:.16s}
+.obx.enter .obx-sum:nth-child(4){animation-delay:.24s}
+.obx.enter .obx-sum:nth-child(5){animation-delay:.32s}
+
 /* Settings ▸ Account */
 .acct{display:flex;align-items:center;gap:12px;min-width:0}
 .acct-who{flex:1;min-width:0;display:flex;flex-direction:column;font-size:12px;color:var(--muted)}
+.acct b{color:var(--ink);font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .set-err-inline{color:var(--danger-ink)}
-@media (max-width:760px){
-  .ob-card{grid-template-columns:minmax(0,1fr);min-height:0}
-  .ob-side{flex-direction:row;align-items:center;justify-content:space-between;border-right:0;border-bottom:1px solid var(--line);padding:14px 18px}
-  .ob-steps,.ob-who{display:none}
-  .ob-progress{display:block}
-  .ob-body{padding:28px 22px 22px}
-  .ob-foot{padding:14px 22px 18px}
-  .ob-choices{grid-template-columns:minmax(0,1fr)}
-  .ob-hero{padding:32px 22px 26px}
+
+@media (max-width:1000px){
+  .obx-stage{grid-template-columns:minmax(0,1fr);padding:8px 28px}
+  .obx-show{display:none}
+  .obx-top{grid-template-columns:auto minmax(0,1fr) auto;padding:18px 28px 8px}
+  .obx-foot{padding:14px 28px 22px}
+}
+@media (max-width:640px){
+  .obx-top{grid-template-columns:minmax(0,1fr) auto;gap:14px 12px}
+  .obx-track{grid-column:1/-1;grid-row:2;margin:0 12px 10px}
+  .obx-stage{padding:4px 20px}
+  .obx-foot{padding:12px 20px 18px}
+  .obx-cards,.obx-rts,.obx-sums{grid-template-columns:minmax(0,1fr)}
+  .obx-hint,.obx-float{display:none}
+  .obx-q h1{font-size:28px}
+  .obx-big span,.obx-big input{font-size:24px}
+  .obx-hero{padding:32px 22px 26px}
+  .obx-hero h1{font-size:28px}
+}
+@media (prefers-reduced-motion:reduce){
+  #obRoot *,#obRoot *::after{animation:none!important;transition:none!important}
 }
 .linkish{color:var(--accent-ink);font-weight:600;text-decoration:underline;text-underline-offset:2px;font-size:11.5px}
 .rte{flex:1;overflow-y:auto;padding:18px 20px 30px;outline:0;font-size:14px;line-height:1.65;max-width:none}
