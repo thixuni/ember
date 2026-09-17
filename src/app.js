@@ -2631,6 +2631,7 @@ function addAction(nid){
 
 /* ============ events ============ */
 document.addEventListener("click",function(e){
+  if(docOpen()&&richTick(e))return;
   let t=e.target;
   if(t&&t.nodeType===3)t=t.parentNode;
   while(t&&!t.closest)t=t.parentNode||t.host;
@@ -2712,9 +2713,10 @@ document.addEventListener("click",function(e){
     case "doc-open":docModal(id);break;
     case "doc-save":docSave();break;
     case "doc-tool":docTool(n.dataset.v);break;
-    case "doc-view":docView(n.dataset.v);break;
+    case "doc-src":docSrc();break;
+    case "doc-url-ok":richAskDone(true);break;
+    case "doc-url-cancel":richAskDone(false);break;
     case "doc-full":docFull();break;
-    case "doc-check":docCheck(+n.dataset.line);break;
     case "doc-discard":DE.dirty=false;closeModal();break;
     case "doc-keep":{const f=el("dcFoot");if(f)f.innerHTML=docFootHtml();docCount();const ta=el("dcMd");if(ta)ta.focus();break;}
     case "doc-del":if(arm(n,"Delete for good?")){deleteDoc(id);DE.dirty=false;closeModal();renderSheet();renderView();toast("Document deleted");}break;
@@ -2855,11 +2857,14 @@ document.addEventListener("click",function(e){
 });
 document.addEventListener("mousedown",function(e){
   const t=e.target;if(!t||!t.closest)return;
+  if(docOpen()&&richTick(e))return;
+  if(t.closest('[data-act="doc-tool"]')){richKeep();e.preventDefault();return;}
   const b=t.closest('[data-act="rte"],[data-act="rte-link"],[data-act="scratch-task"],[data-act="scratch-note"]');
   if(b){saveSel();e.preventDefault();}
 });
 document.addEventListener("selectionchange",function(){
   const a=document.activeElement;if(a&&(a.id==="rte"||a.id==="scratchPad"))saveSel();
+  if(a&&a.id==="dcRich")richKeep();
 });
 document.addEventListener("input",function(e){
   const t=e.target;
@@ -2897,7 +2902,10 @@ document.addEventListener("input",function(e){
   if(e.target&&(e.target.id==="dcMd"||e.target.id==="dcTitle")){
     if(e.target.id==="dcMd")docChanged();else DE.dirty=true;
   }
+  if(e.target&&e.target.id==="dcRich"){richAuto(e);docChanged();
+  }
 });
+document.addEventListener("paste",function(e){if(docOpen()&&!DE.src&&(e.target.id==="dcRich"||richIn(e.target)))richPaste(e);});
 document.addEventListener("keydown",function(e){
   if(docOpen()&&docKeys(e))return;
   if(e.key==="Escape"&&el("modalRoot").innerHTML){if(docMayClose())closeModal();return;}
@@ -3207,7 +3215,8 @@ const docById=id=>S.docs.find(d=>d.id===id);
    indent), task boxes, tables, rules, links, images and Obsidian's
    [[links]]. Everything is escaped before any markup is added, and only
    http(s), mailto and inline images are ever turned into addresses.
-   live: task boxes are buttons that tick the line they came from. */
+   mode "edit": for the editor's page -- headings at their own level, and
+   checklist items marked by class, their boxes drawn by the stylesheet. */
 function mdInline(s){
   const keep=[],hold=h=>"\u0000"+(keep.push(h)-1)+"\u0000";
   let t=esc(s);
@@ -3226,7 +3235,8 @@ function mdInline(s){
 }
 const MD_RULE=/^\s*([-*_])(\s*\1){2,}\s*$/;
 const MD_BLOCK=/^\s*(#{1,6}\s|>|[-*+]\s|\d+[.)]\s|```|~~~|\|)/;
-function mdToHtml(md,live){
+function mdToHtml(md,mode){
+  const edit=mode==="edit";
   const L=String(md||"").split(/\r?\n/),out=[];
   let list=null;
   const shut=()=>{if(list){out.push("</"+list+">");list=null;}};
@@ -3242,7 +3252,7 @@ function mdToHtml(md,live){
     }
     if(!l.trim()){shut();continue;}
     if(MD_RULE.test(l)){shut();out.push("<hr>");continue;}
-    if((m=l.match(/^(#{1,6})\s+(.*?)\s*#*$/))){shut();const n=Math.min(m[1].length+1,6);out.push("<h"+n+">"+mdInline(m[2])+"</h"+n+">");continue;}
+    if((m=l.match(/^(#{1,6})\s+(.*?)\s*#*$/))){shut();const n=edit?m[1].length:Math.min(m[1].length+1,6);out.push("<h"+n+">"+mdInline(m[2])+"</h"+n+">");continue;}
     if(/^\s*\|/.test(l)&&i+1<L.length&&/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(L[i+1])){
       shut();
       const head=cells(l),al=cells(L[i+1]).map(c=>/^:-+:$/.test(c)?"center":/-:$/.test(c)?"right":"");
@@ -3260,8 +3270,7 @@ function mdToHtml(md,live){
     if((m=l.match(/^(\s*)[-*+]\s+\[([ xX])\]\s*(.*)$/))){
       open("ul");const on=m[2]!==" ",cls="md-box"+(on?" on":"");
       out.push('<li class="md-task'+(on?" done":"")+'"'+lvl(m[1])+">"+
-        (live?'<button class="'+cls+'" data-act="doc-check" data-line="'+i+'" aria-label="'+(on?"Untick":"Tick")+'"></button>':'<span class="'+cls+'"></span>')+
-        "<span>"+mdInline(m[3])+"</span></li>");
+        (edit?mdInline(m[3]):'<span class="'+cls+'"></span><span>'+mdInline(m[3])+"</span>")+"</li>");
       continue;
     }
     if((m=l.match(/^(\s*)[-*+]\s+(.*)$/))){open("ul");out.push("<li"+lvl(m[1])+">"+mdInline(m[2])+"</li>");continue;}
@@ -3993,14 +4002,15 @@ function renderSheet(){
 }
 
 /* ---- document editor ----
-   Markdown underneath, because that is what goes to the vault, but nobody
-   has to know it: the toolbar and the usual shortcuts write it, lists carry
-   on when Enter is pressed, and the preview beside it (or instead of it)
-   shows the result, with task boxes that tick. Edits go through
-   insertText, so Ctrl+Z undoes a toolbar click like any typing. Nothing is
-   required -- no title, no text -- and closing with changes asks first
-   rather than throwing them away. */
-const DE={id:null,task:null,dirty:false,full:false};
+   One page that looks like the document as it is written -- headings as
+   headings, lists as lists, ticks you can tick -- the way Google Docs or
+   Notion work. Underneath it is still Markdown, because that is what goes
+   to the vault: htmlToMd() turns the page into it on save and mdToHtml(md,
+   "edit") turns it back into the page. The Markdown toggle shows the text
+   itself for anyone who would rather write it. Nothing is required -- no
+   title, no text -- and closing with changes asks first rather than
+   throwing them away. */
+const DE={id:null,task:null,dirty:false,full:false,src:false,range:null,hist:[],redo:[]};
 const DE_TOOLS=[
   [["h1","H1","Heading 1  (Ctrl+Alt+1)"],["h2","H2","Heading 2  (Ctrl+Alt+2)"],["h3","H3","Heading 3  (Ctrl+Alt+3)"]],
   [["bold","B","Bold  (Ctrl+B)"],["italic","I","Italic  (Ctrl+I)"],["strike","S","Strikethrough  (Ctrl+Shift+X)"],
@@ -4011,9 +4021,6 @@ const DE_TOOLS=[
    ["codeblock","i-codeblock","Code block"],["hr","i-hr","Divider"]],
   [["undo","i-undo","Undo  (Ctrl+Z)"],["redo","i-redo","Redo  (Ctrl+Y)"]]];
 const docOpen=()=>!!el("dcMd");
-function docPrevHtml(md){
-  return String(md||"").trim()?mdToHtml(md,true):'<p class="doc-empty">Your formatted document shows here.</p>';
-}
 function docFootHtml(){
   return '<span class="doc-count" id="dcCount"></span>'+
     (vaultPath()?'<span class="doc-sync">'+icon("i-folder","ic-14")+'Syncs to Obsidian</span>':"")+
@@ -4022,46 +4029,47 @@ function docFootHtml(){
     '<button class="btn btn-primary" data-act="doc-save">'+icon("i-check")+'Save</button>';
 }
 function docModal(id,taskId){
-  const d=id?docById(id):null,view=V.docView||"split";
-  Object.assign(DE,{id:d?d.id:null,task:taskId||(d?d.task:null),dirty:false});
+  const d=id?docById(id):null,md=d?d.md:"";
+  Object.assign(DE,{id:d?d.id:null,task:taskId||(d?d.task:null),dirty:false,src:!!V.docSrc,range:null,hist:[],redo:[]});
   const tools=DE_TOOLS.map(g=>'<div class="dt-group">'+g.map(t=>
     '<button class="dt-btn" data-act="doc-tool" data-v="'+t[0]+'" title="'+esc(t[2])+'" aria-label="'+esc(t[2].split("  ")[0])+'">'+
       (t[1].indexOf("i-")===0?icon(t[1]):'<span class="dt-'+t[0]+'">'+t[1]+'</span>')+'</button>').join("")+'</div>').join("");
-  openModal('<div class="modal doc-modal'+(DE.full?" doc-full":"")+(view==="preview"?" doc-reading":"")+'" role="dialog" aria-modal="true" aria-label="Document">'+
+  const full=DE.full?"Exit full screen":"Full screen";
+  openModal('<div class="modal doc-modal'+(DE.full?" doc-full":"")+'" role="dialog" aria-modal="true" aria-label="Document">'+
     '<div class="doc-head">'+
       '<span class="doc-ic">'+icon("i-doc")+'</span>'+
       '<input class="doc-title" id="dcTitle" value="'+esc(d?d.title:"")+'" placeholder="Untitled document" aria-label="Title" autocomplete="off" spellcheck="true">'+
-      '<div class="seg doc-views" role="group" aria-label="View">'+[["write","Write"],["split","Split"],["preview","Preview"]].map(x=>
-        '<button data-act="doc-view" data-v="'+x[0]+'" aria-pressed="'+(view===x[0])+'">'+x[1]+'</button>').join("")+'</div>'+
-      '<button class="icon-btn" data-act="doc-full" aria-label="'+(DE.full?"Exit full screen":"Full screen")+'" title="'+(DE.full?"Exit full screen":"Full screen")+'">'+icon(DE.full?"i-shrink":"i-expand")+'</button>'+
+      '<button class="doc-srcbtn" data-act="doc-src" aria-pressed="'+DE.src+'" title="Edit the Markdown behind the document">'+icon("i-code","ic-14")+'Markdown</button>'+
+      '<button class="icon-btn" data-act="doc-full" aria-label="'+full+'" title="'+full+'">'+icon(DE.full?"i-shrink":"i-expand")+'</button>'+
       (d?'<button class="icon-btn" data-act="doc-del" data-id="'+d.id+'" aria-label="Delete document" title="Delete document">'+icon("i-trash")+'</button>':"")+
       '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button>'+
     '</div>'+
-    '<div class="doc-tools" role="toolbar" aria-label="Formatting">'+tools+'</div>'+
-    '<div class="doc-split v-'+view+'" id="dcSplit">'+
-      '<textarea class="doc-md" id="dcMd" spellcheck="true" aria-label="Document" placeholder="Start writing…">'+esc(d?d.md:"")+'</textarea>'+
-      '<div class="doc-prev" id="dcPrev">'+docPrevHtml(d?d.md:"")+'</div>'+
+    '<div class="doc-tools" id="dcTools" role="toolbar" aria-label="Formatting">'+tools+'</div>'+
+    '<div class="doc-body'+(DE.src?" src":"")+'" id="dcBody">'+
+      '<div class="doc-page"><div class="doc-rich" id="dcRich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Document" spellcheck="true" data-ph="Start writing, or type # for a heading and - for a list">'+
+        (mdToHtml(md,"edit")||"<p><br></p>")+'</div></div>'+
+      '<textarea class="doc-md" id="dcMd" spellcheck="true" aria-label="Markdown" placeholder="Start writing…">'+esc(md)+'</textarea>'+
     '</div>'+
     '<div class="doc-foot" id="dcFoot">'+docFootHtml()+'</div>'+
   '</div>');
-  docCount();
-  const f=view==="preview"?null:d?el("dcMd"):el("dcTitle");
-  if(f){f.focus();if(f.id==="dcMd")f.setSelectionRange(0,0);}
+  try{document.execCommand("defaultParagraphSeparator",false,"p");}catch(e){}
+  richMerge(el("dcRich"));richTidy();docCount();
+  if(!d)el("dcTitle").focus();
+  else if(DE.src){const ta=el("dcMd");ta.focus();ta.setSelectionRange(0,0);}
+  else{const r=el("dcRich");r.focus();const s=getSelection(),rg=document.createRange();rg.setStart(r,0);rg.collapse(true);s.removeAllRanges();s.addRange(rg);}
 }
+/* The document as Markdown, whichever way it is being edited. */
+const docText=()=>DE.src?el("dcMd").value:htmlToMd(el("dcRich"));
 function docCount(){
-  const ta=el("dcMd"),c=el("dcCount");if(!ta||!c)return;
-  const w=(ta.value.replace(/[#>*_~=`|[\]()-]/g," ").match(/\S+/g)||[]).length;
+  const c=el("dcCount");if(!c)return;
+  const txt=DE.src?el("dcMd").value.replace(/[#>*_~=`|[\]()-]/g," "):el("dcRich").innerText;
+  const w=(txt.match(/\S+/g)||[]).length;
   c.textContent=w?w+" word"+(w===1?"":"s")+" · "+Math.max(1,Math.round(w/220))+" min read":"No words yet";
 }
-function docChanged(){
-  DE.dirty=true;
-  const ta=el("dcMd"),p=el("dcPrev");
-  if(ta&&p){const k=p.scrollTop;p.innerHTML=docPrevHtml(ta.value);p.scrollTop=k;}
-  docCount();
-}
+function docChanged(){DE.dirty=true;if(!DE.src)richTidy();docCount();}
 function docSave(){
-  const t=el("dcTitle"),ta=el("dcMd");if(!ta)return;
-  saveDoc(DE.id||null,DE.task||null,((t&&t.value)||"").trim()||"Untitled",ta.value);
+  const t=el("dcTitle");if(!docOpen())return;
+  saveDoc(DE.id||null,DE.task||null,((t&&t.value)||"").trim()||"Untitled",docText());
   DE.dirty=false;closeModal();renderSheet();renderView();toast("Document saved");
 }
 /* Anything that would close the editor asks here first. */
@@ -4075,18 +4083,475 @@ function docMayClose(){
   const k=f&&f.querySelector('[data-act="doc-keep"]');if(k)k.focus();
   return false;
 }
-function docView(v){
-  V.docView=v;
-  const sp=el("dcSplit");if(sp)sp.className="doc-split v-"+v;
-  document.querySelectorAll('[data-act="doc-view"]').forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===v)));
-  const m=document.querySelector(".doc-modal");if(m)m.classList.toggle("doc-reading",v==="preview");
-  if(v!=="preview"){const ta=el("dcMd");if(ta)ta.focus();}
+/* The page and the Markdown are two views of one text: switching carries it
+   across. */
+function docSrc(){
+  const r=el("dcRich"),ta=el("dcMd"),b=el("dcBody");if(!r||!ta)return;
+  richAskDone(false);
+  if(DE.src){r.innerHTML=mdToHtml(ta.value,"edit")||"<p><br></p>";richMerge(r);DE.hist=[];DE.redo=[];}
+  else ta.value=htmlToMd(r);
+  DE.src=!DE.src;V.docSrc=DE.src;
+  b.classList.toggle("src",DE.src);
+  const t=document.querySelector('[data-act="doc-src"]');if(t)t.setAttribute("aria-pressed",String(DE.src));
+  richTidy();docCount();
+  if(DE.src){ta.focus();ta.setSelectionRange(0,0);ta.scrollTop=0;}else r.focus();
 }
 function docFull(){
   DE.full=!DE.full;
   const m=document.querySelector(".doc-modal"),b=m&&m.querySelector('[data-act="doc-full"]');
   if(m)m.classList.toggle("doc-full",DE.full);
   if(b){const l=DE.full?"Exit full screen":"Full screen";b.innerHTML=icon(DE.full?"i-shrink":"i-expand");b.title=l;b.setAttribute("aria-label",l);}
+}
+
+/* ---- the page ---- */
+const RICH_BLOCK="h1,h2,h3,h4,h5,h6,p,blockquote,pre,li,div";
+function richIn(n){const r=el("dcRich");return !!(r&&n&&r.contains(n));}
+function richAt(sel){
+  const s=getSelection();let n=s.rangeCount?s.anchorNode:null;
+  if(n&&n.nodeType===3)n=n.parentNode;
+  const hit=n&&n.closest?n.closest(sel):null;
+  return hit&&richIn(hit)&&hit.id!=="dcRich"?hit:null;
+}
+/* Put the caret back where it was before a toolbar click or the link bar. */
+function richFocus(){
+  const r=el("dcRich"),s=getSelection();
+  if(s.rangeCount&&richIn(s.anchorNode)&&document.activeElement===r)return;
+  r.focus();
+  if(DE.range&&richIn(DE.range.startContainer)){s.removeAllRanges();s.addRange(DE.range);}
+}
+function richKeep(){const s=getSelection();if(s.rangeCount&&richIn(s.anchorNode))DE.range=s.getRangeAt(0).cloneRange();}
+function richTidy(){
+  const r=el("dcRich");if(!r)return;
+  if(!r.firstChild)r.innerHTML="<p><br></p>";
+  r.classList.toggle("is-empty",!r.textContent.trim()&&!r.querySelector("img,hr,table,li"));
+  r.querySelectorAll("li:not(.md-task).done").forEach(li=>li.classList.remove("done"));
+}
+/* Highlight and inline code have no command of their own: wrap the
+   selection with insertHTML, which keeps Ctrl+Z working, or unwrap. */
+function richWrap(tag,ph){
+  const hit=richAt(tag),s=getSelection();
+  if(hit){const rg=document.createRange();rg.selectNode(hit);s.removeAllRanges();s.addRange(rg);
+    document.execCommand("insertHTML",false,hit.innerHTML||"&#8203;");return;}
+  if(!s.rangeCount)return;
+  const box=document.createElement("div");box.appendChild(s.getRangeAt(0).cloneContents());
+  const inner=tag==="code"?esc(box.textContent||ph):(box.innerHTML||esc(ph));
+  document.execCommand("insertHTML",false,"<"+tag+">"+inner+"</"+tag+">&#8203;");
+}
+/* ---- lines: headings, quotes, code, lists ----
+   The browser's own list and block commands nest lists inside paragraphs
+   and cannot turn a list back into text, so the page does these itself:
+   the lines the selection touches are rebuilt as the chosen kind, or back
+   into paragraphs if they already are it. The caret rides along on two
+   marker spans. Each change is kept, so Undo can take it back. */
+const RICH_KIND={H1:"h1",H2:"h2",H3:"h3",H4:"h4",H5:"h5",H6:"h6",BLOCKQUOTE:"quote",PRE:"pre"};
+const RICH_TAG={p:"P",h1:"H1",h2:"H2",h3:"H3",quote:"BLOCKQUOTE",pre:"PRE"};
+const isList=n=>!!n&&(n.tagName==="UL"||n.tagName==="OL");
+function richKind(n){
+  if(n.tagName==="LI")return n.parentNode.tagName==="OL"?"ol":n.classList.contains("md-task")?"task":"ul";
+  return RICH_KIND[n.tagName]||"p";
+}
+/* Change the page with the caret kept and the change remembered. */
+function richMutate(fn){
+  const r=el("dcRich"),s=getSelection();
+  if(!r||!s.rangeCount||!(richIn(s.anchorNode)||s.anchorNode===r))return false;
+  const before=r.innerHTML,rg=s.getRangeAt(0);
+  const mk=t=>{const m=document.createElement("span");m.setAttribute("data-caret",t);return m;};
+  const e=rg.cloneRange();e.collapse(false);e.insertNode(mk("e"));
+  const b=rg.cloneRange();b.collapse(true);b.insertNode(mk("s"));
+  const sm=r.querySelector('[data-caret="s"]'),em=r.querySelector('[data-caret="e"]');
+  /* A caret between lines rather than in one belongs to the line before. */
+  [sm,em].forEach(m=>{
+    if(m.parentNode!==r)return;
+    let host=m.previousElementSibling;
+    while(host&&host.hasAttribute("data-caret"))host=host.previousElementSibling;
+    if(!host||/^(TABLE|HR|UL|OL)$/.test(host.tagName)){host=document.createElement("p");r.insertBefore(host,m);}
+    const last=host.lastChild;
+    if(last&&last.nodeName==="BR")host.insertBefore(m,last);else host.appendChild(m);
+  });
+  const span=document.createRange();span.setStartBefore(sm);span.setEndAfter(em);
+  const changed=fn(r,span)!==false;
+  const put=m=>{const p=m.parentNode,i=[...p.childNodes].indexOf(m);m.remove();return [p,i];};
+  const a1=put(sm),a2=put(em);
+  if(!changed){r.innerHTML=before;richFocus();return false;}
+  const nr=document.createRange();
+  try{nr.setStart(a1[0],a1[1]);nr.setEnd(a2[0],a2[1]);}catch(x){nr.selectNodeContents(r);nr.collapse(false);}
+  s.removeAllRanges();s.addRange(nr);
+  DE.hist.push({before:before,after:r.innerHTML});DE.redo=[];
+  if(DE.hist.length>80)DE.hist.shift();
+  docChanged();
+  return true;
+}
+/* The lines a range touches: top-level blocks, and list items whose own
+   text (not only their sub-list) is touched. */
+function richLines(r,span){
+  const out=[];
+  const walkList=L=>[...L.children].forEach(li=>{
+    if(li.tagName!=="LI"||!span.intersectsNode(li))return;
+    const own=[...li.childNodes].filter(c=>!isList(c));
+    if(!own.length||own.some(c=>span.intersectsNode(c)))out.push(li);
+    [...li.children].filter(isList).forEach(walkList);
+  });
+  [...r.children].forEach(b=>{
+    if(!span.intersectsNode(b))return;
+    if(isList(b))walkList(b);
+    else if(!/^(TABLE|HR)$/.test(b.tagName)&&!b.classList.contains("md-table")&&!b.hasAttribute("data-caret"))out.push(b);
+  });
+  return out;
+}
+/* What a line says, lifted out: its inline content, without sub-lists. */
+function richInner(n){
+  const f=document.createDocumentFragment();
+  let src=n;
+  if(n.tagName==="PRE"&&n.firstElementChild&&n.firstElementChild.tagName==="CODE"&&n.childNodes.length===1)src=n.firstElementChild;
+  const blocks=[...src.childNodes].filter(c=>c.nodeType===1&&/^(P|DIV|H[1-6])$/.test(c.tagName));
+  [...src.childNodes].forEach(c=>{
+    if(isList(c))return;
+    if(blocks.indexOf(c)>-1){
+      if(f.childNodes.length)f.appendChild(document.createElement("br"));
+      while(c.firstChild)f.appendChild(c.firstChild);
+      return;
+    }
+    f.appendChild(c);
+  });
+  if(n.tagName==="PRE")[...f.childNodes].forEach(c=>{
+    if(c.nodeType!==3||c.nodeValue.indexOf("\n")<0)return;
+    c.nodeValue.replace(/\n$/,"").split("\n").forEach((part,i)=>{
+      if(i)f.insertBefore(document.createElement("br"),c);
+      f.insertBefore(document.createTextNode(part),c);
+    });
+    c.remove();
+  });
+  return f;
+}
+/* Nothing written in it; bare: not even a line break to give it height. */
+const richEmpty=b=>!b.textContent.replace(/\u200b/g,"")&&!b.querySelector("img");
+const richBare=b=>richEmpty(b)&&!b.querySelector("br");
+function richBuild(lines,to){
+  const out=[];let list=null;
+  lines.forEach(n=>{
+    const subs=n.tagName==="LI"?[...n.children].filter(isList):[];
+    const inner=richInner(n);
+    if(to==="ul"||to==="ol"||to==="task"){
+      const tag=to==="ol"?"OL":"UL";
+      if(!list||list.tagName!==tag){list=document.createElement(tag);out.push(list);}
+      const li=document.createElement("li");
+      if(to==="task")li.className="md-task"+(n.classList.contains("done")&&n.classList.contains("md-task")?" done":"");
+      li.appendChild(inner);
+      if(richBare(li))li.appendChild(document.createElement("br"));
+      subs.forEach(x=>li.appendChild(x));
+      list.appendChild(li);
+      return;
+    }
+    list=null;
+    const b=document.createElement(RICH_TAG[to]||"P");
+    b.appendChild(inner);
+    if(to==="pre")b.querySelectorAll("br").forEach(x=>x.replaceWith(document.createTextNode("\n")));
+    if(richBare(b))b.appendChild(document.createElement("br"));
+    out.push(b);
+    subs.forEach(x=>out.push(x));
+  });
+  return out;
+}
+/* Neighbouring lists of the same kind become one, as they would in the
+   Markdown anyway, and a paragraph holding blocks is taken apart. */
+function richMerge(r){
+  r.querySelectorAll("p").forEach(p=>{
+    if(![...p.children].some(c=>/^(UL|OL|P|DIV|H[1-6]|BLOCKQUOTE|PRE|TABLE|HR)$/.test(c.tagName)))return;
+    while(p.firstChild)p.parentNode.insertBefore(p.firstChild,p);
+    p.remove();
+  });
+  [...r.querySelectorAll("ul,ol")].forEach(L=>{
+    /* Anything left loose in a list goes into the item before it. */
+    [...L.childNodes].forEach(c=>{
+      if(c.nodeType===1&&(c.tagName==="LI"||isList(c)))return;
+      if(c.nodeType===3&&!c.nodeValue.trim()){c.remove();return;}
+      let li=c.previousElementSibling;
+      while(li&&li.tagName!=="LI")li=li.previousElementSibling;
+      if(!li){li=document.createElement("li");L.insertBefore(li,c);}
+      li.appendChild(c);
+    });
+    const nx=L.nextElementSibling;
+    if(nx&&nx.tagName===L.tagName&&L.parentNode){while(nx.firstChild)L.appendChild(nx.firstChild);nx.remove();}
+  });
+  [...r.childNodes].forEach(c=>{
+    if(c.nodeType===3&&c.nodeValue.trim()||c.nodeType===1&&/^(B|I|S|STRONG|EM|MARK|CODE|A|SPAN|IMG|BR)$/.test(c.tagName)&&!c.hasAttribute("data-caret")){
+      const p=document.createElement("p");r.insertBefore(p,c);p.appendChild(c);
+      while(p.nextSibling&&(p.nextSibling.nodeType===3||/^(B|I|S|STRONG|EM|MARK|CODE|A|SPAN|IMG)$/.test(p.nextSibling.tagName)))p.appendChild(p.nextSibling);
+    }
+  });
+}
+/* Turn the touched lines into a kind, or back to text if they already are
+   it. force: always that kind (Enter out of a heading). */
+function richConvert(kind,force){
+  return richMutate((r,span)=>{
+    const lines=richLines(r,span);
+    if(!lines.length)return false;
+    const to=!force&&lines.every(l=>richKind(l)===kind)?"p":kind;
+    const groups=[];
+    lines.forEach(l=>{
+      const top=l.tagName==="LI"?l.parentNode:l;
+      let g=groups.find(x=>x.top===top);
+      if(!g){g={top:top,lines:[]};groups.push(g);}
+      g.lines.push(l);
+    });
+    groups.forEach(g=>{
+      const top=g.top,made=[];
+      if(isList(top)){
+        const items=[...top.children],a=items.indexOf(g.lines[0]),z=items.indexOf(g.lines[g.lines.length-1]);
+        const keep=part=>{const L=document.createElement(top.tagName);part.forEach(i=>L.appendChild(i));return L;};
+        const pre=items.slice(0,a),mid=items.slice(a,z+1).filter(i=>g.lines.indexOf(i)>-1||i.tagName==="LI"),post=items.slice(z+1);
+        if(pre.length)made.push(keep(pre));
+        made.push.apply(made,richBuild(mid,to));
+        if(post.length)made.push(keep(post));
+      }else made.push.apply(made,richBuild([top],to));
+      made.forEach(m=>top.parentNode.insertBefore(m,top));
+      top.remove();
+    });
+    richMerge(r);
+  });
+}
+/* Tab and Shift+Tab on a list item: in under the item above, or back out. */
+function richIndent(out){
+  return richMutate(()=>{
+    const li=richAt("li");if(!li)return false;
+    const list=li.parentNode;
+    if(!out){
+      const prev=li.previousElementSibling;if(!prev)return false;
+      let sub=[...prev.children].reverse().find(isList);
+      if(!sub||sub.tagName!==list.tagName){sub=document.createElement(list.tagName);prev.appendChild(sub);}
+      sub.appendChild(li);
+      return true;
+    }
+    const host=list.parentNode;
+    if(!host||host.tagName!=="LI")return false;
+    const after=[...list.children].slice([...list.children].indexOf(li)+1);
+    if(after.length){const sub=document.createElement(list.tagName);after.forEach(x=>sub.appendChild(x));li.appendChild(sub);}
+    host.parentNode.insertBefore(li,host.nextSibling);
+    if(!list.children.length)list.remove();
+    return true;
+  });
+}
+/* Undo and Redo take back the page's own changes first; typing is the
+   browser's to undo. */
+function richUndo(redo){
+  const r=el("dcRich"),from=redo?DE.redo:DE.hist,to=redo?DE.hist:DE.redo,top=from[from.length-1];
+  if(top&&r.innerHTML===(redo?top.before:top.after)){
+    from.pop();to.push(top);
+    r.innerHTML=redo?top.after:top.before;
+    r.focus();
+    const s=getSelection(),rg=document.createRange(),end=r.lastElementChild||r;
+    rg.selectNodeContents(end.tagName==="UL"||end.tagName==="OL"?end.lastElementChild||end:end);rg.collapse(false);
+    s.removeAllRanges();s.addRange(rg);
+    docChanged();return;
+  }
+  richFocus();
+  try{document.execCommand(redo?"redo":"undo");}catch(x){}
+  docChanged();
+}
+/* A divider in place of the line the caret is on, and a fresh line after. */
+function richRule(){
+  return richMutate((r,span)=>{
+    const lines=richLines(r,span),at=lines[0];
+    const hr=document.createElement("hr"),p=document.createElement("p");
+    const top=at?(at.tagName==="LI"?null:at):null;
+    if(top&&richEmpty(top)){
+      top.parentNode.insertBefore(hr,top);
+      top.parentNode.insertBefore(p,top);
+      while(top.firstChild)p.appendChild(top.firstChild);
+      top.remove();
+    }else{
+      const anchor=top||[...r.children].find(c=>span.intersectsNode(c))||r.lastChild;
+      anchor.parentNode.insertBefore(hr,anchor.nextSibling);
+      hr.parentNode.insertBefore(p,hr.nextSibling);
+      p.appendChild(r.querySelector('[data-caret="s"]'));
+      p.appendChild(r.querySelector('[data-caret="e"]'));
+    }
+    if(!p.querySelector("br"))p.appendChild(document.createElement("br"));
+  });
+}
+/* Links and images ask for their address in a bar under the toolbar, not a
+   browser prompt, which the artifact sandbox blocks. */
+function richAsk(kind){
+  richKeep();
+  const old=el("dcUrlBar");if(old)old.remove();
+  const s=getSelection(),empty=!s.rangeCount||s.isCollapsed;
+  el("dcTools").insertAdjacentHTML("afterend",'<div class="doc-urlbar" id="dcUrlBar">'+icon(kind==="image"?"i-image":"i-link","ic-14")+
+    '<input class="inp" id="dcUrl" data-kind="'+kind+'" autocomplete="off" spellcheck="false" placeholder="'+(kind==="image"?"Paste the address of an image":"Paste or type a web address")+'">'+
+    (kind==="link"&&empty?'<input class="inp" id="dcUrlText" autocomplete="off" placeholder="Text to show (optional)">':"")+
+    '<button class="btn btn-sm btn-primary" data-act="doc-url-ok">'+(kind==="image"?"Add image":"Add link")+'</button>'+
+    '<button class="btn btn-sm btn-ghost" data-act="doc-url-cancel">Cancel</button></div>');
+  el("dcUrl").focus();
+}
+function richAskDone(ok){
+  const bar=el("dcUrlBar");if(!bar)return;
+  const inp=el("dcUrl"),u=inp.value.trim(),kind=inp.dataset.kind,tx=el("dcUrlText"),label=tx?tx.value.trim():"";
+  bar.remove();
+  if(DE.src)return;
+  richFocus();
+  if(!ok||!u)return;
+  let url=u;
+  if(!/^(https?:|mailto:|data:image\/)/i.test(url))url=(kind==="link"&&/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(url)?"mailto:":"https://")+url;
+  const s=getSelection();
+  if(kind==="image"){document.execCommand("insertHTML",false,'<img src="'+esc(url)+'" alt="">');richMerge(el("dcRich"));}
+  else if(!s.rangeCount||s.isCollapsed)document.execCommand("insertHTML",false,'<a href="'+esc(url)+'">'+esc(label||u)+'</a>&nbsp;');
+  else document.execCommand("createLink",false,url);
+  docChanged();
+}
+function richTool(k){
+  if(k==="link"||k==="image"){richFocus();richAsk(k);return;}
+  richFocus();
+  const X=(c,v)=>document.execCommand(c,false,v==null?null:v);
+  switch(k){
+    case "bold":X("bold");break;
+    case "italic":X("italic");break;
+    case "strike":X("strikeThrough");break;
+    case "mark":richWrap("mark","highlighted text");break;
+    case "code":richWrap("code","code");break;
+    case "h1":case "h2":case "h3":case "ul":case "ol":case "task":case "quote":richConvert(k);break;
+    case "codeblock":richConvert("pre");break;
+    case "hr":richRule();break;
+    case "table":{const c=n=>'<'+n+'>'+(n==="th"?"Column":"<br>")+'</'+n+'>';
+      X("insertHTML",'<table data-new="1"><thead><tr>'+c("th")+c("th")+c("th")+'</tr></thead><tbody><tr>'+c("td")+c("td")+c("td")+'</tr><tr>'+c("td")+c("td")+c("td")+'</tr></tbody></table><p><br></p>');
+      const t=el("dcRich").querySelector("table[data-new]");
+      if(t){t.removeAttribute("data-new");richMerge(el("dcRich"));const rg=document.createRange();rg.selectNodeContents(t.querySelector("th"));const s=getSelection();s.removeAllRanges();s.addRange(rg);}
+      break;}
+    case "undo":case "redo":richUndo(k==="redo");return;
+  }
+  docChanged();
+}
+function docTool(k){if(!docOpen())return;if(DE.src)srcTool(k);else richTool(k);}
+/* Typing Markdown at the start of a line formats it, as Notion does:
+   "# " a heading, "- " a list, "1. " a numbered one, "[] " a checklist,
+   "> " a quote, "``` " code, "--- " a divider. */
+function richAuto(e){
+  if(e.inputType!=="insertText"||(e.data!=null&&e.data!==" "))return;
+  /* After the keystroke has landed: a formatting command run inside the
+     input event of another is ignored. */
+  setTimeout(richAutoNow,0);
+}
+function richAutoNow(){
+  if(!docOpen()||DE.src)return;
+  const b=richAt(RICH_BLOCK);if(!b||!/^(P|DIV)$/.test(b.tagName))return;
+  const s=getSelection();if(!s.rangeCount||!s.isCollapsed)return;
+  const rg=document.createRange();rg.setStart(b,0);rg.setEnd(s.anchorNode,s.anchorOffset);
+  const typed=rg.toString().replace(/\u00a0/g," ");
+  const m=typed.match(/^(#{1,6}|[-*+]|1[.)]|>|\[ ?\]|```|---) $/);if(!m)return;
+  s.removeAllRanges();s.addRange(rg);document.execCommand("delete");
+  const k=m[1];
+  if(k==="---"){richRule();return;}
+  richConvert(k[0]==="#"?"h"+Math.min(k.length,3):/^[-*+]$/.test(k)?"ul":/^1/.test(k)?"ol":k===">"?"quote":k==="```"?"pre":"task",true);
+}
+/* A tick box is drawn before a checklist item; a click there ticks it. */
+function richTick(e){
+  const li=e.target&&e.target.closest?e.target.closest("#dcRich li.md-task"):null;if(!li)return false;
+  const x=e.clientX-li.getBoundingClientRect().left;
+  if(x<0||x>24)return false;
+  e.preventDefault();
+  if(e.type==="click"){li.classList.toggle("done");docChanged();}
+  return true;
+}
+/* Pasted text comes in as the planner's own formatting: other pages' styles,
+   fonts and colours are left behind, and pasted Markdown is formatted. An
+   image on the clipboard goes in as a picture. */
+function richPaste(e){
+  const cd=e.clipboardData;if(!cd)return;
+  e.preventDefault();
+  const img=[...(cd.files||[])].find(f=>/^image\//.test(f.type));
+  if(img){
+    if(img.size>4*1024*1024){toast("That image is too large to paste. Link to it instead.");return;}
+    const fr=new FileReader();
+    fr.onload=()=>{richFocus();document.execCommand("insertHTML",false,'<img src="'+esc(fr.result)+'" alt="">');docChanged();};
+    fr.readAsDataURL(img);return;
+  }
+  const h=cd.getData("text/html"),t=cd.getData("text/plain");
+  let md=t;
+  if(h){try{md=htmlToMd(new DOMParser().parseFromString(h,"text/html").body);}catch(x){md=t;}}
+  if(!md)return;
+  if(!/\n/.test(md)&&!h)document.execCommand("insertText",false,md);
+  else document.execCommand("insertHTML",false,mdToHtml(md,"edit"));
+  richMerge(el("dcRich"));
+  docChanged();
+}
+
+/* The page back to Markdown. Only what Markdown can say is kept; styles and
+   colours from pasted pages are dropped. */
+function htmlToMd(root){
+  const wrap=(m,x)=>{const c=x.trim();if(!c)return x;return x.match(/^\s*/)[0]+m+c+m+x.match(/\s*$/)[0];};
+  const inl=n=>{
+    if(n.nodeType===3)return n.nodeValue.replace(/\u200b/g,"").replace(/\u00a0/g," ").replace(/\s*\n\s*/g," ");
+    if(n.nodeType!==1)return "";
+    const kids=()=>[...n.childNodes].map(inl).join("");
+    switch(n.tagName){
+      case "BR":return "\n";
+      case "B":case "STRONG":return wrap("**",kids());
+      case "I":case "EM":return wrap("*",kids());
+      case "S":case "STRIKE":case "DEL":return wrap("~~",kids());
+      case "MARK":return wrap("==",kids());
+      case "CODE":{const c=n.textContent.replace(/\u200b/g,"");return c?"`"+c+"`":"";}
+      case "A":{const h=n.getAttribute("href")||"",x=kids();return /^(https?:|mailto:)/i.test(h)&&x.trim()?"["+x.trim()+"]("+h+")":x;}
+      case "IMG":{const s=n.getAttribute("src")||"";return /^(https?:|data:image\/)/i.test(s)?"!["+(n.getAttribute("alt")||"")+"]("+s+")":"";}
+      case "SCRIPT":case "STYLE":case "TEMPLATE":return "";
+      case "SPAN":{
+        if(n.classList.contains("md-wiki"))return "[["+n.textContent+"]]";
+        let x=kids();const st=n.style;
+        if(st.fontWeight==="bold"||+st.fontWeight>=600)x=wrap("**",x);
+        if(st.fontStyle==="italic")x=wrap("*",x);
+        if(/line-through/.test(st.textDecoration||""))x=wrap("~~",x);
+        return x;
+      }
+      default:return kids();
+    }
+  };
+  const BLOCK=/^(H[1-6]|P|DIV|UL|OL|BLOCKQUOTE|PRE|HR|TABLE|SECTION|ARTICLE|HEADER|FOOTER|MAIN|FIGURE|LI)$/;
+  const out=[],lists=new Set();let buf="";
+  const flush=()=>{const x=buf.replace(/^\n+|\n+$/g,"");if(x.trim())out.push(x);buf="";};
+  const list=(ul,depth,lines)=>{
+    let k=(parseInt(ul.getAttribute&&ul.getAttribute("start"),10)||1)-1;
+    [...ul.children].forEach(li=>{
+      if(li.tagName==="UL"||li.tagName==="OL"){list(li,depth+1,lines);return;}
+      if(li.tagName!=="LI")return;
+      k++;
+      const subs=[...li.children].filter(c=>c.tagName==="UL"||c.tagName==="OL");
+      const own=[...li.childNodes].filter(c=>subs.indexOf(c)<0).map(inl).join("").replace(/\s*\n\s*/g," ").trim();
+      const lv=depth+(parseInt(li.style.getPropertyValue("--lv"),10)||0);
+      const mark=ul.tagName==="OL"?k+". ":li.classList.contains("md-task")?"- ["+(li.classList.contains("done")?"x":" ")+"] ":"- ";
+      lines.push("  ".repeat(lv)+mark+own);
+      subs.forEach(sb=>list(sb,depth+1,lines));
+    });
+  };
+  const walk=parent=>{
+    [...parent.childNodes].forEach(n=>{
+      if(n.nodeType!==1||!BLOCK.test(n.tagName)){buf+=inl(n);return;}
+      flush();
+      const t=n.tagName;
+      if(/^H[1-6]$/.test(t)){const x=inl(n).replace(/\s*\n\s*/g," ").trim();if(x)out.push("#".repeat(+t[1])+" "+x);}
+      else if(t==="UL"||t==="OL"){
+        const lines=[];list(n,0,lines);
+        if(!lines.length)return;
+        /* A list indented under the one before it, or the rest of that list
+           after one, is the same list in Markdown: no blank line between. */
+        const prev=lists.has(out.length-1)?out[out.length-1]:null;
+        if(prev!=null&&(/^\s/.test(lines[0])||/(^|\n)\s+\S[^\n]*$/.test(prev)))out[out.length-1]=prev+"\n"+lines.join("\n");
+        else{out.push(lines.join("\n"));lists.add(out.length-1);}
+      }
+      else if(t==="LI"){const lines=[];list({tagName:"UL",children:[n]},0,lines);out.push(lines.join("\n"));}
+      else if(t==="BLOCKQUOTE"){const x=[...n.children].some(c=>BLOCK.test(c.tagName))?htmlToMd(n):inl(n).trim();
+        if(x.trim())out.push(x.split("\n").map(l=>"> "+l).join("\n"));}
+      else if(t==="PRE")out.push("```\n"+n.textContent.replace(/\u200b/g,"").replace(/\n$/,"")+"\n```");
+      else if(t==="HR")out.push("---");
+      else if(t==="TABLE"){
+        const rows=[...n.querySelectorAll("tr")].map(tr=>[...tr.children].map(c=>inl(c).replace(/\s*\n\s*/g," ").trim().replace(/\|/g,"\\|")));
+        if(rows.length){
+          const w=Math.max(...rows.map(r=>r.length)),line=r=>"| "+Array.from({length:w},(_,i)=>r[i]||"").join(" | ")+" |";
+          out.push([line(rows[0]),"| "+Array(w).fill("---").join(" | ")+" |"].concat(rows.slice(1).map(line)).join("\n"));
+        }
+      }
+      else walk(n);
+      flush();
+    });
+  };
+  walk(root);flush();
+  return out.join("\n\n").replace(/\n{3,}/g,"\n\n").trim()+(out.length?"\n":"");
 }
 
 /* ---- editing the text ---- */
@@ -4155,9 +4620,9 @@ function deIndent(out){
   if(a===b)deReplace(ta,sp.s,sp.e,text,Math.max(0,a-sp.s+first),Math.max(0,a-sp.s+first));
   else deReplace(ta,sp.s,sp.e,text,0,text.length);
 }
-function docTool(k){
+/* The same toolbar, writing Markdown into the text. */
+function srcTool(k){
   const ta=el("dcMd");if(!ta)return;
-  if(V.docView==="preview")docView("split");
   const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,sel=v.slice(s,e);
   switch(k){
     case "bold":deWrap("**","**","bold text");break;
@@ -4177,40 +4642,69 @@ function docTool(k){
     case "undo":case "redo":ta.focus();try{document.execCommand(k);}catch(x){}docChanged();break;
   }
 }
-/* Ticking a box in the preview ticks its line in the text. */
-function docCheck(line){
-  const ta=el("dcMd");if(!ta)return;
-  const L=ta.value.split("\n");if(L[line]==null)return;
-  let at=0;for(let i=0;i<line;i++)at+=L[i].length+1;
-  const m=L[line].match(/^(\s*[-*+]\s+\[)([ xX])\]/);if(!m)return;
-  const p=el("dcPrev"),k=p?p.scrollTop:0;
-  deReplace(ta,at+m[1].length,at+m[1].length+1,m[2]===" "?"x":" ",1,1);
-  if(p)p.scrollTop=k;
-}
-/* Keys in the editor: the usual shortcuts, lists that carry on, Tab to
-   indent. Escape still closes, so the keyboard is never trapped. */
+/* Keys in the editor: the usual shortcuts, and Tab to indent a list or move
+   along a table. Escape still closes, so the keyboard is never trapped. */
 function docKeys(e){
   const t=e.target,mod=e.ctrlKey||e.metaKey,key=(e.key||"").toLowerCase();
-  if(mod&&!e.altKey&&(key==="s"||key==="enter")&&(t.id==="dcMd"||t.id==="dcTitle")){e.preventDefault();docSave();return true;}
-  if(t.id==="dcTitle"&&e.key==="Enter"){e.preventDefault();const ta=el("dcMd");if(ta)ta.focus();return true;}
-  if(t.id!=="dcMd")return false;
+  if(t.id==="dcUrl"||t.id==="dcUrlText"){
+    if(e.key==="Enter"){e.preventDefault();richAskDone(true);return true;}
+    if(e.key==="Escape"){e.preventDefault();richAskDone(false);return true;}
+    return false;
+  }
+  const inDoc=t.id==="dcMd"||t.id==="dcTitle"||richIn(t)||t.id==="dcRich";
+  if(!inDoc)return false;
+  if(mod&&!e.altKey&&(key==="s"||key==="enter")){e.preventDefault();docSave();return true;}
+  if(t.id==="dcTitle"){
+    if(e.key==="Enter"||(e.key==="ArrowDown"&&!mod)){e.preventDefault();const f=DE.src?el("dcMd"):el("dcRich");if(f)f.focus();return true;}
+    return false;
+  }
   const map=mod&&!e.altKey&&!e.shiftKey?{b:"bold",i:"italic",e:"code",k:"link"}[key]
     :mod&&e.shiftKey&&!e.altKey?{x:"strike",h:"mark","8":"ul","*":"ul","7":"ol","&":"ol","9":"task","(":"task",".":"quote",">":"quote"}[key]
     :mod&&e.altKey?{"1":"h1","2":"h2","3":"h3"}[key]:null;
   if(map){e.preventDefault();docTool(map);return true;}
-  if(e.key==="Tab"&&!mod&&!e.altKey){e.preventDefault();deIndent(e.shiftKey);return true;}
-  if(e.key==="Enter"&&!e.shiftKey&&!mod&&!e.altKey&&t.selectionStart===t.selectionEnd){
-    const v=t.value,s=t.selectionStart,ls=v.lastIndexOf("\n",s-1)+1,line=v.slice(ls,s);
-    const m=line.match(/^(\s*)([-*+]\s+\[[ xX]\]\s+|[-*+]\s+|(\d+)([.)])\s+|>\s?)/);
-    if(!m)return false;
-    e.preventDefault();
-    let le=v.indexOf("\n",s);if(le<0)le=v.length;
-    if(!line.slice(m[0].length).trim()&&!v.slice(s,le).trim()){deReplace(t,ls,le,"",0,0);return true;}
-    let p=m[2];
-    if(m[3])p=(+m[3]+1)+m[4]+" ";else p=p.replace(/\[[xX]\]/,"[ ]");
-    const ins="\n"+m[1]+p;
-    deReplace(t,s,s,ins,ins.length,ins.length);
-    return true;
+  if(DE.src){
+    if(e.key==="Tab"&&!mod&&!e.altKey){e.preventDefault();deIndent(e.shiftKey);return true;}
+    if(e.key==="Enter"&&!e.shiftKey&&!mod&&!e.altKey&&t.selectionStart===t.selectionEnd){
+      const v=t.value,s=t.selectionStart,ls=v.lastIndexOf("\n",s-1)+1,line=v.slice(ls,s);
+      const m=line.match(/^(\s*)([-*+]\s+\[[ xX]\]\s+|[-*+]\s+|(\d+)([.)])\s+|>\s?)/);
+      if(!m)return false;
+      e.preventDefault();
+      let le=v.indexOf("\n",s);if(le<0)le=v.length;
+      if(!line.slice(m[0].length).trim()&&!v.slice(s,le).trim()){deReplace(t,ls,le,"",0,0);return true;}
+      let p=m[2];
+      if(m[3])p=(+m[3]+1)+m[4]+" ";else p=p.replace(/\[[xX]\]/,"[ ]");
+      const ins="\n"+m[1]+p;
+      deReplace(t,s,s,ins,ins.length,ins.length);
+      return true;
+    }
+    return false;
+  }
+  if(e.key==="Tab"&&!mod&&!e.altKey){
+    const cell=richAt("td,th");
+    if(cell){
+      e.preventDefault();
+      const all=[...cell.closest("table").querySelectorAll("th,td")],i=all.indexOf(cell);
+      const next=all[i+(e.shiftKey?-1:1)];
+      if(next){const rg=document.createRange();rg.selectNodeContents(next);const s=getSelection();s.removeAllRanges();s.addRange(rg);}
+      return true;
+    }
+    if(richAt("li")){e.preventDefault();richIndent(e.shiftKey);return true;}
+    return false;
+  }
+  if(mod&&!e.altKey&&(key==="z"||key==="y")){e.preventDefault();richUndo(key==="y"||e.shiftKey);return true;}
+  /* Enter on an empty list item or quote steps out of it; a new item after a
+     ticked one starts unticked; the line after a heading is plain text. */
+  if(e.key==="Enter"&&!e.shiftKey&&!mod){
+    const li=richAt("li"),q=richAt("blockquote,pre");
+    if(li&&!li.textContent.replace(/\u200b/g,"").trim()&&![...li.children].some(isList)){e.preventDefault();richConvert(richKind(li));return true;}
+    if(q&&q.tagName==="BLOCKQUOTE"&&!q.textContent.replace(/\u200b/g,"").trim()){e.preventDefault();richConvert("quote");return true;}
+    const h=richAt("h1,h2,h3,h4,h5,h6");
+    setTimeout(()=>{
+      const b=richAt(RICH_BLOCK);if(!b)return;
+      if(h&&/^H[1-6]$/.test(b.tagName)&&b!==h&&!b.textContent.trim())richConvert("p",true);
+      if(b.tagName==="LI"&&b.classList.contains("done")&&!b.textContent.trim())b.classList.remove("done");
+      if(b.tagName==="DIV"&&b.parentNode&&b.parentNode.id==="dcRich")richConvert("p",true);
+    },0);
   }
   return false;
 }

@@ -107,15 +107,36 @@ listener, not the click switch. `npm test` knows about both.
 diffs a task before and after an edit and writes one entry per changed field.
 Keep `FIELD_LABEL` in step with the fields a task has, or changes go unlogged.
 
-Documents are markdown in `S.docs`, written in an editor that does not
-ask anyone to know markdown (`docModal()`, the document editor section): a
-toolbar and the usual shortcuts write it, lists carry on at Enter, Tab
-indents, and the preview (`mdToHtml(md, true)`: tables, highlight,
-strikethrough, images, nested lists, [[links]]) ticks task boxes back into
-the text. Toolbar edits go through `execCommand("insertText")` so Ctrl+Z
-undoes them like typing — keep it that way. Nothing is required to save, and
-every way out (the close button, the backdrop, Escape) goes through
-`docMayClose()`, which asks before unsaved changes are thrown away.
+Documents are markdown in `S.docs`, but nobody has to see it. The editor
+(`docModal()`, the document editor section) is one page that looks like the
+finished document, as Google Docs or Notion do — a split of text beside a
+preview was tried and read as two documents. `mdToHtml(md, "edit")` draws
+the page and `htmlToMd()` turns it back on save; a round trip must give back
+the same Markdown, checklists, nested lists and tables included. The
+**Markdown** toggle swaps the page for the text (`DE.src`), with the same
+toolbar writing Markdown there (`srcTool()`).
+
+- Inline formatting (bold, italic, strikethrough, links) uses the browser's
+  `execCommand`, so Ctrl+Z undoes it. Line formatting — headings, quotes,
+  code blocks, lists, checklists, indenting — does **not**: Chrome's list
+  commands nest lists inside paragraphs and cannot turn a list back into
+  text. `richConvert()` rebuilds the touched lines itself, carrying the
+  caret on two marker spans (`richMutate()`), and keeps each change in
+  `DE.hist` so Undo takes it back first (`richUndo()`).
+- Typing `# `, `- `, `1. `, `[] `, `> `, ` ``` ` or `--- ` at the start of a line
+  formats it. That runs a tick after the keystroke (`richAutoNow()`): a
+  formatting command inside another command's input event is ignored.
+- A checklist item is `li.md-task`, its box drawn by the stylesheet;
+  `richTick()` ticks it on a click in the box's space.
+- Pasted content goes through `htmlToMd()` and back (parsed with
+  `DOMParser`, which runs nothing), so other pages' styles never arrive and
+  pasted Markdown is formatted. Links and images ask for their address in a
+  bar under the toolbar, never `prompt()`.
+- Nothing is required to save, and every way out (the close button, the
+  backdrop, Escape) goes through `docMayClose()`, which asks before unsaved
+  changes are thrown away.
+- Write ` ` and `​` as escapes. A test fails on the literal
+  characters: in a regex they look like ordinary spaces.
 
 On the desktop each document is mirrored into
 `<vault>/Everyday Orbit/<title> <id>.md` with YAML front matter carrying

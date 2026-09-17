@@ -89,6 +89,15 @@ test('a redraw keeps the scroll position of the screen it redraws', () => {
   assert.match(body, /putScroll\(vp,marks\)/, 'renderView no longer puts the scroll positions back');
 });
 
+test('no invisible characters hide in the sources', () => {
+  // A non-breaking or zero-width space in a regex looks like an ordinary one
+  // and matches something else. Write them as   and ​.
+  for (const [name, text] of [['app.js', js], ['app.css', css]]) {
+    const hits = [...text.matchAll(/[ ​‌‍﻿]/g)].map(m => text.slice(0, m.index).split('\n').length);
+    assert.deepStrictEqual(hits, [], name + ' has invisible characters on lines ' + hits.join(', '));
+  }
+});
+
 test('panels() redraws settings and setup rather than calling itself', () => {
   // A rename once left it calling itself whenever Settings was open.
   const body = (jsCode.match(/function panels\(\)\{([\s\S]*?)\n\}/) || [])[1] || '';
