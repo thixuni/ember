@@ -1647,7 +1647,7 @@ function obShowData(){
     '<div class="obx-node">'+icon("i-laptop")+'<b>This '+here()+'</b><small>Always saved here</small></div>'+
     '<div class="obx-wire"><i></i><i></i><i></i></div>'+
     '<div class="obx-node far">'+icon("i-cloud")+'<b>Google Drive</b><small>'+(drive?"A copy after every change":"Not used")+'</small></div>'+
-    '</div><p class="obx-cap">'+(drive?"Lose a laptop, keep your planner.":"Private to this "+here()+", and nowhere else.")+'</p>';
+    '</div>';
 }
 async function obDataNext(){
   if(OB.store==="local"){S.prefs.storage="local";save("prefs");obGo(obNext());return;}
@@ -1687,7 +1687,7 @@ function obShowName(){
     '<p class="obx-hi-sub">Here is your day, all in one place.</p>'+
     '<div class="obx-hi-row"><div class="obx-ring-mini"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15"/><circle class="arc" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="60 100"/></svg><b class="num">3/5</b></div>'+
       '<div class="obx-strip">'+S.categories.slice(0,4).map((c,k)=>'<i style="--c:'+c.color+';left:'+(8+k*22)+'%;width:'+(10+(k%2)*6)+'%"></i>').join("")+'<em style="left:58%"></em></div></div>'+
-    '</div><p class="obx-cap">This is the top of your dashboard.</p>';
+    '</div>';
 }
 
 /* ---- categories ---- */
@@ -1789,7 +1789,7 @@ function obShowCalendar(){
       row("out","Deep work block","10am",(c[0]||{}).color||CAT_COLORS[0],false)+
       row("in","Team sync","2pm","var(--blue)",true)+
       row("out","Evening walk","6:30pm",(c[4]||c[1]||{}).color||CAT_COLORS[4],false)+
-    '</div></div><p class="obx-cap">'+(on?"Syncing with "+esc(GC.status.email):"Both ways, every few minutes.")+'</p>';
+    '</div></div>';
 }
 
 /* ---- Obsidian ---- */
@@ -1807,7 +1807,7 @@ function obShowVault(){
   return '<div class="obx-panel obx-vault'+(v?" on":"")+'">'+
     '<div class="obx-docs">'+docs.map((d,k)=>'<div class="obx-doc" style="--k:'+k+'"><b># '+esc(d)+'</b><i></i><i></i><i class="short"></i><small>'+esc(d.toLowerCase().replace(/ /g,"-"))+'.md</small></div>').join("")+'</div>'+
     '<div class="obx-folder">'+icon("i-folder")+'<span><b>'+(v?esc(v.split(/[\\/]/).pop()):"Your vault")+'</b><small>/ Everyday Orbit</small></span></div>'+
-    '</div><p class="obx-cap">'+(v?"Edits flow both ways.":"Plain Markdown files, yours to keep.")+'</p>';
+    '</div>';
 }
 
 /* ---- appearance ---- */
@@ -1833,7 +1833,7 @@ function obShowApp(){
       card(c[0]||{color:CAT_COLORS[0],name:"Office"},"Draft the project brief",false)+
       card(c[3]||c[1]||{color:CAT_COLORS[3],name:"Personal"},"Book the dentist",true)+
       '<div class="obx-app-row"><span class="obx-app-switch"></span>Reminders on<span class="obx-app-chip">Today</span></div>'+
-    '</div></div><p class="obx-cap">Everything follows as you choose.</p>';
+    '</div></div>';
 }
 
 /* ---- notifications ---- */
