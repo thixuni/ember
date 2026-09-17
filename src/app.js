@@ -1564,18 +1564,18 @@ function obSignin(fresh){
   let act;
   /* Nobody using the planner is ever asked for keys. A copy that cannot
      sign in says so in a sentence and carries on without it. */
-  if(!g)act='<p class="obx-note">'+icon("i-laptop","ic-14")+'<span>'+esc(noGoogleWhy())+' Your planner will be kept in this '+here()+'.</span></p>'+
+  if(!g)act='<p class="obx-note">'+icon("i-laptop","ic-14")+'<span>'+esc(noGoogleWhy())+' You can still use everything; your planner is saved in this '+here()+'.</span></p>'+
     '<button class="btn btn-primary obx-wide" data-act="ob-local">Continue'+icon("i-chev-r","ic-14")+'</button>';
-  else if(OB.busy)act=obWaiting(web?"Finish signing in in Google's window.":"Finish signing in in your browser.");
+  else if(OB.busy)act=obWaiting(web?"Waiting for you in Google’s window…":"Waiting for you to sign in in your browser…");
   else act='<button class="obx-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
   return '<div class="obx-first'+(fresh?" enter":"")+'">'+obSky()+
     '<div class="obx-hero">'+
       '<span class="brand-mark obx-mark">'+icon("i-orbit","ic-18")+'</span>'+
       '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one orbit</em>.")+'</h1>'+
-      '<p class="obx-lead">'+(again?"Sign in with your Google account to open your planner."
-        :"Tasks, routines, your calendar and your notes, sharing one set of categories — so something you write once shows up wherever you look for it.")+'</p>'+
+      '<p class="obx-lead">'+(again?"Sign in to pick up where you left off."
+        :"Tasks, routines, your calendar and your notes, together in one calm place.")+'</p>'+
       act+obErr()+
-      (g?'<p class="obx-fine">Your Google account is how you sign in. What you plan stays on this '+(web?"device":"computer")+' unless you choose to back it up to your own Google Drive, and it goes nowhere else.</p>':"")+
+      (g?'<p class="obx-fine">Your plans stay private. Nothing is shared unless you choose to.</p>':"")+
     '</div></div>';
 }
 async function obSignIn(){
@@ -1600,9 +1600,9 @@ async function googleAsk(part){
   try{r=await o.gcalConnect({want:[part]});}catch(e){r={ok:false,error:"Could not start the sign-in."};}
   try{GC.status=await o.gcalStatus();}catch(e){}
   if(r&&r.ok&&acctParts()[part])return true;
-  if(r&&r.ok)throw new Error("Google did not grant it. Tick the box for "+(part==="drive"?"Google Drive":"Google Calendar")+" on Google's page and try again.");
+  if(r&&r.ok)throw new Error("Access wasn’t given. Tick the "+(part==="drive"?"Google Drive":"Google Calendar")+" box in Google’s window and try again.");
   if(r&&r.error==="Cancelled.")return false;
-  throw new Error((r&&r.error)||"Could not reach Google.");
+  throw new Error((r&&r.error)||"We couldn’t reach Google. Check your connection and try again.");
 }
 
 
@@ -1610,23 +1610,23 @@ async function googleAsk(part){
 function obData(){
   if(OB.found){
     const local=hasData();
-    return obHead("Your data","Your planner is <em>already</em> in your Drive",
-        "Sign in anywhere and it comes back. Bring it into this "+here()+", or begin again.")+
+    return obHead("Your data","Welcome back. We found <em>your planner</em>",
+        "Pick up right where you left off, or start with a clean slate.")+
       '<div class="obx-cards">'+
-        obCard("ob-restore","","i-download",local?"Use the one in Drive":"Restore it here",
-          local?"Replaces what is in this "+here()+" with the backup.":"Tasks, routines, notes, categories and settings, all of it.",false,"")+
-        obCard("ob-fresh","",local?"i-laptop":"i-plus",local?"Keep this "+here()+"'s":"Start fresh",
-          local?"Backs this "+here()+"'s planner up over the one in Drive.":"An empty planner. Its first backup replaces the one in Drive.",false,"")+
-      '</div>'+(OB.busy?obWaiting("Working…"):"")+obErr();
+        obCard("ob-restore","","i-download",local?"Use my Drive copy":"Restore my planner",
+          local?"Replaces what’s in this "+here()+" with your Drive copy.":"Your tasks, routines, notes and settings, just as you left them.",false,"")+
+        obCard("ob-fresh","",local?"i-laptop":"i-plus",local?"Keep what’s here":"Start fresh",
+          local?"Your Drive copy is updated to match this "+here()+".":"Begin with an empty planner. It replaces your Drive copy.",false,"")+
+      '</div>'+(OB.busy?obWaiting("Just a moment…"):"")+obErr();
   }
   return obHead("Your data","Where should your planner <em>live</em>?",
-      "Either way it works offline and saves as you go. The difference is whether a copy follows you.")+
+      "Both work offline and save as you go.")+
     '<div class="obx-cards">'+
-      obCard("ob-store","drive","i-cloud","Back up to Google Drive","A copy goes to your own Drive after every change. Sign in anywhere else and it all comes back.",OB.store==="drive","Recommended")+
-      obCard("ob-store","local","i-laptop","Only on this device","Nothing leaves this "+here()+". Save a backup file by hand from Settings, any time.",OB.store==="local","")+
+      obCard("ob-store","drive","i-cloud","Back up to Google Drive","Saved automatically. Sign in on any device and carry on where you left off.",OB.store==="drive","Recommended")+
+      obCard("ob-store","local","i-laptop","Keep it on this device","Private to this "+here()+". Export a backup whenever you like.",OB.store==="local","")+
     '</div>'+
-    (OB.busy?obWaiting(acctParts().drive?"Looking for an earlier backup…":"Finish in your browser: allow access to Google Drive."):"")+obErr()+
-    '<p class="obx-fine">Everyday Orbit sees only the one file it makes in your Drive, never the rest. Moving from a backup file? <button class="linkish" data-act="import">Restore a backup file</button></p>';
+    (OB.busy?obWaiting(acctParts().drive?"Looking for your planner…":"Allow Google Drive access in Google’s window…"):"")+obErr()+
+    '<p class="obx-fine">We only see the one file we create, never the rest of your Drive. Have a backup file? <button class="linkish" data-act="import">Restore it</button></p>';
 }
 /* A big choice: an illustration, a title, a line on what it means, and a
    tick that pops in when it is the one chosen. */
@@ -1665,7 +1665,7 @@ async function obDataNext(){
       }
       /* There is a backup and it did not come down. Carrying on would write
          this empty planner over it. */
-      throw new Error("Your backup is in Google Drive but could not be opened just now. Try again, or keep this planner on this "+here()+" for now.");
+      throw new Error("We found your planner in Google Drive but couldn’t open it. Try again, or keep it on this device for now.");
     }
     await driveBackup();
     obGo(obNext());
@@ -1675,8 +1675,8 @@ async function obDataNext(){
 
 /* ---- about you ---- */
 function obName(){
-  return obHead("About you","What should we <em>call you</em>?","It goes in the greeting on your dashboard, and nowhere else.")+
-    '<label class="obx-big"><span>I’m</span><input id="obName" autocomplete="given-name" maxlength="40" placeholder="your first name" value="'+esc(S.prefs.name||"")+'"></label>';
+  return obHead("About you","What should we <em>call you</em>?","Your first name is perfect.")+
+    '<label class="obx-big"><span>I’m</span><input id="obName" autocomplete="given-name" maxlength="40" placeholder="first name" value="'+esc(S.prefs.name||"")+'"></label>';
 }
 function obShowName(){
   const n=S.prefs.name||"",d=today();
@@ -1692,8 +1692,8 @@ function obShowName(){
 
 /* ---- categories ---- */
 function obCats(){
-  return obHead("Categories","Make the categories <em>yours</em>",
-      "Everything you plan wears one. Rename them, pick a colour, drop what you will not use.")+
+  return obHead("Categories","Colour-code <em>your life</em>",
+      "Rename, recolour or remove any of these to suit how you plan.")+
     '<div class="obx-cats">'+S.categories.map(c=>{const open=OB.pal===c.id;
       return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+'">'+
         '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Colour of '+esc(c.name)+'"></button>'+
@@ -1701,7 +1701,7 @@ function obCats(){
         (S.categories.length>1?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
         (open?'<div class="obx-pal" role="group" aria-label="Colours">'+CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>':"")+
         '</div>';}).join("")+
-      '<button class="obx-cat obx-cat-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add</button></div>';
+      '<button class="obx-cat obx-cat-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add category</button></div>';
 }
 /* Your categories as planets round you: the page's name, made literal. */
 function obShowCats(){
@@ -1730,8 +1730,8 @@ function obRt(){
 }
 const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
 function obRoutines(){
-  return obHead("Routines","What already <em>repeats</em> in your week?",
-      "Tap the ones you do and set their time. They land on your calendar and remind you before they start.")+
+  return obHead("Routines","What do you do <em>every week</em>?",
+      "Pick a few to start with and set their times. You can add your own later.")+
     '<div class="obx-rts">'+obRt().map(x=>{const c=cat(obRtCat(x));
       return '<div class="obx-rt'+(x.on?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+'">'+
         '<label class="obx-rt-hit"><input type="checkbox" class="obx-sr" data-act="ob-rt" data-k="'+x.k+'"'+(x.on?" checked":"")+'>'+
@@ -1769,14 +1769,14 @@ function obRtCommit(){
 function obCalendar(){
   const on=gcalOn(),g=gcalPrefs();
   const tg=(k,v,l)=>'<label class="switch"><input type="checkbox" data-act="set-pref" data-k="'+k+'"'+(v?" checked":"")+'><span></span><i>'+esc(l)+'</i></label>';
-  return obHead("Google Calendar","Bring your <em>Google Calendar</em> in",
-      "Your events appear beside everything else, and your tasks and routines go the other way — so your phone knows about them too.")+
+  return obHead("Google Calendar","See your whole day <em>in one place</em>",
+      "Your meetings sit beside your tasks, and your plans follow you to your phone.")+
     (on?'<p class="obx-ok">'+icon("i-check","ic-14")+'Connected as <b>'+esc(GC.status.email)+'</b></p>'+
-      '<div class="obx-stack">'+tg("gcal.pushTasks",g.pushTasks,"Put tasks that have a date into Google Calendar")+
-        tg("gcal.pushRoutines",g.pushRoutines,"Put routines into Google Calendar")+'</div>'
-    :OB.busy?obWaiting("Finish in your browser: allow access to Google Calendar.")
+      '<div class="obx-stack">'+tg("gcal.pushTasks",g.pushTasks,"Add dated tasks to Google Calendar")+
+        tg("gcal.pushRoutines",g.pushRoutines,"Add routines to Google Calendar")+'</div>'
+    :OB.busy?obWaiting("Allow Google Calendar access in Google’s window…")
     :'<button class="btn btn-primary obx-connect" data-act="ob-cal">'+icon("i-calendar","ic-14")+'Connect Google Calendar</button>')+obErr()+
-    '<p class="obx-fine">It uses the Google account you signed in with. Change what syncs, or disconnect, from Settings.</p>';
+    '<p class="obx-fine">Uses the account you signed in with. You can change this anytime.</p>';
 }
 function obShowCalendar(){
   const on=gcalOn(),c=S.categories;
@@ -1795,12 +1795,12 @@ function obShowCalendar(){
 /* ---- Obsidian ---- */
 function obObsidian(){
   const v=vaultPath();
-  return obHead("Obsidian","Keep your documents in <em>Obsidian</em>",
-      "Documents you write on a task are saved into your vault as ordinary Markdown, and edits you make in Obsidian come back.")+
+  return obHead("Obsidian","Write in <em>Obsidian</em>, too",
+      "Your task documents stay in step with your vault, whichever side you edit.")+
     (v?'<p class="obx-ok">'+icon("i-check","ic-14")+'Syncing with <b>'+esc(v)+'/Everyday Orbit</b></p>'+
       '<button class="btn btn-sm" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose another vault</button>'
-    :'<button class="btn btn-primary obx-connect" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose your vault folder</button>')+
-    '<p class="obx-fine">Not an Obsidian person? Skip it: documents stay in the planner either way.</p>';
+    :'<button class="btn btn-primary obx-connect" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose your vault</button>')+
+    '<p class="obx-fine">Don’t use Obsidian? Skip this. Your documents are safe in the planner.</p>';
 }
 function obShowVault(){
   const v=vaultPath(),docs=["Project brief","Meeting notes","Reading list"];
@@ -1815,10 +1815,10 @@ function obLook(){
   const cur=S.prefs.theme||"system";
   const card=(v,label)=>'<button class="obx-theme'+(cur===v?" on":"")+'" data-act="set-theme" data-v="'+v+'" aria-pressed="'+(cur===v)+'">'+
     '<span class="obx-thumb '+v+'"><i></i><i></i><i></i></span><b>'+label+'</b></button>';
-  return obHead("Appearance","Make it look like <em>yours</em>",
-      "Light, dark, or following Windows as it switches at dusk — and an accent for the buttons and highlights. Every choice keeps the text readable.")+
-    '<div class="obx-themes">'+card("light","Light")+card("dark","Dark")+card("system","System")+'</div>'+
-    '<div class="obx-set"><div class="obx-flabel">Accent colour</div>'+accentPickHtml()+'</div>';
+  return obHead("Appearance","Make it feel like <em>yours</em>",
+      "Pick a theme and an accent colour. Change them whenever you like.")+
+    '<div class="obx-themes">'+card("light","Light")+card("dark","Dark")+card("system","Match system")+'</div>'+
+    '<div class="obx-set"><div class="obx-flabel">Accent colour</div>'+accentPickHtml(true)+'</div>';
 }
 /* The app in miniature, drawn from the real tokens, so it changes the moment
    the theme or accent does. */
@@ -1843,13 +1843,13 @@ function obNotify(){
   const tin=(k,v,l)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{sm:1,cls:"inp-time",label:l,ph:"Pick a time",req:k==="overdueAt"});
   const web=!hasDesktop(),canWeb=typeof Notification!=="undefined";
   const opt=(ic,body)=>'<div class="obx-opt">'+'<span class="obx-opt-ic">'+icon(ic,"ic-14")+'</span><div>'+body+'</div></div>';
-  return obHead("Notifications","A nudge at the <em>right</em> moment",
-      "Before a routine or a task starts, one daily count of anything overdue — and quiet hours when nothing gets through.")+
+  return obHead("Notifications","Stay on track, <em>without the noise</em>",
+      "Choose when we nudge you, and when we leave you alone.")+
     '<div class="obx-opts">'+
       opt("i-bell",tg("on",rp.on,"Remind me before things start")+
-        '<p class="obx-fine">30 minutes before, unless you choose otherwise on the task or routine.'+(web?" In a browser, only while the tab is open.":" Even with the window closed.")+'</p>'+
+        '<p class="obx-fine">30 minutes ahead by default.'+(web?" Works while this tab is open.":" Works even when the app is closed.")+'</p>'+
         (web&&canWeb&&Notification.permission!=="granted"?'<button class="btn btn-sm" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button>':""))+
-      opt("i-alert",'<div class="obx-inline">'+tg("overdue",rp.overdue,"A daily count of overdue tasks, at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>')+
+      opt("i-alert",'<div class="obx-inline">'+tg("overdue",rp.overdue,"Daily overdue summary at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>')+
       opt("i-moon",'<div class="obx-inline">'+tg("quiet",rp.quiet,"Quiet hours")+
         (rp.quiet?tin("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+tin("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>')+
     '</div>';
@@ -1888,14 +1888,14 @@ function obDone(){
   const g=googleReady(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
   const item=(ok,ic,title,sub)=>'<div class="obx-sum'+(ok?" ok":"")+'"><span class="obx-sum-ic">'+icon(ok?ic:"i-minus","ic-14")+'</span><span><b>'+title+'</b><small>'+sub+'</small></span></div>';
   return obHead("All set",S.prefs.name?"You’re all set, <em>"+esc(S.prefs.name)+"</em>":"You’re <em>all set</em>",
-      "Here is your planner. Every one of these can be changed later in Settings.")+
+      "Your planner is ready. You can change any of this in Settings.")+
     '<div class="obx-sums">'+
       (g?item(signedIn(),"i-user","Signed in",esc((GC.status&&GC.status.email)||"")):"")+
       item(true,driveOn()?"i-cloud":"i-laptop",driveOn()?"Backed up to Google Drive":"Saved in this "+here(),
         driveOn()?"After every change":"As you go")+
       (OB.mode==="new"?item(true,"i-tag",S.categories.length+" categories",rts?rts+" routine"+(rts===1?"":"s")+" to start with":"Ready for your first task"):"")+
-      (g?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Not connected — any time from Settings"):"")+
-      (d?item(!!vaultPath(),"i-folder",vaultPath()?"Obsidian vault linked":"Obsidian",vaultPath()?esc(vaultPath()):"Not linked — any time from Settings"):"")+
+      (g?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Connect anytime in Settings"):"")+
+      (d?item(!!vaultPath(),"i-folder",vaultPath()?"Obsidian vault linked":"Obsidian",vaultPath()?esc(vaultPath()):"Link a vault anytime in Settings"):"")+
     '</div>';
 }
 /* The finish: you at the centre, what you set up in orbit round you, lit
@@ -2074,7 +2074,8 @@ function themePickHtml(){
 }
 /* A swatch shows the shade the theme in force would actually use, so what
    you press is what you get rather than the light-mode version of it. */
-function accentPickHtml(){
+/* plain: just the name of the colour, for setup; Settings shows its code too. */
+function accentPickHtml(plain){
   const p=S.prefs||{},dark=isDark(),cur=p.accent||"green",curHex=accentHex();
   const shade=h=>{const t=accentTrio(h);return dark?t.lift:t.base;};
   const swatch=a=>'<button class="accent-dot'+(cur===a.id?" on":"")+'" style="--dot:'+shade(a.hex)+'"'+
@@ -2085,7 +2086,7 @@ function accentPickHtml(){
       ' style="--dot:'+shade(curHex)+'" value="'+esc(curHex)+'" data-act="set-accent-hex"'+
       ' title="Any colour you like" aria-label="Custom accent colour"></div>'+
     '<div class="accent-note"><span>'+(cur==="custom"?"Your own colour":
-      esc((ACCENTS.filter(a=>a.id===cur)[0]||ACCENTS[0]).name))+'</span><b>'+esc(curHex)+'</b></div>';
+      esc((ACCENTS.filter(a=>a.id===cur)[0]||ACCENTS[0]).name))+'</span>'+(plain?'':'<b>'+esc(curHex)+'</b>')+'</div>';
 }
 function settingsModal(){
   const n=S.tasks.length+S.routines.length+S.notes.length;

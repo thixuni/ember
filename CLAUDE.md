@@ -311,6 +311,11 @@ created, replaced rather than added to when someone goes back and forth.
   stops under `prefers-reduced-motion`. Live bits that must not cost the caret
   (the greeting, a category's planet label) are written into the DOM by the
   `input` listener rather than redrawn.
+- **How it reads.** Short and about the person: a heading that says what they
+  get, one line under it, labels a person would say out loud. It does not
+  explain where things appear or how they work, and it never shows a code, a
+  file name or a key (the accent picker hides its hex here: `accentPickHtml(true)`).
+  The previews carry no captions; they speak for themselves.
 - `mode` decides the steps: `"new"`; `"returning"` — someone with a planner
   from before setup existed, who signs in, picks where it lives, and is done;
   `"restored"` — a planner brought back from Drive or a file, which skips
