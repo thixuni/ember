@@ -316,6 +316,8 @@ created, replaced rather than added to when someone goes back and forth.
   explain where things appear or how they work, and it never shows a code, a
   file name or a key (the accent picker hides its hex here: `accentPickHtml(true)`).
   The previews carry no captions; they speak for themselves.
+- In a browser, All set ends with a card to get the desktop app (`obGetApp()`,
+  `DOWNLOAD_URL`, the GitHub Pages download page); the desktop app never shows it.
 - `mode` decides the steps: `"new"`; `"returning"` — someone with a planner
   from before setup existed, who signs in, picks where it lives, and is done;
   `"restored"` — a planner brought back from Drive or a file, which skips

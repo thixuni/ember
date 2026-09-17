@@ -1896,7 +1896,15 @@ function obDone(){
       (OB.mode==="new"?item(true,"i-tag",S.categories.length+" categories",rts?rts+" routine"+(rts===1?"":"s")+" to start with":"Ready for your first task"):"")+
       (g?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Connect anytime in Settings"):"")+
       (d?item(!!vaultPath(),"i-folder",vaultPath()?"Obsidian vault linked":"Obsidian",vaultPath()?esc(vaultPath()):"Link a vault anytime in Settings"):"")+
-    '</div>';
+    '</div>'+(d?"":obGetApp());
+}
+/* In a browser, the one thing setup cannot do for you: the desktop app. */
+const DOWNLOAD_URL="https://thixuni.github.io/everyday-orbit/";
+function obGetApp(){
+  return '<a class="obx-getapp" href="'+DOWNLOAD_URL+'" target="_blank" rel="noopener">'+
+    '<span class="obx-getapp-ic">'+icon("i-laptop")+'</span>'+
+    '<span class="obx-getapp-txt"><b>Get the desktop app</b><small>Reminders when your browser is closed, a floating focus timer and Obsidian sync.</small></span>'+
+    '<span class="btn btn-sm btn-primary">'+icon("i-download","ic-14")+'Download</span></a>';
 }
 /* The finish: you at the centre, what you set up in orbit round you, lit
    when it is on, and a burst of your colours as it opens. */
