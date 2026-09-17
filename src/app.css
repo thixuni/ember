@@ -130,7 +130,7 @@
     --surface:#28282B;
     --surface-2:#212124;
     /* The sidebar sits a shade below the cards, so its labels stand out. */
-    --rail:var(--surface-2);
+    --rail:#141416;
     --surface-3:#323236;
     --line:#39393E;
     --line-2:#4C4C52;
@@ -177,7 +177,7 @@
   --ground:#1B1B1D;
   --surface:#28282B;
   --surface-2:#212124;
-  --rail:var(--surface-2);
+  --rail:#141416;
   --surface-3:#323236;
   --line:#39393E;
   --line-2:#4C4C52;

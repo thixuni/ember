@@ -480,7 +480,8 @@ welcome panel, the quick-add row, a category glow on board cards) did the
 same; all of those are neutral now. Keep a new background out of the accent.
 
 Dark follows ClickUp: a near-black `--ground` (#1B1B1D), board columns,
-side panels and the sidebar (`--rail`) a shade above it (`--surface-2`), and cards, panels and modals a
+side panels a shade above it (`--surface-2`), the sidebar (`--rail`,
+#141416) darker than the page, and cards, panels and modals a
 clear step above those (`--surface`, #28282B) with a fine `--line`. A
 mid-charcoal page was tried once and read as washed out: nothing can lift off
 a ground that is already halfway up the ramp. Text is measured on the
