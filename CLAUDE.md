@@ -246,7 +246,8 @@ deadline is the planner's own and is never synced.
 ### Dashboard
 
 `viewDashboard` is today on one page and owns no data of its own. The
-scratch pad is the same `prefs.scratch` that Notes opens, "Needs your
+scratch pad (`prefs.scratch`) lives only here — Notes once had a button
+opening it too, and it was taken out so there is one place for it. "Needs your
 attention" reuses `overdueItems()` — the calendar's Catch-up panel — and
 `noteActionItems()` reads open action items straight from `S.notes`. An
 action item already due today or overdue is left out of "From your notes",

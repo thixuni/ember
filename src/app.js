@@ -389,7 +389,7 @@ function renderTopbar(){
     right=topSearch("Search routines")+'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>';
     }else{
     title="Notes";sub=S.notes.length+" notes · action items land in your tasks and calendar";
-    right=topSearch("Search notes")+'<button class="btn" data-act="scratch">'+icon("i-bolt")+'Scratch pad</button>'+
+    right=topSearch("Search notes")+
       '<button class="btn btn-primary" data-act="new-note">'+icon("i-plus")+'New note</button>';
   }
   const hid=hiddenCats().length;
@@ -736,7 +736,7 @@ function overduePanel(){
 /* ============ dashboard ============ */
 /* One page for today: what is due, what repeats, what slipped, and somewhere
    to put a thought without going to Notes. Nothing here is its own data --
-   the scratch pad is the same one Notes opens, and every list is read
+   the scratch pad lives only here, and every list is read
    straight from tasks, routines and notes. */
 function todayItems(){
   const ts=TODAY();
@@ -2448,13 +2448,6 @@ function peekModal(date){
     (!ts.length&&!evs.length&&!gev.length?'<div class="empty">'+icon("i-calendar")+'<p>Nothing scheduled. A clear day.</p></div>':"")+
     '</div><div class="mfoot"><button class="btn btn-primary" data-act="new-task" data-date="'+date+'">'+icon("i-plus")+'Add task</button><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Close</button></div></div>');
 }
-function scratchModal(){
-  openModal('<div class="modal" role="dialog" aria-modal="true" aria-label="Scratch pad">'+
-    '<div class="mhead2">'+icon("i-bolt","ic-18")+'<h2>Scratch pad</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="rte-bar">'+["bold|B","italic|I","insertUnorderedList|•"].map(o=>{const[c,l]=o.split("|");return '<button data-act="rte" data-cmd="'+c+'" data-scratch="1">'+l+'</button>';}).join("")+'</div>'+
-    '<div class="rte" id="scratchPad" contenteditable="true" data-ph="Anything you need out of your head…" style="min-height:280px">'+(S.prefs.scratch||"")+'</div>'+
-    '<div class="mfoot"><span style="color:var(--muted);font-size:12px">Saves as you type</span><div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
-}
 
 /* ============ render ============ */
 /* ---- keeping your place across a redraw ----
@@ -2827,7 +2820,6 @@ document.addEventListener("click",function(e){
     case "export":exportData();break;
     case "import":el("importFile").value="";el("importFile").click();break;
     case "import-apply":applyImport();break;
-    case "scratch":scratchModal();break;
     case "vault-pick":{const o=desktop();if(!o)break;
       Promise.resolve(o.chooseVault()).then(function(pth){
         if(!pth)return;
