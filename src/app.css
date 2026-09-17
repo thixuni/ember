@@ -269,6 +269,8 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .rail-head button > *{pointer-events:none}
 .cat-row{display:flex;align-items:center;gap:9px;padding:5px 10px;border-radius:var(--r-s);width:100%;text-align:left;color:var(--ink-2)}
 .cat-row > *{pointer-events:none}
+.cat-row{-webkit-touch-callout:none;user-select:none}
+body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
 .cat-row:hover{background:var(--surface-3)}
 .cat-row.off{color:var(--faint)}
 .cat-box{width:15px;height:15px;border-radius:5px;flex:none;display:grid;place-items:center;border:1.6px solid var(--c);background:var(--c);transition:background .15s}

@@ -2637,7 +2637,7 @@ document.addEventListener("click",function(e){
   switch(a){
     case "rail":document.body.classList.toggle("rail-open");break;
     case "view":V.view=n.dataset.view;V.q="";closeRail();render();break;
-    case "cat-toggle":toggleCat(id);break;
+    case "cat-toggle":if(n.classList.contains("cat-row")&&Date.now()<CP.skipUntil)break;toggleCat(id);break;
     case "cat-all":hiddenCats().length=0;touched.prefs=true;save("prefs");render();refreshCatsModal();break;
     case "cat-none":S.prefs.hidden=S.categories.map(c=>c.id);touched.prefs=true;save("prefs");render();refreshCatsModal();break;
     case "cat-only":S.prefs.hidden=S.categories.filter(c=>c.id!==id).map(c=>c.id);touched.prefs=true;save("prefs");render();refreshCatsModal();break;
@@ -2847,6 +2847,67 @@ document.addEventListener("click",function(e){
   }catch(err){if(window.console)console.error(err);
     toast("Couldn't do that: "+((err&&err.message)||"unknown error")+" · action "+a);}
 });
+/* ---- sweeping across the category boxes ----
+   Press a category's box and drag over the others: every row between the
+   first and the pointer takes the state the first one took, like selecting
+   cells, and dragging back gives rows their old state again. It is saved
+   once, on release, with one redraw. With a mouse it starts at once; on a
+   touch screen after a short hold, so a plain swipe still scrolls. A tap or
+   a key press is still an ordinary toggle. */
+const CP={id:null,armed:false,timer:0,skipUntil:0};
+const CAT_ROW='.cat-row[data-act="cat-toggle"]';
+function catPaintRow(row,show){row.classList.toggle("off",!show);row.setAttribute("aria-checked",String(show));}
+function catPaintTo(row){
+  const all=[...document.querySelectorAll(CAT_ROW)],ids=all.map(r=>r.dataset.id);
+  const a=ids.indexOf(CP.start),b=ids.indexOf(row.dataset.id);
+  if(a<0||b<0)return;
+  const lo=Math.min(a,b),hi=Math.max(a,b);
+  CP.rows=new Map();
+  all.forEach((r,i)=>{
+    const id=r.dataset.id,inside=i>=lo&&i<=hi;
+    catPaintRow(r,inside?CP.show:CP.orig.get(id));
+    if(inside)CP.rows.set(id,CP.show);
+  });
+}
+document.addEventListener("pointerdown",function(e){
+  const row=e.target&&e.target.closest?e.target.closest(CAT_ROW):null;
+  if(!row||e.button!==0)return;
+  clearTimeout(CP.timer);
+  Object.assign(CP,{id:e.pointerId,armed:false,sx:e.clientX,sy:e.clientY,start:row.dataset.id});
+  const begin=()=>{
+    CP.armed=true;CP.show=row.classList.contains("off");
+    CP.orig=new Map([...document.querySelectorAll(CAT_ROW)].map(r=>[r.dataset.id,!r.classList.contains("off")]));
+    catPaintTo(row);
+    document.body.classList.add("cat-sweep");
+  };
+  if(e.pointerType==="touch")CP.timer=setTimeout(begin,260);
+  else{e.preventDefault();begin();}
+});
+document.addEventListener("pointermove",function(e){
+  if(e.pointerId!==CP.id)return;
+  if(!CP.armed){
+    if(Math.hypot(e.clientX-CP.sx,e.clientY-CP.sy)>8){clearTimeout(CP.timer);CP.id=null;}
+    return;
+  }
+  const hit=document.elementFromPoint(e.clientX,e.clientY),row=hit&&hit.closest?hit.closest(CAT_ROW):null;
+  if(row)catPaintTo(row);
+});
+function catSweepEnd(e){
+  if(e.pointerId!==CP.id)return;
+  clearTimeout(CP.timer);CP.id=null;
+  if(!CP.armed)return;
+  CP.armed=false;document.body.classList.remove("cat-sweep");
+  /* The click that follows the release is this gesture, not a toggle. */
+  CP.skipUntil=Date.now()+500;
+  if(e.type==="pointercancel"){render();return;}
+  const h=hiddenCats();
+  (CP.rows||new Map()).forEach((show,id)=>{const i=h.indexOf(id);if(show){if(i>-1)h.splice(i,1);}else if(i<0)h.push(id);});
+  touched.prefs=true;save("prefs");render();refreshCatsModal();
+}
+document.addEventListener("pointerup",catSweepEnd);
+document.addEventListener("pointercancel",catSweepEnd);
+document.addEventListener("touchmove",function(e){if(CP.armed)e.preventDefault();},{passive:false});
+document.addEventListener("contextmenu",function(e){if(CP.armed||Date.now()<CP.skipUntil)e.preventDefault();});
 document.addEventListener("mousedown",function(e){
   const t=e.target;if(!t||!t.closest)return;
   if(docOpen()&&richTick(e))return;

@@ -261,6 +261,12 @@ section were inventory, and a number that is always there stops being seen.
 What is due today is a plan, not an alarm. The badge is a `<b>`, not a
 `<span>`, because the icon-only rail hides every span in a nav button.
 
+The category boxes in the sidebar can be swept: press one and drag over the
+others, and every row between takes the state the first took, saved once on
+release (`CP`, the sweeping section of app.js). On a touch screen the sweep
+starts after a short hold so a swipe still scrolls; the click that ends a
+sweep is ignored (`CP.skipUntil`), and a tap or a key is still a toggle.
+
 The dashboard is the page the planner opens on. Everyone set up before it
 existed has `launch:"calendar"` saved — the old default, not a choice — so
 start-up moves them once; picking a page in Settings sets `launchSet` and is
