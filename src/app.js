@@ -312,6 +312,59 @@ function overdueItems(){
   return {tasks:tasks,miss:miss.slice(0,12)};
 }
 
+/* ============ empty states ============
+   What a section says when there is nothing in it. Each has a small
+   drawing of its own and a colour of its own (--h), a heading that says
+   where things stand, a line on what to do next, and where it helps, the
+   button that does it. es() is the full one, for a whole view or panel;
+   es(...,{mini:1}) sits in a row, for a group inside a card. The drawings use
+   the theme's greys and the section's colour, so they follow light and dark. */
+const ES_ART={
+  clear:'<rect x="16" y="14" width="50" height="44" rx="9" class="es-f"/><path d="M16 27h50M29 9v9M53 9v9" class="es-l"/>'+
+    '<path d="M27 38h8M42 38h8M27 47h8" class="es-l es-dash"/><circle cx="68" cy="52" r="13" class="es-h"/><path d="m62 52 4.5 4.5L75 48" class="es-on"/>',
+  list:'<rect x="20" y="12" width="46" height="50" rx="8" class="es-f"/><path d="M31 27h24M31 38h18M31 49h21" class="es-l"/>'+
+    '<circle cx="70" cy="22" r="10" class="es-h"/><path d="M70 17v10M65 22h10" class="es-on"/><circle cx="14" cy="50" r="2.5" class="es-dot"/><circle cx="80" cy="56" r="2" class="es-dot"/>',
+  filter:'<path d="M16 16h44l-17 20v16l-10 6V36z" class="es-f"/><circle cx="62" cy="48" r="12" class="es-hs"/><path d="m71 57 8 8" class="es-hl"/>'+
+    '<path d="M57 48h10" class="es-hl"/>',
+  timeline:'<path d="M14 40h68" class="es-l"/><circle cx="26" cy="40" r="4" class="es-f"/><circle cx="48" cy="40" r="4" class="es-f"/>'+
+    '<circle cx="70" cy="40" r="4" class="es-f"/><path d="M36 20a12 12 0 1 1 24 0" class="es-hl"/><path d="M48 8v-2M34 14l-2-2M62 14l2-2" class="es-hl"/>',
+  timer:'<circle cx="46" cy="40" r="22" class="es-f"/><path d="M46 12v6M40 12h12M63 23l4-4" class="es-l"/>'+
+    '<path d="M46 40V27" class="es-hl"/><path d="M46 40l9 6" class="es-l"/><circle cx="46" cy="40" r="3" class="es-h"/>',
+  routine:'<path d="M26 34a20 20 0 0 1 36-12" class="es-hl"/><path d="m62 12 1 10-10 1" class="es-hl"/>'+
+    '<path d="M66 40a20 20 0 0 1-36 12" class="es-l"/><path d="m30 62-1-10 10-1" class="es-l"/>'+
+    '<circle cx="36" cy="37" r="3" class="es-h"/><circle cx="46" cy="37" r="3" class="es-h"/><circle cx="56" cy="37" r="3" class="es-f"/>',
+  notes:'<rect x="28" y="10" width="40" height="50" rx="7" class="es-f" transform="rotate(8 48 35)"/>'+
+    '<rect x="22" y="14" width="40" height="50" rx="7" class="es-f es-front"/><path d="M31 28h22M31 37h22M31 46h14" class="es-l"/><circle cx="64" cy="58" r="9" class="es-h"/><path d="M60 58h8M64 54v8" class="es-on"/>',
+  page:'<rect x="24" y="10" width="42" height="54" rx="7" class="es-f"/><path d="M33 24h24M33 33h24M33 42h12" class="es-l es-dash"/>'+
+    '<path d="m58 58 14-14 5 5-14 14-7 2z" class="es-hs"/><path d="m68 48 5 5" class="es-hl"/>',
+  day:'<path d="M12 52h72" class="es-l"/><path d="M28 52a20 20 0 0 1 40 0" class="es-hs"/>'+
+    '<path d="M48 22v-8M26 32l-5-5M70 32l5-5M18 44h-6M84 44h-6" class="es-hl"/><path d="M24 60h16M52 60h22" class="es-l es-dash"/>',
+  history:'<circle cx="50" cy="38" r="20" class="es-f"/><path d="M50 26v12l8 5" class="es-hl"/>'+
+    '<path d="M24 26a28 28 0 0 0-2 12" class="es-l es-dash"/><circle cx="20" cy="46" r="2.5" class="es-dot"/><circle cx="16" cy="56" r="2" class="es-dot"/>',
+  doc:'<rect x="30" y="12" width="36" height="46" rx="6" class="es-f"/><path d="M38 26h20M38 34h20M38 42h12" class="es-l"/><circle cx="66" cy="54" r="10" class="es-h"/><path d="M62 54h8M66 50v8" class="es-on"/>',
+  board:'<rect x="14" y="16" width="20" height="44" rx="5" class="es-f"/><rect x="38" y="16" width="20" height="44" rx="5" class="es-f"/>'+
+    '<rect x="62" y="16" width="20" height="44" rx="5" class="es-f"/><rect x="40" y="22" width="16" height="10" rx="3" class="es-h"/>'
+};
+function esArt(kind,extra){
+  return '<svg class="es-art" viewBox="0 0 96 72" aria-hidden="true">'+(extra||ES_ART[kind]||"")+'</svg>';
+}
+function es(kind,title,text,o){
+  o=o||{};
+  return '<div class="es'+(o.mini?" es-mini":"")+(o.cls?" "+o.cls:"")+'" style="--h:'+(o.hue||"var(--accent)")+'">'+
+    (o.icon?'<span class="es-badge">'+icon(o.icon,o.mini?"ic-16":"ic-22")+'</span>':esArt(kind))+
+    '<div class="es-copy"><b>'+title+'</b>'+(text?'<p>'+text+'</p>':"")+
+    (o.actions?'<div class="es-acts">'+o.actions+'</div>':"")+'</div></div>';
+}
+/* What each quadrant says when it has nothing. */
+const QUAD_EMPTY={
+  do:["No fires today","Nothing is both urgent and important. Enjoy the calm."],
+  decide:["Room to think ahead","Important work without a deadline breathing down its neck belongs here."],
+  delegate:["Nothing to hand off","Urgent things someone else could do will gather here."],
+  drop:["Nothing to let go of","Tasks that are neither urgent nor important can wait here, or go."]};
+/* What each board column says when it is empty. */
+const COL_EMPTY={backlog:"Park ideas here",planned:"Nothing lined up",in_progress:"Nothing on the go",
+  review:"Nothing waiting on anyone",completed:"Finished work lands here",dropped:"Nothing dropped"};
+
 /* ============ view state ============ */
 const V={view:"dashboard",calMode:"week",anchor:today(),taskMode:"board",q:"",odOpen:true,adv:false,sheet:null,range:"week",
   f:{quick:"open",status:"",cat:"",quad:"",from:"",to:"",sort:"due"},noteId:null,noteTag:""};
@@ -376,7 +429,7 @@ function renderTopbar(){
     sub=V.calMode==="week"?"Week of "+fmtDate(ymd(startOfWeek(V.anchor))):MON[V.anchor.getMonth()]+" "+V.anchor.getFullYear();
     right=topSearch("Search tasks and routines")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="tasks"){
-    title="Tasks";sub=open.length+" open"+(over.length?" · "+over.length+" overdue":"")+" · "+S.tasks.length+" total";
+    title="Tasks";sub=S.tasks.length?open.length+" open"+(over.length?" · "+over.length+" overdue":"")+" · "+S.tasks.length+" total":"Nothing on your list yet";
     right='<div class="seg"><button data-act="task-mode" data-mode="board" aria-pressed="'+(V.taskMode==="board")+'">'+icon("i-board")+'Board</button>'+
       '<button data-act="task-mode" data-mode="list" aria-pressed="'+(V.taskMode==="list")+'">'+icon("i-list")+'List</button></div>'+
       topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
@@ -385,10 +438,10 @@ function renderTopbar(){
     right=topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="routines"){
     const due=S.routines.filter(r=>routineHere(r,today())).length,done=S.routines.filter(r=>doneR(r,TODAY())).length;
-    title="Routines & Habits";sub=S.routines.length+" routines · "+done+" of "+due+" done today";
+    title="Routines & Habits";sub=!S.routines.length?"Nothing on repeat yet":S.routines.length+" routine"+(S.routines.length===1?"":"s")+(due?" · "+done+" of "+due+" done today":" · none due today");
     right=topSearch("Search routines")+'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>';
     }else{
-    title="Notes";sub=S.notes.length+" notes · action items land in your tasks and calendar";
+    title="Notes";sub=S.notes.length?S.notes.length+" note"+(S.notes.length===1?"":"s")+" · action items land in your tasks and calendar":"Ideas, meeting notes and anything worth keeping";
     right=topSearch("Search notes")+
       '<button class="btn btn-primary" data-act="new-note">'+icon("i-plus")+'New note</button>';
   }
@@ -720,7 +773,7 @@ function overduePanel(){
     '<h3>Catch-up</h3>'+(n?'<span class="od-count num">'+n+'</span>':"")+'</div>';
   if(!V.odOpen)return '<aside class="overdue collapsed">'+head+'</aside>';
   let body="";
-  if(!n)body='<div class="empty">'+icon("i-check")+'<p>Nothing behind. Every task and routine up to today is done.</p></div>';
+  if(!n)body=es("clear","You’re all caught up","Nothing overdue and no routines missed. A clean slate.");
   else{
     if(o.tasks.length)body+='<div class="od-group"><h4>Overdue tasks</h4>'+o.tasks.map(t=>
       '<div class="od-item">'+tickBtn(t)+'<div class="t"><b>'+esc(t.title)+'</b><small>'+esc(lateText(t))+' · '+esc(cat(t.cat).name)+'</small></div>'+
@@ -770,7 +823,7 @@ function dashRow(o){
 }
 function dashGroup(title,count,rows,empty){
   return '<div class="dgroup"><h3>'+esc(title)+(count?'<span class="num">'+count+'</span>':"")+'</h3>'+
-    (rows||'<p class="dempty">'+esc(empty)+'</p>')+'</div>';
+    (rows||empty||"")+'</div>';
 }
 /* Past this many, missed routines fold away behind "Show more": they are the
    least actionable thing on the page and ten of them hid everything below. */
@@ -824,10 +877,10 @@ function viewDashboard(){
 
   const todayCard='<section class="dcard dash-today">'+dashHead("i-sun","Today","",
       '<small>'+openT+' to do · '+leftR+' in your schedule</small>')+quick+
-    dashGroup("To do",openT,d.tasks.map(taskRow).join(""),"Nothing due today. Add one above.")+
+    dashGroup("To do",openT,d.tasks.map(taskRow).join(""),es("list","Today’s list is clear","Add something above, or enjoy the breathing room.",{mini:1,hue:"var(--blue)"}))+
     '<div class="dgroup"><h3>Schedule'+(leftR?'<span class="num">'+leftR+'</span>':"")+'</h3>'+allDay+
       (sched.length?'<div class="dag">'+sched.map(agRow).join("")+'</div>'
-        :(allDay?"":'<p class="dempty">Nothing scheduled today.</p>'))+'</div>'+
+        :(allDay?"":es("timeline","No fixed times today","Your day is yours to shape.",{mini:1,hue:"var(--amber)"})))+'</div>'+
     '</section>';
 
   /* ---- needs your attention ---- */
@@ -837,8 +890,7 @@ function viewDashboard(){
      also counts missed routines and undated notes would say 10 beside its 1.
      Each group below carries its own count. */
   const attn='<section class="dcard dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-flag","Needs your attention",need?"warn":"")+
-    (!need?'<div class="dclear"><span class="dclear-ic">'+icon("i-check")+'</span><div><b>You’re all caught up</b>'+
-      '<p>Nothing overdue, nothing missed. Enjoy it.</p></div></div>':
+    (!need?es("clear","You’re all caught up","Nothing overdue, nothing missed. Enjoy the head start.",{mini:1,cls:"es-attn"}):
       (o.tasks.length?dashGroup("Overdue",o.tasks.length,o.tasks.map(t=>{const c=cat(t.cat);
         return dashRow({color:c.color,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
           meta:esc(c.name),end:esc(lateText(t)),late:true});}).join("")):"")+
@@ -943,7 +995,7 @@ function upNextHtml(){
   let body="";
   if(cur)body+=pill("Now",cur,"until "+clock(cur.end));
   if(next)body+=pill("Next",next,"in "+inMins(next.start-now)+" · "+clock(next.start));
-  return body||'<span class="dnext-none">Nothing else with a time today.</span>';
+  return body||'<span class="dnext-none">Nothing else on the clock today.</span>';
 }
 /* The day from the calendar's first hour to midnight on one strip: routines
    and Google events as bars at their real times, what has passed shaded,
@@ -1000,7 +1052,7 @@ function timeTodayCard(){
         '<span class="dtrow-t">'+esc(x.t.title)+'</span>'+
         '<span class="dtrow-v num'+(live?" live":"")+'"'+(live?' data-live-total="'+x.t.id+'"':"")+'>'+esc(live?fmtDur(x.secs):fmtTracked(x.secs))+'</span>'+
         '<span class="dtrow-bar"><i style="width:'+Math.max(3,x.secs/max*100).toFixed(1)+'%"></i></span></button>';}).join("")+'</div>'
-      :'<p class="dempty dtime-empty">Nothing tracked yet. Press '+icon("i-play","ic-14")+' on a task to start.</p>')+
+      :es("timer","No time tracked yet","Press "+icon("i-play","ic-14 es-inline")+" on any task and watch the minutes add up.",{mini:1,hue:"var(--blue)"}))+
     '</section>';
 }
 
@@ -1182,12 +1234,20 @@ function viewBoard(){
   return '<div class="task-main">'+filterBar()+'<div class="board-scroll"><div class="board">'+STATUSES.map(s=>{
     const items=list.filter(t=>t.status===s.id);
     return '<div class="col" data-col="'+s.id+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
-      '<div class="col-list">'+items.map(taskCard).join("")+'</div>'+
+      '<div class="col-list">'+(items.length?items.map(taskCard).join(""):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
       '<button class="addcard" data-act="new-task" data-status="'+s.id+'">'+icon("i-plus","ic-14")+'Add task</button></div>';}).join("")+'</div></div></div>';
 }
 function viewList(){
   const list=filterTasks("list");
-  if(!list.length)return '<div class="task-main">'+filterBar()+'<div class="list-scroll"><div class="empty">'+icon("i-inbox")+'<p>No tasks match these filters. Try clearing them or add something new.</p></div></div></div>';
+  if(!list.length){
+    const any=S.tasks.some(t=>visibleCat(t.cat)),n=activeFilterCount();
+    const acts=any?(n?'<button class="btn btn-sm" data-act="filter-clear">'+icon("i-x","ic-14")+'Clear filters</button>':"")+
+        (V.f.quick!=="all"?'<button class="btn btn-sm" data-act="quick" data-v="all">Show everything</button>':"")
+      :'<button class="btn btn-sm btn-primary" data-act="new-task">'+icon("i-plus","ic-14")+'New task</button>';
+    return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+(any
+      ?es("filter","Nothing matches",V.q?"Nothing fits “"+esc(V.q)+"” with these filters.":"No task fits this view. Try another filter.",{hue:"var(--apricot)",actions:acts})
+      :es("list","Your list is empty","Capture the first thing on your mind. You can sort it out later.",{actions:acts}))+'</div></div>';
+  }
   const groups={},order=[];
   list.forEach(t=>{const k=t.due?MONS[parseD(t.due).getMonth()]+" "+parseD(t.due).getFullYear():"No date";
     if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(t);});
@@ -1216,7 +1276,7 @@ function viewMatrix(){
         '<div class="qrow'+(t.status==="completed"?" done":"")+'" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+
         '<div class="t"><b>'+esc(t.title)+'</b><div class="m">'+catChip(t.cat)+'<span class="chip">'+esc(ST(t.status).name)+'</span></div></div>'+
         '<span class="chip chip-due '+(isOverdue(t)?"over":(t.due&&dayDiff(t.due,TODAY())<=1?"soon":""))+'">'+esc(t.due?fmtDate(t.due):"No date")+'</span></div>').join("")
-        :'<div class="empty" style="padding:20px">'+icon("i-check")+'<p>Nothing here right now.</p></div>')+'</div></section>';}).join("")+'</div>';
+        :es("",QUAD_EMPTY[Q.id][0],QUAD_EMPTY[Q.id][1],{icon:Q.icon,hue:"var(--q)",cls:"es-quad"}))+'</div></section>';}).join("")+'</div>';
   const un=base.filter(t=>!quadOf(t));
   const tray=un.length?'<div class="unsorted"><h3>Not prioritised yet</h3><p>Tick urgent, important, or both and the task moves into a quadrant.</p>'+
     un.slice(0,10).map(t=>'<div class="urow"><span class="t">'+esc(t.title)+'</span>'+
@@ -1230,7 +1290,10 @@ function viewMatrix(){
 function viewRoutines(){
   const q=V.q.toLowerCase();
   const list=S.routines.filter(r=>visibleCat(r.cat)&&(!q||r.title.toLowerCase().indexOf(q)>-1||cat(r.cat).name.toLowerCase().indexOf(q)>-1));
-  if(!list.length)return '<div class="card"><div class="empty">'+icon("i-repeat")+'<p>No routines yet. Add the things you want to happen on repeat — a stand-up, a skincare routine, a weekly review.</p><button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button></div></div>';
+  if(!list.length)return '<div class="card es-card">'+(S.routines.length
+    ?es("filter","No routines match",q?"Nothing fits “"+esc(V.q)+"”. Try another word.":"Their categories are hidden. Tick them in the sidebar to see them.",{hue:"var(--apricot)"})
+    :es("routine","Build a rhythm","Stand-ups, workouts, a weekly review: pick the days, tick them off, and watch your streak grow.",
+      {actions:'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>'}))+'</div>';
   const wkStart=startOfWeek(today());
   return '<div class="rgrid">'+list.map(r=>{
     const c=cat(r.cat),st=streak(r);
@@ -1281,10 +1344,14 @@ function viewNotes(){
         '<b>'+(n.pinned?"📌 ":"")+esc(n.title||"Untitled note")+'</b>'+
         '<p>'+esc(stripHtml(n.html).slice(0,110)||"Empty note")+'</p>'+
         '<span class="nm">'+catChip(n.cat)+'<span class="date">'+esc(new Date(n.updated||Date.now()).toLocaleDateString(undefined,{day:"numeric",month:"short"}))+'</span></span></button>';}).join("")
-      :'<div class="empty">'+icon("i-note")+'<p>No notes match. Start one and tag it.</p></div>')+
+      :(S.notes.length
+        ?es("filter","No notes match",V.noteTag?"Nothing tagged #"+esc(V.noteTag)+" fits.":"Try another word or tag.",{hue:"var(--apricot)",cls:"es-side"})
+        :es("notes","No notes yet","Meeting notes, ideas, a parking lot for later.",{hue:"var(--amber)",cls:"es-side"})))+
     '</div></div>';
   const n=noteById(V.noteId);
-  if(!n)return '<div class="notes">'+side+'<div class="neditor"><div class="empty">'+icon("i-note")+'<p>Pick a note on the left, or start a new one.</p></div></div></div>';
+  if(!n)return '<div class="notes">'+side+'<div class="neditor">'+(S.notes.length
+    ?es("page","Pick a note","Choose one on the left, or start something new.")
+    :es("page","A blank page","Write down anything worth keeping. Action items you add become tasks.",{actions:'<button class="btn btn-sm btn-primary" data-act="new-note">'+icon("i-plus","ic-14")+'Start a note</button>'}))+'</div></div>';
   const tools=[["bold","B","Bold"],["italic","I","Italic"],["underline","U","Underline"]];
   const bar='<div class="rte-bar">'+tools.map(t=>'<button data-act="rte" data-cmd="'+t[0]+'" title="'+t[2]+'" style="font-family:var(--fd)">'+t[1]+'</button>').join("")+
     '<span class="rte-sep"></span>'+
@@ -2444,7 +2511,7 @@ function peekModal(date){
     (ts.length?'<div><div class="sec-label" style="margin-bottom:6px">Tasks</div>'+ts.map(t=>'<div class="qrow" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+'<div class="t"><b>'+esc(t.title)+'</b></div>'+catChip(t.cat)+'</div>').join("")+'</div>':"")+
     (routines.length?'<div><div class="sec-label" style="margin-bottom:6px">Routines</div>'+routines.map(e=>'<div class="qrow"><button class="tick'+(e.done?" on":"")+'" data-act="routine-done" data-id="'+e.r.id+'" data-date="'+date+'" aria-label="Toggle">'+icon("i-check")+'</button><div class="t"><b>'+esc(e.r.title)+'</b></div><span class="chip num">'+esc(fmtTime(e.r.time))+'</span></div>').join("")+'</div>':"")+
     (tracked.length?'<div><div class="sec-label" style="margin-bottom:6px">Time tracked</div>'+tracked.map(e=>'<div class="qrow">'+icon("i-timer","ic-14")+'<div class="t"><b>'+esc(e.t.title)+'</b></div><span class="chip num">'+esc(fmtTracked(e.secs))+'</span></div>').join("")+'</div>':"")+
-    (!ts.length&&!evs.length&&!gev.length?'<div class="empty">'+icon("i-calendar")+'<p>Nothing scheduled. A clear day.</p></div>':"")+
+    (!ts.length&&!evs.length&&!gev.length?es("day","A free day","Nothing planned yet. Keep it that way, or add a task.",{hue:"var(--amber)"}):"")+
     '</div><div class="mfoot"><button class="btn btn-primary" data-act="new-task" data-date="'+date+'">'+icon("i-plus")+'Add task</button><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Close</button></div></div>');
 }
 
@@ -3832,7 +3899,7 @@ function timeBreakdown(t,total,live){
     :'<span class="tmb-pill">'+esc(fmtTracked(est-total))+' left</span>'):"";
 
   const body=!runs.length
-    ? '<p class="tmb-empty">Nothing tracked yet. Press Start, and each run will show here at the time you did it.</p>'
+    ? '<p class="tmb-empty">No time tracked yet. Press Start, and each session appears here at the hour you worked.</p>'
     : '<div class="tmb-axis"><span>6am</span><span>noon</span><span>6pm</span><span>midnight</span></div>'+
       '<div class="tmb-days">'+shown.map(k=>{
         const list=days[k].sort((a,b)=>a.start-b.start),sum=list.reduce((n,x)=>n+x.secs,0);
@@ -3926,7 +3993,7 @@ function docsSection(t,isNew){
       '<button class="doccard" data-act="doc-open" data-id="'+d.id+'">'+icon("i-doc","ic-14")+
       '<span class="dc-t">'+esc(d.title)+'</span>'+
       '<span class="dc-m">'+esc(relTime(d.updated))+'</span></button>').join("")+'</div>'
-      :'<p class="mnone" style="margin:0 0 8px">Markdown, so your vault can read them.</p>')+
+      :es("doc","No documents yet","Write a brief, meeting notes or a plan for this task.",{mini:1,hue:"var(--apricot)"}))+
     '<button class="btn btn-sm" data-act="doc-new">'+icon("i-plus","ic-14")+'New document</button></div>';
 }
 
@@ -3952,7 +4019,7 @@ function commentsPane(t,isNew){
 /* The history: what happened to the task, without the conversation. */
 function historyPane(t){
   const items=actFor(t.id).filter(a=>a.kind!=="comment");
-  if(!items.length)return '<div class="act-empty">Nothing has happened to this task yet.</div>';
+  if(!items.length)return es("history","The story starts here","Status changes, edits and time tracked are listed as they happen.",{mini:1,hue:"var(--blue)"});
 
   /* Runs of bookkeeping that happened at the same moment become one block
      under one timestamp, instead of a stack of near-identical rows. */

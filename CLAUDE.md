@@ -608,6 +608,20 @@ changing the theme, changing the accent and the OS flipping at dusk all call
 `syncTimerWindow()` — the media query in that file is only what shows before
 the first message lands.
 
+### Empty states
+
+Every section says something when it has nothing, through one helper:
+`es(kind, title, text, {mini, hue, icon, actions, cls})` (the empty states
+section). Each has its own little drawing (`ES_ART`, drawn in the theme's
+greys and the section's colour `--h`, so it follows light and dark), a
+heading that says where things stand, one line on what to do next, and the
+button that does it where one helps. `mini` puts it in a row inside a card.
+Keep them distinct — the same icon and "Nothing here" everywhere read as a
+broken page — and tell apart *empty* from *filtered to nothing*: the list,
+routines and notes each say which, and offer the way back (clear filters,
+show everything). The matrix quadrants (`QUAD_EMPTY`) and board columns
+(`COL_EMPTY`) have a line each of their own.
+
 ## Conventions that exist for a reason
 
 - **Icons and labels inside a clickable row need `pointer-events: none`.** Clicks

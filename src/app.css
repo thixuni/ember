@@ -338,9 +338,6 @@ body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
 .tick.on{background:var(--accent);border-color:var(--accent)}
 .tick.on .ic{opacity:1}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m)}
-.empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:44px 20px;color:var(--faint);text-align:center}
-.empty .ic{width:26px;height:26px;stroke-width:1.4}
-.empty p{margin:0;font-size:13px;max-width:34ch}
 .sec-label{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
 
 /* ---------- calendar ---------- */
@@ -1414,7 +1411,6 @@ body.ob-open{overflow:hidden}
 .dgroup h3{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--faint);
   padding:0 8px 6px;font-family:var(--ff);letter-spacing:0}
 .dgroup h3 .num{font-weight:600;color:var(--muted)}
-.dempty{margin:0;padding:2px 8px 4px;font-size:12.5px;color:var(--faint)}
 .drow{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:10px}
 .drow:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
 .drow-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left}
@@ -1468,12 +1464,6 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 /* needs your attention: a warm wash when there is something; a small
    celebration when there is not */
 .dash-attn:not(.clear){background:linear-gradient(to bottom,color-mix(in srgb,var(--danger) 7%,var(--surface)),var(--surface) 110px)}
-.dclear{display:flex;align-items:center;gap:14px;padding:6px 18px 20px}
-.dclear-ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;
-  background:var(--accent-soft);color:var(--accent-ink)}
-.dclear-ic .ic{width:20px;height:20px;stroke-width:2.4}
-.dclear b{font-family:var(--fd);font-size:15px;font-weight:600;color:var(--ink)}
-.dclear p{margin:2px 0 0;font-size:13px;color:var(--muted)}
 
 /* start / pause on a task row */
 .dplay{flex:none;display:inline-flex;align-items:center;gap:5px;height:26px;min-width:26px;padding:0 6px;
@@ -1495,7 +1485,6 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .dtrow-v.live{color:var(--accent-ink);font-weight:600}
 .dtrow-bar{grid-column:1 / -1;height:5px;border-radius:5px;background:var(--surface-3);overflow:hidden}
 .dtrow-bar i{display:block;height:100%;border-radius:5px;background:var(--c)}
-.dtime-empty{padding:0 16px 14px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 
 /* the scratch pad is ruled like a notepad; the lines scroll with the text */
 .dash-scratch{display:flex;flex-direction:column;min-height:200px;flex:1;overflow:hidden}
@@ -1777,7 +1766,6 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 
 /* ---------- activity feed ---------- */
 .feed{display:flex;flex-direction:column;gap:9px;margin-bottom:12px}
-.act-empty{font-size:12.5px;color:var(--faint);padding:14px 0}
 
 /* Bookkeeping recedes: one timestamp per run, in a gutter, so the eye runs
    down the comments and only picks up changes when it wants them. */
@@ -1816,6 +1804,53 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .dc-m{color:var(--faint);font-size:11px;flex:none}
 
 /* ---------- document editor ---------- */
+/* ---- empty states ----
+   A drawing in the section's own colour (--h), a heading, a line on what
+   next, and sometimes the button that does it. The mini one sits in a row
+   inside a card. */
+.es{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:40px 24px;animation:esin .35s ease both}
+.es-copy{display:flex;flex-direction:column;align-items:center;gap:4px;max-width:36ch}
+.es-copy b{font-family:var(--fd);font-size:16px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+.es-copy p{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+.es-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:10px}
+.es-art{width:112px;height:84px;flex:none;overflow:visible;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:2.2}
+.es-art .es-f{fill:var(--surface-3);stroke:var(--line-2)}
+.es-art .es-front{fill:var(--surface-2)}
+.es-art .es-l{stroke:var(--line-2)}
+.es-art .es-dash{stroke-dasharray:3 5}
+.es-art .es-dot{fill:var(--h);stroke:none;opacity:.55}
+.es-art .es-h{fill:var(--h);stroke:none}
+.es-art .es-hs{fill:color-mix(in srgb,var(--h) 22%,var(--surface));stroke:var(--h)}
+.es-art .es-hl{stroke:var(--h)}
+.es-art .es-on{stroke:var(--surface);stroke-width:2.6}
+.es-art .es-h,.es-art .es-hs{animation:esbob 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.es-badge{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,var(--h) 16%,var(--surface));color:var(--h);border:1px solid color-mix(in srgb,var(--h) 30%,var(--line))}
+.ic-22{width:22px;height:22px}
+.ic-16{width:16px;height:16px}
+.es-inline{vertical-align:-2px;color:var(--ink-2)}
+/* in a row: drawing to the left, words to the right */
+.es-mini{flex-direction:row;text-align:left;gap:14px;padding:6px 16px 16px;animation:none}
+.es-mini .es-art{width:64px;height:48px;stroke-width:2.8}
+.es-mini .es-copy{align-items:flex-start;max-width:none}
+.es-mini .es-copy b{font-size:14px}
+.es-mini .es-copy p{font-size:12.5px}
+.es-mini .es-badge{width:40px;height:40px;border-radius:12px}
+.dgroup .es-mini{padding:4px 8px 6px}
+.feed .es-mini,.sh-sec .es-mini{padding:8px 0 12px}
+/* a quadrant: its own hue, and room to breathe */
+.es-quad{flex:1;justify-content:center;padding:18px 16px}
+.es-quad .es-copy b{font-size:14.5px;color:var(--qt,var(--ink))}
+/* the notes list is narrow */
+.es-side{padding:32px 14px}
+.es-side .es-art{width:88px;height:66px}
+.es-card{display:flex;justify-content:center;padding:24px 0}
+.neditor > .es{flex:1;justify-content:center;padding-bottom:12vh}
+/* a board column with nothing in it: somewhere to drop a card */
+.col-empty{margin:2px 0;padding:18px 10px;border:1.5px dashed color-mix(in srgb,var(--h) 35%,var(--line));border-radius:var(--r-s);
+  text-align:center;font-size:12px;font-weight:500;color:var(--muted);pointer-events:none}
+@keyframes esin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes esbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 /* ---- the document editor ----
    A writing surface first: the title as a heading, a toolbar grouped the
    way word processors group it, and one page that looks like the finished
