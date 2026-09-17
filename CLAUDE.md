@@ -117,7 +117,7 @@ undoes them like typing — keep it that way. Nothing is required to save, and
 every way out (the close button, the backdrop, Escape) goes through
 `docMayClose()`, which asks before unsaved changes are thrown away.
 
-On disk, documents are markdown in `S.docs`. On the desktop each one is mirrored into
+On the desktop each document is mirrored into
 `<vault>/Everyday Orbit/<title> <id>.md` with YAML front matter carrying
 `orbit-id`, which is how an edit made in Obsidian finds its way back to the
 right document. The loop is broken on both sides: the main process ignores
