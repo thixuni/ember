@@ -9,7 +9,8 @@ tags, linked tasks, files, an estimate, a timer and a full history of everything
 that has happened to it. Comments and documents live in that history; documents
 are markdown, so they can be mirrored straight into an Obsidian vault.
 
-Everything is stored on your own computer. There is no account and no server.
+You sign in with your Google account. Everything is stored on your own device,
+and backed up to your own Google Drive if you choose; there is no server of ours.
 
 **[Download the latest release](https://github.com/thixuni/everyday-orbit/releases/latest)** ·
 [Download page](https://thixuni.github.io/everyday-orbit/)
@@ -155,25 +156,48 @@ a folder on your disk.
 
 ## Your account and setup
 
-The desktop app is used signed in with a Google account. The first launch is a
-setup of its own:
+The planner is used signed in with a Google account, in the desktop app and in
+a browser alike. The first launch is a setup of its own:
 
-1. **Sign in with Google.** The system browser opens Google's sign-in; the app
-   asks only who you are.
+1. **Sign in with Google.** The desktop app opens Google's sign-in in your
+   browser; a browser copy opens it in a Google window. Either way it asks
+   only who you are.
 2. **Your data.** Back up to your own Google Drive — a copy goes into one file
    there, *Everyday Orbit backup.json*, after every change, and signing in on
    another computer offers to bring it back — or keep it on this device only.
    The app can see only the file it makes, not the rest of your Drive.
 3. **About you, categories, starter routines** — your name for the greeting,
    the categories made yours, and a few common routines with their times.
-4. **Google Calendar** and **Obsidian**, each skippable.
+4. **Google Calendar** and **Obsidian** (desktop only), each skippable.
 5. **Appearance** and **notifications**.
 
 Someone who already had a planner signs in and picks where it lives, and that
 is all. **Settings ▸ Account** shows who is signed in, has the Drive backup
 (back up now, restore) and signs out; signing out keeps the planner on the
-computer. The browser build cannot sign in with Google, so its setup has the
-same steps without the ones that need the account.
+computer.
+
+Only a copy with no web address cannot sign in — the single file opened by
+double-click, or the Claude artifact — because Google signs in only to an
+address it has been told about. Those keep the planner in the browser and skip
+the steps that need the account.
+
+### Signing in from a browser
+
+A browser has nowhere safe to keep a long-lived key, so Google gives the page
+one that lasts an hour. It survives reloading the tab. When it runs out, a
+**Reconnect** button appears in the corner; one click and Google's window opens
+and closes by itself, and anything held back (a backup, a sync) carries on.
+Staying signed in for weeks without that click would need a small server of
+our own to hold the key.
+
+It needs a second Google client, of type **Web application**, in the same
+Cloud project, with every address the planner is served from under
+**Authorised JavaScript origins** — `http://localhost:4173` for
+`node scripts/serve.js`, and the address of the hosted copy. Its Client ID is
+not a secret. Put it beside the page as `google-web-client.json` (either
+`{"clientId": "…"}` or the JSON Google Cloud offers; git-ignored), or set
+`ORBIT_GOOGLE_WEB_CLIENT_ID` when running `serve.js`. Without either, the
+sign-in page asks for it and keeps it in that browser.
 
 Access is asked for a piece at a time — who you are at sign-in, Drive when you
 choose it, Calendar when you connect it — and every later ask keeps what was
@@ -206,7 +230,7 @@ Cloud console.
 ## Google Calendar
 
 Connect it during setup, or later in **Settings ▸ Connections ▸ Google
-Calendar** (desktop app only). It uses the account you signed in with.
+Calendar**. It uses the account you signed in with.
 Two things then happen:
 
 - **Your Google events show in the planner** — on the calendar, the day

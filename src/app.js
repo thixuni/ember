@@ -1384,36 +1384,42 @@ function toast(msg){
    Someone who already has a planner signs in and chooses where it lives, and
    that is all: their categories and routines are already theirs. Signing out
    brings back the sign-in and nothing else; the planner stays on the device.
-   A browser copy cannot sign in -- Google's sign-in needs the desktop app --
-   so it goes through the same setup without the steps that need the account.
+   The desktop app and a browser copy served from a web address both sign in
+   (gAcct(), below). Only a copy with no address Google can know -- a file
+   opened by double-click, the Claude artifact -- cannot, and goes through
+   the same setup without the steps that need the account.
 
    Where setup has got to is kept in prefs.onboard, so closing the app half
    way through picks up at the same step. */
 const OB={open:false,step:"signin",mode:"new",busy:false,err:"",store:"drive",found:null,rt:null};
 const signedIn=()=>!!(GC.status&&GC.status.connected&&GC.status.email);
 const acctParts=()=>(GC.status&&GC.status.parts)||{};
+/* Where a planner kept here lives, in words: this computer, or this browser. */
+const here=()=>hasDesktop()?"computer":"browser";
 const hasData=()=>!!(S.tasks.length||S.routines.length||S.notes.length);
 const OB_LABEL={signin:"Sign in",data:"Your data",name:"About you",cats:"Categories",routines:"Routines",
   calendar:"Google Calendar",obsidian:"Obsidian",look:"Appearance",notify:"Notifications",done:"All set"};
 /* The steps skipping ahead is harmless for: nothing is lost by leaving them. */
 const OB_SKIP=["routines","calendar","obsidian"];
 function obSteps(){
-  const d=hasDesktop();
+  const g=hasGoogle(),d=hasDesktop();
   if(OB.mode==="again")return ["signin"];
-  if(OB.mode==="returning")return ["signin"].concat(d?["data"]:[],["done"]);
-  if(OB.mode==="restored")return ["signin","data"].concat(d?["calendar","obsidian"]:[],["done"]);
-  return ["signin"].concat(d?["data"]:[],["name","cats","routines"],d?["calendar","obsidian"]:[],["look","notify","done"]);
+  if(OB.mode==="returning")return ["signin"].concat(g?["data"]:[],["done"]);
+  const links=(g?["calendar"]:[]).concat(d?["obsidian"]:[]);
+  if(OB.mode==="restored")return ["signin","data"].concat(links,["done"]);
+  return ["signin"].concat(g?["data"]:[],["name","cats","routines"],links,["look","notify","done"]);
 }
 function obNeeded(){
   const done=!!(S.prefs.onboard&&S.prefs.onboard.done);
-  if(hasDesktop())return !done||!signedIn();
-  /* A browser copy that was in use before setup existed simply carries on. */
+  if(hasGoogle())return !done||!signedIn();
+  /* A copy that cannot sign in (a file opened by double-click, the artifact)
+     and was in use before setup existed simply carries on. */
   return !done&&!hasData()&&!S.prefs.setup;
 }
 function obStart(){
   const ob=S.prefs.onboard||{};
   OB.mode=ob.done?"again":(ob.mode||((hasData()||S.prefs.setup)?"returning":"new"));
-  if(!hasDesktop()&&OB.mode!=="new"){S.prefs.onboard={done:true};save("prefs");return;}
+  if(!hasGoogle()&&OB.mode!=="new"){S.prefs.onboard={done:true};save("prefs");return;}
   OB.step=obSteps().indexOf(ob.step)>-1?ob.step:"signin";
   if(OB.step==="signin"&&signedIn()&&OB.mode!=="again")OB.step=obSteps()[1];
   OB.open=true;OB.err="";obRender();
@@ -1447,7 +1453,7 @@ function obFinish(){
 /* Anything that changes what setup shows while it is open redraws it here,
    as the settings do -- the same controls sit in both. */
 function panels(){
-  if(el("modalRoot").querySelector(".modal.settings"))panels();
+  if(el("modalRoot").querySelector(".modal.settings"))settingsModal();
   if(OB.open)obRender();
 }
 function obRecheck(){if(OB.open&&!obNeeded()){OB.open=false;const r=el("obRoot");if(r)r.remove();document.body.classList.remove("ob-open");}}
@@ -1553,14 +1559,18 @@ function obSky(){
     chip("i-note","Notes",82,72,.6)+chip("i-timer","Focus timer",64,88,1.7)+chip("i-target","Priorities",26,90,2.6)+'</div>';
 }
 function obSignin(fresh){
-  const d=hasDesktop(),st=GC.status||{};
-  /* A copy built without the app's Google client asks for one here, once. */
-  const keys=d&&!st.builtIn&&!st.clientId;
+  const g=hasGoogle(),web=googleWeb(),st=GC.status||{};
+  /* A copy with no Google client of its own asks for one here, once: the
+     desktop app a "Desktop app" client and its secret, a web page a "Web
+     application" client, which has no secret. */
+  const keys=g&&!st.builtIn&&!st.clientId;
   const again=OB.mode==="again";
   let act;
-  if(!d)act='<p class="obx-note">'+icon("i-laptop","ic-14")+'<span>Signing in with Google needs the Everyday Orbit desktop app. In a browser, the planner is kept in this browser on this device.</span></p>'+
+  if(!g)act='<p class="obx-note">'+icon("i-laptop","ic-14")+'<span>'+(window.claude?"This copy can't sign in with Google.":
+      "Opened straight from a file, the planner can't sign in with Google, which only signs in to a web address.")+
+      ' Use Everyday Orbit online or the desktop app to sign in, or carry on here and keep your planner in this browser.</span></p>'+
     '<button class="btn btn-primary obx-wide" data-act="ob-local">Continue in this browser'+icon("i-chev-r","ic-14")+'</button>';
-  else if(OB.busy)act=obWaiting("Finish signing in in your browser.");
+  else if(OB.busy)act=obWaiting(web?"Finish signing in in Google's window.":"Finish signing in in your browser.");
   else act='<button class="obx-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
   return '<div class="obx-first'+(fresh?" enter":"")+'">'+obSky()+
     '<div class="obx-hero">'+
@@ -1568,15 +1578,17 @@ function obSignin(fresh){
       '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one orbit</em>.")+'</h1>'+
       '<p class="obx-lead">'+(again?"Sign in with your Google account to open your planner."
         :"Tasks, routines, your calendar and your notes, sharing one set of categories — so something you write once shows up wherever you look for it.")+'</p>'+
-      (keys&&!OB.busy?'<div class="obx-keys"><p class="obx-fine">This copy of the app was built without its Google sign-in keys. Paste the <b>Desktop app</b> client from Google Cloud once, and they are kept, encrypted, on this computer.</p>'+
+      (keys&&!OB.busy?'<div class="obx-keys">'+(web
+          ?'<p class="obx-fine">This address has no Google sign-in set up. Paste the Client ID of a <b>Web application</b> client from Google Cloud that lists <b>'+esc(location.origin)+'</b> as an authorised JavaScript origin. It is kept in this browser.</p>'
+          :'<p class="obx-fine">This copy of the app was built without its Google sign-in keys. Paste the <b>Desktop app</b> client from Google Cloud once, and they are kept, encrypted, on this computer.</p>')+
         '<input class="inp" id="gcId" autocomplete="off" spellcheck="false" placeholder="Client ID  ….apps.googleusercontent.com" value="'+esc(GC.draft.id||"")+'">'+
-        '<input class="inp" id="gcSecret" type="password" autocomplete="off" placeholder="Client secret" value="'+esc(GC.draft.secret||"")+'"></div>':"")+
+        (web?"":'<input class="inp" id="gcSecret" type="password" autocomplete="off" placeholder="Client secret" value="'+esc(GC.draft.secret||"")+'">')+'</div>':"")+
       act+obErr()+
-      (d?'<p class="obx-fine">Your Google account is how you sign in. What you plan stays on this computer unless you choose to back it up to your own Google Drive, and it goes nowhere else.</p>':"")+
+      (g?'<p class="obx-fine">Your Google account is how you sign in. What you plan stays on this '+(web?"device":"computer")+' unless you choose to back it up to your own Google Drive, and it goes nowhere else.</p>':"")+
     '</div></div>';
 }
 async function obSignIn(){
-  const o=desktop();if(!o||OB.busy)return;
+  const o=gAcct();if(!o||OB.busy)return;
   OB.busy=true;OB.err="";obRender();
   let r;
   try{r=await o.gcalConnect({want:["account"],clientId:GC.draft.id,clientSecret:GC.draft.secret});}
@@ -1592,7 +1604,7 @@ async function obSignIn(){
 /* Asks Google for one more part of the account -- Calendar or Drive -- from
    setup or from Settings. Resolves true once it is granted. */
 async function googleAsk(part){
-  const o=desktop();if(!o)return false;
+  const o=gAcct();if(!o)return false;
   let r;
   try{r=await o.gcalConnect({want:[part]});}catch(e){r={ok:false,error:"Could not start the sign-in."};}
   try{GC.status=await o.gcalStatus();}catch(e){}
@@ -1608,19 +1620,19 @@ function obData(){
   if(OB.found){
     const local=hasData();
     return obHead("Your data","Your planner is <em>already</em> in your Drive",
-        "Sign in anywhere and it comes back. Bring it onto this computer, or begin again.")+
+        "Sign in anywhere and it comes back. Bring it into this "+here()+", or begin again.")+
       '<div class="obx-cards">'+
         obCard("ob-restore","","i-download",local?"Use the one in Drive":"Restore it here",
-          local?"Replaces what is on this computer with the backup.":"Tasks, routines, notes, categories and settings, all of it.",false,"")+
-        obCard("ob-fresh","",local?"i-laptop":"i-plus",local?"Keep this computer's":"Start fresh",
-          local?"Backs this computer's planner up over the one in Drive.":"An empty planner. Its first backup replaces the one in Drive.",false,"")+
+          local?"Replaces what is in this "+here()+" with the backup.":"Tasks, routines, notes, categories and settings, all of it.",false,"")+
+        obCard("ob-fresh","",local?"i-laptop":"i-plus",local?"Keep this "+here()+"'s":"Start fresh",
+          local?"Backs this "+here()+"'s planner up over the one in Drive.":"An empty planner. Its first backup replaces the one in Drive.",false,"")+
       '</div>'+(OB.busy?obWaiting("Working…"):"")+obErr();
   }
   return obHead("Your data","Where should your planner <em>live</em>?",
       "Either way it works offline and saves as you go. The difference is whether a copy follows you.")+
     '<div class="obx-cards">'+
-      obCard("ob-store","drive","i-cloud","Back up to Google Drive","A copy goes to your own Drive after every change. Sign in on another computer and it all comes back.",OB.store==="drive","Recommended")+
-      obCard("ob-store","local","i-laptop","Only on this device","Nothing leaves this computer. Save a backup file by hand from Settings, any time.",OB.store==="local","")+
+      obCard("ob-store","drive","i-cloud","Back up to Google Drive","A copy goes to your own Drive after every change. Sign in anywhere else and it all comes back.",OB.store==="drive","Recommended")+
+      obCard("ob-store","local","i-laptop","Only on this device","Nothing leaves this "+here()+". Save a backup file by hand from Settings, any time.",OB.store==="local","")+
     '</div>'+
     (OB.busy?obWaiting(acctParts().drive?"Looking for an earlier backup…":"Finish in your browser: allow access to Google Drive."):"")+obErr()+
     '<p class="obx-fine">Everyday Orbit sees only the one file it makes in your Drive, never the rest. Moving from a backup file? <button class="linkish" data-act="import">Restore a backup file</button></p>';
@@ -1641,10 +1653,10 @@ function obShowData(){
   }
   const drive=OB.store==="drive";
   return '<div class="obx-panel obx-sync'+(drive?" on":"")+'">'+
-    '<div class="obx-node">'+icon("i-laptop")+'<b>This computer</b><small>Always saved here</small></div>'+
+    '<div class="obx-node">'+icon("i-laptop")+'<b>This '+here()+'</b><small>Always saved here</small></div>'+
     '<div class="obx-wire"><i></i><i></i><i></i></div>'+
     '<div class="obx-node far">'+icon("i-cloud")+'<b>Google Drive</b><small>'+(drive?"A copy after every change":"Not used")+'</small></div>'+
-    '</div><p class="obx-cap">'+(drive?"Lose a laptop, keep your planner.":"Private to this computer, and nowhere else.")+'</p>';
+    '</div><p class="obx-cap">'+(drive?"Lose a laptop, keep your planner.":"Private to this "+here()+", and nowhere else.")+'</p>';
 }
 async function obDataNext(){
   if(OB.store==="local"){S.prefs.storage="local";save("prefs");obGo(obNext());return;}
@@ -1660,6 +1672,9 @@ async function obDataNext(){
           counts:{tasks:data.tasks.length,routines:(data.routines||[]).length,notes:(data.notes||[]).length}};
         OB.busy=false;obRender();return;
       }
+      /* There is a backup and it did not come down. Carrying on would write
+         this empty planner over it. */
+      throw new Error("Your backup is in Google Drive but could not be opened just now. Try again, or keep this planner on this "+here()+" for now.");
     }
     await driveBackup();
     obGo(obNext());
@@ -1879,26 +1894,27 @@ function obShowNotify(){
 
 /* ---- done ---- */
 function obDone(){
-  const d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
+  const g=hasGoogle(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
   const item=(ok,ic,title,sub)=>'<div class="obx-sum'+(ok?" ok":"")+'"><span class="obx-sum-ic">'+icon(ok?ic:"i-minus","ic-14")+'</span><span><b>'+title+'</b><small>'+sub+'</small></span></div>';
   return obHead("All set",S.prefs.name?"You’re all set, <em>"+esc(S.prefs.name)+"</em>":"You’re <em>all set</em>",
       "Here is your planner. Every one of these can be changed later in Settings.")+
     '<div class="obx-sums">'+
-      (d?item(signedIn(),"i-user","Signed in",esc((GC.status&&GC.status.email)||"")):"")+
-      item(true,S.prefs.storage==="drive"&&d?"i-cloud":"i-laptop",S.prefs.storage==="drive"&&d?"Backed up to Google Drive":"Saved on this "+(d?"computer":"browser"),
-        S.prefs.storage==="drive"&&d?"After every change":"As you go")+
+      (g?item(signedIn(),"i-user","Signed in",esc((GC.status&&GC.status.email)||"")):"")+
+      item(true,driveOn()?"i-cloud":"i-laptop",driveOn()?"Backed up to Google Drive":"Saved in this "+here(),
+        driveOn()?"After every change":"As you go")+
       (OB.mode==="new"?item(true,"i-tag",S.categories.length+" categories",rts?rts+" routine"+(rts===1?"":"s")+" to start with":"Ready for your first task"):"")+
-      (d?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Not connected — any time from Settings"):"")+
+      (g?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Not connected — any time from Settings"):"")+
       (d?item(!!vaultPath(),"i-folder",vaultPath()?"Obsidian vault linked":"Obsidian",vaultPath()?esc(vaultPath()):"Not linked — any time from Settings"):"")+
     '</div>';
 }
 /* The finish: you at the centre, what you set up in orbit round you, lit
    when it is on, and a burst of your colours as it opens. */
 function obShowDone(){
-  const d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
+  const g=hasGoogle(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
   const sats=[[true,"i-tag",S.categories.length+" categories"]];
   if(rts)sats.push([true,"i-repeat",rts+" routine"+(rts===1?"":"s")]);
-  if(d){sats.push([S.prefs.storage==="drive","i-cloud","Drive"]);sats.push([gcalOn(),"i-calendar","Calendar"]);sats.push([!!vaultPath(),"i-folder","Obsidian"]);}
+  if(g){sats.push([driveOn(),"i-cloud","Drive"]);sats.push([gcalOn(),"i-calendar","Calendar"]);}
+  if(d)sats.push([!!vaultPath(),"i-folder","Obsidian"]);
   sats.push([true,"i-bell","Reminders"]);
   const cols=S.categories.map(c=>c.color);
   let burst="";for(let k=0;k<18;k++){const a=k/18*Math.PI*2;
@@ -1917,21 +1933,21 @@ function obShowDone(){
 function accountPane(sec,field,toggle){
   const p=S.prefs;
   const nameIn='<input class="inp" data-act="set-pref" data-k="name" maxlength="40" value="'+esc(p.name||"")+'" placeholder="Your first name">';
-  if(!hasDesktop())return sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
-    sec("Google account",field("",'<span class="mnone">Signing in with Google needs the desktop app.</span>',
-      "In a browser, the planner is kept in this browser. Back it up from Your data."));
+  if(!hasGoogle())return sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
+    sec("Google account",field("",'<span class="mnone">This copy can’t sign in with Google.</span>',
+      "Opened from a file, the planner is kept in this browser. Use Everyday Orbit online or the desktop app to sign in; back this one up from Your data."));
   const st=GC.status||{},drive=p.storage==="drive"&&acctParts().drive;
   const last=p.drive&&p.drive.last?"Last backed up "+relTime(p.drive.last):"Not backed up yet";
   return sec("Google account",field("",
       '<div class="acct">'+obAvatar()+'<span class="acct-who"><b>'+esc(st.name||st.email||"")+'</b>'+esc(st.name?st.email:"")+'</span>'+
       '<button class="btn btn-sm btn-danger" data-act="acct-signout">Sign out</button></div>',
-      "Signing out keeps your planner on this computer; you sign in again to open it."))+
+      "Signing out keeps your planner in this "+here()+"; you sign in again to open it."))+
     sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
     sec("Google Drive backup",field("",
       '<label class="switch"><input type="checkbox" data-act="drive-toggle"'+(drive?" checked":"")+'><span></span><i>Back up to Google Drive</i></label>'+
       (drive?'<div class="set-actions" style="margin-top:12px"><button class="btn btn-sm" data-act="drive-now"'+(DB.busy?" disabled":"")+'>'+icon("i-upload","ic-14")+(DB.busy?"Backing up…":"Back up now")+'</button>'+
         '<button class="btn btn-sm" data-act="drive-restore">'+icon("i-download","ic-14")+'Restore from Drive</button></div>':""),
-      (drive?esc(last)+". A copy goes into “"+esc(DRIVE_FILE)+"” in your Drive after every change.":"Your planner is kept on this computer only.")+
+      (drive?esc(last)+". A copy goes into “"+esc(DRIVE_FILE)+"” in your Drive after every change.":"Your planner is kept in this "+here()+" only.")+
       (DB.err?'<br><span class="set-err-inline">'+esc(DB.err)+'</span>':"")));
 }
 
@@ -2209,7 +2225,7 @@ function settingsModal(){
 function gcalSettings(toggle){
   const field=(label,control,help)=>'<div class="set-field">'+
     (label?'<div class="set-flabel">'+esc(label)+'</div>':"")+control+(help?'<p class="set-help">'+help+'</p>':"")+'</div>';
-  if(!gcalBridge())return field("",'<span class="mnone">Google Calendar needs the desktop app.</span>',
+  if(!gcalBridge())return field("",'<span class="mnone">Google Calendar needs signing in, which this copy can’t do.</span>',
     "Your Google events show in the planner, and your dated tasks and routines go into Google.");
   const st=GC.status||{},g=gcalPrefs(),err=GC.err?'<p class="set-err">'+icon("i-alert","ic-14")+esc(GC.err)+'</p>':"";
 
@@ -2753,7 +2769,7 @@ document.addEventListener("click",function(e){
       x.actions=(x.actions||[]).filter(y=>y.id!==id);x.updated=Date.now();save("notes");save("tasks");render();toast("Action item and its task removed");break;}
     /* ---- setup ---- */
     case "ob-google":obSignIn();break;
-    case "ob-cancel":{const o=desktop();if(o&&o.gcalCancel)o.gcalCancel();break;}
+    case "ob-cancel":{const o=gAcct();if(o&&o.gcalCancel)o.gcalCancel();break;}
     case "ob-local":S.prefs.storage="local";save("prefs");obGo(obNext());break;
     case "ob-back":OB.found=null;obGo(obPrev());break;
     case "ob-skip":obGo(obNext());break;
@@ -2778,9 +2794,10 @@ document.addEventListener("click",function(e){
       S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});save("categories");obRender();
       const f=document.querySelector('[data-act="ob-cat-name"][data-id="'+nid+'"]');if(f){f.focus();f.select();}break;}
     /* ---- the Google account, in Settings ---- */
-    case "acct-signout":if(arm(n,"Sign out?")){const o=desktop();if(!o)break;
+    case "acct-signout":if(arm(n,"Sign out?")){const o=gAcct();if(!o)break;
       Promise.resolve(o.gcalDisconnect()).then(()=>o.gcalStatus()).then(st=>{GC.status=st;GC.events=[];GC.cals=[];
         closeModal();render();obStart();});}break;
+    case "g-renew":wgRenew();break;
     case "drive-now":driveBackup().then(ok=>{if(ok)toast("Backed up to Google Drive");});break;
     case "drive-restore":if(arm(n,"Replace this planner?")){
       driveFind().then(f=>f?driveRead(f.id):null).then(d=>{const data=d&&(d.data||d);
@@ -4118,6 +4135,184 @@ function remindBoot(){
   setInterval(scheduleReminders,5*60*1000);
 }
 
+/* ============ google in a browser ============
+   On the desktop, gcal.js signs in and keeps a long-lived key in the main
+   process. A web page has no main process, so here Google's own sign-in
+   library (Google Identity Services) hands the page a short-lived key, an
+   hour at a time, through a Google window. It answers the same five calls
+   window.orbit does, so everything that uses the account -- setup, Drive
+   backup, Calendar sync -- runs on it unchanged. gAcct() picks the one there
+   is.
+
+   It needs an address Google knows: the page served over http(s), and a
+   "Web application" client listing that address as an authorised JavaScript
+   origin. Its Client ID is not a secret; it comes from
+   google-web-client.json beside the page, or is pasted once on the sign-in
+   page. A file opened by double-click, and the Claude artifact, have no such
+   address, and keep the planner in the browser without signing in.
+
+   The key waits in sessionStorage until it runs out, so a reload does not
+   ask again; who is signed in and what was granted are in localStorage.
+   Google hands out the next key only in answer to a click -- a window opened
+   without one is blocked -- so when the hour is up, requests answer "renew"
+   and a Reconnect pill (wgPill) asks for that click. Keeping someone signed
+   in for weeks needs a server to hold a refresh key, which this app has not. */
+const WG_AUTH="https://www.googleapis.com/auth/";
+const WG_SCOPES={account:["openid","email","profile"],
+  calendar:[WG_AUTH+"calendar.readonly",WG_AUTH+"calendar.events"],drive:[WG_AUTH+"drive.file"]};
+const WG_BASE={calendar:"https://www.googleapis.com/calendar/v3",drive:"https://www.googleapis.com/drive/v3",
+  upload:"https://www.googleapis.com/upload/drive/v3"};
+const WG_PATH={calendar:/^\/(users\/me\/calendarList|calendars\/[^/?#]+(\/events(\/[^/?#]+)?)?)$/,
+  drive:/^\/files(\/[A-Za-z0-9_-]+)?$/};
+const WG_KEY="orbit.google",WG_TOK="orbit.google.key";
+const WG={cfg:null,lib:null,pend:null,renew:false};
+const wgOrigin=()=>typeof location!=="undefined"&&/^https?:$/.test(location.protocol)&&!window.claude;
+const gis=()=>{const g=window.google;return g&&g.accounts&&g.accounts.oauth2||null;};
+function wgGet(k,store){try{return JSON.parse((store||localStorage).getItem(k)||"null");}catch(e){return null;}}
+function wgPut(k,v,store){try{const s=store||localStorage;if(v==null)s.removeItem(k);else s.setItem(k,JSON.stringify(v));}catch(e){}}
+const wgShipped=()=>(WG.cfg&&WG.cfg.clientId)||"";
+const wgClientId=()=>wgShipped()||((wgGet(WG_KEY)||{}).clientId)||"";
+/* The address's own client, if one is published beside the page -- either
+   {"clientId": …} or the JSON Google Cloud offers for download -- and
+   Google's library, loaded early so a click can open its window at once. */
+async function wgLoad(){
+  if(!wgOrigin())return;
+  if(!WG.cfg){
+    WG.cfg={};
+    try{
+      const r=await Promise.race([fetch("google-web-client.json",{cache:"no-store"}),new Promise((_,no)=>setTimeout(no,4000))]);
+      const j=r.ok?await r.json():{};
+      WG.cfg={clientId:String(j.clientId||(j.web&&j.web.client_id)||"")};
+    }catch(e){}
+  }
+  wgLib().catch(()=>{});
+}
+function wgLib(){
+  if(!WG.lib)WG.lib=new Promise((ok,no)=>{
+    if(gis()){ok();return;}
+    const s=document.createElement("script");
+    s.src="https://accounts.google.com/gsi/client";s.async=true;
+    s.onload=()=>ok();
+    s.onerror=()=>{WG.lib=null;s.remove();no(new Error("Could not load Google's sign-in. Check your connection."));};
+    document.head.appendChild(s);
+  });
+  return WG.lib;
+}
+function wgStatus(){
+  const a=wgGet(WG_KEY)||{},g=a.scopes||[],on=!!a.email,has=s=>g.indexOf(s)>-1;
+  return {connected:on,email:a.email||"",name:a.name||"",first:a.first||"",clientId:a.clientId||"",
+    hasSecret:false,builtIn:!!wgShipped(),web:true,
+    parts:on?{account:true,calendar:WG_SCOPES.calendar.every(has),drive:WG_SCOPES.drive.every(has)}
+      :{account:false,calendar:false,drive:false}};
+}
+/* Must be reached from a click without waiting on anything first: the
+   window Google opens is a pop-up, and a browser lets one open only then. */
+function wgConnect(input){
+  const want=(input&&input.want)||["calendar"];
+  const id=String((input&&input.clientId)||"").trim()||wgClientId();
+  const lib=gis();
+  if(!id)return Promise.resolve({ok:false,error:"Paste the Client ID first."});
+  if(!lib){wgLib().catch(()=>{});return Promise.resolve({ok:false,error:"Google's sign-in is still loading. Try again in a moment."});}
+  if(WG.pend)WG.pend({ok:false,error:"Cancelled."});
+  const was=wgGet(WG_KEY)||{};
+  const scope=want.reduce((l,p)=>l.concat(WG_SCOPES[p]||[]),[]).join(" ");
+  return new Promise(resolve=>{
+    const done=r=>{if(WG.pend===done)WG.pend=null;resolve(r);};
+    WG.pend=done;
+    const tc=lib.initTokenClient(Object.assign({client_id:id,scope:scope,include_granted_scopes:true,
+      callback:async t=>{
+        if(WG.pend!==done)return;
+        if(!t||t.error){done({ok:false,error:t&&t.error==="access_denied"?"Cancelled.":(t&&(t.error_description||t.error))||"Could not sign in."});return;}
+        const key={token:t.access_token,exp:Date.now()+(Number(t.expires_in)||3600)*1000};
+        /* Who this is, from Google, every time: a later ask made with a
+           different account in Google's window is a different sign-in. */
+        let who={};
+        try{const r=await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+key.token}});
+          if(r.ok)who=await r.json();}catch(e){}
+        const email=who.email||was.email||"";
+        if(!email){done({ok:false,error:"Google did not say who you are. Try again."});return;}
+        const same=email===was.email,got=String(t.scope||scope).split(" ");
+        wgPut(WG_TOK,key,sessionStorage);
+        wgPut(WG_KEY,{clientId:id===wgShipped()?"":id,email:email,
+          name:who.name||(same?was.name:"")||"",first:who.given_name||(same?was.first:"")||"",
+          scopes:(same?(was.scopes||[]):[]).concat(got).filter((s,i,l)=>l.indexOf(s)===i)});
+        WG.renew=false;wgPill();
+        done({ok:true,email:email,name:who.name||""});
+      },
+      error_callback:e=>{
+        const k=e&&e.type;
+        done({ok:false,error:k==="popup_closed"?"Cancelled."
+          :k==="popup_failed_to_open"?"Your browser blocked Google's sign-in window. Allow pop-ups for this page, then try again."
+          :"Could not sign in."});
+      }},was.email?{login_hint:was.email}:{}));
+    tc.requestAccessToken({prompt:was.email?"":"select_account"});
+  });
+}
+function wgCancel(){if(WG.pend)WG.pend({ok:false,error:"Cancelled."});return true;}
+async function wgDisconnect(){
+  const key=wgGet(WG_TOK,sessionStorage),lib=gis(),a=wgGet(WG_KEY)||{};
+  if(key&&key.token&&lib)try{lib.revoke(key.token,()=>{});}catch(e){}
+  wgPut(WG_KEY,a.clientId?{clientId:a.clientId}:null);
+  wgPut(WG_TOK,null,sessionStorage);
+  WG.renew=false;wgPill();
+  return true;
+}
+async function wgRequest(req){
+  const method=String(req&&req.method||"GET").toUpperCase(),path=String(req&&req.path||"");
+  const api=String(req&&req.api||"calendar"),base=WG_BASE[api];
+  if(!base||!(api==="calendar"?WG_PATH.calendar:WG_PATH.drive).test(path))
+    return {ok:false,status:0,error:"Not a request this app makes: "+method+" "+path};
+  const key=wgGet(WG_TOK,sessionStorage);
+  if(!key||key.exp-60000<Date.now()){wgNeedRenew();return {ok:false,status:401,error:"renew"};}
+  const qs=req.query?"?"+new URLSearchParams(req.query).toString():"";
+  let body,ctype;
+  if(api==="upload"){
+    const up=req.upload||{},b="orbit"+Array.from(crypto.getRandomValues(new Uint8Array(12)),x=>x.toString(16).padStart(2,"0")).join("");
+    ctype="multipart/related; boundary="+b;
+    body="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify(up.meta||{})+
+      "\r\n--"+b+"\r\nContent-Type: "+(up.type||"application/json")+"\r\n\r\n"+String(up.content||"")+"\r\n--"+b+"--";
+  }else if(req.body){ctype="application/json";body=JSON.stringify(req.body);}
+  let res;
+  try{res=await fetch(base+path+qs,{method:method,body:body,
+    headers:Object.assign({Authorization:"Bearer "+key.token},ctype?{"Content-Type":ctype}:{})});}
+  catch(e){return {ok:false,status:0,error:"offline"};}
+  if(res.status===401){wgPut(WG_TOK,null,sessionStorage);wgNeedRenew();return {ok:false,status:401,error:"renew"};}
+  let data=null;
+  if(res.status!==204){try{data=await res.json();}catch(e){}}
+  return {ok:res.ok,status:res.status,data:data,
+    error:res.ok?"":(data&&data.error&&data.error.message)||("HTTP "+res.status)};
+}
+const WEB_GOOGLE={gcalStatus:async()=>wgStatus(),gcalConnect:wgConnect,gcalCancel:wgCancel,
+  gcalDisconnect:wgDisconnect,gcalRequest:wgRequest};
+/* The Google account, whichever way this copy reaches it. */
+const gAcct=()=>{const o=desktop();return o&&o.gcalRequest?o:wgOrigin()?WEB_GOOGLE:null;};
+const hasGoogle=()=>!!gAcct();
+const googleWeb=()=>!!(gAcct()===WEB_GOOGLE);
+
+/* The hour is up: one click on Reconnect gets the next key -- Google's
+   window opens and, with access already given, closes by itself -- and
+   whatever was held back runs. */
+function wgNeedRenew(){if(!WG.renew){WG.renew=true;wgPill();}}
+function wgPill(){
+  let p=el("gRenew");
+  if(!WG.renew||OB.open||!signedIn()){if(p)p.remove();return;}
+  if(p)return;
+  p=document.createElement("div");p.id="gRenew";p.className="g-renew";p.setAttribute("role","status");
+  p.innerHTML=icon("i-cloud","ic-14")+'<span>Reconnect Google to keep '+(driveOn()&&gcalOn()?"backing up and syncing":driveOn()?"backing up":"syncing")+'.</span>'+
+    '<button class="btn btn-sm btn-primary" data-act="g-renew">Reconnect</button>';
+  document.body.appendChild(p);
+}
+function wgRenew(){
+  const p=acctParts(),want=["account"].concat(p.calendar?["calendar"]:[],p.drive?["drive"]:[]);
+  wgConnect({want:want}).then(r=>{
+    if(!(r&&r.ok)){if(r&&r.error!=="Cancelled.")toast(r.error);return;}
+    GC.err="";DB.err="";
+    if(gcalOn())gcalSync();
+    if(driveOn())driveBackup();
+    panels();
+  });
+}
+
 /* ============ google calendar ============ */
 /* Two jobs, kept apart.
 
@@ -4154,7 +4349,7 @@ function gcalPrefs(){
   if(!g.last)g.last=0;
   return g;
 }
-const gcalBridge=()=>{const o=desktop();return o&&o.gcalRequest?o:null;};
+const gcalBridge=()=>gAcct();
 /* Calendar is one part of the Google account: connected when that part was
    granted and not switched off here. Switching it off keeps the account --
    the same key signs in and backs up. */
@@ -4170,13 +4365,14 @@ async function gapi(method,path,query,body){
   const r=await o.gcalRequest({method:method,path:path,query:query||null,body:body||null});
   if(!r.ok&&r.error==="reconnect"){GC.status=Object.assign({},GC.status,{connected:false});
     GC.err="Google Calendar needs connecting again.";}
+  if(!r.ok&&r.error==="renew")GC.err="Google needs you to reconnect before it can sync.";
   return r;
 }
 async function gList(path,query){
   let items=[],page="";
   for(let i=0;i<25;i++){
     const r=await gapi("GET",path,Object.assign({},query,page?{pageToken:page}:{}));
-    if(!r.ok)throw new Error(r.error==="offline"?"You look to be offline.":r.error||"Google Calendar did not answer.");
+    if(!r.ok)throw new Error(r.error==="offline"?"You look to be offline.":r.error==="renew"?"Google needs you to reconnect before it can sync.":r.error||"Google Calendar did not answer.");
     items=items.concat((r.data&&r.data.items)||[]);
     page=r.data&&r.data.nextPageToken;if(!page)break;
   }
@@ -4493,7 +4689,7 @@ async function gcalBoot(){
    schedule another backup, and so on forever: DB.quiet holds that off. */
 const DRIVE_FILE="Everyday Orbit backup.json";
 const DB={soon:null,busy:false,err:"",quiet:false};
-const driveOn=()=>!!(hasDesktop()&&S.prefs&&S.prefs.storage==="drive"&&acctParts().drive);
+const driveOn=()=>!!(hasGoogle()&&S.prefs&&S.prefs.storage==="drive"&&acctParts().drive);
 function backupPayload(){
   const p={app:"everyday-orbit",version:1,exported:new Date().toISOString(),data:{}};
   KEYS.forEach(k=>{p.data[k]=S[k];});
@@ -4504,21 +4700,21 @@ function driveSoon(){
   clearTimeout(DB.soon);DB.soon=setTimeout(()=>{driveBackup().catch(()=>{});},20000);
 }
 async function driveFind(){
-  const o=desktop();
+  const o=gAcct();
   const r=await o.gcalRequest({api:"drive",method:"GET",path:"/files",
     query:{q:"name = '"+DRIVE_FILE+"' and trashed = false",fields:"files(id,modifiedTime)",orderBy:"modifiedTime desc",pageSize:"5",spaces:"drive"}});
-  if(!r.ok)throw new Error(r.error==="reconnect"?"Sign in again to reach Google Drive.":r.error==="offline"?"You are offline.":"Google Drive said: "+r.error);
+  if(!r.ok)throw new Error(r.error==="renew"?"Reconnect Google to reach your Drive.":r.error==="reconnect"?"Sign in again to reach Google Drive.":r.error==="offline"?"You are offline.":"Google Drive said: "+r.error);
   return (r.data&&r.data.files&&r.data.files[0])||null;
 }
 async function driveRead(id){
-  const r=await desktop().gcalRequest({api:"drive",method:"GET",path:"/files/"+id,query:{alt:"media"}});
+  const r=await gAcct().gcalRequest({api:"drive",method:"GET",path:"/files/"+id,query:{alt:"media"}});
   return r.ok?r.data:null;
 }
 async function driveBackup(){
   if(!driveOn()||DB.busy)return false;
   DB.busy=true;
   try{
-    const o=desktop(),d=S.prefs.drive||{},text=JSON.stringify(backupPayload());
+    const o=gAcct(),d=S.prefs.drive||{},text=JSON.stringify(backupPayload());
     const up=(method,path,meta)=>o.gcalRequest({api:"upload",method:method,path:path,
       query:{uploadType:"multipart",fields:"id,modifiedTime"},upload:{meta:meta,content:text,type:"application/json"}});
     let id=d.fileId,r=id?await up("PATCH","/files/"+id,{}):null;
@@ -4527,7 +4723,7 @@ async function driveBackup(){
       r=id?await up("PATCH","/files/"+id,{}):await up("POST","/files",{name:DRIVE_FILE,mimeType:"application/json",
         description:"Everyday Orbit keeps a copy of your planner here. Sign in on another computer to bring it back."});
     }
-    if(!r.ok)throw new Error(r.error==="reconnect"?"Sign in again to back up to Google Drive.":r.error==="offline"?"Offline; it will back up when you are back.":"Google Drive said: "+r.error);
+    if(!r.ok)throw new Error(r.error==="renew"?"Reconnect Google to carry on backing up.":r.error==="reconnect"?"Sign in again to back up to Google Drive.":r.error==="offline"?"Offline; it will back up when you are back.":"Google Drive said: "+r.error);
     DB.err="";DB.quiet=true;
     S.prefs.drive=Object.assign({},d,{fileId:r.data.id,last:Date.now()});save("prefs");
     DB.quiet=false;
@@ -4603,13 +4799,14 @@ function applyVaultChange(d){
    hosted copy, wait for the cloud check first, so a slow connection can never
    invite someone to set up over existing data. */
 async function accountBoot(){
-  const o=desktop();
+  await wgLoad();
+  const o=gAcct();
   if(o&&o.gcalStatus){try{GC.status=await o.gcalStatus();}catch(e){}}
   document.body.classList.remove("ob-wait");
   if(obNeeded())obStart();
   else if(driveOn()&&!(S.prefs.drive&&S.prefs.drive.last&&Date.now()-S.prefs.drive.last<36e5))driveSoon();
 }
-if(hasDesktop())document.body.classList.add("ob-wait");
+if(hasDesktop()||wgOrigin())document.body.classList.add("ob-wait");
 if(window.claude&&window.claude.use)connect().then(accountBoot,accountBoot);
 else{connect();accountBoot();}
 /* The theme is applied before anything draws, so there is no flash of the

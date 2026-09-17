@@ -13,3 +13,5 @@ Thumbs.db
 
 # The app's Google sign-in client: written by the release workflow from secrets
 google-client.json
+# ...and the browser copy's, for the address it is served from
+google-web-client.json

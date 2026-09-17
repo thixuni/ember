@@ -287,7 +287,7 @@ behind a permission prompt, and only while the tab is open.
 
 ### Account and setup
 
-The desktop app is used signed in with a Google account, and the first launch
+The planner is used signed in with a Google account, and the first launch
 is a setup page of its own (`#obRoot`, the account + setup section of app.js),
 not a dialog. Steps (`obSteps()`): sign in → where the planner lives (Google
 Drive backup, or this device only) → name → categories → starter routines →
@@ -316,8 +316,9 @@ created, replaced rather than added to when someone goes back and forth.
   `"restored"` — a planner brought back from Drive or a file, which skips
   everything that came back with it; `"again"` — signed out after setup,
   which shows the sign-in and nothing else.
-- `obNeeded()` is the gate: on the desktop, setup not done or not signed in;
-  in a browser, which cannot sign in with Google, only a brand-new copy. At
+- `obNeeded()` is the gate: where Google can be reached (`hasGoogle()`),
+  setup not done or not signed in; in a copy that cannot sign in, only a
+  brand-new one. Obsidian is the one step that needs the desktop itself. At
   start-up the page is hidden (`body.ob-wait`) until the account status is
   in, so nobody sees their planner flash up only to be asked to sign in.
 - The steps reuse the settings' own controls — `set-pref` switches and time
@@ -343,12 +344,36 @@ created, replaced rather than added to when someone goes back and forth.
   client is never written into settings, so a new build's keys take over. A
   build with none asks for a Client ID on the sign-in page.
 
+**Signing in from a browser** (google in a browser section). `gAcct()` is
+the account, whichever way it is reached: `window.orbit` on the desktop,
+otherwise `WEB_GOOGLE`, which answers the same five calls with Google
+Identity Services — so setup, Drive and Calendar never ask which. Use
+`gAcct()`, never `desktop()`, for anything Google. It exists only on an
+http(s) address outside the artifact (`wgOrigin()`): Google signs in only
+to authorised JavaScript origins, so a file opened by double-click cannot.
+
+- The Client ID is a *Web application* client's, not a secret:
+  `google-web-client.json` beside the page (git-ignored), or pasted on the
+  sign-in page and kept in localStorage.
+- Google's library is loaded at start-up, not on the click, and
+  `wgConnect()` calls `requestAccessToken` before any `await`: its window
+  is a pop-up, and a browser opens one only straight from a click.
+- The key lasts an hour, in sessionStorage; who is signed in and the granted
+  scopes are in localStorage. There is no refresh key. When it runs out a
+  request answers `error:"renew"` — not `"reconnect"`, which means signed
+  out — and `wgPill()` shows Reconnect, whose click gets the next key
+  silently and reruns the sync and backup.
+- A later ask made with a different account in Google's window replaces the
+  sign-in rather than merging the grants.
+
 **Drive backup** (google drive backup section): with `prefs.storage` at
 `"drive"`, every `save()` schedules `driveBackup()` twenty seconds after the
 last change — one upload for a burst of edits — into one file, *Everyday
 Orbit backup.json*, the same payload as a backup by hand (`backupPayload()`).
 Recording when it last backed up is itself a save of prefs, which would
-schedule another backup forever; `DB.quiet` holds that one off. A restore
+schedule another backup forever; `DB.quiet` holds that one off. If a backup is found but will not
+download, setup stops with an error rather than carrying on, because carrying
+on backs the empty planner up over it. A restore
 (`applyBackup()`) brings back everything except what belongs to the computer
 it lands on: the vault path, the backup folder, a running timer, setup's own
 state and the storage choice.

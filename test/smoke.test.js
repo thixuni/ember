@@ -89,6 +89,21 @@ test('a redraw keeps the scroll position of the screen it redraws', () => {
   assert.match(body, /putScroll\(vp,marks\)/, 'renderView no longer puts the scroll positions back');
 });
 
+test('panels() redraws settings and setup rather than calling itself', () => {
+  // A rename once left it calling itself whenever Settings was open.
+  const body = (jsCode.match(/function panels\(\)\{([\s\S]*?)\n\}/) || [])[1] || '';
+  assert.match(body, /settingsModal\(\)/, 'panels() no longer redraws Settings');
+  assert.doesNotMatch(body, /\bpanels\(/, 'panels() calls itself');
+});
+
+test('the browser copy reaches Google through the same calls as the desktop', () => {
+  const surface = ['gcalStatus', 'gcalConnect', 'gcalCancel', 'gcalDisconnect', 'gcalRequest'];
+  const web = (jsCode.match(/const WEB_GOOGLE=\{([\s\S]*?)\};/) || [])[1] || '';
+  for (const k of surface) assert.match(web, new RegExp('\\b' + k + ':'), 'the web Google bridge lacks ' + k);
+  // Its Client ID file is per address and never committed.
+  assert.match(read('.gitignore'), /^google-web-client\.json$/m, 'google-web-client.json is not git-ignored');
+});
+
 test('colours come from tokens, not hardcoded hex in rules', () => {
   // A token block is any rule whose declarations are all custom properties —
   // :root, the accent hues, the dark ramp. Literal colours belong only there;

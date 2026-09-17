@@ -5,6 +5,11 @@
  * app never needs a server.
  *
  *   node scripts/serve.js [port]
+ *
+ * Google sign-in in the browser needs a Web application client that lists
+ * http://localhost:<port> as an authorised JavaScript origin. Its Client ID
+ * is read from src/google-web-client.json (git-ignored) or from
+ * ORBIT_GOOGLE_WEB_CLIENT_ID; without either, the sign-in page asks for it.
  */
 const http = require('http');
 const fs = require('fs');
@@ -27,6 +32,12 @@ http.createServer((req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
   const rel = url === '/' ? 'index.html' : url.replace(/^\/+/, '');
   const file = path.join(root, rel);
+
+  if (rel === 'google-web-client.json' && process.env.ORBIT_GOOGLE_WEB_CLIENT_ID) {
+    res.writeHead(200, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' })
+      .end(JSON.stringify({ clientId: process.env.ORBIT_GOOGLE_WEB_CLIENT_ID }));
+    return;
+  }
 
   // Never serve outside src/.
   if (!file.startsWith(root)) {
