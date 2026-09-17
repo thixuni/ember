@@ -838,7 +838,7 @@ function viewDashboard(){
   /* No red total here: the sidebar's red number means late, and a total that
      also counts missed routines and undated notes would say 10 beside its 1.
      Each group below carries its own count. */
-  const attn='<section class="dcard dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-check","Needs your attention",need?"warn":"")+
+  const attn='<section class="dcard dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-flag","Needs your attention",need?"warn":"")+
     (!need?'<div class="dclear"><span class="dclear-ic">'+icon("i-check")+'</span><div><b>You’re all caught up</b>'+
       '<p>Nothing overdue, nothing missed. Enjoy it.</p></div></div>':
       (o.tasks.length?dashGroup("Overdue",o.tasks.length,o.tasks.map(t=>{const c=cat(t.cat);

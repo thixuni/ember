@@ -18,6 +18,7 @@
   --ground:#F5F5F6;
   --surface:#FFFFFF;
   --surface-2:#FAFAFB;
+  --rail:var(--surface);
   --surface-3:#F0F0F2;
   --line:#E6E6E9;
   --line-2:#D6D6DA;
@@ -128,6 +129,8 @@
     --ground:#1B1B1D;
     --surface:#28282B;
     --surface-2:#212124;
+    /* The sidebar sits a shade below the cards, so its labels stand out. */
+    --rail:var(--surface-2);
     --surface-3:#323236;
     --line:#39393E;
     --line-2:#4C4C52;
@@ -174,6 +177,7 @@
   --ground:#1B1B1D;
   --surface:#28282B;
   --surface-2:#212124;
+  --rail:var(--surface-2);
   --surface-3:#323236;
   --line:#39393E;
   --line-2:#4C4C52;
@@ -235,7 +239,7 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 
 /* ---------- shell ---------- */
 .app{height:100dvh;display:grid;grid-template-columns:252px minmax(0,1fr);background:var(--ground)}
-.rail{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .brand{display:flex;align-items:center;gap:10px;padding:18px 18px 14px}
 .brand-mark{width:32px;height:32px;border-radius:11px;background:linear-gradient(150deg,var(--accent),var(--accent-lift));color:var(--on-accent);display:grid;place-items:center;box-shadow:var(--sh-1)}
 .brand-mark .ic{width:17px;height:17px;stroke-width:2}
