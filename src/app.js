@@ -1237,17 +1237,18 @@ function viewRoutines(){
   return '<div class="rgrid">'+list.map(r=>{
     const c=cat(r.cat),st=streak(r);
     const days='<div class="week-dots">'+[0,1,2,3,4,5,6].map(i=>{
-      const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY();
-      /* Every square takes a tick, the days off the schedule included. */
-      return '<div class="wd"><small>'+DOWS[i][0]+'</small><button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+'"'+
-        ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+
+      const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
+      /* Every square up to today takes a tick, the days off the schedule
+         included. Days still to come wait for their day. */
+      return '<div class="wd"><small>'+DOWS[i][0]+'</small><button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
+        ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
         ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
-        ' title="'+(done?"Done":sched?"Mark done":"Not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
+        ' title="'+(done?(later?"Ticked ahead of time. Click to take it off":"Done"):later?"Not yet: this day is still to come":sched?"Mark done":"Not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
     return '<article class="rcard'+(r.active?"":" paused")+'" style="--c:'+c.color+'">'+
       '<div class="rtop"><span class="ravatar">'+icon(c.icon,"ic-18")+'</span>'+
       '<div style="flex:1;min-width:0"><h3>'+esc(r.title)+'</h3><div class="rsub">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+r.dur+' min</span><span>·</span><span>'+esc(freqLabel(r))+'</span>'+
       '<span class="rbell'+(remindMins(r)===null?" off":"")+'" title="Reminder">'+icon("i-bell","ic-14")+esc(remindLabel(r))+'</span></div></div>'+
-      (st>1?'<span class="streak">'+icon("i-flame","ic-14")+st+'</span>':"")+'</div>'+
+      (st?'<span class="streak" title="'+st+(st===1?" day":" days")+' in a row">'+icon("i-flame","ic-14")+st+'</span>':"")+'</div>'+
       days+
       '<div style="display:flex;gap:6px;align-items:center">'+catChip(r.cat)+'<div class="spacer" style="flex:1"></div>'+
       '<button class="btn btn-sm btn-ghost" data-act="routine-edit" data-id="'+r.id+'">'+icon("i-edit","ic-14")+'Edit</button></div>'+
@@ -2723,7 +2724,13 @@ document.addEventListener("click",function(e){
     case "routine":case "routine-edit":routineModal(id);break;
     case "routine-save":saveRoutine(id||null);break;
     case "routine-delete":if(arm(n,"Delete for good?")){S.routines=S.routines.filter(r=>r.id!==id);save("routines");closeModal();render();toast("Routine deleted");}break;
-    case "routine-done":{const k=id+"|"+n.dataset.date;if(S.completions[k])delete S.completions[k];else S.completions[k]=true;save("completions");render();break;}
+    case "routine-done":{const k=id+"|"+n.dataset.date;
+      /* A day that has not come yet cannot be done yet; a tick already on
+         one can still be taken off. */
+      if(S.completions[k])delete S.completions[k];
+      else if(n.dataset.date>TODAY()){toast("You can tick this on "+fmtDate(n.dataset.date));break;}
+      else S.completions[k]=true;
+      save("completions");render();break;}
     case "r-freq":{const v=n.dataset.v;M.dataset.freq=v==="interval"?"interval":"weekly";
       M.querySelectorAll('[data-act="r-freq"]').forEach(b=>b.classList.toggle("on",b===n));
       const days=M.querySelectorAll("#rDays button");

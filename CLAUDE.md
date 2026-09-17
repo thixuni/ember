@@ -200,7 +200,9 @@ on start-up, so a timer left running overnight does not bank the hours.
 
 A routine's schedule is a plan, not a rule. `routineOn(r, d)` says when it
 is *due* — reminders, the calendar's recurring events in Google and the
-missed list all go by that — but any day's square can be ticked, and
+missed list all go by that — but any day's square up to today can be ticked (a day still to come
+cannot be yet: the streak counts back from today, so a tick there changed
+nothing; one already ticked can be taken off), and
 `routineHere(r, d)` (due, or done anyway) is what decides where it *shows*:
 the calendar, the dashboard's today and the day popup. `streak()` counts
 every day it was done, scheduled or not; an off day left empty is neutral;

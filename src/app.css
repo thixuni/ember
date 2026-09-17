@@ -652,6 +652,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .wd .cell{cursor:pointer;transition:border-color .12s,background .12s,color .12s}
 .wd .cell:not(.done):hover{border-color:color-mix(in srgb,var(--c) 75%,var(--line));color:color-mix(in srgb,var(--c) 55%,transparent)}
 .wd .cell.off:not(.done):hover{background:color-mix(in srgb,var(--c) 6%,var(--tint-base))}
+/* Still to come: there, but not yet tickable. */
+.wd .cell.later:not(.done){border-style:dashed;background:transparent;cursor:default}
+.wd .cell.later:not(.done):hover{border-color:color-mix(in srgb,var(--c) 45%,var(--line));color:transparent;background:transparent}
 .streak{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--apricot-ink);background:var(--apricot-soft);padding:2px 8px;border-radius:20px}
 
 /* ---------- notes ---------- */
