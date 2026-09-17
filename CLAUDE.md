@@ -107,7 +107,17 @@ listener, not the click switch. `npm test` knows about both.
 diffs a task before and after an edit and writes one entry per changed field.
 Keep `FIELD_LABEL` in step with the fields a task has, or changes go unlogged.
 
-Documents are markdown in `S.docs`. On the desktop each one is mirrored into
+Documents are markdown in `S.docs`, written in an editor that does not
+ask anyone to know markdown (`docModal()`, the document editor section): a
+toolbar and the usual shortcuts write it, lists carry on at Enter, Tab
+indents, and the preview (`mdToHtml(md, true)`: tables, highlight,
+strikethrough, images, nested lists, [[links]]) ticks task boxes back into
+the text. Toolbar edits go through `execCommand("insertText")` so Ctrl+Z
+undoes them like typing — keep it that way. Nothing is required to save, and
+every way out (the close button, the backdrop, Escape) goes through
+`docMayClose()`, which asks before unsaved changes are thrown away.
+
+On disk, documents are markdown in `S.docs`. On the desktop each one is mirrored into
 `<vault>/Everyday Orbit/<title> <id>.md` with YAML front matter carrying
 `orbit-id`, which is how an edit made in Obsidian finds its way back to the
 right document. The loop is broken on both sides: the main process ignores

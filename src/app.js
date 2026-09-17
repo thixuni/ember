@@ -2635,7 +2635,7 @@ document.addEventListener("click",function(e){
   if(t&&t.nodeType===3)t=t.parentNode;
   while(t&&!t.closest)t=t.parentNode||t.host;
   if(!t||!t.closest)return;
-  if(t.dataset&&t.dataset.scrim==="1"){closeModal();return;}
+  if(t.dataset&&t.dataset.scrim==="1"){if(docMayClose())closeModal();return;}
   const n=t.closest("[data-act]");
   if(!n)return;
   const a=n.dataset.act,id=n.dataset.id,M=el("modalRoot");
@@ -2710,10 +2710,14 @@ document.addEventListener("click",function(e){
     case "act-del":if(arm(n,"Delete?")){S.activity=S.activity.filter(a=>a.id!==id);save("activity");renderSheet();renderView();}break;
     case "doc-new":{const t=sheetTask();if(t&&V.sheet.id)docModal(null,t.id);break;}
     case "doc-open":docModal(id);break;
-    case "doc-save":{const title=(el("dcTitle").value||"").trim()||"Untitled",md=el("dcMd").value;
-      saveDoc(n.dataset.id||null,n.dataset.task||null,title,md);
-      closeModal();renderSheet();renderView();toast("Document saved");break;}
-    case "doc-del":if(arm(n,"Delete for good?")){deleteDoc(id);closeModal();renderSheet();renderView();toast("Document deleted");}break;
+    case "doc-save":docSave();break;
+    case "doc-tool":docTool(n.dataset.v);break;
+    case "doc-view":docView(n.dataset.v);break;
+    case "doc-full":docFull();break;
+    case "doc-check":docCheck(+n.dataset.line);break;
+    case "doc-discard":DE.dirty=false;closeModal();break;
+    case "doc-keep":{const f=el("dcFoot");if(f)f.innerHTML=docFootHtml();docCount();const ta=el("dcMd");if(ta)ta.focus();break;}
+    case "doc-del":if(arm(n,"Delete for good?")){deleteDoc(id);DE.dirty=false;closeModal();renderSheet();renderView();toast("Document deleted");}break;
 
     /* ---- analytics ---- */
     case "mx-set":{const t=taskById(id),k=n.dataset.k;
@@ -2844,7 +2848,7 @@ document.addEventListener("click",function(e){
       if(!restoreSel()){toast("Select the words you want to link first");break;}
       document.execCommand("createLink",false,u);
       const x=noteById(V.noteId);if(x){x.html=el("rte").innerHTML;x.updated=Date.now();save("notes");}break;}
-    case "close":closeModal();break;
+    case "close":if(docMayClose())closeModal();break;
   }
   }catch(err){if(window.console)console.error(err);
     toast("Couldn't do that: "+((err&&err.message)||"unknown error")+" · action "+a);}
@@ -2890,13 +2894,13 @@ document.addEventListener("input",function(e){
       el.classList.remove("on");el.setAttribute("aria-pressed","false");});
     return;
   }
-  if(e.target&&e.target.id==="dcMd"){
-    const prev=el("dcPrev");
-    if(prev)prev.innerHTML=mdToHtml(e.target.value);
+  if(e.target&&(e.target.id==="dcMd"||e.target.id==="dcTitle")){
+    if(e.target.id==="dcMd")docChanged();else DE.dirty=true;
   }
 });
 document.addEventListener("keydown",function(e){
-  if(e.key==="Escape"&&el("modalRoot").innerHTML){closeModal();return;}
+  if(docOpen()&&docKeys(e))return;
+  if(e.key==="Escape"&&el("modalRoot").innerHTML){if(docMayClose())closeModal();return;}
   if(e.key==="Escape"&&V.tmBreak){closeTimeBreakdown();return;}
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
@@ -3198,39 +3202,78 @@ function timerBar(){
 const docsFor=id=>S.docs.filter(d=>d.task===id).sort((a,b)=>b.updated-a.updated);
 const docById=id=>S.docs.find(d=>d.id===id);
 
-/* A deliberately small markdown renderer for the preview: headings, emphasis,
-   code, quotes, lists, task boxes, rules and links. Everything is escaped
-   before any markup is added. */
-function mdToHtml(md){
-  const lines=String(md||"").split(/\r?\n/),out=[];
-  let list=null,fence=false,buf=[];
-  const inline=s=>esc(s)
-    .replace(/`([^`]+)`/g,"<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>")
-    .replace(/(^|[^*])\*([^*]+)\*/g,"$1<i>$2</i>")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+/* Markdown to HTML, for the document preview and comments: headings,
+   emphasis, strikethrough, highlight, code, quotes, lists (nested by
+   indent), task boxes, tables, rules, links, images and Obsidian's
+   [[links]]. Everything is escaped before any markup is added, and only
+   http(s), mailto and inline images are ever turned into addresses.
+   live: task boxes are buttons that tick the line they came from. */
+function mdInline(s){
+  const keep=[],hold=h=>"\u0000"+(keep.push(h)-1)+"\u0000";
+  let t=esc(s);
+  t=t.replace(/`([^`]+)`/g,(_,c)=>hold("<code>"+c+"</code>"));
+  t=t.replace(/!\[([^\]]*)\]\(((?:https?:\/\/|data:image\/)[^)\s]+)\)/g,(_,a,u)=>hold('<img src="'+u+'" alt="'+a+'" loading="lazy">'));
+  t=t.replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^)\s]+)\)/g,(_,a,u)=>hold('<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+a+'</a>'));
+  t=t.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_,p,a)=>hold('<span class="md-wiki">'+(a||p)+'</span>'));
+  t=t.replace(/(^|[\s(])(https?:\/\/[^\s<]*[^\s<.,;:!?)])/g,(_,b,u)=>b+hold('<a href="'+u+'" target="_blank" rel="noopener noreferrer">'+u+'</a>'));
+  t=t.replace(/\*\*\*(?=\S)([^*]*?\S)\*\*\*/g,"<b><i>$1</i></b>")
+    .replace(/(\*\*|__)(?=\S)(.*?\S)\1/g,"<b>$2</b>")
+    .replace(/(^|[^*\w])\*(?=\S)([^*]*?\S)\*(?!\*)/g,"$1<i>$2</i>")
+    .replace(/(^|[^_\w])_(?=\S)([^_]*?\S)_(?!\w)/g,"$1<i>$2</i>")
+    .replace(/~~(?=\S)(.*?\S)~~/g,"<s>$1</s>")
+    .replace(/==(?=\S)(.*?\S)==/g,"<mark>$1</mark>");
+  return t.replace(/\u0000(\d+)\u0000/g,(_,i)=>keep[+i]);
+}
+const MD_RULE=/^\s*([-*_])(\s*\1){2,}\s*$/;
+const MD_BLOCK=/^\s*(#{1,6}\s|>|[-*+]\s|\d+[.)]\s|```|~~~|\|)/;
+function mdToHtml(md,live){
+  const L=String(md||"").split(/\r?\n/),out=[];
+  let list=null;
   const shut=()=>{if(list){out.push("</"+list+">");list=null;}};
   const open=tag=>{if(list!==tag){shut();out.push("<"+tag+">");list=tag;}};
-  lines.forEach(raw=>{
-    const l=raw.replace(/\s+$/,"");
-    if(/^```/.test(l)){
-      if(fence){out.push("<pre><code>"+esc(buf.join("\n"))+"</code></pre>");buf=[];fence=false;}
-      else{shut();fence=true;}
-      return;
+  const lvl=sp=>{const n=Math.min(4,Math.floor(sp.replace(/\t/g,"  ").length/2));return n?' style="--lv:'+n+'"':"";};
+  const cells=l=>l.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
+  for(let i=0;i<L.length;i++){
+    const l=L[i].replace(/\s+$/,"");let m;
+    if((m=l.match(/^\s*(```|~~~)/))){
+      shut();const buf=[];let j=i+1;
+      while(j<L.length&&L[j].trim().indexOf(m[1])!==0){buf.push(L[j]);j++;}
+      out.push("<pre><code>"+esc(buf.join("\n"))+"</code></pre>");i=j;continue;
     }
-    if(fence){buf.push(raw);return;}
-    if(!l.trim()){shut();return;}
-    let m;
-    if(/^---+$/.test(l)){shut();out.push("<hr>");return;}
-    if((m=l.match(/^(#{1,4})\s+(.*)$/))){shut();const n=Math.min(m[1].length+1,5);out.push("<h"+n+">"+inline(m[2])+"</h"+n+">");return;}
-    if((m=l.match(/^&gt;\s?(.*)$/))||(m=l.match(/^>\s?(.*)$/))){shut();out.push("<blockquote>"+inline(m[1])+"</blockquote>");return;}
-    if((m=l.match(/^[-*]\s+\[([ xX])\]\s+(.*)$/))){open("ul");
-      out.push('<li class="md-task"><span class="md-box'+(m[1]===" "?"":" on")+'"></span>'+inline(m[2])+"</li>");return;}
-    if((m=l.match(/^[-*]\s+(.*)$/))){open("ul");out.push("<li>"+inline(m[1])+"</li>");return;}
-    if((m=l.match(/^\d+[.)]\s+(.*)$/))){open("ol");out.push("<li>"+inline(m[1])+"</li>");return;}
-    shut();out.push("<p>"+inline(l)+"</p>");
-  });
-  if(fence&&buf.length)out.push("<pre><code>"+esc(buf.join("\n"))+"</code></pre>");
+    if(!l.trim()){shut();continue;}
+    if(MD_RULE.test(l)){shut();out.push("<hr>");continue;}
+    if((m=l.match(/^(#{1,6})\s+(.*?)\s*#*$/))){shut();const n=Math.min(m[1].length+1,6);out.push("<h"+n+">"+mdInline(m[2])+"</h"+n+">");continue;}
+    if(/^\s*\|/.test(l)&&i+1<L.length&&/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(L[i+1])){
+      shut();
+      const head=cells(l),al=cells(L[i+1]).map(c=>/^:-+:$/.test(c)?"center":/-:$/.test(c)?"right":"");
+      const td=(tag,c,k)=>"<"+tag+(al[k]?' style="text-align:'+al[k]+'"':"")+">"+mdInline(c)+"</"+tag+">";
+      let h='<div class="md-table"><table><thead><tr>'+head.map((c,k)=>td("th",c,k)).join("")+"</tr></thead><tbody>";
+      i+=2;
+      while(i<L.length&&/^\s*\|/.test(L[i])){const r=cells(L[i]);h+="<tr>"+head.map((_,k)=>td("td",r[k]||"",k)).join("")+"</tr>";i++;}
+      i--;out.push(h+"</tbody></table></div>");continue;
+    }
+    if((m=l.match(/^\s*>\s?(.*)$/))){
+      shut();const q=[m[1]];
+      while(i+1<L.length&&(m=L[i+1].match(/^\s*>\s?(.*)$/))){q.push(m[1]);i++;}
+      out.push("<blockquote>"+q.map(mdInline).join("<br>")+"</blockquote>");continue;
+    }
+    if((m=l.match(/^(\s*)[-*+]\s+\[([ xX])\]\s*(.*)$/))){
+      open("ul");const on=m[2]!==" ",cls="md-box"+(on?" on":"");
+      out.push('<li class="md-task'+(on?" done":"")+'"'+lvl(m[1])+">"+
+        (live?'<button class="'+cls+'" data-act="doc-check" data-line="'+i+'" aria-label="'+(on?"Untick":"Tick")+'"></button>':'<span class="'+cls+'"></span>')+
+        "<span>"+mdInline(m[3])+"</span></li>");
+      continue;
+    }
+    if((m=l.match(/^(\s*)[-*+]\s+(.*)$/))){open("ul");out.push("<li"+lvl(m[1])+">"+mdInline(m[2])+"</li>");continue;}
+    if((m=l.match(/^(\s*)(\d+)[.)]\s+(.*)$/))){
+      if(list!=="ol"){shut();out.push('<ol start="'+(+m[2])+'">');list="ol";}
+      out.push("<li"+lvl(m[1])+">"+mdInline(m[3])+"</li>");continue;
+    }
+    shut();
+    const para=[l.trim()];
+    while(i+1<L.length&&L[i+1].trim()&&!MD_BLOCK.test(L[i+1])&&!MD_RULE.test(L[i+1])){para.push(L[i+1].trim());i++;}
+    out.push("<p>"+para.map(mdInline).join("<br>")+"</p>");
+  }
   shut();
   return out.join("");
 }
@@ -3949,27 +3992,228 @@ function renderSheet(){
   root.dataset.tab=s.tab;
 }
 
-/* ---- document editor ---- */
+/* ---- document editor ----
+   Markdown underneath, because that is what goes to the vault, but nobody
+   has to know it: the toolbar and the usual shortcuts write it, lists carry
+   on when Enter is pressed, and the preview beside it (or instead of it)
+   shows the result, with task boxes that tick. Edits go through
+   insertText, so Ctrl+Z undoes a toolbar click like any typing. Nothing is
+   required -- no title, no text -- and closing with changes asks first
+   rather than throwing them away. */
+const DE={id:null,task:null,dirty:false,full:false};
+const DE_TOOLS=[
+  [["h1","H1","Heading 1  (Ctrl+Alt+1)"],["h2","H2","Heading 2  (Ctrl+Alt+2)"],["h3","H3","Heading 3  (Ctrl+Alt+3)"]],
+  [["bold","B","Bold  (Ctrl+B)"],["italic","I","Italic  (Ctrl+I)"],["strike","S","Strikethrough  (Ctrl+Shift+X)"],
+   ["mark","i-highlight","Highlight  (Ctrl+Shift+H)"],["code","i-code","Inline code  (Ctrl+E)"]],
+  [["ul","i-list","Bulleted list  (Ctrl+Shift+8)"],["ol","i-ol","Numbered list  (Ctrl+Shift+7)"],
+   ["task","i-checklist","Checklist  (Ctrl+Shift+9)"],["quote","i-quote","Quote  (Ctrl+Shift+.)"]],
+  [["link","i-link","Link  (Ctrl+K)"],["image","i-image","Image"],["table","i-table","Table"],
+   ["codeblock","i-codeblock","Code block"],["hr","i-hr","Divider"]],
+  [["undo","i-undo","Undo  (Ctrl+Z)"],["redo","i-redo","Redo  (Ctrl+Y)"]]];
+const docOpen=()=>!!el("dcMd");
+function docPrevHtml(md){
+  return String(md||"").trim()?mdToHtml(md,true):'<p class="doc-empty">Your formatted document shows here.</p>';
+}
+function docFootHtml(){
+  return '<span class="doc-count" id="dcCount"></span>'+
+    (vaultPath()?'<span class="doc-sync">'+icon("i-folder","ic-14")+'Syncs to Obsidian</span>':"")+
+    '<div class="spacer" style="flex:1"></div>'+
+    '<button class="btn" data-act="close">Cancel</button>'+
+    '<button class="btn btn-primary" data-act="doc-save">'+icon("i-check")+'Save</button>';
+}
 function docModal(id,taskId){
-  const d=id?docById(id):null;
-  openModal('<div class="modal modal-wide" role="dialog" aria-modal="true" aria-label="Document">'+
-    '<div class="mhead2"><h2>'+(d?"Document":"New document")+'</h2>'+
-      (d?'<button class="btn btn-sm btn-ghost btn-danger" data-act="doc-del" data-id="'+d.id+'">'+icon("i-trash","ic-14")+'Delete</button>':"")+
-      '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody">'+
-      '<input class="inp doc-title" id="dcTitle" value="'+esc(d?d.title:"")+'" placeholder="Document title">'+
-      '<div class="doc-split">'+
-        '<textarea class="inp doc-md" id="dcMd" spellcheck="true" placeholder="# Heading&#10;&#10;Write in markdown. It is saved as a .md file.">'+esc(d?d.md:"")+'</textarea>'+
-        '<div class="doc-prev" id="dcPrev">'+mdToHtml(d?d.md:"")+'</div>'+
-      '</div>'+
-      '<p class="mnone">'+(vaultPath()?'Saved to your vault as '+esc(d?docFile(d):"a .md file"):'Saved inside the planner. Connect a vault in Settings to mirror it into Obsidian.')+'</p>'+
+  const d=id?docById(id):null,view=V.docView||"split";
+  Object.assign(DE,{id:d?d.id:null,task:taskId||(d?d.task:null),dirty:false});
+  const tools=DE_TOOLS.map(g=>'<div class="dt-group">'+g.map(t=>
+    '<button class="dt-btn" data-act="doc-tool" data-v="'+t[0]+'" title="'+esc(t[2])+'" aria-label="'+esc(t[2].split("  ")[0])+'">'+
+      (t[1].indexOf("i-")===0?icon(t[1]):'<span class="dt-'+t[0]+'">'+t[1]+'</span>')+'</button>').join("")+'</div>').join("");
+  openModal('<div class="modal doc-modal'+(DE.full?" doc-full":"")+(view==="preview"?" doc-reading":"")+'" role="dialog" aria-modal="true" aria-label="Document">'+
+    '<div class="doc-head">'+
+      '<span class="doc-ic">'+icon("i-doc")+'</span>'+
+      '<input class="doc-title" id="dcTitle" value="'+esc(d?d.title:"")+'" placeholder="Untitled document" aria-label="Title" autocomplete="off" spellcheck="true">'+
+      '<div class="seg doc-views" role="group" aria-label="View">'+[["write","Write"],["split","Split"],["preview","Preview"]].map(x=>
+        '<button data-act="doc-view" data-v="'+x[0]+'" aria-pressed="'+(view===x[0])+'">'+x[1]+'</button>').join("")+'</div>'+
+      '<button class="icon-btn" data-act="doc-full" aria-label="'+(DE.full?"Exit full screen":"Full screen")+'" title="'+(DE.full?"Exit full screen":"Full screen")+'">'+icon(DE.full?"i-shrink":"i-expand")+'</button>'+
+      (d?'<button class="icon-btn" data-act="doc-del" data-id="'+d.id+'" aria-label="Delete document" title="Delete document">'+icon("i-trash")+'</button>':"")+
+      '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button>'+
     '</div>'+
-    '<div class="mfoot"><div class="spacer" style="flex:1"></div>'+
-      '<button class="btn" data-act="close">Cancel</button>'+
-      '<button class="btn btn-primary" data-act="doc-save" data-id="'+(d?d.id:"")+'" data-task="'+esc(taskId||(d?d.task:""))+'">'+icon("i-check")+'Save</button>'+
-    '</div></div>');
+    '<div class="doc-tools" role="toolbar" aria-label="Formatting">'+tools+'</div>'+
+    '<div class="doc-split v-'+view+'" id="dcSplit">'+
+      '<textarea class="doc-md" id="dcMd" spellcheck="true" aria-label="Document" placeholder="Start writing…">'+esc(d?d.md:"")+'</textarea>'+
+      '<div class="doc-prev" id="dcPrev">'+docPrevHtml(d?d.md:"")+'</div>'+
+    '</div>'+
+    '<div class="doc-foot" id="dcFoot">'+docFootHtml()+'</div>'+
+  '</div>');
+  docCount();
+  const f=view==="preview"?null:d?el("dcMd"):el("dcTitle");
+  if(f){f.focus();if(f.id==="dcMd")f.setSelectionRange(0,0);}
+}
+function docCount(){
+  const ta=el("dcMd"),c=el("dcCount");if(!ta||!c)return;
+  const w=(ta.value.replace(/[#>*_~=`|[\]()-]/g," ").match(/\S+/g)||[]).length;
+  c.textContent=w?w+" word"+(w===1?"":"s")+" · "+Math.max(1,Math.round(w/220))+" min read":"No words yet";
+}
+function docChanged(){
+  DE.dirty=true;
+  const ta=el("dcMd"),p=el("dcPrev");
+  if(ta&&p){const k=p.scrollTop;p.innerHTML=docPrevHtml(ta.value);p.scrollTop=k;}
+  docCount();
+}
+function docSave(){
+  const t=el("dcTitle"),ta=el("dcMd");if(!ta)return;
+  saveDoc(DE.id||null,DE.task||null,((t&&t.value)||"").trim()||"Untitled",ta.value);
+  DE.dirty=false;closeModal();renderSheet();renderView();toast("Document saved");
+}
+/* Anything that would close the editor asks here first. */
+function docMayClose(){
+  if(!docOpen()||!DE.dirty)return true;
+  const f=el("dcFoot");
+  if(f)f.innerHTML='<span class="doc-ask">'+icon("i-alert","ic-14")+'You have unsaved changes</span><div class="spacer" style="flex:1"></div>'+
+    '<button class="btn btn-ghost btn-danger" data-act="doc-discard">Discard</button>'+
+    '<button class="btn" data-act="doc-keep">Keep editing</button>'+
+    '<button class="btn btn-primary" data-act="doc-save">'+icon("i-check")+'Save</button>';
+  const k=f&&f.querySelector('[data-act="doc-keep"]');if(k)k.focus();
+  return false;
+}
+function docView(v){
+  V.docView=v;
+  const sp=el("dcSplit");if(sp)sp.className="doc-split v-"+v;
+  document.querySelectorAll('[data-act="doc-view"]').forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===v)));
+  const m=document.querySelector(".doc-modal");if(m)m.classList.toggle("doc-reading",v==="preview");
+  if(v!=="preview"){const ta=el("dcMd");if(ta)ta.focus();}
+}
+function docFull(){
+  DE.full=!DE.full;
+  const m=document.querySelector(".doc-modal"),b=m&&m.querySelector('[data-act="doc-full"]');
+  if(m)m.classList.toggle("doc-full",DE.full);
+  if(b){const l=DE.full?"Exit full screen":"Full screen";b.innerHTML=icon(DE.full?"i-shrink":"i-expand");b.title=l;b.setAttribute("aria-label",l);}
 }
 
+/* ---- editing the text ---- */
+function deReplace(ta,s,e,text,selS,selE){
+  ta.focus();ta.setSelectionRange(s,e);
+  let ok=false;
+  try{ok=text===""?(s===e||document.execCommand("delete")):document.execCommand("insertText",false,text);}catch(x){ok=false;}
+  if(!ok||ta.value.slice(s,s+text.length)!==text)ta.setRangeText(text,s,e,"end");
+  ta.setSelectionRange(s+selS,s+selE);
+  docChanged();
+}
+function deWrap(a,b,ph){
+  const ta=el("dcMd"),v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,sel=v.slice(s,e);
+  if(v.slice(s-a.length,s)===a&&v.slice(e,e+b.length)===b){deReplace(ta,s-a.length,e+b.length,sel,0,sel.length);return;}
+  if(sel.length>=a.length+b.length&&sel.indexOf(a)===0&&sel.slice(-b.length)===b){
+    const inner=sel.slice(a.length,sel.length-b.length);deReplace(ta,s,e,inner,0,inner.length);return;
+  }
+  const blank=!sel.trim(),lead=blank?"":sel.match(/^\s*/)[0],trail=blank?"":sel.match(/\s*$/)[0];
+  const core=blank?ph:sel.trim();
+  deReplace(ta,s,e,(blank?sel:"")+lead+a+core+b+trail,(blank?sel.length:0)+lead.length+a.length,(blank?sel.length:0)+lead.length+a.length+core.length);
+}
+/* The lines the selection touches, whole. */
+function deSpan(ta){
+  const v=ta.value,a=ta.selectionStart;let b=ta.selectionEnd;
+  if(b>a&&v[b-1]==="\n")b--;
+  const s=v.lastIndexOf("\n",a-1)+1;let e=v.indexOf("\n",b);if(e<0)e=v.length;
+  return {s:s,e:e,lines:v.slice(s,e).split("\n")};
+}
+const DE_PREFIX=/^(\s*)(#{1,6}\s+|>\s?|[-*+]\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+)?/;
+function deLines(kind){
+  const ta=el("dcMd"),sp=deSpan(ta),lines=sp.lines;
+  const want={h1:"# ",h2:"## ",h3:"### ",quote:"> ",ul:"- ",task:"- [ ] ",ol:"1. "}[kind];
+  const has=l=>{const p=(l.match(DE_PREFIX)[2]||"");
+    if(kind==="ol")return /^\d+[.)]\s/.test(p);
+    if(kind==="task")return /\[[ xX]\]/.test(p);
+    if(kind==="ul")return /^[-*+]\s+$/.test(p);
+    return p.trim()===want.trim();};
+  const full=lines.filter(l=>l.trim());
+  const off=full.length>0&&full.every(has);
+  let n=0;
+  const text=lines.map(l=>{
+    if(!l.trim()&&lines.length>1)return l;
+    const m=l.match(DE_PREFIX),rest=l.slice(m[0].length);
+    if(off)return m[1]+rest;
+    n++;return m[1]+(kind==="ol"?n+". ":want)+rest;
+  }).join("\n");
+  if(lines.length===1)deReplace(ta,sp.s,sp.e,text,text.length,text.length);
+  else deReplace(ta,sp.s,sp.e,text,0,text.length);
+}
+/* A block on lines of its own, with a blank line either side. */
+function deBlock(text,a,b){
+  const ta=el("dcMd"),v=ta.value,s=ta.selectionStart,e=ta.selectionEnd;
+  const before=v.slice(0,s),after=v.slice(e);
+  const pre=!before||/\n\n$/.test(before)?"":/\n$/.test(before)?"\n":"\n\n";
+  /* At the very end, a line to carry on writing on. */
+  const post=!after?"\n":/^\n\n/.test(after)?"":/^\n/.test(after)?"\n":"\n\n";
+  deReplace(ta,s,e,pre+text+post,pre.length+a,pre.length+b);
+}
+function deIndent(out){
+  const ta=el("dcMd"),a=ta.selectionStart,b=ta.selectionEnd,sp=deSpan(ta);
+  let first=0;
+  const text=sp.lines.map((l,k)=>{
+    if(out){const cut=(l.match(/^ {1,2}|^\t/)||[""])[0].length;if(!k)first=-cut;return l.slice(cut);}
+    if(!k)first=2;return "  "+l;
+  }).join("\n");
+  if(a===b)deReplace(ta,sp.s,sp.e,text,Math.max(0,a-sp.s+first),Math.max(0,a-sp.s+first));
+  else deReplace(ta,sp.s,sp.e,text,0,text.length);
+}
+function docTool(k){
+  const ta=el("dcMd");if(!ta)return;
+  if(V.docView==="preview")docView("split");
+  const v=ta.value,s=ta.selectionStart,e=ta.selectionEnd,sel=v.slice(s,e);
+  switch(k){
+    case "bold":deWrap("**","**","bold text");break;
+    case "italic":deWrap("*","*","italic text");break;
+    case "strike":deWrap("~~","~~","struck text");break;
+    case "mark":deWrap("==","==","highlighted text");break;
+    case "code":deWrap("`","`","code");break;
+    case "h1":case "h2":case "h3":case "ul":case "ol":case "task":case "quote":deLines(k);break;
+    case "link":
+      if(/^(https?:\/\/|mailto:)\S+$/.test(sel)){const t="[link text]("+sel+")";deReplace(ta,s,e,t,1,10);}
+      else{const label=sel||"link text",t="["+label+"](https://)";deReplace(ta,s,e,t,label.length+3,label.length+11);}
+      break;
+    case "image":{const alt=sel||"description",t="!["+alt+"](https://)";deReplace(ta,s,e,t,alt.length+4,alt.length+12);break;}
+    case "table":deBlock("| Column | Column | Column |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |",2,8);break;
+    case "codeblock":deBlock("```\n"+sel+"\n```",4,4+sel.length);break;
+    case "hr":deBlock("---",4,4);break;
+    case "undo":case "redo":ta.focus();try{document.execCommand(k);}catch(x){}docChanged();break;
+  }
+}
+/* Ticking a box in the preview ticks its line in the text. */
+function docCheck(line){
+  const ta=el("dcMd");if(!ta)return;
+  const L=ta.value.split("\n");if(L[line]==null)return;
+  let at=0;for(let i=0;i<line;i++)at+=L[i].length+1;
+  const m=L[line].match(/^(\s*[-*+]\s+\[)([ xX])\]/);if(!m)return;
+  const p=el("dcPrev"),k=p?p.scrollTop:0;
+  deReplace(ta,at+m[1].length,at+m[1].length+1,m[2]===" "?"x":" ",1,1);
+  if(p)p.scrollTop=k;
+}
+/* Keys in the editor: the usual shortcuts, lists that carry on, Tab to
+   indent. Escape still closes, so the keyboard is never trapped. */
+function docKeys(e){
+  const t=e.target,mod=e.ctrlKey||e.metaKey,key=(e.key||"").toLowerCase();
+  if(mod&&!e.altKey&&(key==="s"||key==="enter")&&(t.id==="dcMd"||t.id==="dcTitle")){e.preventDefault();docSave();return true;}
+  if(t.id==="dcTitle"&&e.key==="Enter"){e.preventDefault();const ta=el("dcMd");if(ta)ta.focus();return true;}
+  if(t.id!=="dcMd")return false;
+  const map=mod&&!e.altKey&&!e.shiftKey?{b:"bold",i:"italic",e:"code",k:"link"}[key]
+    :mod&&e.shiftKey&&!e.altKey?{x:"strike",h:"mark","8":"ul","*":"ul","7":"ol","&":"ol","9":"task","(":"task",".":"quote",">":"quote"}[key]
+    :mod&&e.altKey?{"1":"h1","2":"h2","3":"h3"}[key]:null;
+  if(map){e.preventDefault();docTool(map);return true;}
+  if(e.key==="Tab"&&!mod&&!e.altKey){e.preventDefault();deIndent(e.shiftKey);return true;}
+  if(e.key==="Enter"&&!e.shiftKey&&!mod&&!e.altKey&&t.selectionStart===t.selectionEnd){
+    const v=t.value,s=t.selectionStart,ls=v.lastIndexOf("\n",s-1)+1,line=v.slice(ls,s);
+    const m=line.match(/^(\s*)([-*+]\s+\[[ xX]\]\s+|[-*+]\s+|(\d+)([.)])\s+|>\s?)/);
+    if(!m)return false;
+    e.preventDefault();
+    let le=v.indexOf("\n",s);if(le<0)le=v.length;
+    if(!line.slice(m[0].length).trim()&&!v.slice(s,le).trim()){deReplace(t,ls,le,"",0,0);return true;}
+    let p=m[2];
+    if(m[3])p=(+m[3]+1)+m[4]+" ";else p=p.replace(/\[[xX]\]/,"[ ]");
+    const ins="\n"+m[1]+p;
+    deReplace(t,s,s,ins,ins.length,ins.length);
+    return true;
+  }
+  return false;
+}
 
 /* ============ the desktop bridge ============ */
 /* main.js exposes window.orbit through a preload script. In a plain browser
