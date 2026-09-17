@@ -392,10 +392,8 @@ function renderTopbar(){
     right=topSearch("Search notes")+
       '<button class="btn btn-primary" data-act="new-note">'+icon("i-plus")+'New note</button>';
   }
-  const hid=hiddenCats().length;
-  const notice=hid?'<button class="filter-pill on" data-act="cat-all" title="Show all categories again">'+icon("i-filter")+hid+(hid===1?" category":" categories")+' hidden'+icon("i-x","ic-14")+'</button>':"";
   const menu='<button class="rail-toggle" data-act="rail" aria-label="Show the sidebar" title="Sidebar">'+icon("i-menu","ic-18")+'</button>';
-  el("topbar").innerHTML=menu+'<div class="title-wrap"><h1>'+title+'</h1><p>'+esc(sub)+'</p></div><div class="spacer"></div>'+timerBar()+notice+right;
+  el("topbar").innerHTML=menu+'<div class="title-wrap"><h1>'+title+'</h1><p>'+esc(sub)+'</p></div><div class="spacer"></div>'+timerBar()+right;
 }
 
 /* ============ shared fragments ============ */
