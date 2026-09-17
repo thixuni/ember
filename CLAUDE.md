@@ -491,7 +491,16 @@ Main sections — the calendar, the board, notes, the dashboard — are painted
 `--canvas`, not `--surface`. In light mode the two are the same white. In dark,
 `--canvas` is the ground, so the cards and panels on it (which stay `--surface`)
 lift off it instead of everything sitting at one grey. Paint a new main area
-with `--canvas`, and anything that should read as a card on it with `--surface`.
+with `--canvas`.
+
+**One rule for every screen: sections are panels, what is in them is
+cards.** A section on a page — a board column, a dashboard card, the list
+table, a routine, a stats tile, an empty state — is `--panel` (the
+`--surface-2` shade) with a `--line` border; a thing inside one — a task
+card, the quick-add row, a note in the list, a hover — is `--surface`. The
+dashboard once painted its sections `--surface` and read as a different app
+beside the board. A new section takes `--panel`, and nothing but the accent
+varies between screens.
 
 Calendar blocks and chips take their category colour through `--ev-fill`,
 `--ev-label` and `--ev-time`. Light mode puts a strong tint in the text; dark
