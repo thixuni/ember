@@ -1675,7 +1675,7 @@ async function obDataNext(){
 
 /* ---- about you ---- */
 function obName(){
-  return obHead("About you","Hi <em>there</em>!<span class=\"obx-h-sub\">What should we call you?</span>")+
+  return obHead("About you","What should we <em>call you</em>?","A nickname works just as well.")+
     '<label class="obx-big"><span>I’m</span><input id="obName" autocomplete="given-name" maxlength="40" placeholder="your name" value="'+esc(S.prefs.name||"")+'"></label>';
 }
 function obShowName(){
