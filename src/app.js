@@ -1402,7 +1402,7 @@ const OB_LABEL={signin:"Sign in",data:"Your data",name:"About you",cats:"Categor
 /* The steps skipping ahead is harmless for: nothing is lost by leaving them. */
 const OB_SKIP=["routines","calendar","obsidian"];
 function obSteps(){
-  const g=hasGoogle(),d=hasDesktop();
+  const g=googleReady(),d=hasDesktop();
   if(OB.mode==="again")return ["signin"];
   if(OB.mode==="returning")return ["signin"].concat(g?["data"]:[],["done"]);
   const links=(g?["calendar"]:[]).concat(d?["obsidian"]:[]);
@@ -1411,7 +1411,7 @@ function obSteps(){
 }
 function obNeeded(){
   const done=!!(S.prefs.onboard&&S.prefs.onboard.done);
-  if(hasGoogle())return !done||!signedIn();
+  if(googleReady())return !done||!signedIn();
   /* A copy that cannot sign in (a file opened by double-click, the artifact)
      and was in use before setup existed simply carries on. */
   return !done&&!hasData()&&!S.prefs.setup;
@@ -1419,7 +1419,7 @@ function obNeeded(){
 function obStart(){
   const ob=S.prefs.onboard||{};
   OB.mode=ob.done?"again":(ob.mode||((hasData()||S.prefs.setup)?"returning":"new"));
-  if(!hasGoogle()&&OB.mode!=="new"){S.prefs.onboard={done:true};save("prefs");return;}
+  if(!googleReady()&&OB.mode!=="new"){S.prefs.onboard={done:true};save("prefs");return;}
   OB.step=obSteps().indexOf(ob.step)>-1?ob.step:"signin";
   if(OB.step==="signin"&&signedIn()&&OB.mode!=="again")OB.step=obSteps()[1];
   OB.open=true;OB.err="";obRender();
@@ -1559,17 +1559,13 @@ function obSky(){
     chip("i-note","Notes",82,72,.6)+chip("i-timer","Focus timer",64,88,1.7)+chip("i-target","Priorities",26,90,2.6)+'</div>';
 }
 function obSignin(fresh){
-  const g=hasGoogle(),web=googleWeb(),st=GC.status||{};
-  /* A copy with no Google client of its own asks for one here, once: the
-     desktop app a "Desktop app" client and its secret, a web page a "Web
-     application" client, which has no secret. */
-  const keys=g&&!st.builtIn&&!st.clientId;
+  const g=googleReady(),web=googleWeb();
   const again=OB.mode==="again";
   let act;
-  if(!g)act='<p class="obx-note">'+icon("i-laptop","ic-14")+'<span>'+(window.claude?"This copy can't sign in with Google.":
-      "Opened straight from a file, the planner can't sign in with Google, which only signs in to a web address.")+
-      ' Use Everyday Orbit online or the desktop app to sign in, or carry on here and keep your planner in this browser.</span></p>'+
-    '<button class="btn btn-primary obx-wide" data-act="ob-local">Continue in this browser'+icon("i-chev-r","ic-14")+'</button>';
+  /* Nobody using the planner is ever asked for keys. A copy that cannot
+     sign in says so in a sentence and carries on without it. */
+  if(!g)act='<p class="obx-note">'+icon("i-laptop","ic-14")+'<span>'+esc(noGoogleWhy())+' Your planner will be kept in this '+here()+'.</span></p>'+
+    '<button class="btn btn-primary obx-wide" data-act="ob-local">Continue'+icon("i-chev-r","ic-14")+'</button>';
   else if(OB.busy)act=obWaiting(web?"Finish signing in in Google's window.":"Finish signing in in your browser.");
   else act='<button class="obx-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
   return '<div class="obx-first'+(fresh?" enter":"")+'">'+obSky()+
@@ -1578,11 +1574,6 @@ function obSignin(fresh){
       '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one orbit</em>.")+'</h1>'+
       '<p class="obx-lead">'+(again?"Sign in with your Google account to open your planner."
         :"Tasks, routines, your calendar and your notes, sharing one set of categories — so something you write once shows up wherever you look for it.")+'</p>'+
-      (keys&&!OB.busy?'<div class="obx-keys">'+(web
-          ?'<p class="obx-fine">This address has no Google sign-in set up. Paste the Client ID of a <b>Web application</b> client from Google Cloud that lists <b>'+esc(location.origin)+'</b> as an authorised JavaScript origin. It is kept in this browser.</p>'
-          :'<p class="obx-fine">This copy of the app was built without its Google sign-in keys. Paste the <b>Desktop app</b> client from Google Cloud once, and they are kept, encrypted, on this computer.</p>')+
-        '<input class="inp" id="gcId" autocomplete="off" spellcheck="false" placeholder="Client ID  ….apps.googleusercontent.com" value="'+esc(GC.draft.id||"")+'">'+
-        (web?"":'<input class="inp" id="gcSecret" type="password" autocomplete="off" placeholder="Client secret" value="'+esc(GC.draft.secret||"")+'">')+'</div>':"")+
       act+obErr()+
       (g?'<p class="obx-fine">Your Google account is how you sign in. What you plan stays on this '+(web?"device":"computer")+' unless you choose to back it up to your own Google Drive, and it goes nowhere else.</p>':"")+
     '</div></div>';
@@ -1894,7 +1885,7 @@ function obShowNotify(){
 
 /* ---- done ---- */
 function obDone(){
-  const g=hasGoogle(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
+  const g=googleReady(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
   const item=(ok,ic,title,sub)=>'<div class="obx-sum'+(ok?" ok":"")+'"><span class="obx-sum-ic">'+icon(ok?ic:"i-minus","ic-14")+'</span><span><b>'+title+'</b><small>'+sub+'</small></span></div>';
   return obHead("All set",S.prefs.name?"You’re all set, <em>"+esc(S.prefs.name)+"</em>":"You’re <em>all set</em>",
       "Here is your planner. Every one of these can be changed later in Settings.")+
@@ -1910,7 +1901,7 @@ function obDone(){
 /* The finish: you at the centre, what you set up in orbit round you, lit
    when it is on, and a burst of your colours as it opens. */
 function obShowDone(){
-  const g=hasGoogle(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
+  const g=googleReady(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
   const sats=[[true,"i-tag",S.categories.length+" categories"]];
   if(rts)sats.push([true,"i-repeat",rts+" routine"+(rts===1?"":"s")]);
   if(g){sats.push([driveOn(),"i-cloud","Drive"]);sats.push([gcalOn(),"i-calendar","Calendar"]);}
@@ -1933,9 +1924,9 @@ function obShowDone(){
 function accountPane(sec,field,toggle){
   const p=S.prefs;
   const nameIn='<input class="inp" data-act="set-pref" data-k="name" maxlength="40" value="'+esc(p.name||"")+'" placeholder="Your first name">';
-  if(!hasGoogle())return sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
-    sec("Google account",field("",'<span class="mnone">This copy can’t sign in with Google.</span>',
-      "Opened from a file, the planner is kept in this browser. Use Everyday Orbit online or the desktop app to sign in; back this one up from Your data."));
+  if(!googleReady())return sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
+    sec("Google account",field("",'<span class="mnone">'+esc(noGoogleWhy())+'</span>',
+      "Your planner is kept in this "+here()+". Back it up from Your data."));
   const st=GC.status||{},drive=p.storage==="drive"&&acctParts().drive;
   const last=p.drive&&p.drive.last?"Last backed up "+relTime(p.drive.last):"Not backed up yet";
   return sec("Google account",field("",
@@ -4175,7 +4166,11 @@ const wgClientId=()=>wgShipped()||((wgGet(WG_KEY)||{}).clientId)||"";
 /* The address's own client, if one is published beside the page -- either
    {"clientId": …} or the JSON Google Cloud offers for download -- and
    Google's library, loaded early so a click can open its window at once. */
-async function wgLoad(){
+function wgLoad(){
+  if(!WG.loading)WG.loading=wgFetchCfg();
+  return WG.loading;
+}
+async function wgFetchCfg(){
   if(!wgOrigin())return;
   if(!WG.cfg){
     WG.cfg={};
@@ -4285,9 +4280,24 @@ async function wgRequest(req){
 const WEB_GOOGLE={gcalStatus:async()=>wgStatus(),gcalConnect:wgConnect,gcalCancel:wgCancel,
   gcalDisconnect:wgDisconnect,gcalRequest:wgRequest};
 /* The Google account, whichever way this copy reaches it. */
-const gAcct=()=>{const o=desktop();return o&&o.gcalRequest?o:wgOrigin()?WEB_GOOGLE:null;};
+const gAcct=()=>{const o=desktop();return o&&o.gcalRequest?o:wgOrigin()&&wgClientId()?WEB_GOOGLE:null;};
 const hasGoogle=()=>!!gAcct();
 const googleWeb=()=>!!(gAcct()===WEB_GOOGLE);
+/* Whether this copy can actually sign in: the way to Google, and the app's
+   own Google client to sign in with. A copy built or served without one
+   (a developer's, before the keys are in) runs without an account rather
+   than asking anyone for keys. */
+function googleReady(){
+  if(!hasGoogle())return false;
+  if(googleWeb())return true;
+  const st=GC.status||{};
+  return !!(st.builtIn||st.clientId);
+}
+function noGoogleWhy(){
+  if(hasGoogle()||(wgOrigin()&&!desktop()))return "Signing in with Google isn’t switched on for this copy of Everyday Orbit yet.";
+  if(window.claude)return "This copy of Everyday Orbit can’t sign in with Google.";
+  return "Opened straight from a file, Everyday Orbit can’t sign in with Google.";
+}
 
 /* The hour is up: one click on Reconnect gets the next key -- Google's
    window opens and, with access already given, closes by itself -- and
@@ -4818,7 +4828,7 @@ try{matchMedia("(prefers-color-scheme:dark)").addEventListener("change",syncTime
 if(S.prefs&&!S.prefs.launchSet&&S.prefs.launch==="calendar"){S.prefs.launch="dashboard";save("prefs");}
 if(S.prefs&&S.prefs.launch&&NAV.some(v=>v.id===S.prefs.launch)){V.view=S.prefs.launch;render();}
 maybeAutoBackup();
-gcalBoot();
+wgLoad().then(gcalBoot);
 remindBoot();
 setInterval(()=>{if(V.view==="calendar"&&V.calMode==="week"&&!el("modalRoot").innerHTML&&!DG.on&&!document.querySelector(".drag-ghost"))renderView();},60000);
 setInterval(()=>{if(V.view!=="dashboard")return;

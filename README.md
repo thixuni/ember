@@ -196,8 +196,8 @@ Cloud project, with every address the planner is served from under
 `node scripts/serve.js`, and the address of the hosted copy. Its Client ID is
 not a secret. Put it beside the page as `google-web-client.json` (either
 `{"clientId": "…"}` or the JSON Google Cloud offers; git-ignored), or set
-`ORBIT_GOOGLE_WEB_CLIENT_ID` when running `serve.js`. Without either, the
-sign-in page asks for it and keeps it in that browser.
+`ORBIT_GOOGLE_WEB_CLIENT_ID` when running `serve.js`. Without either, that
+copy runs without signing in. Nobody using the planner is ever asked for keys.
 
 Access is asked for a piece at a time — who you are at sign-in, Drive when you
 choose it, Calendar when you connect it — and every later ask keeps what was
@@ -218,8 +218,8 @@ screen. It is **not** kept in the repository:
 - **Running from source**, put the JSON Google Cloud offers for download next
   to `main.js` as `google-client.json` (it is git-ignored), or set
   `ORBIT_GOOGLE_CLIENT_ID` and `ORBIT_GOOGLE_CLIENT_SECRET`.
-- A build with neither asks for a Client ID and secret on the sign-in page, and
-  keeps them, encrypted, on that computer.
+- A build with neither runs without signing in, and says so on its first
+  page. It never asks the person using it for keys.
 
 Calendar is a *sensitive* scope, so until Google verifies the app, the sign-in
 page warns that it is unverified, and only up to 100 people can use it. In

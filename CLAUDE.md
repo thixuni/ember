@@ -342,7 +342,10 @@ created, replaced rather than added to when someone goes back and forth.
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` secrets, git-ignored) or two
   environment variables, and hands it to gcal.js as `builtIn`; a shipped
   client is never written into settings, so a new build's keys take over. A
-  build with none asks for a Client ID on the sign-in page.
+  build with none runs without an account (`googleReady()` is false): the
+  sign-in page says so in a sentence and carries on. **Never ask the person
+  using the planner for a Client ID or any other key** — that is setup for
+  whoever builds or hosts it.
 
 **Signing in from a browser** (google in a browser section). `gAcct()` is
 the account, whichever way it is reached: `window.orbit` on the desktop,
@@ -353,8 +356,10 @@ http(s) address outside the artifact (`wgOrigin()`): Google signs in only
 to authorised JavaScript origins, so a file opened by double-click cannot.
 
 - The Client ID is a *Web application* client's, not a secret:
-  `google-web-client.json` beside the page (git-ignored), or pasted on the
-  sign-in page and kept in localStorage.
+  `google-web-client.json` beside the page (git-ignored), or
+  `ORBIT_GOOGLE_WEB_CLIENT_ID` for serve.js. With neither, `gAcct()` is null
+  in the browser. Setup waits for `wgLoad()` before deciding, and so does
+  `gcalBoot()`.
 - Google's library is loaded at start-up, not on the click, and
   `wgConnect()` calls `requestAccessToken` before any `await`: its window
   is a pop-up, and a browser opens one only straight from a click.
