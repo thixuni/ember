@@ -135,8 +135,9 @@ toolbar writing Markdown there (`srcTool()`).
 - Nothing is required to save, and every way out (the close button, the
   backdrop, Escape) goes through `docMayClose()`, which asks before unsaved
   changes are thrown away.
-- Write ` ` and `​` as escapes. A test fails on the literal
-  characters: in a regex they look like ordinary spaces.
+- Write non-breaking and zero-width spaces as \u00a0 and \u200b escapes. A
+  test fails on the literal characters: in a regex they look like ordinary
+  spaces.
 
 On the desktop each document is mirrored into
 `<vault>/Everyday Orbit/<title> <id>.md` with YAML front matter carrying
