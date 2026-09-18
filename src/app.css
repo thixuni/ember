@@ -1074,6 +1074,7 @@ button.obx-rt-txt > *{pointer-events:none}
 .obx-opt{display:flex;gap:14px;padding:14px 16px;border-radius:18px;background:var(--surface);border:1px solid var(--line)}
 .obx-opt-ic{width:34px;height:34px;flex:none;border-radius:11px;display:grid;place-items:center;background:var(--surface-3);color:var(--ink-2)}
 .obx-opt > div{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.obx-opt > div > :first-child{min-height:34px}
 .obx-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .obx-inline .inp-time{width:120px}
 .obx-toast{display:flex;align-items:center;gap:12px;width:min(340px,100%);padding:12px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:obtoast 5.5s ease-in-out infinite}

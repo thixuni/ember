@@ -2441,13 +2441,15 @@ function obNotify(){
   const tg=(k,v,l)=>'<label class="switch"><input type="checkbox" data-act="set-pref" data-k="remind.'+k+'"'+(v?" checked":"")+'><span></span><i>'+esc(l)+'</i></label>';
   const tin=(k,v,l)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{sm:1,cls:"inp-time",label:l,ph:"Pick a time",req:k==="overdueAt"});
   const web=!hasDesktop();
-  const opt=(ic,body)=>'<div class="obx-opt">'+'<span class="obx-opt-ic">'+icon(ic,"ic-14")+'</span><div>'+body+'</div></div>';
+  /* The switch leads each card, its icon sits in the corner; what a switch
+     governs shows only while it is on, as quiet hours' times always did. */
+  const opt=(ic,body)=>'<div class="obx-opt"><div>'+body+'</div><span class="obx-opt-ic">'+icon(ic,"ic-14")+'</span></div>';
   return obHead("Notifications","Stay on track, <em>without the noise</em>",
       "Choose when we nudge you, and when we leave you alone.")+
     '<div class="obx-opts">'+
       opt("i-bell",tg("on",rp.on,"Remind me before things start")+
-        '<p class="obx-fine">30 minutes ahead by default.'+(web?" Works while this tab is open.":" Works even when the app is closed.")+'</p>'+
-        webNotifyHtml())+
+        (rp.on?'<p class="obx-fine">30 minutes ahead by default.'+(web?" Works while this tab is open.":" Works even when the app is closed.")+'</p>'+
+        webNotifyHtml():""))+
       opt("i-alert",'<div class="obx-inline">'+tg("overdue",rp.overdue,"Daily overdue summary at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>')+
       opt("i-moon",'<div class="obx-inline">'+tg("quiet",rp.quiet,"Quiet hours")+
         (rp.quiet?tin("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+tin("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>')+
