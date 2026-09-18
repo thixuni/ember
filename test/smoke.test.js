@@ -98,6 +98,19 @@ test('no invisible characters hide in the sources', () => {
   }
 });
 
+test('redraws stay fast on a big planner', () => {
+  // Asking every element for its scroll position forced a full layout: over
+  // a second per redraw on a year-old board.
+  const marks = (jsCode.match(/function scrollMarks\(root\)\{([\s\S]*?)\n\}/) || [])[1] || '';
+  assert.doesNotMatch(marks, /querySelectorAll\("\*"\)/, 'scrollMarks() walks every element again');
+  // Per-card and per-day scans of the big lists go through the lookups.
+  assert.doesNotMatch(jsCode, /S\.activity\.reduce\(\(n,a\)=>n\+\(a\.task===t\.id/, 'task cards scan all activity again');
+  assert.doesNotMatch(jsCode, /S\.sessions\.forEach\(x=>\{if\(ymd\(new Date\(x\.start\)\)===dayStr\)/, 'sittings() scans every session per day again');
+  // Storage is written once per burst of saves, and flushed when the page goes.
+  assert.match(jsCode, /function saveLocal\(\)\{if\(!lsTimer\)/, 'saveLocal() writes on every save again');
+  assert.match(jsCode, /addEventListener\("pagehide",flushLocal\)/, 'a pending write is no longer flushed on close');
+});
+
 test('panels() redraws settings and setup rather than calling itself', () => {
   // A rename once left it calling itself whenever Settings was open.
   const body = (jsCode.match(/function panels\(\)\{([\s\S]*?)\n\}/) || [])[1] || '';

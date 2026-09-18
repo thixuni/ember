@@ -84,7 +84,11 @@ function blankState(){
 /* Tasks gained fields over time; older saved tasks predate them. Read through
    these rather than assuming the field is there. */
 const tTags=t=>Array.isArray(t.tags)?t.tags:[];
-const tLinks=t=>Array.isArray(t.links)?t.links:[];
+/* A link goes both ways: a task shows the tasks it links to and the tasks
+   that link to it. It is stored on the one it was made from; the other side
+   is looked up (ixBack). */
+const tLinks=t=>{const own=Array.isArray(t.links)?t.links:[];if(!t.id)return own;
+  return own.concat((ixBack().get(t.id)||[]).filter(id=>own.indexOf(id)<0));};
 const tFiles=t=>Array.isArray(t.attachments)?t.attachments:[];
 const tEst=t=>Number(t.est)||0;
 /* When a task happens, put the way Google Calendar puts it: a date -- stored
@@ -169,7 +173,21 @@ let db=null,dirty={},timers={},suppress={},touched={};
 const LS="everyday-orbit-v1";
 function loadLocal(){try{const raw=localStorage.getItem(LS);if(!raw)return false;const o=JSON.parse(raw);KEYS.forEach(k=>{if(o[k])S[k]=o[k];});return true;}catch(e){return false;}}
 let storageOK=true;
-function saveLocal(){try{const o={};KEYS.forEach(k=>o[k]=S[k]);localStorage.setItem(LS,JSON.stringify(o));storageOK=true;}catch(e){storageOK=false;}}
+/* Writing the planner to storage turns all of it into one string, which on a
+   planner a year in is a few megabytes -- too much to do on every tick, and a
+   tick often saves two keys at once. Saves in the same moment are gathered
+   into one write a quarter of a second later, and anything still waiting is
+   written at once when the page is put away or closed. */
+let lsTimer=null;
+function saveLocal(){if(!lsTimer)lsTimer=setTimeout(saveLocalNow,250);}
+function saveLocalNow(){
+  clearTimeout(lsTimer);lsTimer=null;
+  try{const o={};KEYS.forEach(k=>o[k]=S[k]);localStorage.setItem(LS,JSON.stringify(o));storageOK=true;}catch(e){storageOK=false;}
+}
+const flushLocal=()=>{if(lsTimer)saveLocalNow();};
+window.addEventListener("pagehide",flushLocal);
+window.addEventListener("beforeunload",flushLocal);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)flushLocal();});
 function setSync(state,label){
   const n=el("sync");if(!n)return;
   if(!storageOK&&!db){state="warn";label="This browser is blocking storage — back up often";}
@@ -181,7 +199,7 @@ function bodyFor(k){
   return {items:S[k]};
 }
 function save(key){
-  dirty[key]=true;touched[key]=true;saveLocal();setSync("warn","Saving…");
+  dirty[key]=true;touched[key]=true;ixDrop();saveLocal();setSync("warn","Saving…");
   if((key==="tasks"||key==="routines")&&!GC.applying)gcalSoon();
   if(key==="tasks"||key==="routines"||key==="completions"||key==="prefs")remindSoon();
   driveSoon();
@@ -247,7 +265,27 @@ function toggleCat(id,force){
   touched.prefs=true;save("prefs");render();refreshCatsModal();
 }
 function refreshCatsModal(){const r=el("modalRoot");if(r&&r.querySelector('[data-act="cat-del"]'))catsModal();}
-const taskById=id=>S.tasks.find(t=>t.id===id);
+/* ---- lookups ----
+   One pass over each big list, kept until the data changes, instead of a
+   scan per card, per day or per row: a year in, the board was counting 8,000
+   activity entries for each of 1,500 cards, and the month scanned every
+   tracked session once per day. save() and render() drop it (ixDrop()), and
+   whatever asks next builds only the part it needs. Code that changes S must
+   save(), as it always has, or these go stale until the next render. */
+var IX={};
+function ixDrop(){IX={};}
+const ix=(name,build)=>IX[name]||(IX[name]=build());
+function groupBy(list,key){const m=new Map();(list||[]).forEach(x=>{const k=key(x);const a=m.get(k);if(a)a.push(x);else m.set(k,[x]);});return m;}
+const ixTasks=()=>ix("tasks",()=>new Map(S.tasks.map(t=>[t.id,t])));
+const ixAct=()=>ix("act",()=>groupBy(S.activity,a=>a.task));
+const ixDocs=()=>ix("docs",()=>groupBy(S.docs,d=>d.task));
+const ixSess=()=>ix("sess",()=>groupBy(S.sessions,x=>x.task));
+const ixSessDay=()=>ix("sessDay",()=>groupBy(S.sessions,x=>ymd(new Date(x.start))));
+/* A task belongs to its date, or with no date to its deadline. */
+const ixBack=()=>ix("back",()=>{const m=new Map();S.tasks.forEach(x=>(Array.isArray(x.links)?x.links:[]).forEach(id=>{const a=m.get(id);if(a)a.push(x.id);else m.set(id,[x.id]);}));return m;});
+const ixDay=()=>ix("day",()=>groupBy(S.tasks,t=>t.due||t.deadline||""));
+const NONE=[];
+const taskById=id=>ixTasks().get(id)||S.tasks.find(t=>t.id===id);
 const routineById=id=>S.routines.find(r=>r.id===id);
 const noteById=id=>S.notes.find(n=>n.id===id);
 const isOpen=t=>OPEN.indexOf(t.status)>-1;
@@ -301,7 +339,10 @@ function streak(r){
     break;}
   return n;
 }
-function overdueItems(){
+/* Asked for by the sidebar, the dashboard and the calendar in one redraw, so
+   worked out once per change. */
+const overdueItems=()=>ix("overdue",overdueNow);
+function overdueNow(){
   const tasks=S.tasks.filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>(a.due||a.deadline)<(b.due||b.deadline)?-1:1);
   const miss=[];
   S.routines.filter(r=>visibleCat(r.cat)).forEach(r=>{
@@ -499,7 +540,7 @@ const RUN_GAP=30*60*1000;
 const runEnd=x=>x.end||(x.start+(x.secs||0)*1000);
 function sittings(dayStr){
   const by={},out=[];
-  S.sessions.forEach(x=>{if(ymd(new Date(x.start))===dayStr)(by[x.task]=by[x.task]||[]).push(x);});
+  (ixSessDay().get(dayStr)||NONE).forEach(x=>{(by[x.task]=by[x.task]||[]).push(x);});
   /* The run in progress has no row until it stops, so it is added here as
      one: from when it began to now, or, if paused, as far as it had got. It
      merges like any other run, so resuming soon after a stop carries on the
@@ -550,7 +591,7 @@ function layoutEvents(evs){
 }
 /* A task belongs to its date, or, with no date, to its deadline. */
 function tasksFor(s){
-  return S.tasks.filter(t=>(t.due===s||(!t.due&&t.deadline===s))&&visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped");
+  return (ixDay().get(s)||NONE).filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped");
 }
 /* A task with a time sits in the time grid; the band across the top is for
    the rest. */
@@ -747,20 +788,38 @@ function monthGrid(){
    month has room for fewer, and a half-cut fourth line reads as a fault.
    After drawing, each cell drops lines from the end until what is left fits,
    and the "+N more" count takes them in. */
+/* Every cell is measured in one pass and changed in another. Hiding a line
+   and measuring again, cell by cell, made the browser lay the month out
+   dozens of times over. */
 function fitMonth(){
+  const plan=[];
   document.querySelectorAll(".mcell").forEach(c=>{
     const list=c.querySelector(".mlist");if(!list)return;
-    const total=Number(c.dataset.total)||0;
     const items=[...list.children].filter(x=>!x.classList.contains("mmore"));
     items.forEach(x=>{x.style.display="";});
-    let more=list.querySelector(".mmore"),shown=items.length;
-    const setMore=()=>{
-      const n=total-shown;if(n<=0){if(more)more.remove();more=null;return;}
-      if(!more){more=document.createElement("button");more.className="mmore";more.dataset.act="peek";
-        more.dataset.date=c.dataset.date;more.dataset.stop="1";list.appendChild(more);}
-      more.textContent="+"+n+" more";
-    };
-    while(list.scrollHeight>list.clientHeight+1&&shown>0){items[--shown].style.display="none";setMore();}
+    plan.push({c:c,list:list,items:items,total:Number(c.dataset.total)||0});
+  });
+  /* reads */
+  plan.forEach(p=>{
+    const top=p.list.getBoundingClientRect().top,rects=p.items.map(x=>x.getBoundingClientRect());
+    const m=p.list.querySelector(".mmore");
+    p.avail=p.list.clientHeight+1;
+    p.bottoms=rects.map(r=>r.bottom-top);
+    p.gap=rects.length>1?Math.max(0,rects[1].top-rects[0].bottom):2;
+    p.moreH=m?m.getBoundingClientRect().height:(rects[0]?rects[0].height:16);
+  });
+  /* writes */
+  plan.forEach(p=>{
+    let k=p.items.length;
+    const fits=n=>(n?p.bottoms[n-1]:0)+(n<p.total?(n?p.gap:0)+p.moreH:0)<=p.avail;
+    while(k>0&&!fits(k))k--;
+    p.items.forEach((x,i)=>{if(i>=k)x.style.display="none";});
+    let more=p.list.querySelector(".mmore");
+    const left=p.total-k;
+    if(left<=0){if(more)more.remove();return;}
+    if(!more){more=document.createElement("button");more.className="mmore";more.dataset.act="peek";
+      more.dataset.date=p.c.dataset.date;more.dataset.stop="1";p.list.appendChild(more);}
+    more.textContent="+"+left+" more";
   });
 }
 let fitTimer=null;
@@ -793,7 +852,7 @@ function todayItems(){
   const ts=TODAY();
   /* Open first, finished at the bottom, where they read as progress rather
      than as clutter. */
-  const tasks=S.tasks.filter(t=>(t.due===ts||(!t.due&&t.deadline===ts))&&visibleCat(t.cat)&&t.status!=="dropped")
+  const tasks=(ixDay().get(ts)||NONE).filter(t=>visibleCat(t.cat)&&t.status!=="dropped")
     .sort((a,b)=>(isOpen(a)?0:1)-(isOpen(b)?0:1)||((a.dueTime||"99")<(b.dueTime||"99")?-1:1));
   const routines=S.routines.filter(r=>visibleCat(r.cat)&&routineHere(r,today()))
     .sort((a,b)=>(a.time||"99")<(b.time||"99")?-1:1);
@@ -1035,7 +1094,7 @@ function dayStripHtml(){
    progress, which has no row until it stops. */
 function trackedToday(){
   const ts=TODAY(),by={};
-  S.sessions.forEach(x=>{if(ymd(new Date(x.start))!==ts)return;by[x.task]=(by[x.task]||0)+(x.secs||0);});
+  (ixSessDay().get(ts)||NONE).forEach(x=>{by[x.task]=(by[x.task]||0)+(x.secs||0);});
   const r=running();
   if(r&&ymd(new Date(r.began))===ts)by[r.task]=(by[r.task]||0)+liveSecs();
   const rows=Object.keys(by).map(id=>({t:taskById(id),secs:by[id]})).filter(x=>x.t&&(x.secs>0||(r&&r.task===x.t.id)))
@@ -1134,8 +1193,8 @@ function viewCalendar(){
   /* Hours tracked in the week on screen, so the total sits with the blocks it
      is made of rather than on a page of its own. */
   const from=ymd(startOfWeek(V.anchor)),to=ymd(addDays(startOfWeek(V.anchor),6));
-  const secs=S.sessions.reduce((n,x)=>{const k=ymd(new Date(x.start));
-    return n+(k>=from&&k<=to?(x.secs||0):0);},0);
+  let secs=0;
+  for(let i=0;i<7;i++)(ixSessDay().get(ymd(addDays(startOfWeek(V.anchor),i)))||NONE).forEach(x=>{secs+=x.secs||0;});
 
   const bar='<div class="cal-bar">'+
     '<div class="stepper"><button data-act="cal-prev" aria-label="Previous">'+icon("i-chev-l")+'</button><button data-act="cal-next" aria-label="Next">'+icon("i-chev-r")+'</button></div>'+
@@ -1219,8 +1278,8 @@ function taskCard(t){
 
   /* What is attached to this task, counted straight off state so the card does
      not depend on helpers declared further down the file. */
-  const comments=S.activity.reduce((n,a)=>n+(a.task===t.id&&a.kind==="comment"?1:0),0);
-  const docs=S.docs.reduce((n,d)=>n+(d.task===t.id?1:0),0);
+  const comments=(ixAct().get(t.id)||NONE).reduce((n,a)=>n+(a.kind==="comment"?1:0),0);
+  const docs=(ixDocs().get(t.id)||NONE).length;
   const marks=[];
   const mark=(ic,n,one,many)=>'<span class="m-mark" title="'+n+' '+(n===1?one:many)+'">'+icon(ic,"ic-14")+'<span class="num">'+n+'</span></span>';
   if(subs.length)marks.push('<span class="m-mark" title="'+dn+' of '+subs.length+' subtasks done">'+icon("i-check","ic-14")+'<span class="num">'+dn+'/'+subs.length+'</span></span>');
@@ -1239,12 +1298,21 @@ function taskCard(t){
     (subs.length?'<div class="bar" title="'+dn+' of '+subs.length+' subtasks done"><i style="width:'+Math.round(dn/subs.length*100)+'%"></i></div>':"")+
     '</div>';
 }
+/* A column draws its first COL_SHOWN cards and offers the rest on a
+   button. A Completed column a year deep was hundreds of cards drawn for
+   nobody, and the browser's layout of them was most of the board's cost. */
+const COL_SHOWN=50;
+function colCards(id,items){
+  const more=(V.colMore&&V.colMore[id])||0,shown=COL_SHOWN+more,left=items.length-shown;
+  return items.slice(0,shown).map(taskCard).join("")+
+    (left>0?'<button class="col-more" data-act="col-more" data-v="'+id+'">Show '+Math.min(left,100)+' more <span class="num">· '+left+' hidden</span></button>':"");
+}
 function viewBoard(){
   const list=filterTasks("board");
   return '<div class="task-main">'+filterBar()+'<div class="board-scroll"><div class="board">'+STATUSES.map(s=>{
     const items=list.filter(t=>t.status===s.id);
     return '<div class="col" data-col="'+s.id+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
-      '<div class="col-list">'+(items.length?items.map(taskCard).join(""):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
+      '<div class="col-list">'+(items.length?colCards(s.id,items):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
       '<button class="addcard" data-act="new-task" data-status="'+s.id+'">'+icon("i-plus","ic-14")+'Add task</button></div>';}).join("")+'</div></div></div>';
 }
 function viewList(){
@@ -1311,7 +1379,7 @@ function viewRoutines(){
       const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
       /* Every square up to today takes a tick, the days off the schedule
          included. Days still to come wait for their day. */
-      return '<div class="wd"><small>'+DOWS[i][0]+'</small><button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
+      return '<div class="wd"><small>'+DOWS[(d.getDay()+6)%7][0]+'</small><button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
         ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
         ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
         ' title="'+(done?(later?"Ticked ahead of time. Click to take it off":"Done"):later?"Not yet: this day is still to come":sched?"Mark done":"Not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
@@ -2220,7 +2288,7 @@ function settingsModal(){
     pane=sec("Reminders",
         field("",'<div class="set-actions">'+toggle("remind.on",rp.on,"Send reminders")+
           '<button class="btn btn-sm" data-act="remind-test">'+icon("i-bell","ic-14")+'Send a test</button></div>',
-          "Routines, and tasks with a due time, remind you 30 minutes before unless you choose otherwise on the task or routine."+
+          "Routines, and tasks with a start time, remind you 30 minutes before unless you choose otherwise on the task or routine."+
           (web?" In a browser they only arrive while this tab is open.":" They arrive even with the window closed."))+
         reach)+
       sec("Overdue tasks",
@@ -2404,7 +2472,7 @@ function importPicked(file){
   r.onerror=function(){toast("Couldn't read that file");};
   r.onload=function(){
     let o=null;
-    try{o=JSON.parse(String(r.result));}catch(e){toast("That file isn't valid JSON");return;}
+    try{o=JSON.parse(String(r.result));}catch(e){toast("That doesn't look like an Everyday Orbit backup");return;}
     const d=o&&o.data?o.data:o;
     if(!d||!Array.isArray(d.tasks)||!Array.isArray(d.categories)){toast("That doesn't look like an Everyday Orbit backup");return;}
     pendingImport=d;
@@ -2540,10 +2608,17 @@ function scrollKey(n,root){
   const sel=n.classList.length?"."+CSS.escape(n.classList[0]):n.tagName.toLowerCase();
   return sel+"@"+Array.prototype.indexOf.call(root.querySelectorAll(sel),n);
 }
+/* Only boxes that have actually been scrolled are asked where they are. They
+   are noted as they scroll (the capturing listener below); asking every
+   element on the page instead made the browser lay the whole page out again,
+   which on a big board took over a second per redraw. */
+const SCROLLED=new Set();
+document.addEventListener("scroll",function(e){const t=e.target;if(t&&t.nodeType===1)SCROLLED.add(t);},true);
 function scrollMarks(root){
   const out=[];if(!root)return out;
-  [root].concat(Array.from(root.querySelectorAll("*"))).forEach(n=>{
-    if(n.scrollTop||n.scrollLeft)out.push([scrollKey(n,root),n.scrollTop,n.scrollLeft]);});
+  SCROLLED.forEach(n=>{
+    if(!n.isConnected){SCROLLED.delete(n);return;}
+    if((n===root||root.contains(n))&&(n.scrollTop||n.scrollLeft))out.push([scrollKey(n,root),n.scrollTop,n.scrollLeft]);});
   return out;
 }
 function putScroll(root,marks){
@@ -2587,7 +2662,7 @@ function renderView(){
   if(V.view==="calendar"&&document.querySelector(".mgrid"))fitMonth();
 }
 function render(){
-  fixTasks();
+  ixDrop();fixTasks();
   renderRail();renderTopbar();renderView();
   /* The day popup lists what the page does; a tick in it redraws the page, so
      the popup is redrawn with it rather than left showing the old state. */
@@ -2724,7 +2799,8 @@ document.addEventListener("click",function(e){
     case "od-toggle":V.odOpen=!V.odOpen;renderView();break;
     case "peek":peekModal(n.dataset.date);break;
     case "task-mode":V.taskMode=n.dataset.mode;renderTopbar();renderView();break;
-    case "quick":V.f.quick=n.dataset.v;renderView();break;
+    case "quick":V.f.quick=n.dataset.v;V.colMore={};renderView();break;
+    case "col-more":V.colMore=V.colMore||{};V.colMore[n.dataset.v]=(V.colMore[n.dataset.v]||0)+100;renderView();break;
     case "adv-toggle":V.adv=!V.adv;renderView();break;
     case "filter-clear":V.f={quick:V.f.quick,status:"",cat:"",quad:"",from:"",to:"",sort:"due"};renderView();break;
     case "task":if(id)openSheet(id);break;
@@ -2756,7 +2832,10 @@ document.addEventListener("click",function(e){
     case "sh-tag-del":{const t=sheetTask();if(!t)break;
       patchCurrent({tags:tTags(t).filter(x=>x!==n.dataset.v)});break;}
     case "sh-link-del":{const t=sheetTask();if(!t)break;
-      patchCurrent({links:tLinks(t).filter(x=>x!==n.dataset.v)});break;}
+      /* Taken off whichever side it was stored on. */
+      const other=taskById(n.dataset.v);
+      if(other&&t.id&&Array.isArray(other.links)&&other.links.indexOf(t.id)>-1){other.links=other.links.filter(x=>x!==t.id);save("tasks");}
+      patchCurrent({links:(Array.isArray(t.links)?t.links:[]).filter(x=>x!==n.dataset.v)});break;}
     case "sh-file-add":pickAttachment();break;
     case "sh-file-open":{const t=sheetTask(),o=desktop();if(!t||!o||!o.openFile)break;
       const f=tFiles(t).find(x=>x.id===n.dataset.v);
@@ -2798,7 +2877,9 @@ document.addEventListener("click",function(e){
     case "new-routine":routineModal(null);break;
     case "routine":case "routine-edit":routineModal(id);break;
     case "routine-save":saveRoutine(id||null);break;
-    case "routine-delete":if(arm(n,"Delete for good?")){S.routines=S.routines.filter(r=>r.id!==id);save("routines");closeModal();render();toast("Routine deleted");}break;
+    case "routine-delete":if(arm(n,"Delete for good?")){S.routines=S.routines.filter(r=>r.id!==id);save("routines");
+      /* Its ticks go with it; left behind they were dead weight in every save. */
+      Object.keys(S.completions).forEach(k=>{if(k.indexOf(id+"|")===0)delete S.completions[k];});save("completions");closeModal();render();toast("Routine deleted");}break;
     case "routine-done":{const k=id+"|"+n.dataset.date;
       /* A day that has not come yet cannot be done yet; a tick already on
          one can still be taken off. */
@@ -3003,7 +3084,9 @@ document.addEventListener("selectionchange",function(){
 });
 document.addEventListener("input",function(e){
   const t=e.target;
-  if(t.id==="q"){V.q=t.value;renderView();return;}
+  /* Search redraws once typing pauses, not on every key: on a big list each
+     redraw is tens of milliseconds, and letters queued behind them. */
+  if(t.id==="q"){V.q=t.value;clearTimeout(V.qTimer);V.qTimer=setTimeout(renderView,V.q?140:0);return;}
   if(t.id==="rte"){const x=noteById(V.noteId);if(x){x.html=t.innerHTML;x.updated=Date.now();save("notes");}return;}
   if(t.id==="scratchPad"){S.prefs.scratch=t.innerHTML;save("prefs");return;}
   if(t.id==="obName"){const h=el("obxHi"),v=t.value.trim();if(h)h.textContent=dashGreeting()+(v?", "+v:"");return;}
@@ -3148,7 +3231,7 @@ document.addEventListener("change",function(e){
   }
   if(t.dataset&&t.dataset.act==="sh-link-add"&&t.value){
     const cur=sheetTask();
-    if(cur)patchCurrent({links:tLinks(cur).concat([t.value])});
+    if(cur)patchCurrent({links:(Array.isArray(cur.links)?cur.links:[]).concat([t.value])});
     return;
   }
   if(t.id==="shSubs"||(t.closest&&t.closest("#shSubs"))){commitSubs();return;}
@@ -3188,7 +3271,7 @@ const FIELD_LABEL={title:"Title",desc:"Description",due:"Date",start:"Start date
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
   dueTime:"Start time",remind:"Reminder"};
 
-const actFor=id=>S.activity.filter(a=>a.task===id).sort((a,b)=>a.at-b.at);
+const actFor=id=>(ixAct().get(id)||NONE).slice().sort((a,b)=>a.at-b.at);
 
 function logAct(taskId,kind,text,meta){
   if(!Array.isArray(S.activity))S.activity=[];
@@ -3253,8 +3336,8 @@ function logField(id,k,from,to){
    it passes zero, so overtime is visible rather than hidden. Stopwatch just
    counts up, for work you cannot estimate yet. Either way each run is stored
    as a session, and a task's total is the sum of its sessions. */
-const sessionsFor=id=>S.sessions.filter(s=>s.task===id).sort((a,b)=>b.start-a.start);
-const trackedSecs=id=>S.sessions.reduce((n,s)=>n+(s.task===id?(s.secs||0):0),0);
+const sessionsFor=id=>(ixSess().get(id)||NONE).slice().sort((a,b)=>b.start-a.start);
+const trackedSecs=id=>(ixSess().get(id)||NONE).reduce((n,s)=>n+(s.secs||0),0);
 const running=()=>(S.prefs&&S.prefs.running)||null;
 
 function fmtDur(secs){
@@ -3342,7 +3425,7 @@ function timerBar(){
 
 /* ============ documents ============ */
 /* Documents are markdown, so they can live in an Obsidian vault unchanged. */
-const docsFor=id=>S.docs.filter(d=>d.task===id).sort((a,b)=>b.updated-a.updated);
+const docsFor=id=>(ixDocs().get(id)||NONE).slice().sort((a,b)=>b.updated-a.updated);
 const docById=id=>S.docs.find(d=>d.id===id);
 
 /* Markdown to HTML, for the document preview and comments: headings,
@@ -3513,7 +3596,7 @@ function createFromDraft(){
   const t=Object.assign({id:uid("t"),created:TODAY(),completedAt:null},d);
   S.tasks.push(t);save("tasks");
   logAct(t.id,"created","Created this task");
-  V.sheet={id:t.id,tab:"activity",draft:null};
+  V.sheet={id:t.id,tab:"details",draft:null};
   render();renderSheet();toast("Task added");
 }
 
@@ -3993,7 +4076,7 @@ function relTime(ms){
 }
 
 /* Documents sit with the task's working material, not its history. */
-const histCount=t=>S.activity.reduce((n,a)=>n+(a.task===t.id&&a.kind!=="comment"?1:0),0);
+const histCount=t=>(ixAct().get(t.id)||NONE).reduce((n,a)=>n+(a.kind!=="comment"?1:0),0);
 
 function docsSection(t,isNew){
   if(isNew)return "";
@@ -5712,8 +5795,15 @@ if(S.prefs&&S.prefs.launch&&NAV.some(v=>v.id===S.prefs.launch)){V.view=S.prefs.l
 maybeAutoBackup();
 wgLoad().then(gcalBoot);
 remindBoot();
-setInterval(()=>{if(V.view==="calendar"&&V.calMode==="week"&&!el("modalRoot").innerHTML&&!DG.on&&!document.querySelector(".drag-ghost"))renderView();},60000);
-setInterval(()=>{if(V.view!=="dashboard")return;
+/* Nothing live is redrawn while the window is hidden -- minimised, behind the
+   tray, or a background tab; one redraw catches up when it is shown again. */
+setInterval(()=>{if(document.hidden)return;if(V.view==="calendar"&&V.calMode==="week"&&!el("modalRoot").innerHTML&&!DG.on&&!document.querySelector(".drag-ghost"))renderView();},60000);
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden||OB.open)return;
+  const a=document.activeElement,typing=a&&(a.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  if(!typing&&!el("modalRoot").innerHTML&&!DG.on)render();
+});
+setInterval(()=>{if(document.hidden||V.view!=="dashboard")return;
   const n=el("dashNext");if(n)n.innerHTML=upNextHtml();
   const st=el("dashStrip");if(st)st.innerHTML=dayStripHtml();},30000);
 
@@ -5722,6 +5812,9 @@ setInterval(()=>{if(V.view!=="dashboard")return;
 setInterval(function(){
   const r=running();
   if(!r||!r.since)return;
+  /* Hidden, the page is not redrawn, but the floating timer -- which may be
+     the only thing on screen -- still gets its second. */
+  if(document.hidden){syncTimerWindow();return;}
   const t=taskById(r.task);if(!t)return;
   const secs=liveSecs(),est=tEst(t)*60,over=est&&secs>est;
   /* The calendar's live block counts with the pill and grows as the run

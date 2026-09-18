@@ -79,6 +79,34 @@ starts at its top. The week grid opens at 7am the first time it is shown
 and stays where you left it after that. Give a new scrolling box a class of
 its own and it is covered; nothing else is needed.
 
+**Staying fast on a big planner.** Measured on a year of heavy use — 1,500
+tasks, 25 routines ticked daily, 6,000 tracked sessions, 8,000 activity
+entries — ticking a task took 0.8s and switching the board filter 0.9s.
+Four things fixed it, and each is guarded by `npm test`:
+
+- **Scroll positions are asked of scrolled boxes only.** `scrollMarks()`
+  once read `scrollTop` from every element, which forces a full layout;
+  over a second per redraw. A capturing `scroll` listener notes the boxes
+  that have actually scrolled (`SCROLLED`), and only those are asked.
+- **Big lists are looked up, not scanned.** The lookups section keeps each
+  list grouped once (`ixTasks`, `ixAct`, `ixDocs`, `ixSess`, `ixSessDay`,
+  `ixDay`, `ixBack`, and `overdueItems()`), dropped by `save()` and
+  `render()` (`ixDrop()`) and rebuilt on first use. Reach for these rather
+  than `S.x.filter(...)` inside anything that runs per card, per row or per
+  day. Anything that changes `S` must `save()`, as it always has.
+- **Storage is written once per burst.** `saveLocal()` gathers saves made in
+  the same moment into one write 250ms later (`saveLocalNow()`), and
+  `flushLocal()` writes at once on `pagehide`, `beforeunload` and the page
+  being hidden. A test reading storage straight after a change must wait.
+- **Long lists draw what can be seen.** A board column draws `COL_SHOWN`
+  (50) cards and offers the rest on "Show more" (`V.colMore`); off-screen
+  cards, list groups and note items use `content-visibility: auto`.
+  `fitMonth()` measures every cell in one pass and changes them in another.
+
+Search redraws once typing pauses (`V.qTimer`), and nothing live redraws
+while the window is hidden — except the floating timer's second, which may be
+the only thing on screen.
+
 Modals follow the same rule: `openModal()` with the same `aria-label` as the
 one already open swaps it in place — no pop-in replayed, its lists left
 where they were scrolled. The day popup is redrawn by `render()` while it is

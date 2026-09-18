@@ -533,6 +533,14 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .col-head h3{font-size:12.5px;font-weight:700;flex:1}
 .col-head .n{font-size:11px;font-weight:700;color:var(--faint)}
 .col-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:26px}
+/* Long lists: a card or row off screen is not laid out or painted until it
+   scrolls near. The intrinsic size keeps the scrollbar honest meanwhile. */
+.col-list > .tcard{content-visibility:auto;contain-intrinsic-size:auto 92px}
+.lgroup{content-visibility:auto;contain-intrinsic-size:auto 600px}
+.nlist-body > .nitem{content-visibility:auto;contain-intrinsic-size:auto 96px}
+.col-more{margin:2px 0;padding:9px 10px;border:1px dashed var(--line-2);border-radius:var(--r-s);font-size:12.5px;font-weight:600;color:var(--ink-2);text-align:center}
+.col-more:hover{background:var(--surface);color:var(--ink)}
+.col-more .num{font-weight:500;color:var(--muted)}
 /* No coloured edge and no wash: a plain card a step above its column, with
    a fine border, as ClickUp draws them. The category is the pill in the top
    row. */
