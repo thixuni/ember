@@ -2736,22 +2736,24 @@ function settingsModal(){
     const timeIn=(k,v,label,req)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{cls:"inp-time",label:label,ph:"Pick a time",req:req});
     const reach=web?'<div class="set-actions" style="margin-top:12px">'+webNotifyHtml()+'</div>':"";
     /* Each control sits on the line of the switch it belongs to, so the tab
-       fits without scrolling, as the other tabs do. */
+       fits without scrolling, as the other tabs do. A switch that is off
+       shows only itself: its times, buttons and explanation come with it
+       turning on, the way setup's notifications step works. */
     pane=sec("Reminders",
         field("",'<div class="set-actions">'+toggle("remind.on",rp.on,"Send reminders")+
-          '<button class="btn btn-sm" data-act="remind-test">'+icon("i-bell","ic-14")+'Send a test</button></div>',
-          "Routines, and tasks with a start time, remind you 30 minutes before unless you choose otherwise on the task or routine."+
-          (web?" In a browser they only arrive while this tab is open.":" They arrive even with the window closed."))+
-        reach)+
+          (rp.on?'<button class="btn btn-sm" data-act="remind-test">'+icon("i-bell","ic-14")+'Send a test</button>':"")+'</div>',
+          rp.on?"Routines, and tasks with a start time, remind you 30 minutes before unless you choose otherwise on the task or routine."+
+            (web?" In a browser they only arrive while this tab is open.":" They arrive even with the window closed."):"")+
+        (rp.on?reach:""))+
       sec("Overdue tasks",
-        field("",'<div class="set-actions">'+toggle("remind.overdue",rp.overdue,"A daily count of overdue tasks, at")+
-          timeIn("overdueAt",rp.overdueAt,"Time of the overdue count",1)+'</div>',
-          "One notification with how many tasks are overdue, not one per task, and only when there are any."))+
+        field("",'<div class="set-actions">'+toggle("remind.overdue",rp.overdue,"A daily count of overdue tasks")+
+          (rp.overdue?'<span class="set-to">at</span>'+timeIn("overdueAt",rp.overdueAt,"Time of the overdue count",1):"")+'</div>',
+          rp.overdue?"One notification with how many tasks are overdue, not one per task, and only when there are any.":""))+
       sec("Quiet hours",
         field("",'<div class="set-actions">'+toggle("remind.quiet",rp.quiet,"Quiet hours")+
           (rp.quiet?timeIn("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+
             timeIn("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>',
-          rp.quiet&&!(rp.quietFrom&&rp.quietTo)?"Pick both times to switch quiet hours on."
+          !rp.quiet?"":!(rp.quietFrom&&rp.quietTo)?"Pick both times to switch quiet hours on."
             :"Nothing is sent in this window, the overdue count included. Reminders inside it are skipped, not saved up."));
   }
   else if(tab==="connections"){
