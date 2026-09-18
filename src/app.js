@@ -914,7 +914,7 @@ function viewDashboard(){
       return '<button data-act="rte" data-cmd="'+q[0]+'" data-scratch="1" aria-label="'+q[0]+'">'+q[1]+'</button>';}).join("")+
       '<span class="spacer" style="flex:1"></span>'+
       '<button class="rte-txt" data-act="scratch-task" title="Turn the selected text, or the line you are on, into a task">'+icon("i-check","ic-14")+'Make task</button>'+
-      '<button class="rte-txt" data-act="scratch-note" title="Save the selected text, or the line you are on, as a note">'+icon("i-note","ic-14")+'Save as note</button>'+
+      '<button class="rte-txt" data-act="scratch-note" title="Save the whole pad, or just the selected text, as a note">'+icon("i-note","ic-14")+'Save as note</button>'+
     '</div>'+
     '<div class="rte" id="scratchPad" contenteditable="true" data-ph="Anything you need out of your head…">'+(S.prefs.scratch||"")+'</div>'+
     '</section>';
@@ -1057,9 +1057,11 @@ function timeTodayCard(){
 }
 
 /* ---- scratch pad to task or note ----
-   Works on the selection, or on the line the caret is in when nothing is
-   selected. What is converted is moved, not copied: the point is that the
-   pad empties as thoughts find their place. */
+   Make task works on the selection, or the line the caret is in. Save as
+   note works on the selection, or with nothing selected on the whole pad,
+   formatting and all -- taking only the caret's line lost everything above
+   it. What is converted is moved, not copied: the point is that the pad
+   empties as thoughts find their place. */
 function scratchPick(){
   const pad=el("scratchPad");if(!pad)return null;
   restoreSel();
@@ -1098,10 +1100,18 @@ function scratchToTask(){
   if(made.length===1){render();openSheet(made[0].id);toast("Moved into a task");}
   else{render();toast(made.length+" tasks added to your backlog");}
 }
+/* The selection if there is one, otherwise everything in the pad. */
+function scratchAll(){
+  const pad=el("scratchPad");if(!pad)return null;
+  restoreSel();
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount&&pad.contains(sel.anchorNode)&&!sel.getRangeAt(0).collapsed)return scratchPick();
+  return {text:pad.innerText,html:pad.innerHTML,remove:()=>{pad.innerHTML="";}};
+}
 function scratchToNote(){
-  const p=scratchPick();
+  const p=scratchAll();
   const text=p?p.text.trim():"";
-  if(!text){toast("Select some text in the scratch pad, or click into a line");return;}
+  if(!text){toast("Write something in the scratch pad first");return;}
   const title=text.split(/\n/)[0].replace(/^\s*[•\-*]\s*/,"").trim().slice(0,80);
   const nn={id:uid("n"),title:title,cat:S.categories[0].id,tags:[],pinned:false,html:p.html,actions:[],updated:Date.now()};
   S.notes.unshift(nn);p.remove();scratchCommit();save("notes");render();

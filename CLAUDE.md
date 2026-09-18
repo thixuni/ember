@@ -292,9 +292,10 @@ writes the running task's clock and today's total into `data-live` and
 `data-live-total` nodes directly. A full `render()` there would throw the
 caret out of whatever is being typed.
 
-"Make task" and "Save as note" in the scratch pad work on the selection, or
-on the line the caret is in when nothing is selected, and they *move* the
-text rather than copy it. The toolbar keeps the selection alive through the
+"Make task" in the scratch pad works on the selection, or on the line the
+caret is in; "Save as note" on the selection, or with nothing selected the
+whole pad, formatting kept (taking only the caret's line once lost
+everything above it). Both *move* the text rather than copy it. The toolbar keeps the selection alive through the
 click the same way the formatting buttons do: they are in the `mousedown`
 guard that calls `saveSel()` and prevents the default.
 
