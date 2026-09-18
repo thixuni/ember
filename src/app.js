@@ -2289,34 +2289,27 @@ function obRt(){
   return OB.rt;
 }
 const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
-/* Each routine is a card. Tapping one picks it and opens it in place with
-   just two things: the days, as seven letters to tap, and how long it takes,
-   as a row of chips. The name, time and category were there too and made a
-   one-tap choice feel like a form; a routine's own name only matters for
-   one you add yourself, so only that one asks for it. */
+/* Each routine is a card, and a card only picks: tapping it puts the
+   routine in your week or takes it out. What it is like is changed in the
+   week beside it — a square is a day, tapped on or off, and the length at
+   the end of the row opens a row of lengths under it. Editing inside the
+   cards was tried twice: open, a card grew and broke the grid around it.
+   A routine you add yourself is named in its own card. */
 const OB_DURS=[10,15,20,30,45,60,90,120];
+const obRtSum=x=>(x.days.length?freqLabel({freq:"weekly",days:x.days}):"No days yet")+" · "+fmtMins(x.dur);
 function obRoutines(){
   return obHead("Routines","What do you do <em>every week</em>?",
-      "Pick a few and choose the days. You can add your own too.")+
+      "Pick a few, then tap the days in your week to make them yours.")+
     '<div class="obx-rts">'+obRt().map(x=>{
-      const c=cat(obRtCat(x)),open=OB.rtOpen===x.k;
-      const sum=(x.days.length?freqLabel({freq:"weekly",days:x.days}):"No days yet")+" · "+fmtMins(x.dur);
-      return '<div class="obx-rt'+(x.on?" on":"")+(open?" open":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+'">'+
-        '<div class="obx-rt-row">'+
-          '<button class="obx-rt-ic" data-act="ob-rt-toggle" data-k="'+x.k+'" aria-pressed="'+x.on+'" aria-label="'+(x.on?"Leave out ":"Add ")+esc(x.title||"this routine")+'">'+
-            icon(x.ic,"ic-18 obx-rt-own")+icon("i-check","ic-18 obx-rt-ok")+'</button>'+
-          '<button class="obx-rt-txt" data-act="ob-rt-open" data-k="'+x.k+'" aria-expanded="'+open+'">'+
-            '<b>'+esc(x.title||"Your own routine")+'</b><small>'+esc(sum)+'</small></button>'+
-          '<button class="obx-rt-edit" data-act="ob-rt-open" data-k="'+x.k+'" aria-label="'+(open?"Close":"Edit")+'">'+icon(open?"i-chev-u":"i-edit","ic-14")+'</button>'+
-        '</div>'+
-        (open?'<div class="obx-rt-ed">'+
-          (x.custom?'<label class="obx-rt-f"><span>Name</span><input class="inp inp-sm" data-act="ob-rt-name" data-k="'+x.k+'" value="'+esc(x.title)+'" maxlength="60" placeholder="What do you do?" autocomplete="off"></label>':"")+
-          '<div class="obx-rt-f"><span>Days</span><div class="obx-days">'+[1,2,3,4,5,6,0].map((d,i)=>
-            '<button class="obx-day'+(x.days.indexOf(d)>-1?" on":"")+'" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+(x.days.indexOf(d)>-1)+'" aria-label="'+DOWS[i]+'">'+DOWS[i][0]+'</button>').join("")+'</div></div>'+
-          '<div class="obx-rt-f"><span>Takes</span><div class="obx-chips">'+OB_DURS.map(m=>
-            '<button class="obx-chip'+(x.dur===m?" on":"")+'" data-act="ob-rt-dur" data-k="'+x.k+'" data-v="'+m+'" aria-pressed="'+(x.dur===m)+'">'+esc(fmtMins(m))+'</button>').join("")+'</div></div>'+
-          (x.custom?'<div class="obx-rt-foot"><button class="btn btn-sm btn-ghost btn-danger" data-act="ob-rt-del" data-k="'+x.k+'">'+icon("i-trash","ic-14")+'Remove</button></div>':"")+
-        '</div>':"")+
+      const c=cat(obRtCat(x));
+      return '<div class="obx-rt'+(x.on?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+'">'+
+        '<button class="obx-rt-ic" data-act="ob-rt-toggle" data-k="'+x.k+'" aria-pressed="'+x.on+'" aria-label="'+(x.on?"Leave out ":"Add ")+esc(x.title||"this routine")+'">'+
+          icon(x.ic,"ic-18 obx-rt-own")+icon("i-check","ic-18 obx-rt-ok")+'</button>'+
+        (x.custom
+          ?'<span class="obx-rt-txt"><input class="obx-rt-name" data-act="ob-rt-name" data-k="'+x.k+'" value="'+esc(x.title)+'" maxlength="60" placeholder="Name your routine" aria-label="Routine name" autocomplete="off">'+
+            '<small data-rt-sum="'+x.k+'">'+esc(obRtSum(x))+'</small></span>'+
+            '<button class="obx-rt-edit" data-act="ob-rt-del" data-k="'+x.k+'" aria-label="Remove this routine">'+icon("i-x","ic-14")+'</button>'
+          :'<button class="obx-rt-txt" data-act="ob-rt-toggle" data-k="'+x.k+'" aria-pressed="'+x.on+'"><b>'+esc(x.title)+'</b><small>'+esc(obRtSum(x))+'</small></button>')+
         '</div>';}).join("")+
       '<button class="obx-rt obx-rt-add" data-act="ob-rt-add">'+icon("i-plus","ic-18")+'<span><b>Add your own</b><small>Anything that repeats</small></span></button>'+
     '</div>';
@@ -2327,17 +2320,23 @@ function obRtRedraw(sel){
   obRender();
   const n=sel&&document.querySelector("#obRoot "+sel);if(n)n.focus({preventScroll:true});
 }
-/* The week filling in: one row per routine ticked, a dot on each day it is due. */
+/* The week filling in, and where it is changed: one row per routine picked,
+   each square a day to tap, and its length at the end of the row. */
 function obShowWeek(){
   const on=obRt().filter(x=>x.on),order=[1,2,3,4,5,6,0];
   const checks=on.reduce((n,x)=>n+x.days.length,0);
   return '<div class="obx-panel obx-week">'+
     '<div class="obx-week-h"><b>Your week</b><span class="num">'+(on.length?on.length+" routine"+(on.length===1?"":"s")+" · "+checks+" check-ins":"Nothing yet")+'</span></div>'+
-    '<div class="obx-week-grid"><span></span>'+DOWS.map(d=>'<span class="obx-wd">'+d[0]+'</span>').join("")+
-      (on.length?on.map((x,k)=>{const c=cat(obRtCat(x));
-        return '<span class="obx-wk-name" style="--c:'+c.color+'"><i></i>'+esc(x.title||"Your own routine")+'</span>'+
-          order.map((d,j)=>'<span class="obx-cell'+(x.days.indexOf(d)>-1?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms"></span>').join("");}).join("")
-      :'<p class="obx-week-empty">Tap a routine on the left and watch your week fill in.</p>')+
+    '<div class="obx-week-grid"><span class="obx-wk-pad"></span>'+DOWS.map(d=>'<span class="obx-wd">'+d[0]+'</span>').join("")+'<span></span>'+
+      (on.length?on.map(x=>{const c=cat(obRtCat(x)),open=OB.rtOpen===x.k,name=x.title||"Your own routine";
+        return '<span class="obx-wk-name" style="--c:'+c.color+'"><i></i><b data-rt-name="'+x.k+'">'+esc(name)+'</b></span>'+
+          order.map((d,j)=>{const is=x.days.indexOf(d)>-1;
+            return '<button class="obx-cell'+(is?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+is+'" aria-label="'+esc(name)+" on "+DOWS[j]+'"></button>';}).join("")+
+          '<button class="obx-len'+(open?" open":"")+'" data-act="ob-rt-open" data-k="'+x.k+'" aria-expanded="'+open+'" aria-label="How long: '+esc(fmtMins(x.dur))+'">'+esc(fmtMins(x.dur))+icon("i-chev-d","ic-12")+'</button>'+
+          (open?'<div class="obx-lens" role="group" aria-label="How long '+esc(name)+' takes">'+OB_DURS.map(m=>
+            '<button class="obx-chip'+(x.dur===m?" on":"")+'" data-act="ob-rt-dur" data-k="'+x.k+'" data-v="'+m+'" aria-pressed="'+(x.dur===m)+'">'+esc(fmtMins(m))+'</button>').join("")+'</div>':"");}).join("")+
+        '<p class="obx-week-hint">Tap a square to change a day</p>'
+      :'<p class="obx-week-empty">Pick a routine and watch your week fill in.</p>')+
     '</div></div>';
 }
 /* Going back and forth must not make them twice: the ones setup made are
@@ -3443,17 +3442,16 @@ document.addEventListener("click",function(e){
     case "ob-rt-toggle":{const x=obRtFind(n.dataset.k);if(!x)break;x.on=!x.on;OB.pop=x.on?x.k:null;
       if(!x.on&&OB.rtOpen===x.k)OB.rtOpen=null;obRtRedraw('[data-act="ob-rt-toggle"][data-k="'+x.k+'"]');break;}
     case "ob-rt-open":{const x=obRtFind(n.dataset.k);if(!x)break;
-      /* Opening one picks it; closing leaves it picked. */
-      if(OB.rtOpen===x.k)OB.rtOpen=null;else{OB.rtOpen=x.k;if(!x.on){x.on=true;OB.pop=x.k;}}
-      obRtRedraw('.obx-rt-txt[data-k="'+x.k+'"]');break;}
+      OB.rtOpen=OB.rtOpen===x.k?null:x.k;OB.pop=null;
+      obRtRedraw('[data-act="ob-rt-open"][data-k="'+x.k+'"]');break;}
     case "ob-rt-day":{const x=obRtFind(n.dataset.k);if(!x)break;const d=Number(n.dataset.v),i=x.days.indexOf(d);
       if(i>-1)x.days.splice(i,1);else x.days.push(d);OB.pop=null;
       obRtRedraw('[data-act="ob-rt-day"][data-k="'+x.k+'"][data-v="'+d+'"]');break;}
     case "ob-rt-dur":{const x=obRtFind(n.dataset.k);if(!x)break;x.dur=Number(n.dataset.v);OB.pop=null;
-      obRtRedraw('[data-act="ob-rt-dur"][data-k="'+x.k+'"][data-v="'+x.dur+'"]');break;}
+      OB.rtOpen=null;obRtRedraw('[data-act="ob-rt-open"][data-k="'+x.k+'"]');break;}
     case "ob-rt-add":{const k=uid("rt");
       obRt().push({k:k,custom:true,on:true,title:"",cat:S.categories[0].id,days:[1,2,3,4,5],time:"09:00",dur:30,ic:"i-repeat"});
-      OB.rtOpen=k;OB.pop=k;obRtRedraw('[data-act="ob-rt-name"][data-k="'+k+'"]');break;}
+      OB.rtOpen=null;OB.pop=k;obRtRedraw('[data-act="ob-rt-name"][data-k="'+k+'"]');break;}
     case "ob-rt-del":OB.rt=obRt().filter(r=>r.k!==n.dataset.k);OB.rtOpen=null;obRender();break;
     case "ob-cat-del":if(S.categories.length>1){S.categories=S.categories.filter(x=>x.id!==id);save("categories");obRender();}break;
     case "ob-cat-add":{const used=S.categories.map(x=>x.color),col=CAT_COLORS.find(x=>used.indexOf(x)<0)||CAT_COLORS[0],nid=uid("c");
@@ -3595,7 +3593,7 @@ document.addEventListener("input",function(e){
   if(t.id==="scratchPad"){S.prefs.scratch=t.innerHTML;save("prefs");return;}
   if(t.id==="obName"){const h=el("obxHi"),v=t.value.trim();if(h)h.textContent=dashGreeting()+(v?", "+v:"");return;}
   if(t.dataset&&t.dataset.act==="ob-rt-name"){const x=obRtFind(t.dataset.k);if(x){x.title=t.value;
-    const b=document.querySelector('#obRoot .obx-rt-txt[data-k="'+x.k+'"] b');if(b)b.textContent=t.value||"Your own routine";}return;}
+    const b=document.querySelector('#obRoot [data-rt-name="'+x.k+'"]');if(b)b.textContent=t.value||"Your own routine";}return;}
   if(t.dataset&&t.dataset.act==="ob-cat-name"){t.size=Math.max(4,t.value.length);
     const p=document.querySelector('[data-planet="'+t.dataset.id+'"] span');if(p)p.textContent=t.value||"…";return;}
   if(t.id==="gcId"){GC.draft.id=t.value;return;}

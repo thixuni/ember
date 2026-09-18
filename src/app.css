@@ -933,34 +933,24 @@ body.ob-open{overflow:hidden}
 .obx-rt-txt b{font-size:13.5px;color:var(--ink)}
 .obx-rt-txt small{font-size:11.5px;color:var(--muted)}
 .obx-rt-txt b,.obx-rt-txt small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* A routine opened in place: it takes the full row and shows its settings. */
-.obx-rt{flex-direction:column;align-items:stretch;gap:0;padding-right:0}
-.obx-rt.open{border-color:var(--c)}
-.obx-rt.open:hover{transform:none}
-.obx-rt-row{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px}
+/* A card only picks; its days and length are changed in the week beside it. */
+.obx-rt{gap:10px;padding:10px 10px 10px 12px;min-height:60px}
 .obx-rt-ic{cursor:pointer}
 .obx-rt-ic > *{pointer-events:none}
 .obx-rt-ic:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button.obx-rt-txt{text-align:left;padding:2px 0;cursor:pointer}
 button.obx-rt-txt > *{pointer-events:none}
+.obx-rt-name{width:100%;min-width:0;padding:0;border:0;background:none;font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);outline:0}
+.obx-rt-name::placeholder{color:var(--faint);font-weight:600}
+.obx-rt-name:focus{box-shadow:0 1px 0 var(--accent)}
 .obx-rt-edit{width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;color:var(--muted)}
 .obx-rt-edit > *{pointer-events:none}
 .obx-rt-edit:hover{background:var(--surface-3);color:var(--ink)}
-.obx-rt-ed{display:flex;flex-direction:column;gap:12px;padding:4px 12px 12px;border-top:1px solid var(--line);margin-top:2px;padding-top:14px;animation:obup .25s ease both}
-.obx-rt-f{display:flex;flex-direction:column;gap:6px}
-.obx-rt-f > span{font-size:12px;font-weight:700;color:var(--muted)}
-.obx-rt-f .inp{width:100%}
-.obx-days{display:flex;gap:4px}
-.obx-day{flex:1;min-width:0;height:32px;border-radius:10px;font-size:13px;font-weight:700;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line)}
-.obx-day:hover{border-color:var(--c)}
-.obx-day.on{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));border-color:transparent;color:var(--on-accent)}
-.obx-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
 .obx-chip{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 6px;border-radius:20px;font-size:12.5px;font-weight:600;
   color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line)}
 .obx-chip > *{pointer-events:none}
 .obx-chip:hover{border-color:var(--line-2)}
 .obx-chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
-.obx-rt-foot{display:flex;align-items:center;gap:8px}
 .obx-rt-add{flex-direction:row;align-items:center;gap:12px;padding:12px 14px;border-style:dashed;color:var(--muted);text-align:left;cursor:pointer}
 .obx-rt-add > *{pointer-events:none}
 .obx-rt-add span{display:flex;flex-direction:column}
@@ -971,12 +961,22 @@ button.obx-rt-txt > *{pointer-events:none}
 .obx-week-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:16px}
 .obx-week-h b{font-family:var(--fd);font-size:17px;color:var(--ink)}
 .obx-week-h span{font-size:12px;color:var(--muted)}
-.obx-week-grid{display:grid;grid-template-columns:minmax(0,1fr) repeat(7,26px);gap:8px 6px;align-items:center}
+.obx-week-grid{display:grid;grid-template-columns:minmax(0,1fr) repeat(7,26px) 64px;gap:8px 6px;align-items:center}
 .obx-wd{text-align:center;font-size:10.5px;font-weight:700;color:var(--faint)}
 .obx-wk-name{display:flex;align-items:center;gap:7px;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden}
 .obx-wk-name i{width:8px;height:8px;flex:none;border-radius:50%;background:var(--c)}
 .obx-wk-name small{margin-left:auto;padding-left:6px;font-weight:500;color:var(--muted)}
-.obx-cell{width:26px;height:26px;border-radius:8px;background:var(--surface-3)}
+.obx-cell{width:26px;height:26px;border-radius:8px;background:var(--surface-3);border:0;padding:0;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.obx-cell:hover{box-shadow:inset 0 0 0 2px var(--c);transform:scale(1.08)}
+.obx-cell:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.obx-len{white-space:nowrap;display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;height:26px;padding:0 4px 0 6px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted)}
+.obx-len > *{pointer-events:none}
+.obx-len:hover,.obx-len.open{background:var(--surface-3);color:var(--ink)}
+.obx-len.open svg{transform:rotate(180deg)}
+.obx-lens{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:-2px 0 4px;padding:8px;border-radius:12px;background:var(--surface-2);animation:obup .2s ease both}
+.obx-lens .obx-chip{padding:0 2px;font-size:12px;white-space:nowrap}
+.obx-wk-name b{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.obx-week-hint{grid-column:1/-1;margin:8px 0 0;font-size:12px;color:var(--muted)}
 .obx-cell.on{background:var(--c)}
 .obx-cell.pop.on{animation:obcell .45s var(--dl) cubic-bezier(.3,1.6,.5,1) both}
 @keyframes obcell{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
@@ -1132,6 +1132,8 @@ button.obx-rt-txt > *{pointer-events:none}
 @media (max-width:1000px){
   .obx-stage{grid-template-columns:minmax(0,1fr);padding:8px 28px}
   .obx-show{display:none}
+  .obx-stage:has(.obx-week){row-gap:8px}
+  .obx-stage:has(.obx-week) .obx-show{display:flex;min-height:0;align-items:stretch}
   .obx-top{grid-template-columns:auto minmax(0,1fr) auto;padding:18px 28px 8px}
   .obx-foot{padding:14px 28px 22px}
 }
@@ -1142,6 +1144,10 @@ button.obx-rt-txt > *{pointer-events:none}
   .obx-foot{padding:12px 20px 18px}
   .obx-cards,.obx-rts,.obx-sums{grid-template-columns:minmax(0,1fr)}
   .obx-hint,.obx-float{display:none}
+  .obx-week-grid{grid-template-columns:repeat(7,minmax(0,1fr)) 64px;gap:6px 4px}
+  .obx-wk-pad{display:none}
+  .obx-wk-name{grid-column:1/-1;margin-top:4px}
+  .obx-cell{justify-self:center}
   .obx-q h1{font-size:28px}
   .obx-big span,.obx-big input{font-size:24px}
   .obx-hero{padding:32px 22px 26px}
