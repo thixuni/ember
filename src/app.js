@@ -63,11 +63,11 @@ const DEFAULT_LANES=[
 const LANE_COLORS=["#6B7CE0","#D99A16","#3F7D5C","#9AA298","#7C5CE0","#C25340","#2F9BA8","#D0588F","#8A6A3F","#5B8C3A"];
 /* The task panel's parts that can be switched off, in the panel's order. */
 const BOARD_FEATS=[
- ["Schedule",[["when","Date and time"],["deadline","Deadline"],["reminder","Reminder"]]],
- ["Organise",[["category","Category"],["priority","Priority"],["tags","Tags"]]],
- ["Effort",[["estimate","Estimate"],["timer","Time tracker"]]],
- ["Attached",[["links","Linked tasks"],["files","Files"]]],
- ["Content",[["desc","Description"],["subtasks","Subtasks"],["docs","Documents"],["comments","Comments"],["activity","Activity history"]]]];
+ ["Schedule",[["when","Date and time","When you plan to do it","i-calendar"],["deadline","Deadline","The day it must be done by","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"]]],
+ ["Organise",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"]]],
+ ["Effort",[["estimate","Estimate","How long you think it’ll take","i-clock"],["timer","Time tracker","Time how long it really takes","i-timer"]]],
+ ["Attached",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
+ ["Content",[["desc","Description","Notes about the task","i-note"],["subtasks","Subtasks","Smaller steps inside it","i-checklist"],["docs","Documents","Longer pages of writing","i-doc"],["comments","Comments","Updates and thoughts","i-chat"],["activity","Activity history","A record of every change","i-chart"]]]];
 /* The list view's columns besides the task itself; the first four are on
    to begin with. Custom fields join these as "cf:<id>". */
 const LIST_COLS=[["date","Date"],["priority","Priority"],["category","Category"],["status","Status"],
@@ -1579,7 +1579,7 @@ function colCell(k,t){
 /* ---- the window ---- */
 function customiseModal(){
   const c=V.cz=V.cz||{tab:"lanes"};
-  const tabs=[["lanes","Swimlanes","i-board"],["panel","Task panel","i-panel"],["cols","Columns and fields","i-table"]];
+  const tabs=[["lanes","Board lanes","i-board"],["panel","Task details","i-panel"],["cols","List columns and fields","i-table"]];
   const body=c.edit?czFieldEditor():c.tab==="panel"?czPanel():c.tab==="cols"?czCols():czLanes();
   openModal('<div class="modal cz" role="dialog" aria-modal="true" aria-label="Customise tasks">'+
     '<div class="mhead2">'+icon("i-sliders","ic-18")+'<h2>Customise tasks</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
@@ -1589,7 +1589,7 @@ function customiseModal(){
 function czLanes(){
   const L=lanes(),count=id=>tops().filter(t=>t.status===id).length,doneN=L.filter(l=>l.done).length;
   const del=V.cz.del?lane(V.cz.del):null;
-  return '<p class="cz-lead">The columns of your board. Drag to reorder, rename in place, and mark the lanes that count as finished.</p>'+
+  return '<p class="cz-lead">The columns on your board, left to right. Drag to reorder, click a name to rename it, and switch on <b>Done</b> for the lane finished tasks go to.</p>'+
     '<div class="cz-lanes" id="czLanes">'+L.map((l,i)=>{const n=count(l.id),pal=V.cz.pal===l.id;
       return '<div class="cz-lane" draggable="true" data-lane="'+l.id+'" style="--s:'+l.color+'">'+
         '<span class="cz-grip" title="Drag to reorder" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
@@ -1616,21 +1616,62 @@ function czDelRow(l,n){
     '<div class="spacer" style="flex:1"></div><button class="btn btn-sm" data-act="cz-lane-del-no">Keep it</button>'+
     '<button class="btn btn-sm btn-danger" data-act="cz-lane-del-yes" data-id="'+l.id+'">Remove lane</button></div>';
 }
+/* What a task holds. Subtasks are a choice between two ways of working,
+   drawn so the difference shows rather than being explained; a switch with
+   a paragraph under it read as unclear. Every other part is a row with a
+   line on what it is for, and the panel beside them is drawn from the same
+   switches, so turning one off takes it out of the picture at once. */
 function czPanel(){
-  const sw=(k,label,on,act)=>'<label class="switch cz-sw"><input type="checkbox" data-act="'+(act||"cz-feat")+'" data-k="'+k+'"'+(on?" checked":"")+'><span></span><i>'+esc(label)+'</i></label>';
-  const b=board();
-  return '<p class="cz-lead">Choose what a task holds. Anything switched off is hidden from the task panel; what you already entered is kept.</p>'+
-    '<div class="cz-hero">'+icon("i-multi","ic-18")+'<div><b>Subtasks work like tasks</b>'+
-      '<p>Each subtask gets its own dates, lane, comments, documents and timer, and opens like a task. They stay inside their parent, so your board stays tidy.</p></div>'+
-      sw("fullSubs","",!!b.fullSubs,"cz-fullsubs")+'</div>'+
-    '<div class="cz-grid">'+BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh">'+esc(g[0])+'</div>'+
-      g[1].map(x=>sw(x[0],x[1],feat(x[0]))).join("")+'</div>').join("")+
-    (b.fields.length?'<div class="cz-group"><div class="cz-gh">Your fields</div>'+b.fields.map(f=>sw(f.id,f.name,f.panel!==false,"cz-fpanel")).join("")+'</div>':"")+
-    '</div>';
+  const b=board(),full=!!b.fullSubs,kids=S.tasks.some(t=>t.parent);
+  const sw=(k,on,act,label)=>'<label class="switch cz-rsw"><input type="checkbox" data-act="'+act+'" data-k="'+k+'"'+(on?" checked":"")+' aria-label="'+esc(label)+'"><span></span></label>';
+  const row=(k,name,hint,ic,on,act)=>'<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
+    '<span class="cz-row-t"><b>'+esc(name)+'</b><small>'+esc(hint)+'</small></span>'+sw(k,on,act,"Show "+name)+'</div>';
+  const mode=(v,title,text,pic)=>'<button class="cz-mode'+((v==="full")===full?" on":"")+'" data-act="cz-subs" data-v="'+v+'" role="radio" aria-checked="'+((v==="full")===full)+'">'+
+    '<span class="cz-mode-pic" aria-hidden="true">'+pic+'</span><span class="cz-mode-t"><i class="cz-radio"></i><b>'+title+'</b></span><small>'+text+'</small></button>';
+  const checkPic='<span class="czp-parent"></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
+  const fullPic='<span class="czp-parent"></span><span class="czp-kid"><i></i><em></em><u>Fri</u></span><span class="czp-kid"><i></i><em></em><u>Mon</u></span>';
+  const allOn=BOARD_FEATS.every(g=>g[1].every(x=>feat(x[0])))&&b.fields.every(f=>f.panel!==false);
+  return '<div class="cz-sec"><h3 class="cz-sh">How subtasks work</h3>'+
+      '<div class="cz-modes" role="radiogroup" aria-label="How subtasks work">'+
+        mode("check","Checklist","Quick steps you tick off inside the task.",checkPic)+
+        mode("full","Full tasks","Each step gets its own date, lane and timer, and opens like a task.",fullPic)+'</div>'+
+      '<p class="cz-note">'+(full?"Subtasks stay inside their task, so your board only shows the main ones."
+        :kids?"Subtasks you already made as full tasks stay that way; new ones are checklist items."
+        :"You can switch at any time. Checklist items become full subtasks when you do.")+'</p></div>'+
+    '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">What a task shows</h3>'+
+      (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything</button>')+'</div>'+
+      '<p class="cz-lead">Switch off what you don’t use. It’s only hidden: anything you already filled in is kept.</p>'+
+      '<div class="cz-split"><div class="cz-rows">'+
+        BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh">'+esc(g[0])+'</div>'+
+          g[1].map(x=>row(x[0],x[1],x[2],x[3],feat(x[0]),"cz-feat")).join("")+'</div>').join("")+
+        (b.fields.length?'<div class="cz-group"><div class="cz-gh">Your fields</div>'+b.fields.map(f=>row(f.id,f.name,cfType(f.type)[1],cfType(f.type)[2],f.panel!==false,"cz-fpanel")).join("")+'</div>':"")+
+      '</div>'+czPanelPreview()+'</div></div>';
+}
+/* A task panel in miniature, drawn from the switches. */
+function czPanelPreview(){
+  const b=board(),on=k=>feat(k);
+  const line=(ic,label,w)=>'<div class="czv-f">'+icon(ic,"ic-12")+'<span>'+esc(label)+'</span><i style="width:'+w+'%"></i></div>';
+  let h='<div class="czv-title"><i class="czv-tick"></i><b>Plan the team offsite</b></div>';
+  const sched=[on("when")&&line("i-calendar","Date","56"),on("deadline")&&line("i-deadline","Deadline","40"),on("reminder")&&line("i-bell","Reminder","34")].filter(Boolean);
+  const org=[on("category")&&'<span class="czv-chip">Office</span>',on("priority")&&'<span class="czv-chip">Do first</span>',on("tags")&&'<span class="czv-chip">#planning</span>'].filter(Boolean);
+  const eff=[on("estimate")&&line("i-clock","Estimate","30"),on("timer")&&'<div class="czv-timer">'+icon("i-play","ic-12")+'<span>Start</span><b class="num">0:00</b></div>'].filter(Boolean);
+  if(sched.length)h+='<div class="czv-sec">'+sched.join("")+'</div>';
+  if(org.length)h+='<div class="czv-chips">'+org.join("")+'</div>';
+  if(eff.length)h+='<div class="czv-sec">'+eff.join("")+'</div>';
+  b.fields.filter(f=>f.panel!==false).forEach(f=>{h+='<div class="czv-sec">'+line(cfType(f.type)[2],f.name,"44")+'</div>';});
+  if(on("desc"))h+='<div class="czv-sec"><div class="czv-h">Description</div><i class="czv-txt" style="width:92%"></i><i class="czv-txt" style="width:70%"></i></div>';
+  if(on("subtasks"))h+='<div class="czv-sec"><div class="czv-h">Subtasks</div>'+(b.fullSubs
+    ?'<div class="czv-kid"><i></i><span>Book the venue</span><u>Fri</u></div><div class="czv-kid"><i></i><span>Send invites</span><u>Mon</u></div>'
+    :'<div class="czv-chk on"><i></i><span>Book the venue</span></div><div class="czv-chk"><i></i><span>Send invites</span></div>')+'</div>';
+  const att=[on("links")&&'<span class="czv-chip">'+icon("i-link","ic-12")+'1 linked</span>',on("files")&&'<span class="czv-chip">'+icon("i-clip","ic-12")+'2 files</span>',on("docs")&&'<span class="czv-chip">'+icon("i-doc","ic-12")+'Agenda</span>'].filter(Boolean);
+  if(att.length)h+='<div class="czv-chips">'+att.join("")+'</div>';
+  const tabs=[on("comments")&&"Comments",on("activity")&&"Activity"].filter(Boolean);
+  if(tabs.length)h+='<div class="czv-tabs">'+tabs.map((x,i)=>'<span'+(i?"":' class="on"')+'>'+x+'</span>').join("")+'</div>';
+  return '<div class="czv" aria-hidden="true"><div class="czv-cap">Preview</div><div class="czv-card">'+h+'</div></div>';
 }
 function czCols(){
   const cols=listCols(),b=board();
-  return '<p class="cz-lead">Pick the columns the list shows, in the order you want them, and make fields of your own. The task’s name is always first.</p>'+
+  return '<p class="cz-lead">What the list view shows beside each task’s name, top to bottom as left to right. Need something the planner doesn’t track? Make a field of your own.</p>'+
     '<div class="cz-cols" id="czCols">'+cols.map((c,i)=>{const cf=c.k.indexOf("cf:")===0?fieldById(c.k.slice(3)):null;
       return '<div class="cz-col'+(c.on?"":" off")+'" draggable="true" data-col="'+esc(c.k)+'">'+
         '<span class="cz-grip" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
@@ -3301,6 +3342,14 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v);break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
+    case "cz-subs":{const on=n.dataset.v==="full";if(!!board().fullSubs===on)break;
+      const had=S.tasks.reduce((c,t)=>c+(t.parent?0:(t.subtasks||[]).filter(x=>x.t).length),0);
+      setFullSubs(on);
+      toast(on?(had?had+" checklist item"+(had===1?" is":"s are")+" now full subtasks":"Subtasks now work like full tasks"):"New subtasks are checklist items");
+      render();renderSheet();customiseModal();
+      const f=document.querySelector('.cz [data-act="cz-subs"][data-v="'+n.dataset.v+'"]');if(f)f.focus({preventScroll:true});break;}
+    case "cz-feat-all":{const b=board();BOARD_FEATS.forEach(g=>g[1].forEach(x=>{b.show[x[0]]=true;}));b.fields.forEach(f=>{f.panel=true;});
+      save("prefs");renderSheet();render();customiseModal();break;}
     case "cz-tab":czReadDraft();V.cz.tab=n.dataset.v;V.cz.edit=null;V.cz.draft=null;V.cz.del=null;customiseModal();break;
     case "cz-lane-pal":V.cz.pal=V.cz.pal===id?null:id;customiseModal();break;
     case "cz-lane-color":{const l=lane(id);if(l){l.color=n.dataset.v;save("prefs");V.cz.pal=null;customiseModal();render();}break;}
@@ -3739,9 +3788,12 @@ document.addEventListener("change",function(e){
     save("prefs");save("tasks");customiseModal();render();renderSheet();return;}
   if(t.dataset&&t.dataset.act==="cz-opt-name"){czReadDraft();return;}
   if(t.dataset&&t.dataset.act==="cz-lane-hex"){const l=lane(t.dataset.id);if(l){l.color=t.value;save("prefs");customiseModal();render();}return;}
-  if(t.dataset&&t.dataset.act==="cz-feat"){board().show[t.dataset.k]=t.checked;save("prefs");renderSheet();render();return;}
-  if(t.dataset&&t.dataset.act==="cz-fpanel"){const fd=fieldById(t.dataset.k);if(fd){fd.panel=t.checked;save("prefs");renderSheet();}return;}
-  if(t.dataset&&t.dataset.act==="cz-fullsubs"){setFullSubs(t.checked);toast(t.checked?"Subtasks now work like tasks":"Subtasks are a checklist again");render();renderSheet();return;}
+  if(t.dataset&&(t.dataset.act==="cz-feat"||t.dataset.act==="cz-fpanel")){
+    if(t.dataset.act==="cz-feat")board().show[t.dataset.k]=t.checked;
+    else{const fd=fieldById(t.dataset.k);if(!fd)return;fd.panel=t.checked;}
+    save("prefs");renderSheet();render();customiseModal();
+    const f=document.querySelector('.cz [data-act="'+t.dataset.act+'"][data-k="'+t.dataset.k+'"]');if(f)f.focus({preventScroll:true});
+    return;}
   if(t.dataset&&t.dataset.act==="sh-set"){
     const k=t.dataset.k;let v=t.value;
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);

@@ -260,9 +260,13 @@ goes with backups and Drive like any setting.
   everywhere through `isDoneT(t)`. Never test `t.status==="completed"` — a
   test fails on it. A status a lane no longer has (the sample week, an old
   backup) is moved to the nearest one by `fixTasks()` via `laneFor()`.
-- **The task panel's parts** can be switched off (`BOARD_FEATS`, read with
-  `feat(k)`); hidden parts keep their data, and cards and the list follow.
-- **Subtasks that are tasks** (`board().fullSubs`): a subtask is a task with
+- **The task panel's parts** can be switched off (`BOARD_FEATS`: key, name, a
+  line on what it is for, icon; read with `feat(k)`); hidden parts keep their
+  data, and cards and the list follow. The Task details tab draws each as a
+  row beside a task panel in miniature (`czPanelPreview()`) built from the same
+  switches, so a change shows at once; the window is redrawn on each switch.
+- **Subtasks that are tasks** (`board().fullSubs`), offered as two drawn
+  choices, Checklist and Full tasks, not a switch: a subtask is a task with
   a `parent`, opening like any task with a way back to its parent. Switching
   it on turns every checklist subtask into one. They live inside their parent
   only: everything that lists tasks reads `tops()`, never `S.tasks`, and
