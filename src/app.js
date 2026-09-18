@@ -2796,6 +2796,9 @@ function settingsModal(){
     SET_TABS.map(t=>t.group?'<div class="set-nav-h">'+esc(t.group)+'</div>':
       '<button class="set-tab" role="tab" data-act="set-tab" data-v="'+t.id+'" aria-selected="'+(t.id===tab)+'">'+
       icon(t.icon)+'<span>'+esc(t.name)+'</span></button>').join("")+
+    /* Sign out sits at the foot of the sidebar, reachable from every tab,
+       and only when there is an account to leave. */
+    (signedIn()?'<button class="set-tab set-out" data-act="acct-signout">'+icon("i-logout")+'<span>Sign out</span></button>':"")+
     '<div class="set-nav-foot">Everyday Orbit</div></nav>';
   const inner=nav+'<section class="set-pane" role="tabpanel" data-tab="'+tab+'">'+
     '<button class="icon-btn set-close" data-act="close" aria-label="Close settings">'+icon("i-x")+'</button>'+

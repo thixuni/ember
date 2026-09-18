@@ -456,7 +456,8 @@ created, replaced rather than added to when someone goes back and forth.
   `status().parts` says which are granted; `signedIn()` and `acctParts()`
   read it. A key saved before any of this is treated as Calendar only.
 - Calendar is one part of the account, so disconnecting it sets
-  `prefs.gcal.off` and keeps the key; only Sign out (Settings ▸ Account)
+  `prefs.gcal.off` and keeps the key; only Sign out (Settings ▸ Account, and
+  the foot of the Settings sidebar, shown only while signed in)
   revokes it, and the planner stays on the computer.
 - The app's own Google client is not in the repo. main.js reads
   `google-client.json` (written by the release workflow from the

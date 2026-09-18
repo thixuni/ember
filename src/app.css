@@ -1655,6 +1655,10 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .set-tab[aria-selected="true"]{background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--ink)}
 .set-tab[aria-selected="true"] .ic{color:var(--ink)}
 .set-nav-foot{margin-top:auto;padding:10px 10px 2px;font-size:11.5px;color:var(--faint)}
+.set-out,.set-out .ic{color:var(--danger-ink)}
+.set-out{margin-top:auto}
+.set-out + .set-nav-foot{margin-top:0}
+.set-out:hover{background:var(--danger-soft);color:var(--danger-ink)}
 
 .set-pane{position:relative;overflow-y:auto;padding:28px 36px 32px;min-width:0}
 .set-close{position:absolute;top:14px;right:14px}
