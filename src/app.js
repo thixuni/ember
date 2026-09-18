@@ -2423,18 +2423,31 @@ function obShowApp(){
 }
 
 /* ---- notifications ---- */
+/* Where a browser stands on notifications, said plainly. The button only
+   shows while it can still ask; once the browser has said no it cannot ask
+   again, and a button doing nothing on a click read as broken. */
+function webNotifyHtml(){
+  if(hasDesktop())return "";
+  if(typeof Notification==="undefined")
+    return '<p class="notif-state bad">'+icon("i-alert","ic-14")+'This browser can’t show notifications. The desktop app can.</p>';
+  if(Notification.permission==="granted")
+    return '<p class="notif-state ok">'+icon("i-check","ic-14")+'Notifications are on in this browser</p>';
+  if(Notification.permission==="denied")
+    return '<p class="notif-state bad">'+icon("i-alert","ic-14")+'Notifications are blocked. Turn them on from the icon beside the address bar, then come back.</p>';
+  return '<button class="btn btn-sm btn-primary" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button>';
+}
 function obNotify(){
   const rp=remindPrefs();
   const tg=(k,v,l)=>'<label class="switch"><input type="checkbox" data-act="set-pref" data-k="remind.'+k+'"'+(v?" checked":"")+'><span></span><i>'+esc(l)+'</i></label>';
   const tin=(k,v,l)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{sm:1,cls:"inp-time",label:l,ph:"Pick a time",req:k==="overdueAt"});
-  const web=!hasDesktop(),canWeb=typeof Notification!=="undefined";
+  const web=!hasDesktop();
   const opt=(ic,body)=>'<div class="obx-opt">'+'<span class="obx-opt-ic">'+icon(ic,"ic-14")+'</span><div>'+body+'</div></div>';
   return obHead("Notifications","Stay on track, <em>without the noise</em>",
       "Choose when we nudge you, and when we leave you alone.")+
     '<div class="obx-opts">'+
       opt("i-bell",tg("on",rp.on,"Remind me before things start")+
         '<p class="obx-fine">30 minutes ahead by default.'+(web?" Works while this tab is open.":" Works even when the app is closed.")+'</p>'+
-        (web&&canWeb&&Notification.permission!=="granted"?'<button class="btn btn-sm" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button>':""))+
+        webNotifyHtml())+
       opt("i-alert",'<div class="obx-inline">'+tg("overdue",rp.overdue,"Daily overdue summary at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>')+
       opt("i-moon",'<div class="obx-inline">'+tg("quiet",rp.quiet,"Quiet hours")+
         (rp.quiet?tin("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+tin("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>')+
@@ -2718,13 +2731,8 @@ function settingsModal(){
   }
   else if(tab==="reminders"){
     const rp=remindPrefs(),web=!hasDesktop();
-    const canWeb=typeof Notification!=="undefined";
     const timeIn=(k,v,label,req)=>timeField('data-act="set-pref" data-k="remind.'+k+'"',v,{cls:"inp-time",label:label,ph:"Pick a time",req:req});
-    const reach=!web?"":!canWeb
-      ? '<p class="set-err">'+icon("i-alert","ic-14")+'This browser cannot show notifications. The desktop app can.</p>'
-      : Notification.permission!=="granted"
-        ? '<div class="set-actions" style="margin-top:12px"><button class="btn btn-sm btn-primary" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button></div>'
-        : "";
+    const reach=web?'<div class="set-actions" style="margin-top:12px">'+webNotifyHtml()+'</div>':"";
     /* Each control sits on the line of the switch it belongs to, so the tab
        fits without scrolling, as the other tabs do. */
     pane=sec("Reminders",
@@ -3402,7 +3410,10 @@ document.addEventListener("click",function(e){
     case "gcal-disconnect":if(arm(n,"Disconnect?"))gcalDisconnect();break;
     case "remind-test":remindTest();break;
     case "remind-allow":if(typeof Notification!=="undefined")
-      Promise.resolve(Notification.requestPermission()).then(()=>{panels();remindSoon();});break;
+      Promise.resolve(Notification.requestPermission()).then(p=>{panels();remindSoon();
+        if(p==="granted"){toast("Notifications are on");try{new Notification("Everyday Orbit",{body:"This is how your reminders will look."});}catch(e){}}
+        else if(p==="denied")toast("Notifications are blocked in this browser");
+      });break;
     case "tm-break":if(V.tmBreak===id)closeTimeBreakdown();else{V.tmBreak=id;renderSheet();}break;
     case "dash-more":V.dashAll=!V.dashAll;renderView();break;
     case "dash-note":V.view="notes";V.noteId=id;V.q="";render();break;
