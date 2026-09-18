@@ -2289,20 +2289,18 @@ function obRt(){
   return OB.rt;
 }
 const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
-/* Each routine is a card. Tapping one picks it and opens it in place: its
-   name, the days as seven letters to tap, the time moved in quarter hours
-   or simply typed ("7", "6:30pm"), how long it takes as a row of chips, and
-   its category by colour. A drop-down time list was the one control here,
-   and choosing a routine's days was not possible at all. Your own routine
-   is one more card. */
+/* Each routine is a card. Tapping one picks it and opens it in place with
+   just two things: the days, as seven letters to tap, and how long it takes,
+   as a row of chips. The name, time and category were there too and made a
+   one-tap choice feel like a form; a routine's own name only matters for
+   one you add yourself, so only that one asks for it. */
 const OB_DURS=[10,15,20,30,45,60,90,120];
 function obRoutines(){
-  const cats=S.categories;
   return obHead("Routines","What do you do <em>every week</em>?",
-      "Pick a few and make them yours: the days, the time and how long. You can add your own too.")+
+      "Pick a few and choose the days. You can add your own too.")+
     '<div class="obx-rts">'+obRt().map(x=>{
       const c=cat(obRtCat(x)),open=OB.rtOpen===x.k;
-      const sum=(x.days.length?freqLabel({freq:"weekly",days:x.days}):"No days yet")+" · "+fmtTime(x.time)+" · "+fmtMins(x.dur);
+      const sum=(x.days.length?freqLabel({freq:"weekly",days:x.days}):"No days yet")+" · "+fmtMins(x.dur);
       return '<div class="obx-rt'+(x.on?" on":"")+(open?" open":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+'">'+
         '<div class="obx-rt-row">'+
           '<button class="obx-rt-ic" data-act="ob-rt-toggle" data-k="'+x.k+'" aria-pressed="'+x.on+'" aria-label="'+(x.on?"Leave out ":"Add ")+esc(x.title||"this routine")+'">'+
@@ -2312,22 +2310,12 @@ function obRoutines(){
           '<button class="obx-rt-edit" data-act="ob-rt-open" data-k="'+x.k+'" aria-label="'+(open?"Close":"Edit")+'">'+icon(open?"i-chev-u":"i-edit","ic-14")+'</button>'+
         '</div>'+
         (open?'<div class="obx-rt-ed">'+
-          '<label class="obx-rt-f"><span>Name</span><input class="inp inp-sm" data-act="ob-rt-name" data-k="'+x.k+'" value="'+esc(x.title)+'" maxlength="60" placeholder="What do you do?" autocomplete="off"></label>'+
+          (x.custom?'<label class="obx-rt-f"><span>Name</span><input class="inp inp-sm" data-act="ob-rt-name" data-k="'+x.k+'" value="'+esc(x.title)+'" maxlength="60" placeholder="What do you do?" autocomplete="off"></label>':"")+
           '<div class="obx-rt-f"><span>Days</span><div class="obx-days">'+[1,2,3,4,5,6,0].map((d,i)=>
-            '<button class="obx-day'+(x.days.indexOf(d)>-1?" on":"")+'" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+(x.days.indexOf(d)>-1)+'" aria-label="'+DOWS[i]+'">'+DOWS[i][0]+'</button>').join("")+
-            '<span class="obx-presets">'+[["every","Every day"],["weekdays","Weekdays"],["weekend","Weekends"]].map(p=>
-              '<button class="obx-preset" data-act="ob-rt-preset" data-k="'+x.k+'" data-v="'+p[0]+'">'+p[1]+'</button>').join("")+'</span></div></div>'+
-          '<div class="obx-rt-f"><span>Time</span><div class="obx-time">'+
-            '<button class="obx-step" data-act="ob-rt-step" data-k="'+x.k+'" data-v="-15" aria-label="15 minutes earlier">'+icon("i-minus","ic-14")+'</button>'+
-            '<input class="obx-time-in num" data-act="ob-rt-timein" data-k="'+x.k+'" value="'+esc(fmtTime(x.time))+'" aria-label="Time, for example 7:30am" autocomplete="off">'+
-            '<button class="obx-step" data-act="ob-rt-step" data-k="'+x.k+'" data-v="15" aria-label="15 minutes later">'+icon("i-plus","ic-14")+'</button>'+
-            '<small>Type a time or step it</small></div></div>'+
+            '<button class="obx-day'+(x.days.indexOf(d)>-1?" on":"")+'" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+(x.days.indexOf(d)>-1)+'" aria-label="'+DOWS[i]+'">'+DOWS[i][0]+'</button>').join("")+'</div></div>'+
           '<div class="obx-rt-f"><span>Takes</span><div class="obx-chips">'+OB_DURS.map(m=>
             '<button class="obx-chip'+(x.dur===m?" on":"")+'" data-act="ob-rt-dur" data-k="'+x.k+'" data-v="'+m+'" aria-pressed="'+(x.dur===m)+'">'+esc(fmtMins(m))+'</button>').join("")+'</div></div>'+
-          '<div class="obx-rt-f"><span>Category</span><div class="obx-chips">'+cats.map(cc=>
-            '<button class="obx-chip obx-catchip'+(obRtCat(x)===cc.id?" on":"")+'" style="--c:'+cc.color+'" data-act="ob-rt-cat" data-k="'+x.k+'" data-v="'+cc.id+'" aria-pressed="'+(obRtCat(x)===cc.id)+'"><i></i>'+esc(cc.name)+'</button>').join("")+'</div></div>'+
-          '<div class="obx-rt-foot">'+(x.custom?'<button class="btn btn-sm btn-ghost btn-danger" data-act="ob-rt-del" data-k="'+x.k+'">'+icon("i-trash","ic-14")+'Remove</button>':"")+
-            '<div class="spacer" style="flex:1"></div><button class="btn btn-sm btn-primary" data-act="ob-rt-open" data-k="'+x.k+'">'+icon("i-check","ic-14")+'Done</button></div>'+
+          (x.custom?'<div class="obx-rt-foot"><button class="btn btn-sm btn-ghost btn-danger" data-act="ob-rt-del" data-k="'+x.k+'">'+icon("i-trash","ic-14")+'Remove</button></div>':"")+
         '</div>':"")+
         '</div>';}).join("")+
       '<button class="obx-rt obx-rt-add" data-act="ob-rt-add">'+icon("i-plus","ic-18")+'<span><b>Add your own</b><small>Anything that repeats</small></span></button>'+
@@ -2347,7 +2335,7 @@ function obShowWeek(){
     '<div class="obx-week-h"><b>Your week</b><span class="num">'+(on.length?on.length+" routine"+(on.length===1?"":"s")+" · "+checks+" check-ins":"Nothing yet")+'</span></div>'+
     '<div class="obx-week-grid"><span></span>'+DOWS.map(d=>'<span class="obx-wd">'+d[0]+'</span>').join("")+
       (on.length?on.map((x,k)=>{const c=cat(obRtCat(x));
-        return '<span class="obx-wk-name" style="--c:'+c.color+'"><i></i>'+esc(x.title)+'<small class="num">'+esc(fmtTime(x.time))+'</small></span>'+
+        return '<span class="obx-wk-name" style="--c:'+c.color+'"><i></i>'+esc(x.title||"Your own routine")+'</span>'+
           order.map((d,j)=>'<span class="obx-cell'+(x.days.indexOf(d)>-1?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms"></span>').join("");}).join("")
       :'<p class="obx-week-empty">Tap a routine on the left and watch your week fill in.</p>')+
     '</div></div>';
@@ -3461,16 +3449,8 @@ document.addEventListener("click",function(e){
     case "ob-rt-day":{const x=obRtFind(n.dataset.k);if(!x)break;const d=Number(n.dataset.v),i=x.days.indexOf(d);
       if(i>-1)x.days.splice(i,1);else x.days.push(d);OB.pop=null;
       obRtRedraw('[data-act="ob-rt-day"][data-k="'+x.k+'"][data-v="'+d+'"]');break;}
-    case "ob-rt-preset":{const x=obRtFind(n.dataset.k);if(!x)break;
-      x.days=n.dataset.v==="every"?[0,1,2,3,4,5,6]:n.dataset.v==="weekend"?[6,0]:[1,2,3,4,5];OB.pop=null;
-      obRtRedraw('[data-act="ob-rt-preset"][data-k="'+x.k+'"][data-v="'+n.dataset.v+'"]');break;}
-    case "ob-rt-step":{const x=obRtFind(n.dataset.k);if(!x)break;
-      const m=(hm2m(x.time)+Number(n.dataset.v)+1440)%1440;x.time=m2hm(Math.round(m/15)*15%1440);OB.pop=null;
-      obRtRedraw('[data-act="ob-rt-step"][data-k="'+x.k+'"][data-v="'+n.dataset.v+'"]');break;}
     case "ob-rt-dur":{const x=obRtFind(n.dataset.k);if(!x)break;x.dur=Number(n.dataset.v);OB.pop=null;
       obRtRedraw('[data-act="ob-rt-dur"][data-k="'+x.k+'"][data-v="'+x.dur+'"]');break;}
-    case "ob-rt-cat":{const x=obRtFind(n.dataset.k);if(!x)break;x.cat=n.dataset.v;OB.pop=null;
-      obRtRedraw('[data-act="ob-rt-cat"][data-k="'+x.k+'"][data-v="'+x.cat+'"]');break;}
     case "ob-rt-add":{const k=uid("rt");
       obRt().push({k:k,custom:true,on:true,title:"",cat:S.categories[0].id,days:[1,2,3,4,5],time:"09:00",dur:30,ic:"i-repeat"});
       OB.rtOpen=k;OB.pop=k;obRtRedraw('[data-act="ob-rt-name"][data-k="'+k+'"]');break;}
@@ -3657,7 +3637,7 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
   if(e.key==="Enter"&&OB.open&&!PK.el){const t=e.target;
-    if(t.dataset&&(t.dataset.act==="ob-cat-name"||t.dataset.act==="ob-rt-name"||t.dataset.act==="ob-rt-timein")){e.preventDefault();t.blur();return;}
+    if(t.dataset&&(t.dataset.act==="ob-cat-name"||t.dataset.act==="ob-rt-name")){e.preventDefault();t.blur();return;}
     if(t.id==="obName"||t===document.body||(t.closest&&t.closest("#obRoot")&&/^(H1|SECTION|MAIN|DIV)$/.test(t.tagName))){
       e.preventDefault();const b=document.querySelector('#obRoot [data-act="ob-next"],#obRoot [data-act="ob-finish"]');
       if(b&&!b.disabled)b.click();return;}}
@@ -3721,9 +3701,6 @@ document.addEventListener("change",function(e){
   /* setup: a category renamed, a starter routine ticked or given a time */
   if(t.dataset&&t.dataset.act==="ob-cat-name"){const c=S.categories.find(x=>x.id===t.dataset.id);
     if(c){c.name=t.value.trim()||c.name;t.value=c.name;save("categories");}return;}
-  if(t.dataset&&t.dataset.act==="ob-rt-timein"){const x=obRtFind(t.dataset.k);if(!x)return;
-    const v=parseTimeStr(t.value);
-    if(v){x.time=v;OB.pop=null;obRender();}else{toast("Try a time like 7:30am or 18:00");t.value=fmtTime(x.time);}return;}
   if(t.dataset&&t.dataset.act==="ob-rt-name"){const x=obRtFind(t.dataset.k);if(!x)return;x.title=t.value.trim();OB.pop=null;obRender();return;}
   /* Drive backup switched on asks Google for Drive first, if it has not yet. */
   if(t.dataset&&t.dataset.act==="drive-toggle"){
