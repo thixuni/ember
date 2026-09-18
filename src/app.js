@@ -2289,16 +2289,55 @@ function obRt(){
   return OB.rt;
 }
 const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
+/* Each routine is a card. Tapping one picks it and opens it in place: its
+   name, the days as seven letters to tap, the time moved in quarter hours
+   or simply typed ("7", "6:30pm"), how long it takes as a row of chips, and
+   its category by colour. A drop-down time list was the one control here,
+   and choosing a routine's days was not possible at all. Your own routine
+   is one more card. */
+const OB_DURS=[10,15,20,30,45,60,90,120];
 function obRoutines(){
+  const cats=S.categories;
   return obHead("Routines","What do you do <em>every week</em>?",
-      "Pick a few to start with and set their times. You can add your own later.")+
-    '<div class="obx-rts">'+obRt().map(x=>{const c=cat(obRtCat(x));
-      return '<div class="obx-rt'+(x.on?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+'">'+
-        '<label class="obx-rt-hit"><input type="checkbox" class="obx-sr" data-act="ob-rt" data-k="'+x.k+'"'+(x.on?" checked":"")+'>'+
-          '<span class="obx-rt-ic">'+icon(x.ic,"ic-18 obx-rt-own")+icon("i-check","ic-18 obx-rt-ok")+'</span>'+
-          '<span class="obx-rt-txt"><b>'+esc(x.title)+'</b><small>'+esc(freqLabel({freq:"weekly",days:x.days}))+' · '+esc(fmtMins(x.dur))+'</small></span></label>'+
-        '<div class="obx-rt-when">'+timeField('data-act="ob-rt-time" data-k="'+x.k+'"',x.time,{sm:1,req:1,label:x.title+" time",cls:"obx-rt-time"})+'</div>'+
-        '</div>';}).join("")+'</div>';
+      "Pick a few and make them yours: the days, the time and how long. You can add your own too.")+
+    '<div class="obx-rts">'+obRt().map(x=>{
+      const c=cat(obRtCat(x)),open=OB.rtOpen===x.k;
+      const sum=(x.days.length?freqLabel({freq:"weekly",days:x.days}):"No days yet")+" · "+fmtTime(x.time)+" · "+fmtMins(x.dur);
+      return '<div class="obx-rt'+(x.on?" on":"")+(open?" open":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+'">'+
+        '<div class="obx-rt-row">'+
+          '<button class="obx-rt-ic" data-act="ob-rt-toggle" data-k="'+x.k+'" aria-pressed="'+x.on+'" aria-label="'+(x.on?"Leave out ":"Add ")+esc(x.title||"this routine")+'">'+
+            icon(x.ic,"ic-18 obx-rt-own")+icon("i-check","ic-18 obx-rt-ok")+'</button>'+
+          '<button class="obx-rt-txt" data-act="ob-rt-open" data-k="'+x.k+'" aria-expanded="'+open+'">'+
+            '<b>'+esc(x.title||"Your own routine")+'</b><small>'+esc(sum)+'</small></button>'+
+          '<button class="obx-rt-edit" data-act="ob-rt-open" data-k="'+x.k+'" aria-label="'+(open?"Close":"Edit")+'">'+icon(open?"i-chev-u":"i-edit","ic-14")+'</button>'+
+        '</div>'+
+        (open?'<div class="obx-rt-ed">'+
+          '<label class="obx-rt-f"><span>Name</span><input class="inp inp-sm" data-act="ob-rt-name" data-k="'+x.k+'" value="'+esc(x.title)+'" maxlength="60" placeholder="What do you do?" autocomplete="off"></label>'+
+          '<div class="obx-rt-f"><span>Days</span><div class="obx-days">'+[1,2,3,4,5,6,0].map((d,i)=>
+            '<button class="obx-day'+(x.days.indexOf(d)>-1?" on":"")+'" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+(x.days.indexOf(d)>-1)+'" aria-label="'+DOWS[i]+'">'+DOWS[i][0]+'</button>').join("")+
+            '<span class="obx-presets">'+[["every","Every day"],["weekdays","Weekdays"],["weekend","Weekends"]].map(p=>
+              '<button class="obx-preset" data-act="ob-rt-preset" data-k="'+x.k+'" data-v="'+p[0]+'">'+p[1]+'</button>').join("")+'</span></div></div>'+
+          '<div class="obx-rt-f"><span>Time</span><div class="obx-time">'+
+            '<button class="obx-step" data-act="ob-rt-step" data-k="'+x.k+'" data-v="-15" aria-label="15 minutes earlier">'+icon("i-minus","ic-14")+'</button>'+
+            '<input class="obx-time-in num" data-act="ob-rt-timein" data-k="'+x.k+'" value="'+esc(fmtTime(x.time))+'" aria-label="Time, for example 7:30am" autocomplete="off">'+
+            '<button class="obx-step" data-act="ob-rt-step" data-k="'+x.k+'" data-v="15" aria-label="15 minutes later">'+icon("i-plus","ic-14")+'</button>'+
+            '<small>Type a time or step it</small></div></div>'+
+          '<div class="obx-rt-f"><span>Takes</span><div class="obx-chips">'+OB_DURS.map(m=>
+            '<button class="obx-chip'+(x.dur===m?" on":"")+'" data-act="ob-rt-dur" data-k="'+x.k+'" data-v="'+m+'" aria-pressed="'+(x.dur===m)+'">'+esc(fmtMins(m))+'</button>').join("")+'</div></div>'+
+          '<div class="obx-rt-f"><span>Category</span><div class="obx-chips">'+cats.map(cc=>
+            '<button class="obx-chip obx-catchip'+(obRtCat(x)===cc.id?" on":"")+'" style="--c:'+cc.color+'" data-act="ob-rt-cat" data-k="'+x.k+'" data-v="'+cc.id+'" aria-pressed="'+(obRtCat(x)===cc.id)+'"><i></i>'+esc(cc.name)+'</button>').join("")+'</div></div>'+
+          '<div class="obx-rt-foot">'+(x.custom?'<button class="btn btn-sm btn-ghost btn-danger" data-act="ob-rt-del" data-k="'+x.k+'">'+icon("i-trash","ic-14")+'Remove</button>':"")+
+            '<div class="spacer" style="flex:1"></div><button class="btn btn-sm btn-primary" data-act="ob-rt-open" data-k="'+x.k+'">'+icon("i-check","ic-14")+'Done</button></div>'+
+        '</div>':"")+
+        '</div>';}).join("")+
+      '<button class="obx-rt obx-rt-add" data-act="ob-rt-add">'+icon("i-plus","ic-18")+'<span><b>Add your own</b><small>Anything that repeats</small></span></button>'+
+    '</div>';
+}
+function obRtFind(k){return obRt().find(r=>r.k===k)||null;}
+/* Redraw the step and give the keyboard back to the control that was used. */
+function obRtRedraw(sel){
+  obRender();
+  const n=sel&&document.querySelector("#obRoot "+sel);if(n)n.focus({preventScroll:true});
 }
 /* The week filling in: one row per routine ticked, a dot on each day it is due. */
 function obShowWeek(){
@@ -2319,8 +2358,8 @@ function obRtCommit(){
   const made=(S.prefs.onboard&&S.prefs.onboard.made)||[];
   S.routines=S.routines.filter(r=>made.indexOf(r.id)<0);
   const ids=[];
-  obRt().filter(x=>x.on).forEach(x=>{const id=uid("r");ids.push(id);
-    S.routines.push({id:id,title:x.title,cat:obRtCat(x),freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""});});
+  obRt().filter(x=>x.on&&x.days.length).forEach(x=>{const id=uid("r");ids.push(id);
+    S.routines.push({id:id,title:(x.title||"").trim()||"My routine",cat:obRtCat(x),freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""});});
   save("routines");
   S.prefs.onboard=Object.assign({},S.prefs.onboard||{},{made:ids});save("prefs");
 }
@@ -3413,6 +3452,29 @@ document.addEventListener("click",function(e){
     case "ob-cat-swatch":{const c=S.categories.find(x=>x.id===id);if(!c)break;
       c.color=n.dataset.v;OB.pal=null;save("categories");obRender();break;}
     case "ob-jump":OB.found=null;obGo(n.dataset.v);break;
+    case "ob-rt-toggle":{const x=obRtFind(n.dataset.k);if(!x)break;x.on=!x.on;OB.pop=x.on?x.k:null;
+      if(!x.on&&OB.rtOpen===x.k)OB.rtOpen=null;obRtRedraw('[data-act="ob-rt-toggle"][data-k="'+x.k+'"]');break;}
+    case "ob-rt-open":{const x=obRtFind(n.dataset.k);if(!x)break;
+      /* Opening one picks it; closing leaves it picked. */
+      if(OB.rtOpen===x.k)OB.rtOpen=null;else{OB.rtOpen=x.k;if(!x.on){x.on=true;OB.pop=x.k;}}
+      obRtRedraw('.obx-rt-txt[data-k="'+x.k+'"]');break;}
+    case "ob-rt-day":{const x=obRtFind(n.dataset.k);if(!x)break;const d=Number(n.dataset.v),i=x.days.indexOf(d);
+      if(i>-1)x.days.splice(i,1);else x.days.push(d);OB.pop=null;
+      obRtRedraw('[data-act="ob-rt-day"][data-k="'+x.k+'"][data-v="'+d+'"]');break;}
+    case "ob-rt-preset":{const x=obRtFind(n.dataset.k);if(!x)break;
+      x.days=n.dataset.v==="every"?[0,1,2,3,4,5,6]:n.dataset.v==="weekend"?[6,0]:[1,2,3,4,5];OB.pop=null;
+      obRtRedraw('[data-act="ob-rt-preset"][data-k="'+x.k+'"][data-v="'+n.dataset.v+'"]');break;}
+    case "ob-rt-step":{const x=obRtFind(n.dataset.k);if(!x)break;
+      const m=(hm2m(x.time)+Number(n.dataset.v)+1440)%1440;x.time=m2hm(Math.round(m/15)*15%1440);OB.pop=null;
+      obRtRedraw('[data-act="ob-rt-step"][data-k="'+x.k+'"][data-v="'+n.dataset.v+'"]');break;}
+    case "ob-rt-dur":{const x=obRtFind(n.dataset.k);if(!x)break;x.dur=Number(n.dataset.v);OB.pop=null;
+      obRtRedraw('[data-act="ob-rt-dur"][data-k="'+x.k+'"][data-v="'+x.dur+'"]');break;}
+    case "ob-rt-cat":{const x=obRtFind(n.dataset.k);if(!x)break;x.cat=n.dataset.v;OB.pop=null;
+      obRtRedraw('[data-act="ob-rt-cat"][data-k="'+x.k+'"][data-v="'+x.cat+'"]');break;}
+    case "ob-rt-add":{const k=uid("rt");
+      obRt().push({k:k,custom:true,on:true,title:"",cat:S.categories[0].id,days:[1,2,3,4,5],time:"09:00",dur:30,ic:"i-repeat"});
+      OB.rtOpen=k;OB.pop=k;obRtRedraw('[data-act="ob-rt-name"][data-k="'+k+'"]');break;}
+    case "ob-rt-del":OB.rt=obRt().filter(r=>r.k!==n.dataset.k);OB.rtOpen=null;obRender();break;
     case "ob-cat-del":if(S.categories.length>1){S.categories=S.categories.filter(x=>x.id!==id);save("categories");obRender();}break;
     case "ob-cat-add":{const used=S.categories.map(x=>x.color),col=CAT_COLORS.find(x=>used.indexOf(x)<0)||CAT_COLORS[0],nid=uid("c");
       S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});save("categories");obRender();
@@ -3552,6 +3614,8 @@ document.addEventListener("input",function(e){
   if(t.id==="rte"){const x=noteById(V.noteId);if(x){x.html=t.innerHTML;x.updated=Date.now();save("notes");}return;}
   if(t.id==="scratchPad"){S.prefs.scratch=t.innerHTML;save("prefs");return;}
   if(t.id==="obName"){const h=el("obxHi"),v=t.value.trim();if(h)h.textContent=dashGreeting()+(v?", "+v:"");return;}
+  if(t.dataset&&t.dataset.act==="ob-rt-name"){const x=obRtFind(t.dataset.k);if(x){x.title=t.value;
+    const b=document.querySelector('#obRoot .obx-rt-txt[data-k="'+x.k+'"] b');if(b)b.textContent=t.value||"Your own routine";}return;}
   if(t.dataset&&t.dataset.act==="ob-cat-name"){t.size=Math.max(4,t.value.length);
     const p=document.querySelector('[data-planet="'+t.dataset.id+'"] span');if(p)p.textContent=t.value||"…";return;}
   if(t.id==="gcId"){GC.draft.id=t.value;return;}
@@ -3593,7 +3657,7 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
   if(e.key==="Escape"&&document.body.classList.contains("rail-open")){closeRail();return;}
   if(e.key==="Enter"&&OB.open&&!PK.el){const t=e.target;
-    if(t.dataset&&t.dataset.act==="ob-cat-name"){e.preventDefault();t.blur();return;}
+    if(t.dataset&&(t.dataset.act==="ob-cat-name"||t.dataset.act==="ob-rt-name"||t.dataset.act==="ob-rt-timein")){e.preventDefault();t.blur();return;}
     if(t.id==="obName"||t===document.body||(t.closest&&t.closest("#obRoot")&&/^(H1|SECTION|MAIN|DIV)$/.test(t.tagName))){
       e.preventDefault();const b=document.querySelector('#obRoot [data-act="ob-next"],#obRoot [data-act="ob-finish"]');
       if(b&&!b.disabled)b.click();return;}}
@@ -3657,9 +3721,10 @@ document.addEventListener("change",function(e){
   /* setup: a category renamed, a starter routine ticked or given a time */
   if(t.dataset&&t.dataset.act==="ob-cat-name"){const c=S.categories.find(x=>x.id===t.dataset.id);
     if(c){c.name=t.value.trim()||c.name;t.value=c.name;save("categories");}return;}
-  if(t.dataset&&t.dataset.act==="ob-rt"){const x=obRt().find(r=>r.k===t.dataset.k);if(x){x.on=t.checked;OB.pop=x.on?x.k:null;}obRender();
-    const f=document.querySelector('#obRoot [data-act="ob-rt"][data-k="'+t.dataset.k+'"]');if(f)f.focus({preventScroll:true});return;}
-  if(t.dataset&&t.dataset.act==="ob-rt-time"){const x=obRt().find(r=>r.k===t.dataset.k);if(x&&t.value)x.time=t.value;return;}
+  if(t.dataset&&t.dataset.act==="ob-rt-timein"){const x=obRtFind(t.dataset.k);if(!x)return;
+    const v=parseTimeStr(t.value);
+    if(v){x.time=v;OB.pop=null;obRender();}else{toast("Try a time like 7:30am or 18:00");t.value=fmtTime(x.time);}return;}
+  if(t.dataset&&t.dataset.act==="ob-rt-name"){const x=obRtFind(t.dataset.k);if(!x)return;x.title=t.value.trim();OB.pop=null;obRender();return;}
   /* Drive backup switched on asks Google for Drive first, if it has not yet. */
   if(t.dataset&&t.dataset.act==="drive-toggle"){
     if(!t.checked){S.prefs.storage="local";save("prefs");panels();return;}

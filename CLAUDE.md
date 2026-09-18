@@ -423,6 +423,11 @@ created, replaced rather than added to when someone goes back and forth.
   explain where things appear or how they work, and it never shows a code, a
   file name or a key (the accent picker hides its hex here: `accentPickHtml(true)`).
   The previews carry no captions; they speak for themselves.
+- The routines step edits each routine in place: tapping a card picks it and
+  opens it (`OB.rtOpen`) with its name, the days as letters with Every day /
+  Weekdays / Weekends, the time stepped by 15 minutes or typed (`parseTimeStr`),
+  how long as chips and its category. "Add your own" makes one of the person's
+  own (`custom`), which alone can be removed. No drop-downs: they were the hard part.
 - In a browser, All set ends with a card to get the desktop app (`obGetApp()`,
   `DOWNLOAD_URL`, the GitHub Pages download page); the desktop app never shows it.
 - `mode` decides the steps: `"new"`; `"returning"` — someone with a planner
