@@ -240,6 +240,43 @@ off day after it and before the next day it is due. That window is one per
 missed day, so one extra tick never covers two, and a made-up day is not
 listed as missed either.
 
+### Customising tasks
+
+How tasks work is the person's to set, in one window opened from
+**Customise** beside Advanced (`customiseModal()`, the customise section).
+All of it is `prefs.board`, filled in by `board()` on the one object, so it
+goes with backups and Drive like any setting.
+
+- **Swimlanes** are `board().lanes`: `{id, name, color, done}` in board
+  order, and a task's `status` is its lane's id. A new planner starts with
+  To do, In progress and Completed (`DEFAULT_LANES`); a planner that already
+  had tasks keeps the six it had (`LEGACY_LANES`), so nothing moves. That is
+  decided the first time `board()` runs, which `render()` makes happen before
+  anything else — left later, a new planner's first sample tasks made it look
+  like an old one. Lanes can be added, renamed, recoloured, reordered (drag,
+  or the arrows) and removed; removing one with tasks asks where they go.
+- **Done is a lane, not a word.** A lane marked done is where ticking sends a
+  task (`firstDone()`, and back to `firstOpen()`), and what counts as finished
+  everywhere through `isDoneT(t)`. Never test `t.status==="completed"` — a
+  test fails on it. A status a lane no longer has (the sample week, an old
+  backup) is moved to the nearest one by `fixTasks()` via `laneFor()`.
+- **The task panel's parts** can be switched off (`BOARD_FEATS`, read with
+  `feat(k)`); hidden parts keep their data, and cards and the list follow.
+- **Subtasks that are tasks** (`board().fullSubs`): a subtask is a task with
+  a `parent`, opening like any task with a way back to its parent. Switching
+  it on turns every checklist subtask into one. They live inside their parent
+  only: everything that lists tasks reads `tops()`, never `S.tasks`, and
+  `kidsOf(id)` finds a task's own. Deleting a task deletes its subtasks.
+- **Fields of their own** are `board().fields` (`CF_TYPES`: text, number,
+  date, single- and multi-select with coloured options, checkbox, link,
+  rating, progress), their values in `t.cf` by field id. Each can show in
+  the panel, as a list column and on board cards; changes are in the task's
+  history. Changing a field's type, or taking options away, clears values
+  that no longer fit.
+- **The list's columns** are `board().cols` (`{k, on}` in order, a field as
+  `"cf:<id>"`), read through `listCols()`; the row grid is built from them,
+  so a hidden column takes no room.
+
 ### When a task happens
 
 Put the way Google Calendar puts it. A task has a **date** — stored as

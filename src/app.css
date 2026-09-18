@@ -595,8 +595,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .lgroup{margin-bottom:18px}
 .lgroup > h3{font-size:12.5px;margin-bottom:7px;display:flex;align-items:center;gap:8px}
 .lgroup > h3 .n{font-size:11px;font-weight:700;color:var(--faint)}
-.ltable{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden}
-.lrow{display:grid;grid-template-columns:26px minmax(0,1fr) 128px 96px 108px 116px 30px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;width:100%}
+.ltable{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);overflow-x:auto}
+.ltable > .lrow{min-width:max-content}
+.lrow{display:grid;grid-template-columns:26px minmax(0,1fr) 30px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;width:100%}
 .lrow:last-child{border-bottom:0}
 .lrow:hover{background:var(--surface)}
 .lrow.head{background:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:7px 12px}
@@ -1826,6 +1827,137 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .dc-m{color:var(--faint);font-size:11px;flex:none}
 
 /* ---------- document editor ---------- */
+/* ---- customise ----
+   One window, three tabs: the lanes, the task panel, and the list's columns
+   and fields. Rows are cards on the window's panel, as everywhere else. */
+.cz{width:min(760px,100%);height:min(720px,calc(100dvh - 48px))}
+.cz .mhead2 > .ic{color:var(--accent-ink)}
+.cz-tabs{display:flex;gap:4px;padding:10px 20px 0;border-bottom:1px solid var(--line)}
+.cz-tab{display:inline-flex;align-items:center;gap:7px;padding:8px 12px 10px;margin-bottom:-1px;border-bottom:2px solid transparent;
+  font-size:13px;font-weight:600;color:var(--muted)}
+.cz-tab > *{pointer-events:none}
+.cz-tab:hover{color:var(--ink)}
+.cz-tab[aria-selected="true"]{color:var(--accent-ink);border-bottom-color:var(--accent)}
+.cz-body{flex:1;min-height:0;gap:12px}
+.cz-lead{margin:0;font-size:13px;line-height:1.55;color:var(--muted);max-width:62ch}
+.cz-note{margin:0;font-size:12px;color:var(--muted)}
+.cz-warn{display:flex;align-items:center;gap:7px;margin:0;font-size:12.5px;color:var(--amber-ink)}
+/* lanes and columns: a row each, dragged by the grip */
+.cz-lanes,.cz-cols{display:flex;flex-direction:column;gap:6px}
+.cz-lane,.cz-col{position:relative;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 8px 7px 6px;border-radius:var(--r-s);
+  background:var(--surface);border:1px solid var(--line);transition:border-color .12s,opacity .12s}
+.cz-lane{border-left:3px solid var(--s)}
+.cz-lane:hover,.cz-col:hover{border-color:var(--line-2)}
+.cz-lane.dragging,.cz-col.dragging{opacity:.45}
+.cz-grip{display:grid;place-items:center;width:18px;color:var(--faint);cursor:grab}
+.cz-swatch{width:22px;height:22px;flex:none;border-radius:7px;background:var(--s);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.cz-name{flex:1;min-width:120px;height:32px;padding:0 8px;border:1px solid transparent;border-radius:7px;background:none;font-size:13.5px;font-weight:600;color:var(--ink);outline:0}
+.cz-name:hover{background:var(--surface-2)}
+.cz-name:focus{border-color:var(--accent);background:var(--surface-2)}
+.cz-n{min-width:26px;text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);background:var(--surface-2);border-radius:20px;padding:2px 7px}
+.cz-done{font-size:12px}
+.cz-move{display:flex;gap:2px}
+.cz-move .icon-btn,.cz-del,.cz-col .icon-btn{width:28px;height:28px;border-color:transparent;background:none}
+.cz-move .icon-btn:hover:not(:disabled),.cz-col .icon-btn:hover{background:var(--surface-3)}
+.cz-move .icon-btn:disabled{opacity:.3}
+.cz-del{color:var(--muted)}
+.cz-del:hover:not(:disabled){color:var(--danger-ink);background:var(--danger-soft)}
+.cz-pal{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0 2px 26px}
+.cz-pal button{width:22px;height:22px;border-radius:50%;background:var(--c);border:2px solid transparent}
+.cz-pal button.on{border-color:var(--ink)}
+.cz-own{display:inline-flex;align-items:center;gap:6px;margin-left:4px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+.cz-own input{width:26px;height:26px;padding:0;border:0;background:none;cursor:pointer}
+.cz-delrow{flex-basis:100%;display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:4px 0 0 26px;padding:8px 10px;border-radius:var(--r-s);
+  background:var(--danger-soft);font-size:12.5px;color:var(--ink)}
+.cz-delrow select{width:auto;min-width:140px}
+.cz-col.off .cz-col-n{color:var(--muted)}
+.cz-col-ic{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--surface-2);color:var(--muted)}
+.cz-col-n{flex:1;min-width:0;display:flex;flex-direction:column;font-size:13px;font-weight:600;color:var(--ink)}
+.cz-col-n small{font-size:11px;font-weight:500;color:var(--muted)}
+.cz-eye{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:20px;font-size:12px;font-weight:600;
+  color:var(--accent-ink);background:var(--accent-soft)}
+.cz-eye > *{pointer-events:none}
+.cz-eye[aria-pressed="false"]{color:var(--muted);background:var(--surface-2)}
+/* the task panel tab */
+.cz-hero{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--r-m);background:var(--surface);border:1px solid var(--line)}
+.cz-hero > .ic{color:var(--accent-ink);margin-top:2px}
+.cz-hero > div{flex:1}
+.cz-hero b{font-size:14px;color:var(--ink)}
+.cz-hero p{margin:3px 0 0;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.cz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.cz-group{display:flex;flex-direction:column;gap:9px;padding:12px 14px;border-radius:var(--r-m);background:var(--surface);border:1px solid var(--line)}
+.cz-gh{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.cz-sw{color:var(--ink-2);font-size:13px}
+/* the field editor */
+.cz-back{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-size:12.5px}
+.cz-h{margin:0;font-family:var(--fd);font-size:18px}
+.cz-form{display:flex;flex-direction:column;gap:12px}
+.cz-l{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)}
+.cz-l small{font-weight:500;color:var(--muted)}
+.cz-l .req{color:var(--danger-ink);margin-left:2px}
+.cz-form > .linkish{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-size:12.5px}
+.cz-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.cz-type{display:grid;grid-template-columns:22px 1fr;column-gap:8px;align-items:center;padding:9px 10px;border-radius:var(--r-s);text-align:left;
+  background:var(--surface);border:1px solid var(--line);transition:border-color .12s,background .12s}
+.cz-type > *{pointer-events:none}
+.cz-type .ic{grid-row:span 2;color:var(--muted)}
+.cz-type b{font-size:12.5px;color:var(--ink)}
+.cz-type small{font-size:11px;color:var(--muted)}
+.cz-type:hover{border-color:var(--line-2)}
+.cz-type.on{border-color:var(--accent);background:var(--accent-soft)}
+.cz-type.on .ic{color:var(--accent-ink)}
+.cz-opts{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.cz-opt{display:flex;align-items:center;gap:8px;width:100%;max-width:420px}
+.cz-dot{width:20px;height:20px;flex:none;border-radius:50%;background:var(--c)}
+.cz-where{display:flex;flex-wrap:wrap;gap:8px 18px}
+.chk{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+.cz-foot{display:flex;align-items:center;gap:8px;margin-top:4px;padding-top:12px;border-top:1px solid var(--line)}
+/* fields in the task panel, the list and on cards */
+.cf-in{max-width:160px}
+.cf-pills{display:flex;flex-wrap:wrap;gap:5px}
+.cf-pill{height:26px;padding:0 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--ink-2);
+  border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));background:var(--surface)}
+.cf-pill.on{background:color-mix(in srgb,var(--c) 26%,var(--surface));color:var(--ink);border-color:var(--c)}
+.cf-linkrow{display:flex;gap:6px;align-items:center}
+.cf-rate{display:flex;gap:2px}
+.cf-rate button{font-size:18px;line-height:1;color:var(--line-2);padding:2px}
+.cf-rate button.on{color:var(--amber)}
+.cf-rate button:hover{color:var(--amber)}
+.cf-range{display:flex;align-items:center;gap:10px}
+.cf-range input{width:160px;accent-color:var(--accent)}
+.cf-range .num{font-size:12px;color:var(--muted);min-width:34px}
+.cf-opt{display:inline-flex;align-items:center;height:20px;padding:0 8px;margin-right:4px;border-radius:20px;font-size:11px;font-weight:600;
+  color:var(--ink);background:color-mix(in srgb,var(--c) 24%,var(--surface))}
+.cf-yes{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--accent-ink)}
+.cf-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--accent-ink);text-decoration:underline;text-underline-offset:2px}
+.cf-stars{font-size:12px;color:var(--amber);letter-spacing:1px}
+.cf-stars i{font-style:normal;color:var(--line-2)}
+.cf-prog{display:inline-block;width:60px;height:6px;border-radius:6px;background:var(--surface-3);overflow:hidden;vertical-align:middle}
+.cf-prog i{display:block;height:100%;background:var(--accent)}
+.cf-pct{margin-left:6px;font-size:11px;color:var(--muted)}
+.cf-txt{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lr-cf,.lr-tags{min-width:0;display:flex;align-items:center;gap:3px;overflow:hidden;white-space:nowrap}
+.tc-cf{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px}
+/* subtasks that are tasks */
+.kids{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
+.kid{display:flex;align-items:center;gap:9px;padding:7px 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+.kid:last-child{border-bottom:0}
+.kid-t{flex:1;min-width:0;text-align:left;font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kid-t:hover{text-decoration:underline;text-underline-offset:2px}
+.kid.done .kid-t{text-decoration:line-through;color:var(--muted)}
+.kid-when{font-size:11.5px;color:var(--muted)}
+.kid-lane{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);white-space:nowrap}
+.kid-lane i{width:7px;height:7px;border-radius:50%;background:var(--s)}
+.kid-go{color:var(--faint);display:grid}
+.kid-add{display:flex;align-items:center;gap:8px;margin-top:8px;padding:0 10px;height:36px;border:1px dashed var(--line-2);border-radius:var(--r-s);color:var(--muted)}
+.kid-add:focus-within{border-style:solid;border-color:var(--accent)}
+.kid-add input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:13px;color:var(--ink)}
+.sh-crumb{display:inline-flex;align-items:center;gap:5px;max-width:100%;margin-bottom:6px;font-size:12px;color:var(--muted)}
+.sh-crumb > *{pointer-events:none}
+.sh-crumb b{color:var(--accent-ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-crumb:hover b{text-decoration:underline;text-underline-offset:2px}
+@media (max-width:820px){.cz-tabs{overflow-x:auto}.cz-lane .cz-move,.cz-col .cz-move{display:none}.cz-name{min-width:90px}}
 /* ---- empty states ----
    A drawing in the section's own colour (--h), a heading, a line on what
    next, and sometimes the button that does it. The mini one sits in a row

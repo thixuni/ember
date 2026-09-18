@@ -111,6 +111,18 @@ test('redraws stay fast on a big planner', () => {
   assert.match(jsCode, /addEventListener\("pagehide",flushLocal\)/, 'a pending write is no longer flushed on close');
 });
 
+test('lanes are the person\'s own, and done-ness comes from the lane', () => {
+  // A new planner starts with three lanes.
+  const def = (jsCode.match(/const DEFAULT_LANES=\[([\s\S]*?)\];/) || [])[1] || '';
+  assert.deepStrictEqual([...def.matchAll(/name:"([^"]+)"/g)].map(m => m[1]), ['To do', 'In progress', 'Completed']);
+  // Nothing decides "done" by a fixed status id any more: lanes can be renamed,
+  // removed and marked done in Customise.
+  assert.doesNotMatch(jsCode, /t\.status===?"completed"/, 'a check reads the "completed" status directly again');
+  assert.doesNotMatch(jsCode, /STATUSES\.map/, 'the fixed status list is drawn somewhere again');
+  // Subtasks that are tasks stay inside their parent.
+  assert.match(jsCode, /const ixDay=\(\)=>ix\("day",\(\)=>groupBy\(tops\(\)/, 'subtasks leak onto the calendar and today');
+});
+
 test('panels() redraws settings and setup rather than calling itself', () => {
   // A rename once left it calling itself whenever Settings was open.
   const body = (jsCode.match(/function panels\(\)\{([\s\S]*?)\n\}/) || [])[1] || '';

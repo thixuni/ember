@@ -41,14 +41,78 @@ const relDue=s=>{if(!s)return"No date";const d=dayDiff(s,TODAY());if(d===0)retur
 const stripHtml=h=>{const t=document.createElement("div");t.innerHTML=String(h||"").replace(/<\/(p|div|h[1-6]|li|blockquote|ul|ol|tr)>/gi,"$& ");return (t.textContent||"").replace(/\s+/g," ").trim();};
 
 /* ============ constants ============ */
-const STATUSES=[
- {id:"backlog",name:"Backlog",color:"#9AA298"},
- {id:"planned",name:"Planned",color:"#4C6FE0"},
- {id:"in_progress",name:"In Progress",color:"#D99A16"},
- {id:"review",name:"Waiting for Review",color:"#7C5CE0"},
- {id:"completed",name:"Completed",color:"#3F7D5C"},
- {id:"dropped",name:"Dropped",color:"#C25340"}];
-const ST=id=>STATUSES.find(s=>s.id===id)||STATUSES[0];
+/* ---- swimlanes ----
+   The board's columns are the person's own: prefs.board.lanes, each
+   {id, name, color, done}, in order. A task's status is the id of its lane.
+   A new planner starts with To do, In progress and Completed; a planner from
+   before lanes could be edited keeps the six it had, so nothing moves under
+   anyone. A lane marked done is where ticking a task sends it, and what
+   counts as finished everywhere: struck through, out of overdue, counted as
+   done. Customise (the customise section) edits all of it. */
+const LEGACY_LANES=[
+ {id:"backlog",name:"Backlog",color:"#9AA298",done:false},
+ {id:"planned",name:"Planned",color:"#4C6FE0",done:false},
+ {id:"in_progress",name:"In Progress",color:"#D99A16",done:false},
+ {id:"review",name:"Waiting for Review",color:"#7C5CE0",done:false},
+ {id:"completed",name:"Completed",color:"#3F7D5C",done:true},
+ {id:"dropped",name:"Dropped",color:"#C25340",done:true}];
+const DEFAULT_LANES=[
+ {id:"todo",name:"To do",color:"#6B7CE0",done:false},
+ {id:"in_progress",name:"In progress",color:"#D99A16",done:false},
+ {id:"completed",name:"Completed",color:"#3F7D5C",done:true}];
+const LANE_COLORS=["#6B7CE0","#D99A16","#3F7D5C","#9AA298","#7C5CE0","#C25340","#2F9BA8","#D0588F","#8A6A3F","#5B8C3A"];
+/* The task panel's parts that can be switched off, in the panel's order. */
+const BOARD_FEATS=[
+ ["Schedule",[["when","Date and time"],["deadline","Deadline"],["reminder","Reminder"]]],
+ ["Organise",[["category","Category"],["priority","Priority"],["tags","Tags"]]],
+ ["Effort",[["estimate","Estimate"],["timer","Time tracker"]]],
+ ["Attached",[["links","Linked tasks"],["files","Files"]]],
+ ["Content",[["desc","Description"],["subtasks","Subtasks"],["docs","Documents"],["comments","Comments"],["activity","Activity history"]]]];
+/* The list view's columns besides the task itself; the first four are on
+   to begin with. Custom fields join these as "cf:<id>". */
+const LIST_COLS=[["date","Date"],["priority","Priority"],["category","Category"],["status","Status"],
+ ["deadline","Deadline"],["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
+/* The board settings, filled in on the one object (as gcalPrefs() is): a sync
+   or a save may be holding it. The first time, it is written down at once,
+   so a new planner's three lanes do not become six once it has tasks. */
+function board(){
+  const p=S.prefs;
+  if(!p.board||typeof p.board!=="object")p.board={};
+  const b=p.board;let made=false;
+  if(!Array.isArray(b.lanes)||!b.lanes.length){
+    /* Tasks already here were made with the old six; a planner with none
+       is new, or empty, and starts with the three. */
+    const old=(S.tasks||[]).length>0;
+    b.lanes=JSON.parse(JSON.stringify(old?LEGACY_LANES:DEFAULT_LANES));made=true;
+  }
+  if(!b.show||typeof b.show!=="object")b.show={};
+  if(!Array.isArray(b.fields))b.fields=[];
+  if(!Array.isArray(b.cols)){b.cols=LIST_COLS.map((c,i)=>({k:c[0],on:i<4}));made=true;}
+  if(made)setTimeout(()=>save("prefs"),0);
+  return b;
+}
+const lanes=()=>board().lanes;
+const lane=id=>lanes().find(l=>l.id===id)||null;
+const ST=id=>lane(id)||{id:id,name:"No lane",color:"#8A8F98",done:false};
+const isDoneT=t=>{const l=lane(t.status);return l?!!l.done:(isDoneT(t)||t.status==="dropped");};
+const firstOpen=()=>(lanes().find(l=>!l.done)||lanes()[0]).id;
+const firstDone=()=>(lanes().find(l=>l.done)||lanes()[lanes().length-1]).id;
+const feat=k=>board().show[k]!==false;
+/* A status from before -- the sample week, an old backup -- lands in the
+   nearest lane there is. */
+function laneFor(status){
+  if(lane(status))return status;
+  const L=lanes(),open=L.filter(l=>!l.done),done=L.filter(l=>l.done);
+  if(status==="completed"||status==="dropped")return (done[0]||L[L.length-1]).id;
+  if(status==="in_progress"||status==="review")return (open[1]||open[0]||L[0]).id;
+  return (open[0]||L[0]).id;
+}
+/* A task with its every field, for anything that makes one. */
+function newTask(preset){
+  return Object.assign({id:uid("t"),title:"",desc:"",due:"",dueTime:"",endTime:"",deadline:"",cat:S.categories[0].id,
+    status:firstOpen(),urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],cf:{},
+    created:TODAY(),completedAt:null},preset||{});
+}
 const QUADS=[
  {id:"do",name:"Do First",tag:"Urgent + Important",note:"Do these tasks immediately.",cls:"q-do",icon:"i-bolt"},
  {id:"decide",name:"Schedule",tag:"Important, not urgent",note:"Schedule time to work on these.",cls:"q-decide",icon:"i-calendar"},
@@ -57,7 +121,6 @@ const QUADS=[
 const quadOf=t=>{if(t.urgent==null||t.important==null)return null;if(t.urgent&&t.important)return"do";if(!t.urgent&&t.important)return"decide";if(t.urgent&&!t.important)return"delegate";return"drop";};
 const CAT_ICONS=["i-briefcase","i-laptop","i-home","i-user","i-target","i-heart","i-circle","i-flame","i-paw","i-rocket","i-book","i-star","i-cart","i-music","i-plane","i-dumbbell","i-leaf","i-coffee","i-palette","i-note"];
 const CAT_COLORS=["#4C6FE0","#7C5CE0","#E0854A","#D95C93","#2F9C86","#D8544E","#7A8A80","#D99A16","#A9713B","#3F8F4F","#2E8BA8","#B0517E"];
-const OPEN=["backlog","planned","in_progress","review"];
 
 /* ============ starting data ============ */
 function baseCategories(){
@@ -116,6 +179,7 @@ const fmtTaskTime=t=>{const sp=tSpan(t);return sp?fmtRange(t.dueTime,sp.end-sp.s
 function fixTasks(){
   let n=0;
   (S.tasks||[]).forEach(t=>{
+    if(!lane(t.status)){t.status=laneFor(t.status);n++;}
     if(!t.start)return;
     if(t.due&&t.due>t.start&&!t.deadline)t.deadline=t.due;
     t.due=t.start;t.start="";n++;
@@ -283,12 +347,12 @@ const ixSess=()=>ix("sess",()=>groupBy(S.sessions,x=>x.task));
 const ixSessDay=()=>ix("sessDay",()=>groupBy(S.sessions,x=>ymd(new Date(x.start))));
 /* A task belongs to its date, or with no date to its deadline. */
 const ixBack=()=>ix("back",()=>{const m=new Map();S.tasks.forEach(x=>(Array.isArray(x.links)?x.links:[]).forEach(id=>{const a=m.get(id);if(a)a.push(x.id);else m.set(id,[x.id]);}));return m;});
-const ixDay=()=>ix("day",()=>groupBy(S.tasks,t=>t.due||t.deadline||""));
+const ixDay=()=>ix("day",()=>groupBy(tops(),t=>t.due||t.deadline||""));
 const NONE=[];
 const taskById=id=>ixTasks().get(id)||S.tasks.find(t=>t.id===id);
 const routineById=id=>S.routines.find(r=>r.id===id);
 const noteById=id=>S.notes.find(n=>n.id===id);
-const isOpen=t=>OPEN.indexOf(t.status)>-1;
+const isOpen=t=>!isDoneT(t);
 /* Late if the day you planned it has gone, or the deadline has. */
 const isOverdue=t=>isOpen(t)&&((!!t.due&&t.due<TODAY())||(!!t.deadline&&t.deadline<TODAY()));
 /* What "late" says: how far past the deadline when that has gone, otherwise
@@ -343,7 +407,7 @@ function streak(r){
    worked out once per change. */
 const overdueItems=()=>ix("overdue",overdueNow);
 function overdueNow(){
-  const tasks=S.tasks.filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>(a.due||a.deadline)<(b.due||b.deadline)?-1:1);
+  const tasks=tops().filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>(a.due||a.deadline)<(b.due||b.deadline)?-1:1);
   const miss=[];
   S.routines.filter(r=>visibleCat(r.cat)).forEach(r=>{
     for(let i=1;i<=7;i++){const d=addDays(today(),-i),s=ymd(d);
@@ -403,7 +467,7 @@ const QUAD_EMPTY={
   delegate:["Nothing to hand off","Urgent things someone else could do will gather here."],
   drop:["Nothing to let go of","Tasks that are neither urgent nor important can wait here, or go."]};
 /* What each board column says when it is empty. */
-const COL_EMPTY={backlog:"Park ideas here",planned:"Nothing lined up",in_progress:"Nothing on the go",
+const COL_EMPTY={todo:"Nothing to do yet",backlog:"Park ideas here",planned:"Nothing lined up",in_progress:"Nothing on the go",
   review:"Nothing waiting on anyone",completed:"Finished work lands here",dropped:"Nothing dropped"};
 
 /* ============ view state ============ */
@@ -459,7 +523,7 @@ function topSearch(ph){
   return '<div class="search">'+icon("i-search")+'<input id="q" type="search" placeholder="'+esc(ph)+'" value="'+esc(V.q)+'" aria-label="Search"></div>';
 }
 function renderTopbar(){
-  const open=S.tasks.filter(isOpen),over=S.tasks.filter(isOverdue);
+  const open=tops().filter(isOpen),over=tops().filter(isOverdue);
   let title="",sub="",right="";
   if(V.view==="dashboard"){
     const d=todayItems(),left=d.tasks.filter(isOpen).length+d.routines.filter(r=>!doneR(r,TODAY())).length;
@@ -470,7 +534,7 @@ function renderTopbar(){
     sub=V.calMode==="week"?"Week of "+fmtDate(ymd(startOfWeek(V.anchor))):MON[V.anchor.getMonth()]+" "+V.anchor.getFullYear();
     right=topSearch("Search tasks and routines")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="tasks"){
-    title="Tasks";sub=S.tasks.length?open.length+" open"+(over.length?" · "+over.length+" overdue":"")+" · "+S.tasks.length+" total":"Nothing on your list yet";
+    title="Tasks";sub=tops().length?open.length+" open"+(over.length?" · "+over.length+" overdue":"")+" · "+tops().length+" total":"Nothing on your list yet";
     right='<div class="seg"><button data-act="task-mode" data-mode="board" aria-pressed="'+(V.taskMode==="board")+'">'+icon("i-board")+'Board</button>'+
       '<button data-act="task-mode" data-mode="list" aria-pressed="'+(V.taskMode==="list")+'">'+icon("i-list")+'List</button></div>'+
       topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
@@ -511,7 +575,7 @@ function dueChip(t){
 }
 function quadChip(t){const q=quadOf(t);if(!q)return"";const Q=QUADS.find(x=>x.id===q);
   return '<span class="chip chip-q '+Q.cls+'">'+esc(Q.name)+'</span>';}
-function tickBtn(t){return '<button class="tick'+(t.status==="completed"?" on":"")+'" data-act="task-done" data-id="'+t.id+'" aria-label="Mark complete" title="Mark complete">'+icon("i-check")+'</button>';}
+function tickBtn(t){return '<button class="tick'+(isDoneT(t)?" on":"")+'" data-act="task-done" data-id="'+t.id+'" aria-label="Mark complete" title="Mark complete">'+icon("i-check")+'</button>';}
 
 /* ============ calendar ============ */
 function eventsFor(d){
@@ -610,7 +674,7 @@ function weekGrid(){
       ts.map(t=>{const c=cat(t.cat);
       // A task, not an event: a tick box you can complete straight from the
       // calendar, then the title. Two buttons so both stay keyboard reachable.
-      const done=t.status==="completed";
+      const done=isDoneT(t);
       return '<div class="tchip'+(done?" done":"")+(isOverdue(t)?" over":"")+'" style="--c:'+c.color+'">'+
         '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
         '<button class="tchip-body" data-act="task" data-id="'+t.id+'"'+(t.due!==s?' title="Deadline"':"")+'>'+icon(t.due!==s?"i-deadline":c.icon,"ic-14")+'<span>'+esc(t.title)+'</span></button>'+
@@ -632,7 +696,7 @@ function weekGrid(){
          box in its corner, so it can be finished from the calendar. */
       if(e.kind==="task"){
         const t=e.t,c=cat(t.cat),top=(e.start/60-H0)*PX,ht=Math.max(20,(e.dur/60)*PX-2),clip=Math.max(0,-top);
-        const w=100/e._n,left=e._c*w,sm=ht-clip<40,done=t.status==="completed";
+        const w=100/e._n,left=e._c*w,sm=ht-clip<40,done=isDoneT(t);
         return '<div class="ev tev'+(done?" done":"")+(isOverdue(t)?" over":"")+(sm?" sm":"")+'" style="--c:'+c.color+';top:'+Math.max(0,top).toFixed(1)+'px;height:'+
           Math.max(20,ht-clip).toFixed(1)+'px;left:calc('+left+'% + 3px);width:calc('+w+'% - 6px)">'+
           '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
@@ -731,7 +795,7 @@ document.addEventListener("mouseup",function(){
   if(!DG.on)return;
   DG.on=false;
   const end=Math.min(DG.b,24*60-1);
-  openSheet(null,{due:DG.col.dataset.date,dueTime:m2hm(DG.a),endTime:m2hm(end),status:"planned"});
+  openSheet(null,{due:DG.col.dataset.date,dueTime:m2hm(DG.a),endTime:m2hm(end),status:firstOpen()});
   const ti=el("shTitle");if(ti)ti.focus();
 });
 
@@ -752,7 +816,7 @@ function monthGrid(){
     const s=ymd(d),evs=eventsFor(d),gd=gcalFor(d),items=[];
     /* Tasks first, as chips: they belong to the day, not to a time in it. */
     tasksFor(s).filter(t=>!timedOn(t,s)).forEach(t=>{const c=cat(t.cat);
-      items.push('<button class="mchip'+(t.status==="completed"?" done":"")+'" style="--c:'+c.color+'" data-act="task" data-id="'+t.id+'" data-stop="1"><span>'+esc(t.title)+'</span></button>');});
+      items.push('<button class="mchip'+(isDoneT(t)?" done":"")+'" style="--c:'+c.color+'" data-act="task" data-id="'+t.id+'" data-stop="1"><span>'+esc(t.title)+'</span></button>');});
     gd.allDay.filter(e=>hit(e.title)).forEach(e=>items.push(
       '<button class="gchip mline-chip" style="--c:'+e.color+'" data-act="gcal-ev" data-id="'+esc(e.id)+'" data-stop="1"><span>'+esc(e.title)+'</span></button>'));
     /* Then everything with a time, in order: a dot, the time, the name. */
@@ -763,7 +827,7 @@ function monthGrid(){
         html:'<button class="mline ev" style="--c:'+x.g.color+'" data-act="gcal-ev" data-id="'+esc(x.g.id)+'" data-stop="1">'+
           '<i class="mline-dot"></i><span class="mline-t num">'+esc(clock(x.start))+'</span><span class="mline-n">'+esc(x.g.title)+'</span></button>'})))
       .concat(tasksFor(s).filter(t=>timedOn(t,s)).map(t=>({start:tSpan(t).start,
-        html:'<button class="mline'+(t.status==="completed"?" done":"")+'" style="--c:'+cat(t.cat).color+'" data-act="task" data-id="'+t.id+'" data-stop="1">'+
+        html:'<button class="mline'+(isDoneT(t)?" done":"")+'" style="--c:'+cat(t.cat).color+'" data-act="task" data-id="'+t.id+'" data-stop="1">'+
           '<i class="mline-dot sq"></i><span class="mline-t num">'+esc(fmtTime(t.dueTime))+'</span><span class="mline-n">'+esc(t.title)+'</span></button>'})))
       .sort((p,r)=>p.start-r.start);
     timed.forEach(x=>items.push(x.html));
@@ -896,7 +960,7 @@ function viewDashboard(){
   const mins=tm=>{if(!tm)return -1;const x=tm.split(":").map(Number);return x[0]*60+x[1];};
 
   /* ---- to do: tasks due today ---- */
-  const taskRow=t=>{const c=cat(t.cat),done=t.status==="completed",est=tEst(t);
+  const taskRow=t=>{const c=cat(t.cat),done=isDoneT(t),est=tEst(t);
     return dashRow({color:c.color,done:done,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
       meta:esc(c.name)+(t.dueTime&&t.due===TODAY()?' · '+esc(fmtTaskTime(t)):"")+(t.deadline?' · deadline '+esc(t.deadline===TODAY()?"today":fmtDate(t.deadline)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
       end:done?"":timerBtn(t)});};
@@ -993,7 +1057,7 @@ function dashGreeting(){
 }
 function dashHero(d){
   const ts=TODAY(),over=overdueItems().tasks.length;
-  const doneT=d.tasks.filter(t=>t.status==="completed").length,doneRt=d.routines.filter(r=>doneR(r,ts)).length;
+  const doneT=d.tasks.filter(t=>isDoneT(t)).length,doneRt=d.routines.filter(r=>doneR(r,ts)).length;
   const total=d.tasks.length+d.routines.length,done=doneT+doneRt,left=total-done;
   const plural=(n,w)=>n+" "+w+(n===1?"":"s");
   let line;
@@ -1151,7 +1215,7 @@ function scratchToTask(){
   const lines=p?p.text.split(/\n+/).map(x=>x.replace(/^\s*[•\-*]\s*/,"").trim()).filter(Boolean):[];
   if(!lines.length){toast("Select some text in the scratch pad, or click into a line");return;}
   const made=lines.map(line=>{
-    const t={id:uid("t"),title:line.slice(0,200),desc:"",due:"",start:"",cat:S.categories[0].id,status:"backlog",
+    const t={id:uid("t"),title:line.slice(0,200),desc:"",due:"",start:"",cat:S.categories[0].id,status:firstOpen(),
       urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],created:TODAY(),completedAt:null};
     S.tasks.push(t);logAct(t.id,"created","Created from the scratch pad");return t;});
   p.remove();scratchCommit();save("tasks");
@@ -1180,7 +1244,7 @@ function quickAdd(){
   const inp=el("dashQuick");if(!inp)return;
   const title=inp.value.trim();if(!title)return;
   const c=(el("dashQuickCat")||{}).value||S.categories[0].id;
-  const t={id:uid("t"),title:title,desc:"",due:TODAY(),start:"",cat:c,status:"planned",
+  const t={id:uid("t"),title:title,desc:"",due:TODAY(),start:"",cat:c,status:firstOpen(),
     urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],created:TODAY(),completedAt:null};
   S.tasks.push(t);save("tasks");logAct(t.id,"created","Created this task");
   render();
@@ -1211,11 +1275,11 @@ function viewCalendar(){
 const QUICKS=[{id:"open",name:"Open"},{id:"today",name:"Today"},{id:"week",name:"This week"},{id:"overdue",name:"Overdue"},{id:"done",name:"Completed"},{id:"all",name:"Everything"}];
 function filterTasks(mode){
   const f=V.f,t0=TODAY(),wkEnd=ymd(addDays(startOfWeek(today()),6));
-  let list=S.tasks.filter(t=>visibleCat(t.cat)&&matchQ(t,V.q));
+  let list=tops().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q));
   if(f.quick==="today")list=list.filter(t=>t.due===t0);
   else if(f.quick==="week")list=list.filter(t=>t.due&&t.due>=ymd(startOfWeek(today()))&&t.due<=wkEnd);
   else if(f.quick==="overdue")list=list.filter(isOverdue);
-  else if(f.quick==="done")list=list.filter(t=>t.status==="completed");
+  else if(f.quick==="done")list=list.filter(t=>isDoneT(t));
   else if(f.quick==="open"&&mode!=="board")list=list.filter(isOpen);
   else if(f.quick==="open"&&mode==="board")list=list.filter(t=>t.status!=="dropped"||true);
   if(f.status)list=list.filter(t=>t.status===f.status);
@@ -1237,11 +1301,12 @@ function filterBar(){
   let h='<div class="toolbar">'+QUICKS.map(q=>'<button class="filter-pill'+(V.f.quick===q.id?" on":"")+'" data-act="quick" data-v="'+q.id+'">'+esc(q.name)+'</button>').join("");
   h+='<div class="spacer"></div>';
   h+='<button class="filter-pill'+(V.adv||n?" on":"")+'" data-act="adv-toggle">'+icon("i-filter")+'Advanced'+(n?' · '+n:"")+'</button>';
+  h+='<button class="filter-pill" data-act="customise">'+icon("i-sliders")+'Customise</button>';
   if(n)h+='<button class="filter-pill" data-act="filter-clear">'+icon("i-x")+'Clear</button>';
   h+='</div>';
   if(V.adv){
     h+='<div class="adv">'+
-      field("Status",'<select class="inp" data-act="f" data-k="status"><option value="">Any status</option>'+STATUSES.map(s=>'<option value="'+s.id+'"'+(V.f.status===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select>')+
+      field("Status",'<select class="inp" data-act="f" data-k="status"><option value="">Any status</option>'+lanes().map(s=>'<option value="'+s.id+'"'+(V.f.status===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select>')+
       field("Category",catSelect('class="inp" data-act="f" data-k="cat"',V.f.cat,{any:"All categories"}))+
       field("Matrix quadrant",'<select class="inp" data-act="f" data-k="quad"><option value="">Any priority</option>'+QUADS.map(q=>'<option value="'+q.id+'"'+(V.f.quad===q.id?" selected":"")+'>'+esc(q.name)+'</option>').join("")+'<option value="none"'+(V.f.quad==="none"?" selected":"")+'>Not prioritised</option></select>')+
       field("Date from",dateField('data-act="f" data-k="from"',V.f.from,{label:"Date from",ph:"Any date"}))+
@@ -1255,7 +1320,7 @@ const field=(l,inner)=>'<div class="field"><label>'+esc(l)+'</label>'+inner+'</d
 
 /* ============ tasks: board + list ============ */
 function taskCard(t){
-  const c=cat(t.cat),subs=t.subtasks||[],dn=subs.filter(s=>s.d).length;
+  const c=cat(t.cat),sp=subProgress(t),subs={length:feat("subtasks")?sp.n:0},dn=sp.d;
   const q=quadOf(t),Q=q?QUADS.find(x=>x.id===q):null;
   const over=isOpen(t)&&!!t.due&&t.due<TODAY(),soon=!over&&t.due&&dayDiff(t.due,TODAY())<=1;
 
@@ -1267,7 +1332,7 @@ function taskCard(t){
   /* Once a task is finished or dropped its due date and priority no longer
      matter; what it says instead is that it is done, and when. */
   const doneWhen=d=>!d?"":d===TODAY()?" today":d===ymd(addDays(today(),-1))?" yesterday":" "+fmtDate(d);
-  const state=t.status==="completed"?'<span class="tc-state done">'+icon("i-check","ic-14")+'Done'+esc(doneWhen(t.completedAt))+'</span>'
+  const state=isDoneT(t)?'<span class="tc-state done">'+icon("i-check","ic-14")+'Done'+esc(doneWhen(t.completedAt))+'</span>'
     :t.status==="dropped"?'<span class="tc-state dropped">'+icon("i-x","ic-14")+'Dropped</span>':"";
   const head='<div class="tc-head">'+
     '<span class="tc-cat">'+icon(c.icon,"ic-14")+esc(c.name)+'</span>'+
@@ -1283,17 +1348,20 @@ function taskCard(t){
   const marks=[];
   const mark=(ic,n,one,many)=>'<span class="m-mark" title="'+n+' '+(n===1?one:many)+'">'+icon(ic,"ic-14")+'<span class="num">'+n+'</span></span>';
   if(subs.length)marks.push('<span class="m-mark" title="'+dn+' of '+subs.length+' subtasks done">'+icon("i-check","ic-14")+'<span class="num">'+dn+'/'+subs.length+'</span></span>');
-  if(comments)marks.push(mark("i-chat",comments,"comment","comments"));
-  if(docs)marks.push(mark("i-doc",docs,"document","documents"));
-  if(tFiles(t).length)marks.push(mark("i-clip",tFiles(t).length,"attachment","attachments"));
-  if(tLinks(t).length)marks.push(mark("i-link",tLinks(t).length,"linked task","linked tasks"));
+  if(comments&&feat("comments"))marks.push(mark("i-chat",comments,"comment","comments"));
+  if(docs&&feat("docs"))marks.push(mark("i-doc",docs,"document","documents"));
+  if(tFiles(t).length&&feat("files"))marks.push(mark("i-clip",tFiles(t).length,"attachment","attachments"));
+  if(tLinks(t).length&&feat("links"))marks.push(mark("i-link",tLinks(t).length,"linked task","linked tasks"));
+  /* Fields chosen to show on cards. */
+  const cfs=board().fields.filter(f=>f.card).map(f=>cfChip(t,f)).filter(Boolean);
 
   /* The quadrant's name is in the label too, for anyone not going by the
      badge's colour or icon. */
   const label=Q?esc(t.title)+" — "+Q.name+", "+Q.tag.toLowerCase():esc(t.title);
-  return '<div class="tcard'+(t.status==="completed"?" done":t.status==="dropped"?" dropped":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
+  return '<div class="tcard'+(isDoneT(t)?" done":t.status==="dropped"?" dropped":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
     head+
     '<div class="top">'+tickBtn(t)+'<span class="ttl">'+esc(t.title)+'</span></div>'+
+    (cfs.length?'<div class="tc-cf">'+cfs.join("")+'</div>':"")+
     (marks.length?'<div class="marks">'+marks.join("")+'</div>':"")+
     (subs.length?'<div class="bar" title="'+dn+' of '+subs.length+' subtasks done"><i style="width:'+Math.round(dn/subs.length*100)+'%"></i></div>':"")+
     '</div>';
@@ -1309,7 +1377,7 @@ function colCards(id,items){
 }
 function viewBoard(){
   const list=filterTasks("board");
-  return '<div class="task-main">'+filterBar()+'<div class="board-scroll"><div class="board">'+STATUSES.map(s=>{
+  return '<div class="task-main">'+filterBar()+'<div class="board-scroll"><div class="board">'+lanes().map(s=>{
     const items=list.filter(t=>t.status===s.id);
     return '<div class="col" data-col="'+s.id+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
       '<div class="col-list">'+(items.length?colCards(s.id,items):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
@@ -1318,7 +1386,7 @@ function viewBoard(){
 function viewList(){
   const list=filterTasks("list");
   if(!list.length){
-    const any=S.tasks.some(t=>visibleCat(t.cat)),n=activeFilterCount();
+    const any=tops().some(t=>visibleCat(t.cat)),n=activeFilterCount();
     const acts=any?(n?'<button class="btn btn-sm" data-act="filter-clear">'+icon("i-x","ic-14")+'Clear filters</button>':"")+
         (V.f.quick!=="all"?'<button class="btn btn-sm" data-act="quick" data-v="all">Show everything</button>':"")
       :'<button class="btn btn-sm btn-primary" data-act="new-task">'+icon("i-plus","ic-14")+'New task</button>';
@@ -1329,29 +1397,370 @@ function viewList(){
   const groups={},order=[];
   list.forEach(t=>{const k=t.due?MONS[parseD(t.due).getMonth()]+" "+parseD(t.due).getFullYear():"No date";
     if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(t);});
-  const head='<div class="lrow head"><span></span><span>Task</span><span>Date</span><span>Priority</span><span>Category</span><span>Status</span><span></span></div>';
+  /* The columns chosen in Customise, in their order; the grid is sized to
+     match, so hidden columns take no room. */
+  const cols=listCols().filter(c=>c.on);
+  const grid='grid-template-columns:26px minmax(180px,1fr) '+cols.map(c=>colW(c.k)).join(" ")+' 30px';
+  const head='<div class="lrow head" style="'+grid+'"><span></span><span>Task</span>'+cols.map(c=>'<span>'+esc(colLabel(c.k))+'</span>').join("")+'<span></span></div>';
   return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+order.map(k=>'<div class="lgroup"><h3>'+esc(k)+'<span class="n num">'+groups[k].length+'</span></h3><div class="ltable">'+head+
-    groups[k].map(t=>{const c=cat(t.cat),s=ST(t.status),subs=t.subtasks||[];
-      return '<div class="lrow'+(t.status==="completed"?" done":"")+'" data-act="task" data-id="'+t.id+'">'+
+    groups[k].map(t=>{const c=cat(t.cat),sp=subProgress(t);
+      return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-act="task" data-id="'+t.id+'">'+
         tickBtn(t)+
-        '<span class="name">'+icon(c.icon,"ic-14")+'<b>'+esc(t.title)+'</b>'+(subs.length?'<span class="sub num">'+subs.filter(x=>x.d).length+'/'+subs.length+'</span>':"")+'</span>'+
-        '<span class="sub num lr-when" style="color:'+(isOverdue(t)?"var(--danger)":"var(--muted)")+'">'+esc(t.due?fmtDate(t.due):"—")+dlMark(t)+'</span>'+
-        '<span>'+(quadChip(t)||'<span class="sub">—</span>')+'</span>'+
-        '<span>'+catChip(t.cat)+'</span>'+
-        '<span class="status-dot" style="--s:'+s.color+'"><span class="sw"></span>'+esc(s.name)+'</span>'+
+        '<span class="name">'+icon(c.icon,"ic-14")+'<b>'+esc(t.title)+'</b>'+(sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+'</span>'+
+        cols.map(c=>colCell(c.k,t)).join("")+
         '<button class="rowbtn" data-act="task" data-id="'+t.id+'" data-stop="1" aria-label="Edit task">'+icon("i-edit","ic-14")+'</button></div>';}).join("")+
     '</div></div>').join("")+'</div></div>';
 }
 
+/* ============ customise ============
+   How tasks work, set by the person: the board's lanes, which parts the task
+   panel has, whether subtasks are tasks in their own right, the list's
+   columns and fields of their own. All of it is prefs.board (board(), at the
+   top of the file), so it travels with backups and Drive like any setting.
+   One window, opened from Customise beside Advanced, three tabs. */
+
+/* ---- fields of their own ----
+   prefs.board.fields: {id, name, type, desc, options:[{id,name,color}],
+   panel, list, card}. A task keeps its values in t.cf, by field id. */
+const CF_TYPES=[
+ ["text","Text","i-type","A line of words"],["number","Number","i-hash","Cost, effort, a count"],
+ ["date","Date","i-calendar","A day"],["single","Single-select","i-single","One of your options"],
+ ["multi","Multi-select","i-multi","Any of your options"],["checkbox","Checkbox","i-check","Yes or no"],
+ ["link","Link","i-link","A web address"],["rating","Rating","i-star","One to five stars"],
+ ["progress","Progress","i-chart","0 to 100%"]];
+const cfType=k=>CF_TYPES.find(x=>x[0]===k)||CF_TYPES[0];
+const fieldById=id=>board().fields.find(f=>f.id===id)||null;
+const cfVal=(t,f)=>t.cf&&t.cf[f.id]!=null?t.cf[f.id]:(f.type==="multi"?[]:"");
+const cfOpt=(f,id)=>(f.options||[]).find(o=>o.id===id)||null;
+function cfText(f,v){
+  if(v==null||v===""||(Array.isArray(v)&&!v.length))return "—";
+  switch(f.type){
+    case "date":return fmtDate(v);
+    case "single":{const o=cfOpt(f,v);return o?o.name:"—";}
+    case "multi":return v.map(id=>(cfOpt(f,id)||{}).name).filter(Boolean).join(", ")||"—";
+    case "checkbox":return v?"Yes":"No";
+    case "rating":return "★".repeat(Number(v)||0);
+    case "progress":return (Number(v)||0)+"%";
+    default:return String(v);
+  }
+}
+/* A field's value drawn small: in a list cell or on a card. */
+function cfChip(t,f){
+  const v=cfVal(t,f);
+  if(v===""||v==null||(Array.isArray(v)&&!v.length)||(f.type==="checkbox"&&!v))return "";
+  const opt=o=>o?'<span class="cf-opt" style="--c:'+o.color+'">'+esc(o.name)+'</span>':"";
+  switch(f.type){
+    case "single":return opt(cfOpt(f,v));
+    case "multi":return v.map(id=>opt(cfOpt(f,id))).join("");
+    case "checkbox":return '<span class="cf-yes">'+icon("i-check","ic-14")+esc(f.name)+'</span>';
+    case "link":return '<a class="cf-link" href="'+esc(/^https?:\/\//i.test(v)?v:"https://"+v)+'" target="_blank" rel="noopener noreferrer" data-stop="1">'+icon("i-link","ic-14")+esc(String(v).replace(/^https?:\/\//i,"").slice(0,32))+'</a>';
+    case "rating":return '<span class="cf-stars" aria-label="'+v+' of 5">'+"★".repeat(Number(v)||0)+'<i>'+"★".repeat(5-(Number(v)||0))+'</i></span>';
+    case "progress":return '<span class="cf-prog"><i style="width:'+Math.max(0,Math.min(100,Number(v)||0))+'%"></i></span><span class="num cf-pct">'+(Number(v)||0)+'%</span>';
+    case "date":return '<span class="num">'+esc(fmtDate(v))+'</span>';
+    default:return '<span class="cf-txt">'+esc(String(v))+'</span>';
+  }
+}
+/* The control for a field in the task panel. Every one saves on change, as
+   the rest of the panel does. */
+function cfControl(t,f){
+  const v=cfVal(t,f),a='data-act="sh-cf" data-k="'+f.id+'"';
+  switch(f.type){
+    case "number":return '<input class="inp inp-sm cf-in" type="number" '+a+' value="'+esc(v)+'" placeholder="0">';
+    case "date":return dateField(a,v,{sm:1,label:f.name,ph:"Pick a day"});
+    case "single":return '<select class="inp inp-sm" '+a+'><option value="">None</option>'+(f.options||[]).map(o=>
+      '<option value="'+o.id+'"'+(v===o.id?" selected":"")+'>'+esc(o.name)+'</option>').join("")+'</select>';
+    case "multi":return '<div class="cf-pills">'+(f.options||[]).map(o=>
+      '<button class="cf-pill'+(v.indexOf(o.id)>-1?" on":"")+'" style="--c:'+o.color+'" data-act="sh-cf-multi" data-k="'+f.id+'" data-v="'+o.id+'" aria-pressed="'+(v.indexOf(o.id)>-1)+'">'+esc(o.name)+'</button>').join("")+
+      (!(f.options||[]).length?'<span class="mnone">No options yet. Add some in Customise.</span>':"")+'</div>';
+    case "checkbox":return '<label class="switch"><input type="checkbox" '+a+(v?" checked":"")+'><span></span><i>'+(v?"Yes":"No")+'</i></label>';
+    case "link":return '<div class="cf-linkrow"><input class="inp inp-sm" type="url" '+a+' value="'+esc(v)+'" placeholder="https://…">'+
+      (v?'<a class="icon-btn btn-sm" href="'+esc(/^https?:\/\//i.test(v)?v:"https://"+v)+'" target="_blank" rel="noopener noreferrer" aria-label="Open link">'+icon("i-pop","ic-14")+'</a>':"")+'</div>';
+    case "rating":return '<div class="cf-rate" role="radiogroup" aria-label="'+esc(f.name)+'">'+[1,2,3,4,5].map(n=>
+      '<button class="'+(n<=v?"on":"")+'" data-act="sh-cf-rate" data-k="'+f.id+'" data-v="'+n+'" role="radio" aria-checked="'+(n===Number(v))+'" aria-label="'+n+' of 5">★</button>').join("")+'</div>';
+    case "progress":return '<div class="cf-range"><input type="range" min="0" max="100" step="5" '+a+' value="'+(Number(v)||0)+'"><span class="num">'+(Number(v)||0)+'%</span></div>';
+    default:return '<input class="inp inp-sm" '+a+' value="'+esc(v)+'" placeholder="'+esc(f.desc||"Add text")+'">';
+  }
+}
+function setCf(k,v){
+  const t=sheetTask();if(!t)return;
+  const cf=Object.assign({},t.cf||{});
+  if(v===""||v==null||(Array.isArray(v)&&!v.length))delete cf[k];else cf[k]=v;
+  patchCurrent({cf:cf});
+}
+
+/* ---- subtasks as tasks ----
+   With prefs.board.fullSubs on, a subtask is a task of its own with a
+   parent: dates, lane, comments, documents, a timer. It lives inside its
+   parent only -- the board, calendar, lists, matrix, today and overdue all
+   read tops(), which leaves them out. Switching it on turns the checklist
+   subtasks every task had into these; switching it off keeps them, drawn
+   as a checklist again. */
+const tops=()=>ix("tops",()=>S.tasks.filter(t=>!t.parent));
+const kidsOf=id=>(ix("kids",()=>groupBy(S.tasks.filter(t=>t.parent),t=>t.parent)).get(id)||NONE);
+function subProgress(t){
+  const light=t.subtasks||[],k=t.id?kidsOf(t.id):NONE;
+  return {n:light.length+k.length,d:light.filter(x=>x.d).length+k.filter(isDoneT).length};
+}
+function setFullSubs(on){
+  const b=board();b.fullSubs=on;
+  if(on){
+    let n=0;
+    S.tasks.slice().forEach(t=>{
+      if(t.parent||!(t.subtasks||[]).length)return;
+      t.subtasks.forEach(s=>{if(!s.t)return;S.tasks.push(newTask({title:s.t,parent:t.id,cat:t.cat,status:s.d?firstDone():firstOpen()}));n++;});
+      t.subtasks=[];
+    });
+    if(n)save("tasks");
+  }
+  save("prefs");
+}
+function addKid(parentId,title){
+  const p=taskById(parentId);if(!p||!title.trim())return;
+  const k=newTask({title:title.trim().slice(0,200),parent:p.id,cat:p.cat});
+  S.tasks.push(k);logAct(k.id,"created","Added as a subtask of “"+p.title+"”");save("tasks");
+}
+function kidRow(k){
+  const s=ST(k.status);
+  return '<div class="kid'+(isDoneT(k)?" done":"")+'">'+tickBtn(k)+
+    '<button class="kid-t" data-act="task" data-id="'+k.id+'">'+esc(k.title||"Untitled")+'</button>'+
+    (k.due?'<span class="kid-when num">'+esc(relDue(k.due))+'</span>':"")+
+    '<span class="kid-lane" style="--s:'+s.color+'"><i></i>'+esc(s.name)+'</span>'+
+    '<span class="kid-go">'+icon("i-chev-r","ic-14")+'</span></div>';
+}
+function subtasksSection(t,isNew){
+  const light=t.subtasks||[],k=t.id?kidsOf(t.id):NONE,full=!!board().fullSubs,p=subProgress(t);
+  let h='<div class="sh-sec"><label class="sec-label">Subtasks'+(p.n?' <span class="num">'+p.d+'/'+p.n+'</span>':"")+'</label>';
+  if(full&&!isNew){
+    h+=(k.length?'<div class="kids">'+k.map(kidRow).join("")+'</div>':"")+
+      (light.length?'<div id="shSubs">'+light.map(subRow).join("")+'</div>':"")+
+      '<div class="kid-add">'+icon("i-plus","ic-14")+'<input id="shKid" autocomplete="off" placeholder="Add a subtask, then press Enter" aria-label="New subtask"></div>';
+  }else{
+    h+='<div id="shSubs">'+light.map(subRow).join("")+'</div>'+
+      (k.length?'<div class="kids">'+k.map(kidRow).join("")+'</div>':"")+
+      '<button class="btn btn-sm" data-act="sh-sub-add" style="margin-top:8px">'+icon("i-plus","ic-14")+'Add subtask</button>';
+  }
+  return h+'</div>';
+}
+
+/* ---- the list's columns ----
+   prefs.board.cols: [{k, on}] in order; a custom field is "cf:<id>". */
+function listCols(){
+  const b=board(),seen={};
+  const cols=b.cols.filter(c=>{
+    if(seen[c.k])return false;seen[c.k]=1;
+    return c.k.indexOf("cf:")===0?!!fieldById(c.k.slice(3)):LIST_COLS.some(x=>x[0]===c.k);});
+  LIST_COLS.forEach(x=>{if(!seen[x[0]])cols.push({k:x[0],on:false});});
+  b.fields.forEach(f=>{if(!seen["cf:"+f.id])cols.push({k:"cf:"+f.id,on:f.list!==false});});
+  return cols;
+}
+function colLabel(k){
+  if(k.indexOf("cf:")===0){const f=fieldById(k.slice(3));return f?f.name:"Field";}
+  return (LIST_COLS.find(x=>x[0]===k)||[k,k])[1];
+}
+const COL_W={date:"118px",priority:"96px",category:"112px",status:"124px",deadline:"104px",estimate:"84px",tracked:"96px",tags:"minmax(90px,150px)",created:"96px"};
+const colW=k=>{if(k.indexOf("cf:")!==0)return COL_W[k]||"110px";
+  const f=fieldById(k.slice(3))||{};return {rating:"96px",progress:"120px",checkbox:"90px",number:"90px",date:"104px",multi:"minmax(110px,180px)",text:"minmax(110px,180px)"}[f.type]||"124px";};
+function colCell(k,t){
+  switch(k){
+    case "date":return '<span class="sub num lr-when" style="color:'+(isOverdue(t)?"var(--danger)":"var(--muted)")+'">'+esc(t.due?fmtDate(t.due):"—")+dlMark(t)+'</span>';
+    case "priority":return '<span>'+(quadChip(t)||'<span class="sub">—</span>')+'</span>';
+    case "category":return '<span>'+catChip(t.cat)+'</span>';
+    case "status":{const s=ST(t.status);return '<span class="status-dot" style="--s:'+s.color+'"><span class="sw"></span>'+esc(s.name)+'</span>';}
+    case "deadline":return '<span class="sub num">'+esc(t.deadline?fmtDate(t.deadline):"—")+'</span>';
+    case "estimate":return '<span class="sub num">'+(tEst(t)?esc(fmtMins(tEst(t))):"—")+'</span>';
+    case "tracked":{const s=trackedSecs(t.id);return '<span class="sub num">'+(s?esc(fmtTracked(s)):"—")+'</span>';}
+    case "tags":return '<span class="lr-tags">'+((t.tags||[]).map(x=>'<span class="chip">#'+esc(x)+'</span>').join("")||'<span class="sub">—</span>')+'</span>';
+    case "created":return '<span class="sub num">'+esc(t.created?fmtDate(t.created):"—")+'</span>';
+  }
+  const f=fieldById(k.slice(3));
+  return '<span class="lr-cf">'+(f?(cfChip(t,f)||'<span class="sub">—</span>'):"")+'</span>';
+}
+
+/* ---- the window ---- */
+function customiseModal(){
+  const c=V.cz=V.cz||{tab:"lanes"};
+  const tabs=[["lanes","Swimlanes","i-board"],["panel","Task panel","i-panel"],["cols","Columns and fields","i-table"]];
+  const body=c.edit?czFieldEditor():c.tab==="panel"?czPanel():c.tab==="cols"?czCols():czLanes();
+  openModal('<div class="modal cz" role="dialog" aria-modal="true" aria-label="Customise tasks">'+
+    '<div class="mhead2">'+icon("i-sliders","ic-18")+'<h2>Customise tasks</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+    '<div class="cz-tabs" role="tablist">'+tabs.map(x=>'<button role="tab" class="cz-tab" data-act="cz-tab" data-v="'+x[0]+'" aria-selected="'+(c.tab===x[0]&&!c.edit)+'">'+icon(x[2],"ic-14")+x[1]+'</button>').join("")+'</div>'+
+    '<div class="mbody cz-body">'+body+'</div></div>');
+}
+function czLanes(){
+  const L=lanes(),count=id=>tops().filter(t=>t.status===id).length,doneN=L.filter(l=>l.done).length;
+  const del=V.cz.del?lane(V.cz.del):null;
+  return '<p class="cz-lead">The columns of your board. Drag to reorder, rename in place, and mark the lanes that count as finished.</p>'+
+    '<div class="cz-lanes" id="czLanes">'+L.map((l,i)=>{const n=count(l.id),pal=V.cz.pal===l.id;
+      return '<div class="cz-lane" draggable="true" data-lane="'+l.id+'" style="--s:'+l.color+'">'+
+        '<span class="cz-grip" title="Drag to reorder" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
+        '<button class="cz-swatch" data-act="cz-lane-pal" data-id="'+l.id+'" aria-label="Colour of '+esc(l.name)+'" aria-expanded="'+pal+'"></button>'+
+        '<input class="cz-name" data-act="cz-lane-name" data-id="'+l.id+'" value="'+esc(l.name)+'" maxlength="40" aria-label="Lane name">'+
+        '<span class="cz-n num" title="Tasks in this lane">'+n+'</span>'+
+        '<label class="switch cz-done" title="Ticking a task moves it here, and it counts as finished"><input type="checkbox" data-act="cz-lane-done" data-id="'+l.id+'"'+(l.done?" checked":"")+'><span></span><i>Done</i></label>'+
+        '<span class="cz-move">'+
+          '<button class="icon-btn btn-sm" data-act="cz-lane-move" data-id="'+l.id+'" data-v="-1" aria-label="Move up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
+          '<button class="icon-btn btn-sm" data-act="cz-lane-move" data-id="'+l.id+'" data-v="1" aria-label="Move down"'+(i<L.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
+        '<button class="icon-btn btn-sm cz-del" data-act="cz-lane-del" data-id="'+l.id+'" aria-label="Remove '+esc(l.name)+'"'+(L.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
+        (pal?'<div class="cz-pal">'+LANE_COLORS.map(x=>'<button class="'+(x===l.color?"on":"")+'" style="--c:'+x+'" data-act="cz-lane-color" data-id="'+l.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
+          '<label class="cz-own" title="Any colour"><input type="color" data-act="cz-lane-hex" data-id="'+l.id+'" value="'+l.color+'"><span>Custom</span></label></div>':"")+
+        (del&&del.id===l.id?czDelRow(l,n):"")+
+        '</div>';}).join("")+'</div>'+
+    '<button class="btn btn-sm" data-act="cz-lane-add">'+icon("i-plus","ic-14")+'Add a lane</button>'+
+    (!doneN?'<p class="cz-warn">'+icon("i-alert","ic-14")+'No lane counts as done, so ticking a task moves it to the last lane.</p>':"");
+}
+function czDelRow(l,n){
+  const others=lanes().filter(x=>x.id!==l.id);
+  return '<div class="cz-delrow">'+(n
+    ?'<span>Move its '+n+' task'+(n===1?"":"s")+' to</span><select class="inp inp-sm" id="czMoveTo">'+others.map(x=>'<option value="'+x.id+'"'+(x.done===l.done?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>'
+    :'<span>Remove this empty lane?</span>')+
+    '<div class="spacer" style="flex:1"></div><button class="btn btn-sm" data-act="cz-lane-del-no">Keep it</button>'+
+    '<button class="btn btn-sm btn-danger" data-act="cz-lane-del-yes" data-id="'+l.id+'">Remove lane</button></div>';
+}
+function czPanel(){
+  const sw=(k,label,on,act)=>'<label class="switch cz-sw"><input type="checkbox" data-act="'+(act||"cz-feat")+'" data-k="'+k+'"'+(on?" checked":"")+'><span></span><i>'+esc(label)+'</i></label>';
+  const b=board();
+  return '<p class="cz-lead">Choose what a task holds. Anything switched off is hidden from the task panel; what you already entered is kept.</p>'+
+    '<div class="cz-hero">'+icon("i-multi","ic-18")+'<div><b>Subtasks work like tasks</b>'+
+      '<p>Each subtask gets its own dates, lane, comments, documents and timer, and opens like a task. They stay inside their parent, so your board stays tidy.</p></div>'+
+      sw("fullSubs","",!!b.fullSubs,"cz-fullsubs")+'</div>'+
+    '<div class="cz-grid">'+BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh">'+esc(g[0])+'</div>'+
+      g[1].map(x=>sw(x[0],x[1],feat(x[0]))).join("")+'</div>').join("")+
+    (b.fields.length?'<div class="cz-group"><div class="cz-gh">Your fields</div>'+b.fields.map(f=>sw(f.id,f.name,f.panel!==false,"cz-fpanel")).join("")+'</div>':"")+
+    '</div>';
+}
+function czCols(){
+  const cols=listCols(),b=board();
+  return '<p class="cz-lead">Pick the columns the list shows, in the order you want them, and make fields of your own. The task’s name is always first.</p>'+
+    '<div class="cz-cols" id="czCols">'+cols.map((c,i)=>{const cf=c.k.indexOf("cf:")===0?fieldById(c.k.slice(3)):null;
+      return '<div class="cz-col'+(c.on?"":" off")+'" draggable="true" data-col="'+esc(c.k)+'">'+
+        '<span class="cz-grip" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
+        '<span class="cz-col-ic">'+icon(cf?cfType(cf.type)[2]:"i-list","ic-14")+'</span>'+
+        '<span class="cz-col-n">'+esc(colLabel(c.k))+(cf?'<small>'+esc(cfType(cf.type)[1])+'</small>':"")+'</span>'+
+        (cf?'<button class="icon-btn btn-sm" data-act="cz-field-edit" data-id="'+cf.id+'" aria-label="Edit '+esc(cf.name)+'">'+icon("i-edit","ic-14")+'</button>':"")+
+        '<span class="cz-move">'+
+          '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="-1" aria-label="Move up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
+          '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="1" aria-label="Move down"'+(i<cols.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
+        '<button class="cz-eye" data-act="cz-col-toggle" data-k="'+esc(c.k)+'" aria-pressed="'+c.on+'" title="'+(c.on?"Shown. Click to hide":"Hidden. Click to show")+'">'+icon(c.on?"i-eye":"i-eye-off","ic-14")+(c.on?"Shown":"Hidden")+'</button>'+
+        '</div>';}).join("")+'</div>'+
+    '<button class="btn btn-sm btn-primary" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button>'+
+    (b.fields.length?"":'<p class="cz-note">Fields you make show as a column here, in the task panel, and on board cards if you like.</p>');
+}
+/* Making or changing a field: its name, its type, a note, and for the two
+   select types, the options. Held in V.cz.draft until saved. */
+function czFieldEditor(){
+  const d=V.cz.draft,sel=d.type==="single"||d.type==="multi";
+  return '<button class="linkish cz-back" data-act="cz-field-back">'+icon("i-chev-l","ic-14")+'Back to columns</button>'+
+    '<h3 class="cz-h">'+(d.isNew?"New field":"Edit field")+'</h3>'+
+    '<div class="cz-form">'+
+      '<label class="cz-l"><span>Field name<span class="req" aria-hidden="true">*</span></span><input class="inp" id="czFName" maxlength="40" value="'+esc(d.name)+'" placeholder="Related work, Effort in days, Client…" autocomplete="off"></label>'+
+      (d.showDesc||d.desc?'<label class="cz-l">Description<input class="inp" id="czFDesc" maxlength="120" value="'+esc(d.desc||"")+'" placeholder="What goes in it"></label>'
+        :'<button class="linkish" data-act="cz-desc-show">'+icon("i-plus","ic-14")+'Add a description</button>')+
+      '<div class="cz-l">Field type'+(d.isNew?"":'<small>Changing the type clears values that do not fit it.</small>')+'</div>'+
+      '<div class="cz-types" role="radiogroup" aria-label="Field type">'+CF_TYPES.map(x=>
+        '<button class="cz-type'+(d.type===x[0]?" on":"")+'" data-act="cz-ftype" data-v="'+x[0]+'" role="radio" aria-checked="'+(d.type===x[0])+'">'+icon(x[2],"ic-16")+'<b>'+x[1]+'</b><small>'+x[3]+'</small></button>').join("")+'</div>'+
+      (sel?'<div class="cz-l">Options</div><div class="cz-opts">'+(d.options||[]).map((o,i)=>
+          '<div class="cz-opt"><button class="cz-dot" style="--c:'+o.color+'" data-act="cz-opt-color" data-v="'+i+'" aria-label="Change colour"></button>'+
+          '<input class="inp inp-sm" data-act="cz-opt-name" data-v="'+i+'" value="'+esc(o.name)+'" placeholder="Option '+(i+1)+'" maxlength="40">'+
+          '<button class="icon-btn btn-sm" data-act="cz-opt-del" data-v="'+i+'" aria-label="Remove option">'+icon("i-x","ic-14")+'</button></div>').join("")+
+        '<button class="btn btn-sm" data-act="cz-opt-add">'+icon("i-plus","ic-14")+'Add an option</button></div>':"")+
+      '<div class="cz-l">Show it</div>'+
+      '<div class="cz-where">'+[["panel","In the task panel"],["list","As a column in the list"],["card","On board cards"]].map(x=>
+        '<label class="chk"><input type="checkbox" id="czW_'+x[0]+'"'+(d[x[0]]!==false?" checked":"")+'><span>'+x[1]+'</span></label>').join("")+'</div>'+
+    '</div>'+
+    '<div class="cz-foot">'+(d.isNew?"":'<button class="btn btn-ghost btn-danger" data-act="cz-field-del" data-id="'+d.id+'">'+icon("i-trash","ic-14")+'Delete field</button>')+
+      '<div class="spacer" style="flex:1"></div><button class="btn" data-act="cz-field-back">Cancel</button>'+
+      '<button class="btn btn-primary" data-act="cz-field-save">'+icon("i-check")+(d.isNew?"Create field":"Save")+'</button></div>';
+}
+/* Read what is typed in the editor into the draft before any redraw. */
+function czReadDraft(){
+  const d=V.cz&&V.cz.draft;if(!d)return;
+  const n=el("czFName");if(n)d.name=n.value;
+  const ds=el("czFDesc");if(ds)d.desc=ds.value;
+  ["panel","list","card"].forEach(k=>{const c=el("czW_"+k);if(c)d[k]=c.checked;});
+  document.querySelectorAll('[data-act="cz-opt-name"]').forEach(i=>{const o=d.options[Number(i.dataset.v)];if(o)o.name=i.value;});
+}
+function czSaveField(){
+  czReadDraft();
+  const d=V.cz.draft,b=board();
+  if(!d.name.trim()){toast("Give the field a name");const n=el("czFName");if(n)n.focus();return;}
+  const f={id:d.id,name:d.name.trim(),type:d.type,desc:(d.desc||"").trim(),panel:d.panel!==false,list:d.list!==false,card:d.card===true,
+    options:(d.type==="single"||d.type==="multi")?(d.options||[]).filter(o=>o.name.trim()).map(o=>({id:o.id,name:o.name.trim(),color:o.color})):[]};
+  const was=fieldById(f.id);
+  if(was){
+    /* A new type, or options taken away, leaves values that no longer fit. */
+    if(was.type!==f.type||f.options.length<(was.options||[]).length){
+      const ok=new Set(f.options.map(o=>o.id));
+      S.tasks.forEach(t=>{if(!t.cf||t.cf[f.id]==null)return;
+        const v=t.cf[f.id];
+        if(was.type!==f.type)delete t.cf[f.id];
+        else if(f.type==="single"&&!ok.has(v))delete t.cf[f.id];
+        else if(f.type==="multi")t.cf[f.id]=v.filter(x=>ok.has(x));});
+      save("tasks");
+    }
+    Object.assign(was,f);
+  }else b.fields.push(f);
+  const col=b.cols.find(c=>c.k==="cf:"+f.id);
+  if(col)col.on=f.list;else b.cols.push({k:"cf:"+f.id,on:f.list});
+  save("prefs");V.cz.edit=null;V.cz.draft=null;V.cz.tab="cols";
+  customiseModal();render();renderSheet();toast(was?"Field saved":"Field “"+f.name+"” added");
+}
+function czDeleteField(id){
+  const b=board();b.fields=b.fields.filter(f=>f.id!==id);b.cols=b.cols.filter(c=>c.k!=="cf:"+id);
+  S.tasks.forEach(t=>{if(t.cf&&id in t.cf)delete t.cf[id];});
+  save("prefs");save("tasks");V.cz.edit=null;V.cz.draft=null;
+  customiseModal();render();renderSheet();toast("Field deleted");
+}
+function czMoveLane(id,step){
+  const L=lanes(),i=L.findIndex(l=>l.id===id),j=i+step;
+  if(i<0||j<0||j>=L.length)return;
+  const x=L.splice(i,1)[0];L.splice(j,0,x);save("prefs");customiseModal();render();
+}
+function czMoveCol(k,step){
+  const cols=listCols(),i=cols.findIndex(c=>c.k===k),j=i+step;
+  if(i<0||j<0||j>=cols.length)return;
+  const x=cols.splice(i,1)[0];cols.splice(j,0,x);board().cols=cols;save("prefs");customiseModal();render();
+}
+function czRemoveLane(id){
+  const L=lanes();if(L.length<2)return;
+  const l=lane(id);if(!l)return;
+  if(l.done&&L.filter(x=>x.done).length===1&&L.length>1)toast("No lane counts as done now. Mark another one in Customise.");
+  const to=(el("czMoveTo")||{}).value||(L.find(x=>x.id!==id)||{}).id;
+  S.tasks.forEach(t=>{if(t.status===id){t.status=to;t.completedAt=isDoneT(t)?(t.completedAt||TODAY()):null;}});
+  board().lanes=L.filter(x=>x.id!==id);
+  V.cz.del=null;save("tasks");save("prefs");customiseModal();render();renderSheet();toast("Lane removed");
+}
+/* Dragging a lane or a column in the list to a new place. */
+function czDragWire(){
+  let from=null;
+  document.addEventListener("dragstart",e=>{
+    const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col");if(!r)return;
+    from=r;r.classList.add("dragging");try{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain","");}catch(x){}
+  });
+  document.addEventListener("dragover",e=>{
+    if(!from)return;const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col");
+    if(!r||r===from||r.parentNode!==from.parentNode)return;
+    e.preventDefault();const b=r.getBoundingClientRect(),after=e.clientY>b.top+b.height/2;
+    r.parentNode.insertBefore(from,after?r.nextSibling:r);
+  });
+  document.addEventListener("dragend",()=>{
+    if(!from)return;const box=from.parentNode;from.classList.remove("dragging");from=null;
+    if(box.id==="czLanes"){const order=[...box.children].map(x=>x.dataset.lane);
+      board().lanes=order.map(id=>lane(id)).filter(Boolean);save("prefs");customiseModal();render();}
+    else if(box.id==="czCols"){const cols=listCols(),order=[...box.children].map(x=>x.dataset.col);
+      board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean);save("prefs");customiseModal();render();}
+  });
+}
+czDragWire();
+
 /* ============ matrix ============ */
 function viewMatrix(){
-  const base=S.tasks.filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped"&&(V.f.quick==="done"?true:t.status!=="completed"||V.f.quick==="all"));
+  const base=tops().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped"&&(V.f.quick==="done"?true:!isDoneT(t)||V.f.quick==="all"));
   const byDue=(a,b)=>{if(!a.due)return 1;if(!b.due)return -1;return a.due<b.due?-1:(a.due>b.due?1:0);};
   const grid='<div class="mx">'+QUADS.map(Q=>{
     const items=base.filter(t=>quadOf(t)===Q.id).sort(byDue);
     return '<section class="quad '+Q.cls+'"><div class="quad-head">'+icon(Q.icon,"ic-18")+'<div><h3>'+esc(Q.name)+'</h3><p>'+esc(Q.note)+'</p></div><span class="n num">'+items.length+'</span></div>'+
       '<div class="quad-body">'+(items.length?items.map(t=>
-        '<div class="qrow'+(t.status==="completed"?" done":"")+'" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+
+        '<div class="qrow'+(isDoneT(t)?" done":"")+'" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+
         '<div class="t"><b>'+esc(t.title)+'</b><div class="m">'+catChip(t.cat)+'<span class="chip">'+esc(ST(t.status).name)+'</span></div></div>'+
         '<span class="chip chip-due '+(isOverdue(t)?"over":(t.due&&dayDiff(t.due,TODAY())<=1?"soon":""))+'">'+esc(t.due?fmtDate(t.due):"No date")+'</span></div>').join("")
         :es("",QUAD_EMPTY[Q.id][0],QUAD_EMPTY[Q.id][1],{icon:Q.icon,hue:"var(--q)",cls:"es-quad"}))+'</div></section>';}).join("")+'</div>';
@@ -1458,7 +1867,7 @@ function viewNotes(){
     '<input class="inp" id="noteTags" style="width:auto;min-width:200px;flex:1" value="'+esc((n.tags||[]).join(", "))+'" placeholder="Tags, comma separated">'+
     '</div>';
   const acts='<div class="actions-panel"><h4>'+icon("i-check","ic-14")+'Action items <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0">— each one becomes a task on your board and calendar</span></h4>'+
-    (n.actions||[]).map(a=>{const t=a.taskId?taskById(a.taskId):null;const done=t?t.status==="completed":a.done;
+    (n.actions||[]).map(a=>{const t=a.taskId?taskById(a.taskId):null;const done=t?isDoneT(t):a.done;
       return '<div class="ai-row'+(done?" done":"")+'"><button class="tick'+(done?" on":"")+'" data-act="ai-done" data-nid="'+n.id+'" data-id="'+a.id+'" aria-label="Complete">'+icon("i-check")+'</button>'+
         '<span class="t">'+esc(a.t)+'</span>'+(t&&t.due?'<span class="chip chip-due">'+esc(relDue(t.due))+'</span>':"")+
         (t?'<button class="rowbtn" style="opacity:1" data-act="task" data-id="'+t.id+'" aria-label="Open task">'+icon("i-edit","ic-14")+'</button>':"")+
@@ -2669,7 +3078,9 @@ function renderView(){
   if(V.view==="calendar"&&document.querySelector(".mgrid"))fitMonth();
 }
 function render(){
-  ixDrop();fixTasks();
+  /* The lanes are settled before anything else: first thing on a new planner,
+     before any task can arrive and make it look like an old one. */
+  ixDrop();board();fixTasks();
   renderRail();renderTopbar();renderView();
   /* The day popup lists what the page does; a tick in it redraws the page, so
      the popup is redrawn with it rather than left showing the old state. */
@@ -2679,9 +3090,11 @@ function render(){
 /* ============ actions ============ */
 function toggleTaskDone(id){
   const t=taskById(id);if(!t)return;
-  if(t.status==="completed"){t.status="planned";t.completedAt=null;logAct(id,"reopened","Reopened the task");}
-  else{t.status="completed";t.completedAt=TODAY();logAct(id,"done","Completed the task");}
+  if(isDoneT(t)){t.status=firstOpen();t.completedAt=null;logAct(id,"reopened","Reopened the task");}
+  else{t.status=firstDone();t.completedAt=TODAY();logAct(id,"done","Completed the task");}
   save("tasks");render();
+  /* A subtask ticked in its parent's panel: the panel shows the tick too. */
+  if(V.sheet&&V.sheet.id)renderSheet();
 }
 
 function readSheetSubs(){
@@ -2701,16 +3114,21 @@ function commitSubs(){
 /* Deleting a task takes its history, documents and sessions with it. */
 function deleteTask(id){
   const t=taskById(id);if(!t)return;
-  docsFor(id).forEach(removeDocFromVault);
-  S.tasks=S.tasks.filter(x=>x.id!==id);
-  S.notes.forEach(x=>{x.actions=(x.actions||[]).filter(y=>y.taskId!==id);});
-  S.tasks.forEach(x=>{if(Array.isArray(x.links))x.links=x.links.filter(l=>l!==id);});
-  S.docs=S.docs.filter(d=>d.task!==id);
-  S.activity=S.activity.filter(a=>a.task!==id);
-  S.sessions=S.sessions.filter(x=>x.task!==id);
-  if(running()&&running().task===id){S.prefs.running=null;syncTimerWindow();}
+  /* Its subtasks go with it. */
+  const gone=new Set([id].concat(S.tasks.filter(x=>x.parent===id).map(x=>x.id)));
+  gone.forEach(g=>docsFor(g).forEach(removeDocFromVault));
+  S.tasks=S.tasks.filter(x=>!gone.has(x.id));
+  S.notes.forEach(x=>{x.actions=(x.actions||[]).filter(y=>!gone.has(y.taskId));});
+  S.tasks.forEach(x=>{if(Array.isArray(x.links))x.links=x.links.filter(l=>!gone.has(l));});
+  S.docs=S.docs.filter(d=>!gone.has(d.task));
+  S.activity=S.activity.filter(a=>!gone.has(a.task));
+  S.sessions=S.sessions.filter(x=>!gone.has(x.task));
+  if(running()&&gone.has(running().task)){S.prefs.running=null;syncTimerWindow();}
+  const parent=t.parent;
   ["tasks","notes","docs","activity","sessions","prefs"].forEach(save);
-  closeSheet();render();toast("Task deleted");
+  /* A subtask deleted from its own panel goes back to its parent's. */
+  if(parent&&taskById(parent)){V.sheet={id:parent,tab:"details",draft:null};renderSheet();}else closeSheet();
+  render();toast("Task deleted");
 }
 
 const fmtBytes=n=>{n=Number(n)||0;return n<1024?n+" B":n<1048576?Math.round(n/1024)+" KB":(n/1048576).toFixed(1)+" MB";};
@@ -2771,7 +3189,7 @@ function addAction(nid){
   const n=noteById(nid);if(!n)return;
   const txt=el("aiText").value.trim();if(!txt){el("aiText").focus();return;}
   const due=el("aiDate").value||"";
-  const t={id:uid("t"),title:txt,desc:"From note: "+n.title,due:due,cat:n.cat,status:"planned",urgent:null,important:null,subtasks:[],created:TODAY(),completedAt:null,noteId:n.id};
+  const t={id:uid("t"),title:txt,desc:"From note: "+n.title,due:due,cat:n.cat,status:firstOpen(),urgent:null,important:null,subtasks:[],created:TODAY(),completedAt:null,noteId:n.id};
   S.tasks.push(t);
   n.actions=n.actions||[];n.actions.push({id:uid("a"),t:txt,done:false,taskId:t.id});
   n.updated=Date.now();
@@ -2813,8 +3231,8 @@ document.addEventListener("click",function(e){
     case "task":if(id)openSheet(id);break;
     case "sh-open":if(id)openSheet(id);break;
     case "task-done":toggleTaskDone(id);break;
-    case "new-task":openSheet(null,{due:n.dataset.date||"",status:n.dataset.status||"backlog"});break;
-    case "task-delete":if(arm(n,"Delete for good?")){S.tasks=S.tasks.filter(t=>t.id!==id);S.notes.forEach(x=>{x.actions=(x.actions||[]).filter(y=>y.taskId!==id);});save("tasks");save("notes");closeModal();render();toast("Task deleted");}break;
+    case "new-task":openSheet(null,{due:n.dataset.date||"",status:n.dataset.status||firstOpen()});break;
+    case "task-delete":if(arm(n,"Delete for good?")){closeModal();deleteTask(id);}break;
     case "sh-sub-add":{const w=el("shSubs");w.insertAdjacentHTML("beforeend",subRow({id:uid("s"),t:"",d:false}));w.lastElementChild.querySelector("input").focus();break;}
     case "sub-toggle":n.classList.toggle("on");n.closest(".sub-row").classList.toggle("done");commitSubs();break;
     case "sub-del":n.closest(".sub-row").remove();commitSubs();break;
@@ -2837,6 +3255,43 @@ document.addEventListener("click",function(e){
       const k=n.dataset.k,cur=flagVal(t[k]);
       patchCurrent({[k]:cur===n.dataset.v?null:n.dataset.v==="1"});break;}
     case "sh-prio-clear":if(sheetTask())patchCurrent({urgent:null,important:null});break;
+    case "sh-cf-multi":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
+      const v=cfVal(t,fd).slice(),i=v.indexOf(n.dataset.v);if(i>-1)v.splice(i,1);else v.push(n.dataset.v);setCf(fd.id,v);break;}
+    case "sh-cf-rate":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
+      const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v);break;}
+    case "customise":V.cz={tab:"lanes"};customiseModal();break;
+    case "cz-tab":czReadDraft();V.cz.tab=n.dataset.v;V.cz.edit=null;V.cz.draft=null;V.cz.del=null;customiseModal();break;
+    case "cz-lane-pal":V.cz.pal=V.cz.pal===id?null:id;customiseModal();break;
+    case "cz-lane-color":{const l=lane(id);if(l){l.color=n.dataset.v;save("prefs");V.cz.pal=null;customiseModal();render();}break;}
+    case "cz-lane-move":czMoveLane(id,Number(n.dataset.v));break;
+    case "cz-lane-del":V.cz.del=id;customiseModal();break;
+    case "cz-lane-del-no":V.cz.del=null;customiseModal();break;
+    case "cz-lane-del-yes":czRemoveLane(id);break;
+    case "cz-lane-add":{const L=lanes(),used=L.map(l=>l.color),col=LANE_COLORS.find(x=>used.indexOf(x)<0)||LANE_COLORS[0];
+      const nid=uid("lane");
+      /* A new lane goes in before the first done one, where open work is. */
+      const at=L.findIndex(l=>l.done);L.splice(at<0?L.length:at,0,{id:nid,name:"New lane",color:col,done:false});
+      save("prefs");customiseModal();render();
+      const inp=document.querySelector('[data-act="cz-lane-name"][data-id="'+nid+'"]');if(inp){inp.focus();inp.select();}break;}
+    case "cz-col-move":czMoveCol(n.dataset.k,Number(n.dataset.v));break;
+    case "cz-col-toggle":{const cols=listCols(),c=cols.find(x=>x.k===n.dataset.k);if(c){c.on=!c.on;board().cols=cols;
+      if(c.k.indexOf("cf:")===0){const fd=fieldById(c.k.slice(3));if(fd)fd.list=c.on;}
+      save("prefs");customiseModal();render();}break;}
+    case "cz-field-new":V.cz.edit="new";V.cz.draft={id:uid("f"),isNew:true,name:"",type:"text",desc:"",options:[],panel:true,list:true,card:false};customiseModal();
+      {const i=el("czFName");if(i)i.focus();}break;
+    case "cz-field-edit":{const fd=fieldById(id);if(!fd)break;V.cz.edit=id;V.cz.draft=JSON.parse(JSON.stringify(Object.assign({isNew:false},fd)));customiseModal();break;}
+    case "cz-field-back":V.cz.edit=null;V.cz.draft=null;V.cz.tab="cols";customiseModal();break;
+    case "cz-field-save":czSaveField();break;
+    case "cz-field-del":if(arm(n,"Delete field and its values?"))czDeleteField(id);break;
+    case "cz-desc-show":czReadDraft();V.cz.draft.showDesc=true;customiseModal();{const i=el("czFDesc");if(i)i.focus();}break;
+    case "cz-ftype":czReadDraft();V.cz.draft.type=n.dataset.v;
+      if((V.cz.draft.type==="single"||V.cz.draft.type==="multi")&&!V.cz.draft.options.length)
+        V.cz.draft.options=[{id:uid("o"),name:"",color:CAT_COLORS[0]},{id:uid("o"),name:"",color:CAT_COLORS[1]}];
+      customiseModal();break;
+    case "cz-opt-add":{czReadDraft();const o=V.cz.draft.options;o.push({id:uid("o"),name:"",color:CAT_COLORS[o.length%CAT_COLORS.length]});customiseModal();
+      const ins=document.querySelectorAll('[data-act="cz-opt-name"]');if(ins.length)ins[ins.length-1].focus();break;}
+    case "cz-opt-del":czReadDraft();V.cz.draft.options.splice(Number(n.dataset.v),1);customiseModal();break;
+    case "cz-opt-color":{czReadDraft();const o=V.cz.draft.options[Number(n.dataset.v)];if(o){const i=CAT_COLORS.indexOf(o.color);o.color=CAT_COLORS[(i+1)%CAT_COLORS.length];}customiseModal();break;}
     case "sh-tag-del":{const t=sheetTask();if(!t)break;
       patchCurrent({tags:tTags(t).filter(x=>x!==n.dataset.v)});break;}
     case "sh-link-del":{const t=sheetTask();if(!t)break;
@@ -3162,6 +3617,11 @@ document.addEventListener("keydown",function(e){
     else t.value="";
     return;
   }
+  if(t&&t.id==="shKid"&&e.key==="Enter"&&V.sheet&&V.sheet.id){
+    e.preventDefault();const v=t.value;t.value="";addKid(V.sheet.id,v);renderSheet();render();
+    const k=el("shKid");if(k)k.focus();return;
+  }
+  if(t&&t.dataset&&t.dataset.act==="cz-lane-name"&&e.key==="Enter"){e.preventDefault();t.blur();return;}
   if(t&&t.id==="shComment"&&(e.metaKey||e.ctrlKey)){
     e.preventDefault();
     const btn=document.querySelector('[data-act="comment-add"]');
@@ -3208,6 +3668,22 @@ document.addEventListener("change",function(e){
     else googleAsk("drive").then(ok=>{if(ok)on();else panels();},e=>{DB.err=e.message;panels();});
     return;
   }
+  if(t.dataset&&t.dataset.act==="sh-cf"){
+    const fd=fieldById(t.dataset.k);if(!fd)return;
+    setCf(fd.id,fd.type==="checkbox"?t.checked:fd.type==="number"?(t.value===""?"":Number(t.value)):fd.type==="progress"?Number(t.value):t.value.trim());
+    return;
+  }
+  if(t.dataset&&t.dataset.act==="cz-lane-name"){const l=lane(t.dataset.id);if(l&&t.value.trim()){l.name=t.value.trim().slice(0,40);save("prefs");render();renderSheet();}else if(l)t.value=l.name;return;}
+  if(t.dataset&&t.dataset.act==="cz-lane-done"){const l=lane(t.dataset.id);if(!l)return;
+    l.done=t.checked;
+    /* Tasks in the lane take on what it now means. */
+    S.tasks.forEach(x=>{if(x.status===l.id)x.completedAt=l.done?(x.completedAt||TODAY()):null;});
+    save("prefs");save("tasks");customiseModal();render();renderSheet();return;}
+  if(t.dataset&&t.dataset.act==="cz-opt-name"){czReadDraft();return;}
+  if(t.dataset&&t.dataset.act==="cz-lane-hex"){const l=lane(t.dataset.id);if(l){l.color=t.value;save("prefs");customiseModal();render();}return;}
+  if(t.dataset&&t.dataset.act==="cz-feat"){board().show[t.dataset.k]=t.checked;save("prefs");renderSheet();render();return;}
+  if(t.dataset&&t.dataset.act==="cz-fpanel"){const fd=fieldById(t.dataset.k);if(fd){fd.panel=t.checked;save("prefs");renderSheet();}return;}
+  if(t.dataset&&t.dataset.act==="cz-fullsubs"){setFullSubs(t.checked);toast(t.checked?"Subtasks now work like tasks":"Subtasks are a checklist again");render();renderSheet();return;}
   if(t.dataset&&t.dataset.act==="sh-set"){
     const k=t.dataset.k;let v=t.value;
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);
@@ -3258,7 +3734,7 @@ document.addEventListener("dragleave",function(e){const col=e.target.closest&&e.
 document.addEventListener("drop",function(e){const col=e.target.closest&&e.target.closest(".col");if(!col||!dragId)return;
   e.preventDefault();col.classList.remove("over");
   const t=taskById(dragId);
-  if(t&&t.status!==col.dataset.col){t.status=col.dataset.col;t.completedAt=t.status==="completed"?TODAY():null;save("tasks");render();}
+  if(t&&t.status!==col.dataset.col){t.status=col.dataset.col;t.completedAt=isDoneT(t)?TODAY():null;save("tasks");render();}
   dragId=null;});
 
 /* ============ init ============ */
@@ -3287,7 +3763,9 @@ function logAct(taskId,kind,text,meta){
 }
 
 /* Render a field value the way a person would say it, not the way it is stored. */
+const fieldLabel=k=>k.indexOf("cf:")===0?((fieldById(k.slice(3))||{name:"A field"}).name):FIELD_LABEL[k];
 function fieldText(k,v){
+  if(k.indexOf("cf:")===0){const fd=fieldById(k.slice(3));return fd?cfText(fd,v):String(v==null?"—":v);}
   if(k==="remind")return remindLabel({remind:v});
   if(k==="dueTime"||k==="endTime")return v?fmtTime(v):"no time";
   if(v==null||v===""||(Array.isArray(v)&&!v.length))return "empty";
@@ -3305,6 +3783,8 @@ const sameVal=(a,b)=>JSON.stringify(a==null?"":a)===JSON.stringify(b==null?"":b)
 
 /* One entry per changed field, so the thread reads as a history. */
 function logChanges(id,before,after){
+  const a=before.cf||{},b=after.cf||{};
+  Object.keys(Object.assign({},a,b)).forEach(fid=>{if(!sameVal(a[fid],b[fid]))logField(id,"cf:"+fid,a[fid],b[fid]);});
   Object.keys(FIELD_LABEL).forEach(k=>{
     if(sameVal(before[k],after[k]))return;
     if(k==="subtasks"||k==="attachments"){
@@ -3332,10 +3812,10 @@ function logField(id,k,from,to){
       save("activity");return;
     }
     prev.meta.to=to;prev.at=now;
-    prev.text=FIELD_LABEL[k]+": "+fieldText(k,prev.meta.from)+" → "+fieldText(k,to);
+    prev.text=fieldLabel(k)+": "+fieldText(k,prev.meta.from)+" → "+fieldText(k,to);
     save("activity");return;
   }
-  logAct(id,"field",FIELD_LABEL[k]+": "+fieldText(k,from)+" → "+fieldText(k,to),{f:k,from:from,to:to});
+  logAct(id,"field",fieldLabel(k)+": "+fieldText(k,from)+" → "+fieldText(k,to),{f:k,from:from,to:to});
 }
 
 /* ============ time tracking ============ */
@@ -3393,7 +3873,7 @@ function stopTimer(){
    than assumed. */
 function askIfDone(taskId,secs){
   const t=taskById(taskId);
-  if(!t||t.status==="completed")return;
+  if(!t||isDoneT(t))return;
   const est=tEst(t)*60,total=trackedSecs(taskId);
   const verdict=est?(total>est?"That is "+fmtDur(total-est)+" over your "+fmtMins(est/60)+" estimate."
                              :"That is inside your "+fmtMins(est/60)+" estimate, with "+fmtDur(est-total)+" to spare.")
@@ -3567,7 +4047,7 @@ function openSheet(id,preset){
   V.tmBreak=null;
   V.sheet={id:id||null,tab:"details",
     draft:id?null:Object.assign({title:"",desc:"",due:"",dueTime:"",endTime:"",deadline:"",cat:S.categories[0].id,
-      status:"backlog",urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[]},preset||{})};
+      status:firstOpen(),urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],cf:{}},preset||{})};
   renderSheet();
 }
 function closeSheet(){V.sheet=null;V.tmBreak=null;renderSheet();clearGhosts();}
@@ -3579,8 +4059,8 @@ function patchTask(id,patch,redraw){
   const t=taskById(id);if(!t)return;
   const before=JSON.parse(JSON.stringify(t));
   Object.assign(t,patch);
-  if(t.status==="completed"&&!t.completedAt)t.completedAt=TODAY();
-  if(t.status!=="completed")t.completedAt=null;
+  if(isDoneT(t)&&!t.completedAt)t.completedAt=TODAY();
+  if(!isDoneT(t))t.completedAt=null;
   logChanges(id,before,t);
   save("tasks");render();
   if(redraw!==false)renderSheet();
@@ -4149,8 +4629,13 @@ function renderSheet(){
   const t=sheetTask();
   if(!t){root.innerHTML="";document.body.classList.remove("sheet-open");V.sheet=null;return;}
   document.body.classList.add("sheet-open");
-  const isNew=!s.id,c=cat(t.cat),done=t.status==="completed";
-  const subs=t.subtasks||[],dn=subs.filter(x=>x.d).length;
+  const isNew=!s.id,c=cat(t.cat),done=isDoneT(t);
+  if(s.tab==="activity"&&!feat("activity"))s.tab="details";
+  const parent=t.parent?taskById(t.parent):null;
+  /* The panel has the parts switched on in Customise; a group with none
+     left is not drawn at all. */
+  const group=(title,rows)=>{const r=rows.filter(Boolean).join("");return r?'<div class="sh-group"><div class="sh-gh">'+title+'</div>'+r+'</div>':"";};
+  const cfRows=board().fields.filter(f=>f.panel!==false).map(f=>metaRow(f.name,cfControl(t,f),cfType(f.type)[2]));
 
   /* The scrim and the panel carry the open animation. Rebuilding them on every
      edit replayed it, which read as the panel closing and reopening, so the
@@ -4166,16 +4651,17 @@ function renderSheet(){
   const headHtml=
       '<button class="tick'+(done?" on":"")+'" data-act="sh-done" aria-label="Mark complete"'+(isNew?" disabled":"")+'>'+icon("i-check")+'</button>'+
       '<select class="inp inp-sm sh-status" data-act="sh-set" data-k="status">'+
-        STATUSES.map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>'+
+        lanes().map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>'+
       '<div class="spacer" style="flex:1"></div>'+
-      (isNew?"":'<button class="icon-btn btn-sm" data-act="sh-timer" title="Start the timer" aria-label="Start the timer">'+icon(running()&&running().task===t.id&&running().since?"i-pause":"i-play","ic-14")+'</button>')+
+      (isNew||!feat("timer")?"":'<button class="icon-btn btn-sm" data-act="sh-timer" title="Start the timer" aria-label="Start the timer">'+icon(running()&&running().task===t.id&&running().since?"i-pause":"i-play","ic-14")+'</button>')+
       (isNew?"":'<button class="icon-btn btn-sm btn-danger" data-act="sh-delete" title="Delete" aria-label="Delete task">'+icon("i-trash","ic-14")+'</button>')+
       '<button class="icon-btn btn-sm" data-act="sheet-close" aria-label="Close">'+icon("i-x","ic-14")+'</button>';
 
   const bodyHtml=
+      (parent?'<button class="sh-crumb" data-act="task" data-id="'+parent.id+'">'+icon("i-chev-l","ic-14")+'<span>Subtask of</span><b>'+esc(parent.title)+'</b></button>':"")+
       '<input class="sh-title" id="shTitle" value="'+esc(t.title)+'" placeholder="What needs doing?" data-act="sh-set" data-k="title">'+
 
-      (isNew?"":'<div class="sh-tabs" role="tablist">'+
+      (isNew||!feat("activity")?"":'<div class="sh-tabs" role="tablist">'+
         '<button class="sh-tab" data-act="sh-tab" data-v="details" role="tab" aria-selected="'+(s.tab!=="activity")+'">Details</button>'+
         '<button class="sh-tab" data-act="sh-tab" data-v="activity" role="tab" aria-selected="'+(s.tab==="activity")+'">Activity'+
           (histCount(t)?'<span class="num">'+histCount(t)+'</span>':"")+'</button></div>')+
@@ -4183,34 +4669,29 @@ function renderSheet(){
       /* Grouped under four small headings rather than one long list, so the
          form reads as when, what, how long, and what it is tied to. */
       (s.tab==="activity"?historyPane(t):'<div class="sh-meta">'+
-        '<div class="sh-group"><div class="sh-gh">Schedule</div>'+
-          metaRow("When",sheetDates(t),"i-clock")+
-          metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell")+
-        '</div>'+
-        '<div class="sh-group"><div class="sh-gh">Organise</div>'+
-          metaRow("Category",sheetCats(t),c.icon)+
-          metaRow("Priority",sheetPrio(t),"i-flag")+
-          metaRow("Tags",sheetTags(t),"i-tag")+
-        '</div>'+
-        '<div class="sh-group"><div class="sh-gh">Effort</div>'+
-          metaRow("Estimate",'<div class="est-wrap"><input class="inp inp-sm est-in" type="number" min="0" step="5" value="'+(tEst(t)||"")+
-            '" placeholder="0" data-act="sh-set" data-k="est" aria-label="Time estimate in minutes"><span>minutes</span></div>',"i-timer")+
-          metaRow("Time",sheetTime(t,isNew),"i-clock")+
-        '</div>'+
-        '<div class="sh-group"><div class="sh-gh">Attached</div>'+
-          metaRow("Linked",sheetLinks(t,isNew),"i-link")+
-          metaRow("Files",sheetFiles(t,isNew),"i-clip")+
-        '</div>'+
+        group("Schedule",[
+          feat("when")||feat("deadline")?metaRow("When",sheetDates(t),"i-clock"):"",
+          feat("reminder")?metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell"):""])+
+        group("Organise",[
+          feat("category")?metaRow("Category",sheetCats(t),c.icon):"",
+          feat("priority")?metaRow("Priority",sheetPrio(t),"i-flag"):"",
+          feat("tags")?metaRow("Tags",sheetTags(t),"i-tag"):""])+
+        group("Effort",[
+          feat("estimate")?metaRow("Estimate",'<div class="est-wrap"><input class="inp inp-sm est-in" type="number" min="0" step="5" value="'+(tEst(t)||"")+
+            '" placeholder="0" data-act="sh-set" data-k="est" aria-label="Time estimate in minutes"><span>minutes</span></div>',"i-timer"):"",
+          feat("timer")?metaRow("Time",sheetTime(t,isNew),"i-clock"):""])+
+        group("Fields",cfRows)+
+        group("Attached",[
+          feat("links")?metaRow("Linked",sheetLinks(t,isNew),"i-link"):"",
+          feat("files")?metaRow("Files",sheetFiles(t,isNew),"i-clip"):""])+
       '</div>'+
 
-      '<div class="sh-sec"><label class="sec-label">Description</label>'+
-        '<textarea class="inp" id="shDesc" rows="3" placeholder="Any detail worth keeping" data-act="sh-set" data-k="desc">'+esc(t.desc||"")+'</textarea></div>'+
+      (feat("desc")?'<div class="sh-sec"><label class="sec-label">Description</label>'+
+        '<textarea class="inp" id="shDesc" rows="3" placeholder="Any detail worth keeping" data-act="sh-set" data-k="desc">'+esc(t.desc||"")+'</textarea></div>':"")+
 
-      '<div class="sh-sec"><label class="sec-label">Subtasks'+(subs.length?' <span class="num">'+dn+'/'+subs.length+'</span>':"")+'</label>'+
-        '<div id="shSubs">'+subs.map(x=>subRow(x)).join("")+'</div>'+
-        '<button class="btn btn-sm" data-act="sh-sub-add" style="margin-top:8px">'+icon("i-plus","ic-14")+'Add subtask</button></div>'+
-      docsSection(t,isNew)+
-      commentsPane(t,isNew))+
+      (feat("subtasks")&&!parent?subtasksSection(t,isNew):"")+
+      (feat("docs")?docsSection(t,isNew):"")+
+      (feat("comments")?commentsPane(t,isNew):""))+
 
       (isNew?'<div class="sh-create"><button class="btn btn-primary" data-act="sh-create">'+icon("i-check")+'Create task</button>'+
           '<span class="mnone">Comments, documents and the timer open up once it exists.</span></div>':"");
@@ -5369,7 +5850,7 @@ const evPath=id=>"/calendars/primary/events/"+encodeURIComponent(id);
 
 /* ---- what the planner writes ---- */
 function taskEvent(t){
-  const ev={summary:(t.status==="completed"?"✓ ":"")+t.title,
+  const ev={summary:(isDoneT(t)?"✓ ":"")+t.title,
     /* A task is not a meeting: it should not show you as busy. */
     transparency:"transparent",
     extendedProperties:{private:{orbitApp:"1",orbitKind:"task",orbitId:t.id}}};
@@ -5464,7 +5945,7 @@ async function gcalSync(){
 
     const floor=ymd(addDays(today(),-GCAL_BACK)),want={};
     if(g.pushTasks)S.tasks.forEach(t=>{
-      if(t.due&&t.status!=="dropped"&&(t.due>=floor||links[t.id]))want[t.id]={kind:"task",item:t,ev:taskEvent(t)};});
+      if(t.due&&!t.parent&&t.status!=="dropped"&&(t.due>=floor||links[t.id]))want[t.id]={kind:"task",item:t,ev:taskEvent(t)};});
     if(g.pushRoutines)S.routines.forEach(r=>{
       if(r.active&&(r.freq==="interval"||(r.days||[]).length))want[r.id]={kind:"routine",item:r,ev:routineEvent(r)};});
 
