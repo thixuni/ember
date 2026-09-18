@@ -262,9 +262,14 @@ goes with backups and Drive like any setting.
   backup) is moved to the nearest one by `fixTasks()` via `laneFor()`.
 - **The task panel's parts** can be switched off (`BOARD_FEATS`: key, name, a
   line on what it is for, icon; read with `feat(k)`); hidden parts keep their
-  data, and cards and the list follow. The Task details tab draws each as a
-  row beside a task panel in miniature (`czPanelPreview()`) built from the same
-  switches, so a change shows at once; the window is redrawn on each switch.
+  data, and cards and the list follow. The Task details tab is the one place
+  fields are managed, in three steps: how subtasks work, then every field
+  (built in or the person's own) as a row with two switches, In task and In
+  list (`cz-where`; `FEAT_COL` pairs a panel part with its column,
+  `LIST_ONLY` holds the columns with no panel part), beside a task panel in
+  miniature (`czPanelPreview()`), then the order of the columns that are on.
+  Panel parts and list columns were two tabs once, each switching some of the
+  same fields.
 - **Subtasks that are tasks** (`board().fullSubs`), offered as two drawn
   choices, Checklist and Full tasks, not a switch: a subtask is a task with
   a `parent`, opening like any task with a way back to its parent. Switching

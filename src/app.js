@@ -1579,8 +1579,9 @@ function colCell(k,t){
 /* ---- the window ---- */
 function customiseModal(){
   const c=V.cz=V.cz||{tab:"lanes"};
-  const tabs=[["lanes","Board lanes","i-board"],["panel","Task details","i-panel"],["cols","List columns and fields","i-table"]];
-  const body=c.edit?czFieldEditor():c.tab==="panel"?czPanel():c.tab==="cols"?czCols():czLanes();
+  const tabs=[["lanes","Board lanes","i-board"],["panel","Task details","i-panel"]];
+  if(c.tab==="cols")c.tab="panel";
+  const body=c.edit?czFieldEditor():c.tab==="panel"?czPanel():czLanes();
   openModal('<div class="modal cz" role="dialog" aria-modal="true" aria-label="Customise tasks">'+
     '<div class="mhead2">'+icon("i-sliders","ic-18")+'<h2>Customise tasks</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="cz-tabs" role="tablist">'+tabs.map(x=>'<button role="tab" class="cz-tab" data-act="cz-tab" data-v="'+x[0]+'" aria-selected="'+(c.tab===x[0]&&!c.edit)+'">'+icon(x[2],"ic-14")+x[1]+'</button>').join("")+'</div>'+
@@ -1616,36 +1617,68 @@ function czDelRow(l,n){
     '<div class="spacer" style="flex:1"></div><button class="btn btn-sm" data-act="cz-lane-del-no">Keep it</button>'+
     '<button class="btn btn-sm btn-danger" data-act="cz-lane-del-yes" data-id="'+l.id+'">Remove lane</button></div>';
 }
-/* What a task holds. Subtasks are a choice between two ways of working,
-   drawn so the difference shows rather than being explained; a switch with
-   a paragraph under it read as unclear. Every other part is a row with a
-   line on what it is for, and the panel beside them is drawn from the same
-   switches, so turning one off takes it out of the picture at once. */
+/* What a task holds, in one place. Subtasks first, as a choice between two
+   ways of working drawn so the difference shows. Then every field, built in
+   or the person's own, as one row with two switches: shown in the task, and
+   shown as a column in the list. These were two tabs once, each switching
+   some of the same things, which made it unclear where a field was managed.
+   Last, the order of the list's columns, for just the ones that are on.
+   The task panel beside the rows is drawn from the same switches. */
+/* The list column that goes with a part of the task panel, and the columns
+   that have no part in the panel of their own. */
+const FEAT_COL={when:"date",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",timer:"tracked"};
+const LIST_ONLY={Schedule:[["created","Created","When it was added","i-plus"]],Organise:[["status","Lane","Which board lane it’s in","i-board"]]};
 function czPanel(){
-  const b=board(),full=!!b.fullSubs,kids=S.tasks.some(t=>t.parent);
-  const sw=(k,on,act,label)=>'<label class="switch cz-rsw"><input type="checkbox" data-act="'+act+'" data-k="'+k+'"'+(on?" checked":"")+' aria-label="'+esc(label)+'"><span></span></label>';
-  const row=(k,name,hint,ic,on,act)=>'<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
-    '<span class="cz-row-t"><b>'+esc(name)+'</b><small>'+esc(hint)+'</small></span>'+sw(k,on,act,"Show "+name)+'</div>';
+  const b=board(),full=!!b.fullSubs,kids=S.tasks.some(t=>t.parent),cols=listCols();
+  const colOn=k=>{const c=cols.find(x=>x.k===k);return !!(c&&c.on);};
+  const sw=(k,w,on,label)=>'<label class="switch cz-rsw"><input type="checkbox" data-act="cz-where" data-k="'+esc(k)+'" data-w="'+w+'"'+(on?" checked":"")+' aria-label="'+esc(label)+'"><span></span></label>';
+  const none='<span class="cz-na" title="Not available here">—</span>';
+  /* One row: its panel key (or none), its list column (or none). */
+  const row=(name,hint,ic,pk,ck,edit)=>{
+    const p=pk?(edit?fieldById(pk).panel!==false:feat(pk)):false,l=ck?colOn(ck):false;
+    return '<div class="cz-row'+(p||l?"":" off")+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
+      '<span class="cz-row-t"><b>'+esc(name)+'</b><small>'+esc(hint)+'</small></span>'+
+      (edit?'<button class="icon-btn btn-sm cz-row-edit" data-act="cz-field-edit" data-id="'+pk+'" aria-label="Edit '+esc(name)+'">'+icon("i-edit","ic-14")+'</button>':"")+
+      '<span class="cz-cell">'+(pk?sw(pk,"panel",p,"Show "+name+" in the task"):none)+'</span>'+
+      '<span class="cz-cell">'+(ck?sw(ck,"list",l,"Show "+name+" as a list column"):none)+'</span></div>';};
+  const heads='<span class="cz-cell">In task</span><span class="cz-cell">In list</span>';
   const mode=(v,title,text,pic)=>'<button class="cz-mode'+((v==="full")===full?" on":"")+'" data-act="cz-subs" data-v="'+v+'" role="radio" aria-checked="'+((v==="full")===full)+'">'+
     '<span class="cz-mode-pic" aria-hidden="true">'+pic+'</span><span class="cz-mode-t"><i class="cz-radio"></i><b>'+title+'</b></span><small>'+text+'</small></button>';
   const checkPic='<span class="czp-parent"></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
   const fullPic='<span class="czp-parent"></span><span class="czp-kid"><i></i><em></em><u>Fri</u></span><span class="czp-kid"><i></i><em></em><u>Mon</u></span>';
   const allOn=BOARD_FEATS.every(g=>g[1].every(x=>feat(x[0])))&&b.fields.every(f=>f.panel!==false);
-  return '<div class="cz-sec"><h3 class="cz-sh">How subtasks work</h3>'+
+  const shown=cols.filter(c=>c.on);
+  return '<div class="cz-sec"><h3 class="cz-sh"><span class="cz-step">1</span>How subtasks work</h3>'+
       '<div class="cz-modes" role="radiogroup" aria-label="How subtasks work">'+
         mode("check","Checklist","Quick steps you tick off inside the task.",checkPic)+
         mode("full","Full tasks","Each step gets its own date, lane and timer, and opens like a task.",fullPic)+'</div>'+
       '<p class="cz-note">'+(full?"Subtasks stay inside their task, so your board only shows the main ones."
         :kids?"Subtasks you already made as full tasks stay that way; new ones are checklist items."
         :"You can switch at any time. Checklist items become full subtasks when you do.")+'</p></div>'+
-    '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">What a task shows</h3>'+
-      (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything</button>')+'</div>'+
-      '<p class="cz-lead">Switch off what you don’t use. It’s only hidden: anything you already filled in is kept.</p>'+
+    '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh"><span class="cz-step">2</span>Fields</h3>'+
+      (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything in the task</button>')+'</div>'+
+      '<p class="cz-lead">Choose where each one shows: inside a task, as a column in the list, or both. Turning one off only hides it; anything filled in is kept.</p>'+
       '<div class="cz-split"><div class="cz-rows">'+
-        BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh">'+esc(g[0])+'</div>'+
-          g[1].map(x=>row(x[0],x[1],x[2],x[3],feat(x[0]),"cz-feat")).join("")+'</div>').join("")+
-        (b.fields.length?'<div class="cz-group"><div class="cz-gh">Your fields</div>'+b.fields.map(f=>row(f.id,f.name,cfType(f.type)[1],cfType(f.type)[2],f.panel!==false,"cz-fpanel")).join("")+'</div>':"")+
-      '</div>'+czPanelPreview()+'</div></div>';
+        BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh"><span>'+esc(g[0])+'</span>'+heads+'</div>'+
+          g[1].map(x=>row(x[1],x[2],x[3],x[0],FEAT_COL[x[0]]||"")).join("")+
+          (LIST_ONLY[g[0]]||[]).map(x=>row(x[1],x[2],x[3],"",x[0])).join("")+'</div>').join("")+
+        '<div class="cz-group"><div class="cz-gh"><span>Your own fields</span>'+(b.fields.length?heads:"")+'</div>'+
+          b.fields.map(f=>row(f.name,f.desc||cfType(f.type)[1],cfType(f.type)[2],f.id,"cf:"+f.id,true)).join("")+
+          (b.fields.length?"":'<p class="cz-empty">Track anything the planner doesn’t, like a client, a budget or how much energy it takes.</p>')+
+          '<button class="btn btn-sm cz-newf" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button></div>'+
+      '</div>'+czPanelPreview()+'</div></div>'+
+    '<div class="cz-sec"><h3 class="cz-sh"><span class="cz-step">3</span>List column order</h3>'+
+      '<p class="cz-lead">The list shows the task’s name first, then these, left to right. Drag to reorder.</p>'+
+      (shown.length?'<div class="cz-cols" id="czCols">'+shown.map((c,i)=>{const cf=c.k.indexOf("cf:")===0?fieldById(c.k.slice(3)):null;
+        return '<div class="cz-col" draggable="true" data-col="'+esc(c.k)+'">'+
+          '<span class="cz-grip" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
+          '<span class="cz-col-n">'+esc(colLabel(c.k))+(cf?'<small>Your field</small>':"")+'</span>'+
+          '<span class="cz-move">'+
+            '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="-1" aria-label="Move '+esc(colLabel(c.k))+' up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
+            '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="1" aria-label="Move '+esc(colLabel(c.k))+' down"'+(i<shown.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
+          '</div>';}).join("")+'</div>'
+        :'<p class="cz-empty">No columns yet: the list shows just each task’s name. Switch on <b>In list</b> for any field above.</p>')+
+    '</div>';
 }
 /* A task panel in miniature, drawn from the switches. */
 function czPanelPreview(){
@@ -1669,28 +1702,11 @@ function czPanelPreview(){
   if(tabs.length)h+='<div class="czv-tabs">'+tabs.map((x,i)=>'<span'+(i?"":' class="on"')+'>'+x+'</span>').join("")+'</div>';
   return '<div class="czv" aria-hidden="true"><div class="czv-cap">Preview</div><div class="czv-card">'+h+'</div></div>';
 }
-function czCols(){
-  const cols=listCols(),b=board();
-  return '<p class="cz-lead">What the list view shows beside each task’s name, top to bottom as left to right. Need something the planner doesn’t track? Make a field of your own.</p>'+
-    '<div class="cz-cols" id="czCols">'+cols.map((c,i)=>{const cf=c.k.indexOf("cf:")===0?fieldById(c.k.slice(3)):null;
-      return '<div class="cz-col'+(c.on?"":" off")+'" draggable="true" data-col="'+esc(c.k)+'">'+
-        '<span class="cz-grip" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
-        '<span class="cz-col-ic">'+icon(cf?cfType(cf.type)[2]:"i-list","ic-14")+'</span>'+
-        '<span class="cz-col-n">'+esc(colLabel(c.k))+(cf?'<small>'+esc(cfType(cf.type)[1])+'</small>':"")+'</span>'+
-        (cf?'<button class="icon-btn btn-sm" data-act="cz-field-edit" data-id="'+cf.id+'" aria-label="Edit '+esc(cf.name)+'">'+icon("i-edit","ic-14")+'</button>':"")+
-        '<span class="cz-move">'+
-          '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="-1" aria-label="Move up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
-          '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="1" aria-label="Move down"'+(i<cols.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
-        '<button class="cz-eye" data-act="cz-col-toggle" data-k="'+esc(c.k)+'" aria-pressed="'+c.on+'" title="'+(c.on?"Shown. Click to hide":"Hidden. Click to show")+'">'+icon(c.on?"i-eye":"i-eye-off","ic-14")+(c.on?"Shown":"Hidden")+'</button>'+
-        '</div>';}).join("")+'</div>'+
-    '<button class="btn btn-sm btn-primary" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button>'+
-    (b.fields.length?"":'<p class="cz-note">Fields you make show as a column here, in the task panel, and on board cards if you like.</p>');
-}
 /* Making or changing a field: its name, its type, a note, and for the two
    select types, the options. Held in V.cz.draft until saved. */
 function czFieldEditor(){
   const d=V.cz.draft,sel=d.type==="single"||d.type==="multi";
-  return '<button class="linkish cz-back" data-act="cz-field-back">'+icon("i-chev-l","ic-14")+'Back to columns</button>'+
+  return '<button class="linkish cz-back" data-act="cz-field-back">'+icon("i-chev-l","ic-14")+'Back to task details</button>'+
     '<h3 class="cz-h">'+(d.isNew?"New field":"Edit field")+'</h3>'+
     '<div class="cz-form">'+
       '<label class="cz-l"><span>Field name<span class="req" aria-hidden="true">*</span></span><input class="inp" id="czFName" maxlength="40" value="'+esc(d.name)+'" placeholder="Related work, Effort in days, Client…" autocomplete="off"></label>'+
@@ -1742,7 +1758,7 @@ function czSaveField(){
   }else b.fields.push(f);
   const col=b.cols.find(c=>c.k==="cf:"+f.id);
   if(col)col.on=f.list;else b.cols.push({k:"cf:"+f.id,on:f.list});
-  save("prefs");V.cz.edit=null;V.cz.draft=null;V.cz.tab="cols";
+  save("prefs");V.cz.edit=null;V.cz.draft=null;V.cz.tab="panel";
   customiseModal();render();renderSheet();toast(was?"Field saved":"Field “"+f.name+"” added");
 }
 function czDeleteField(id){
@@ -1757,9 +1773,10 @@ function czMoveLane(id,step){
   const x=L.splice(i,1)[0];L.splice(j,0,x);save("prefs");customiseModal();render();
 }
 function czMoveCol(k,step){
-  const cols=listCols(),i=cols.findIndex(c=>c.k===k),j=i+step;
-  if(i<0||j<0||j>=cols.length)return;
-  const x=cols.splice(i,1)[0];cols.splice(j,0,x);board().cols=cols;save("prefs");customiseModal();render();
+  const cols=listCols(),on=cols.filter(c=>c.on),i=on.findIndex(c=>c.k===k),j=i+step;
+  if(i<0||j<0||j>=on.length)return;
+  const x=on.splice(i,1)[0];on.splice(j,0,x);board().cols=on.concat(cols.filter(c=>!c.on));save("prefs");customiseModal();render();
+  const f=document.querySelector('.cz [data-act="cz-col-move"][data-k="'+k+'"][data-v="'+step+'"]:not(:disabled)');if(f)f.focus({preventScroll:true});
 }
 function czRemoveLane(id){
   const L=lanes();if(L.length<2)return;
@@ -1788,7 +1805,7 @@ function czDragWire(){
     if(box.id==="czLanes"){const order=[...box.children].map(x=>x.dataset.lane);
       board().lanes=order.map(id=>lane(id)).filter(Boolean);save("prefs");customiseModal();render();}
     else if(box.id==="czCols"){const cols=listCols(),order=[...box.children].map(x=>x.dataset.col);
-      board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean);save("prefs");customiseModal();render();}
+      board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean).concat(cols.filter(c=>order.indexOf(c.k)<0));save("prefs");customiseModal();render();}
   });
 }
 czDragWire();
@@ -3364,13 +3381,10 @@ document.addEventListener("click",function(e){
       save("prefs");customiseModal();render();
       const inp=document.querySelector('[data-act="cz-lane-name"][data-id="'+nid+'"]');if(inp){inp.focus();inp.select();}break;}
     case "cz-col-move":czMoveCol(n.dataset.k,Number(n.dataset.v));break;
-    case "cz-col-toggle":{const cols=listCols(),c=cols.find(x=>x.k===n.dataset.k);if(c){c.on=!c.on;board().cols=cols;
-      if(c.k.indexOf("cf:")===0){const fd=fieldById(c.k.slice(3));if(fd)fd.list=c.on;}
-      save("prefs");customiseModal();render();}break;}
     case "cz-field-new":V.cz.edit="new";V.cz.draft={id:uid("f"),isNew:true,name:"",type:"text",desc:"",options:[],panel:true,list:true,card:false};customiseModal();
       {const i=el("czFName");if(i)i.focus();}break;
     case "cz-field-edit":{const fd=fieldById(id);if(!fd)break;V.cz.edit=id;V.cz.draft=JSON.parse(JSON.stringify(Object.assign({isNew:false},fd)));customiseModal();break;}
-    case "cz-field-back":V.cz.edit=null;V.cz.draft=null;V.cz.tab="cols";customiseModal();break;
+    case "cz-field-back":V.cz.edit=null;V.cz.draft=null;V.cz.tab="panel";customiseModal();break;
     case "cz-field-save":czSaveField();break;
     case "cz-field-del":if(arm(n,"Delete field and its values?"))czDeleteField(id);break;
     case "cz-desc-show":czReadDraft();V.cz.draft.showDesc=true;customiseModal();{const i=el("czFDesc");if(i)i.focus();}break;
@@ -3788,11 +3802,17 @@ document.addEventListener("change",function(e){
     save("prefs");save("tasks");customiseModal();render();renderSheet();return;}
   if(t.dataset&&t.dataset.act==="cz-opt-name"){czReadDraft();return;}
   if(t.dataset&&t.dataset.act==="cz-lane-hex"){const l=lane(t.dataset.id);if(l){l.color=t.value;save("prefs");customiseModal();render();}return;}
-  if(t.dataset&&(t.dataset.act==="cz-feat"||t.dataset.act==="cz-fpanel")){
-    if(t.dataset.act==="cz-feat")board().show[t.dataset.k]=t.checked;
-    else{const fd=fieldById(t.dataset.k);if(!fd)return;fd.panel=t.checked;}
+  /* A field shown in the task, or as a column in the list. */
+  if(t.dataset&&t.dataset.act==="cz-where"){
+    const k=t.dataset.k,w=t.dataset.w;
+    if(w==="panel"){const fd=fieldById(k);if(fd)fd.panel=t.checked;else board().show[k]=t.checked;}
+    else{const cols=listCols(),c=cols.find(x=>x.k===k);if(!c)return;c.on=t.checked;
+      /* A column switched on joins the end of the ones already showing. */
+      const on=cols.filter(x=>x.on&&x!==c),off=cols.filter(x=>!x.on);
+      board().cols=c.on?on.concat([c],off):on.concat(off);
+      if(k.indexOf("cf:")===0){const fd=fieldById(k.slice(3));if(fd)fd.list=c.on;}}
     save("prefs");renderSheet();render();customiseModal();
-    const f=document.querySelector('.cz [data-act="'+t.dataset.act+'"][data-k="'+t.dataset.k+'"]');if(f)f.focus({preventScroll:true});
+    const f=document.querySelector('.cz [data-act="cz-where"][data-k="'+k+'"][data-w="'+w+'"]');if(f)f.focus({preventScroll:true});
     return;}
   if(t.dataset&&t.dataset.act==="sh-set"){
     const k=t.dataset.k;let v=t.value;
