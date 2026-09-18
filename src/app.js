@@ -2829,6 +2829,7 @@ document.addEventListener("click",function(e){
     case "sh-flag":{const t=sheetTask();if(!t)break;
       const k=n.dataset.k,cur=flagVal(t[k]);
       patchCurrent({[k]:cur===n.dataset.v?null:n.dataset.v==="1"});break;}
+    case "sh-prio-clear":if(sheetTask())patchCurrent({urgent:null,important:null});break;
     case "sh-tag-del":{const t=sheetTask();if(!t)break;
       patchCurrent({tags:tTags(t).filter(x=>x!==n.dataset.v)});break;}
     case "sh-link-del":{const t=sheetTask();if(!t)break;
@@ -3931,7 +3932,10 @@ function sheetPrio(t){
     '</div></div>';
   return '<div class="prio2">'+row("urgent","Urgency","Urgent","Not urgent")+row("important","Importance","Important","Not important")+
     '<div class="prio-res">'+(Q?'<span class="chip chip-q '+Q.cls+'">'+icon(Q.icon,"ic-14")+esc(Q.name)+'</span>'
-      :'<span class="prio-note">Answer both to place it in the matrix.</span>')+'</div></div>';
+      :'<span class="prio-note">Answer both to place it in the matrix.</span>')+
+    /* Clicking a chosen answer again clears it, but nothing said so. */
+    (st.urgent!==""||st.important!==""?'<button class="prio-clear" data-act="sh-prio-clear" title="Take the task out of the matrix">'+icon("i-x","ic-14")+'Clear</button>':"")+
+    '</div></div>';
 }
 
 function sheetTime(t,isNew){
