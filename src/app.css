@@ -1945,7 +1945,7 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .cz-mode small{font-size:12px;line-height:1.45;color:var(--muted)}
 .cz-radio{width:16px;height:16px;flex:none;border-radius:50%;border:1.5px solid var(--line-2);background:var(--surface)}
 .cz-mode.on .cz-radio{border:5px solid var(--accent)}
-.cz-mode-pic{display:flex;flex-direction:column;gap:5px;padding:10px 12px;margin-bottom:4px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.cz-mode-pic{display:flex;flex-direction:column;justify-content:center;gap:5px;height:88px;padding:10px 12px;margin-bottom:4px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
 .czp-parent{height:8px;width:62%;border-radius:4px;background:var(--ink-2);opacity:.55;margin-bottom:2px}
 .czp-chk,.czp-kid{display:flex;align-items:center;gap:7px}
 .czp-chk i{width:10px;height:10px;flex:none;border-radius:3px;border:1.5px solid var(--line-2)}
