@@ -1356,11 +1356,18 @@ function viewMatrix(){
         '<span class="chip chip-due '+(isOverdue(t)?"over":(t.due&&dayDiff(t.due,TODAY())<=1?"soon":""))+'">'+esc(t.due?fmtDate(t.due):"No date")+'</span></div>').join("")
         :es("",QUAD_EMPTY[Q.id][0],QUAD_EMPTY[Q.id][1],{icon:Q.icon,hue:"var(--q)",cls:"es-quad"}))+'</div></section>';}).join("")+'</div>';
   const un=base.filter(t=>!quadOf(t));
-  const tray=un.length?'<div class="unsorted"><h3>Not prioritised yet</h3><p>Tick urgent, important, or both and the task moves into a quadrant.</p>'+
-    un.slice(0,10).map(t=>'<div class="urow"><span class="t">'+esc(t.title)+'</span>'+
+  /* Not prioritised yet: each task offers the four quadrants themselves, so
+     one click places it. Two toggles for urgent and important left the other
+     two quadrants to be guessed at. */
+  const TRAY_SHOWN=12;
+  const tray=un.length?'<div class="unsorted"><div class="un-head"><h3>Not prioritised yet <span class="num">'+un.length+'</span></h3>'+
+      '<p>Choose where each one belongs.</p></div>'+
+    un.slice(0,TRAY_SHOWN).map(t=>'<div class="urow"><span class="t" data-act="task" data-id="'+t.id+'">'+esc(t.title)+'</span>'+
       '<span class="chip chip-due">'+esc(t.due?fmtDate(t.due):"No date")+'</span>'+
-      '<span class="toggle-pair"><button class="tgl warn'+(t.urgent?" on":"")+'" data-act="mx-set" data-id="'+t.id+'" data-k="urgent">Urgent</button>'+
-      '<button class="tgl'+(t.important?" on":"")+'" data-act="mx-set" data-id="'+t.id+'" data-k="important">Important</button></span></div>').join("")+'</div>':"";
+      '<span class="uq-set" role="group" aria-label="Place '+esc(t.title)+'">'+QUADS.map(Q=>
+        '<button class="uq '+Q.cls+'" data-act="mx-quad" data-id="'+t.id+'" data-v="'+Q.id+'" title="'+esc(Q.tag)+'">'+icon(Q.icon,"ic-14")+esc(Q.name)+'</button>').join("")+
+      '</span></div>').join("")+
+    (un.length>TRAY_SHOWN?'<p class="un-more">'+(un.length-TRAY_SHOWN)+' more after these are placed.</p>':"")+'</div>':"";
   return grid+tray;
 }
 
@@ -2871,10 +2878,9 @@ document.addEventListener("click",function(e){
     case "doc-del":if(arm(n,"Delete for good?")){deleteDoc(id);DE.dirty=false;closeModal();renderSheet();renderView();toast("Document deleted");}break;
 
     /* ---- analytics ---- */
-    case "mx-set":{const t=taskById(id),k=n.dataset.k;
-      if(t[k]==null){t[k]=true;const o=k==="urgent"?"important":"urgent";if(t[o]==null)t[o]=false;}
-      else t[k]=!t[k];
-      save("tasks");render();break;}
+    case "mx-quad":{const t=taskById(id);if(!t)break;
+      const v=n.dataset.v;t.urgent=v==="do"||v==="delegate";t.important=v==="do"||v==="decide";
+      save("tasks");render();toast("Moved to "+(QUADS.find(q=>q.id===v)||{}).name);break;}
     case "new-routine":routineModal(null);break;
     case "routine":case "routine-edit":routineModal(id);break;
     case "routine-save":saveRoutine(id||null);break;

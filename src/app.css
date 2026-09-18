@@ -631,6 +631,17 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .urow{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
 .urow .t{flex:1;min-width:0;font-size:12.8px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toggle-pair{display:flex;gap:5px}
+.un-head h3 .num{margin-left:4px;font-size:11px;font-weight:700;color:var(--faint)}
+.urow .t{cursor:pointer}
+.urow .t:hover{text-decoration:underline;text-underline-offset:2px}
+.uq-set{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.uq{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:8px;font-size:12px;font-weight:600;
+  color:var(--qt);background:var(--surface);border:1px solid color-mix(in srgb,var(--q) 35%,var(--line));transition:background .12s,border-color .12s}
+.uq > *{pointer-events:none}
+.uq .ic{color:var(--q)}
+.uq:hover{background:var(--qs);border-color:var(--q)}
+.un-more{margin:8px 0 0 !important}
+@media (max-width:820px){.urow{flex-wrap:wrap}.urow .t{flex-basis:calc(100% - 80px)}.uq-set{width:100%;justify-content:flex-start}}
 .tgl{height:26px;padding:0 10px;border-radius:20px;border:1px solid var(--line);font-size:11.5px;font-weight:700;color:var(--muted);background:var(--surface)}
 .tgl.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .tgl.on.warn{background:var(--amber);border-color:var(--amber)}
