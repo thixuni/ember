@@ -1641,7 +1641,14 @@ function czPanel(){
       (edit?'<button class="icon-btn btn-sm cz-row-edit" data-act="cz-field-edit" data-id="'+pk+'" aria-label="Edit '+esc(name)+'">'+icon("i-edit","ic-14")+'</button>':"")+
       '<span class="cz-cell">'+(pk?sw(pk,"panel",p,"Show "+name+" in the task"):none)+'</span>'+
       '<span class="cz-cell">'+(ck?sw(ck,"list",l,"Show "+name+" as a list column"):none)+'</span></div>';};
-  const heads='<span class="cz-cell">In task</span><span class="cz-cell">In list</span>';
+  const heads='<span class="cz-cell" title="Inside the task">'+icon("i-panel","ic-12")+'Task</span><span class="cz-cell" title="A column in the list">'+icon("i-table","ic-12")+'List</span>';
+  /* What the two switches mean, drawn: "in task" and "in list" alone were
+     read as two names for one thing. */
+  const legend='<div class="cz-key">'+
+    '<div class="cz-key-i"><span class="cz-key-pic kp-task" aria-hidden="true"><i></i><em></em><em></em><em></em></span>'+
+      '<span><b>'+icon("i-panel","ic-12")+'Task</b><small>Inside a task, in the panel that opens when you click it. This is where you fill it in.</small></span></div>'+
+    '<div class="cz-key-i"><span class="cz-key-pic kp-list" aria-hidden="true"><i></i><i></i><i></i></span>'+
+      '<span><b>'+icon("i-table","ic-12")+'List</b><small>A column in the list view, to see it across all your tasks at a glance.</small></span></div></div>';
   const mode=(v,title,text,pic)=>'<button class="cz-mode'+((v==="full")===full?" on":"")+'" data-act="cz-subs" data-v="'+v+'" role="radio" aria-checked="'+((v==="full")===full)+'">'+
     '<span class="cz-mode-pic" aria-hidden="true">'+pic+'</span><span class="cz-mode-t"><i class="cz-radio"></i><b>'+title+'</b></span><small>'+text+'</small></button>';
   const checkPic='<span class="czp-parent"></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
@@ -1657,7 +1664,7 @@ function czPanel(){
         :"You can switch at any time. Checklist items become full subtasks when you do.")+'</p></div>'+
     '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh"><span class="cz-step">2</span>Fields</h3>'+
       (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything in the task</button>')+'</div>'+
-      '<p class="cz-lead">Choose where each one shows: inside a task, as a column in the list, or both. Turning one off only hides it; anything filled in is kept.</p>'+
+      '<p class="cz-lead">Each field can show in two places. Turning one off only hides it; anything filled in is kept.</p>'+legend+
       '<div class="cz-split"><div class="cz-rows">'+
         BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh"><span>'+esc(g[0])+'</span>'+heads+'</div>'+
           g[1].map(x=>row(x[1],x[2],x[3],x[0],FEAT_COL[x[0]]||"")).join("")+
