@@ -3429,7 +3429,9 @@ document.addEventListener("click",function(e){
       if(!txt){box.focus();break;}
       logAct(t.id,"comment",txt);box.value="";renderSheet();renderView();break;}
     case "act-del":if(arm(n,"Delete?")){S.activity=S.activity.filter(a=>a.id!==id);save("activity");renderSheet();renderView();}break;
-    case "doc-new":{const t=sheetTask();if(t&&V.sheet.id)docModal(null,t.id);break;}
+    case "doc-new":{let t=sheetTask();if(!t)break;
+      if(!V.sheet.id){t=createFromDraft();if(!t)break;}
+      docModal(null,t.id);break;}
     case "doc-open":docModal(id);break;
     case "doc-save":docSave();break;
     case "doc-tool":docTool(n.dataset.v);break;
@@ -4220,6 +4222,7 @@ function createFromDraft(){
   logAct(t.id,"created","Created this task");
   V.sheet={id:t.id,tab:"details",draft:null};
   render();renderSheet();toast("Task added");
+  return t;
 }
 
 const metaRow=(label,inner,ic)=>'<div class="mrow"><div class="mlab">'+(ic?icon(ic,"ic-14"):"")+esc(label)+'</div><div class="mval">'+inner+'</div></div>';
@@ -4703,9 +4706,11 @@ function relTime(ms){
 /* Documents sit with the task's working material, not its history. */
 const histCount=t=>(ixAct().get(t.id)||NONE).reduce((n,a)=>n+(a.kind!=="comment"?1:0),0);
 
+/* A task still being written shows the section too, rather than leaving
+   people to find it after pressing Create; its button creates the task
+   first, then opens the document. */
 function docsSection(t,isNew){
-  if(isNew)return "";
-  const ds=docsFor(t.id);
+  const ds=isNew?NONE:docsFor(t.id);
   return '<div class="sh-sec"><label class="sec-label">Documents'+(ds.length?' <span class="num">'+ds.length+'</span>':"")+'</label>'+
     (ds.length?'<div class="doclist">'+ds.map(d=>
       '<button class="doccard" data-act="doc-open" data-id="'+d.id+'">'+icon("i-doc","ic-14")+
@@ -4829,7 +4834,7 @@ function renderSheet(){
       (feat("comments")?commentsPane(t,isNew):""))+
 
       (isNew?'<div class="sh-create"><button class="btn btn-primary" data-act="sh-create">'+icon("i-check")+'Create task</button>'+
-          '<span class="mnone">Comments, documents and the timer open up once it exists.</span></div>':"");
+          '<span class="mnone">Comments and the timer open up once it’s created.</span></div>':"");
 
   /* Hold the scroll position across a redraw, but start at the top when the
      content underneath actually changed — a different task, or the other tab. */
