@@ -264,12 +264,13 @@ goes with backups and Drive like any setting.
   line on what it is for, icon; read with `feat(k)`); hidden parts keep their
   data, and cards and the list follow. The Task details tab is the one place
   fields are managed, in three steps: how subtasks work, then every field
-  (built in or the person's own) as a row with two switches, In task and In
-  list (`cz-where`; `FEAT_COL` pairs a panel part with its column,
-  `LIST_ONLY` holds the columns with no panel part), beside a task panel in
-  miniature (`czPanelPreview()`), then the order of the columns that are on.
-  Panel parts and list columns were two tabs once, each switching some of the
-  same fields.
+  (built in or the person's own) as a row with **one** switch beside a task
+  panel in miniature (`czPanelPreview()`), then the order of the list's
+  columns. A task shows the same fields opened and in the list: `listCols()`
+  turns a column on exactly when its panel part is (`FEAT_COL_OF`; a field's
+  `list` follows its `panel`), and only Lane and Created, which the panel has
+  no part for (`LIST_ONLY`), keep a switch of their own. Separate In task and
+  In list switches were tried and read as two names for one thing.
 - **Subtasks that are tasks** (`board().fullSubs`), offered as two drawn
   choices, Checklist and Full tasks, not a switch: a subtask is a task with
   a `parent`, opening like any task with a way back to its parent. Switching
@@ -283,7 +284,7 @@ goes with backups and Drive like any setting.
   history. Changing a field's type, or taking options away, clears values
   that no longer fit.
 - **The list's columns** are `board().cols` (`{k, on}` in order, a field as
-  `"cf:<id>"`), read through `listCols()`; the row grid is built from them,
+  `"cf:<id>"`), read through `listCols()`, which sets `on` from the panel; the row grid is built from them,
   so a hidden column takes no room.
 
 ### When a task happens

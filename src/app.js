@@ -70,6 +70,8 @@ const BOARD_FEATS=[
  ["Content",[["desc","Description","Notes about the task","i-note"],["subtasks","Subtasks","Smaller steps inside it","i-checklist"],["docs","Documents","Longer pages of writing","i-doc"],["comments","Comments","Updates and thoughts","i-chat"],["activity","Activity history","A record of every change","i-chart"]]]];
 /* The list view's columns besides the task itself; the first four are on
    to begin with. Custom fields join these as "cf:<id>". */
+/* Which part of the task panel each list column belongs to. */
+const FEAT_COL_OF={date:"when",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",tracked:"timer"};
 const LIST_COLS=[["date","Date"],["priority","Priority"],["category","Category"],["status","Status"],
  ["deadline","Deadline"],["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
 /* The board settings, filled in on the one object (as gcalPrefs() is): a sync
@@ -1551,6 +1553,12 @@ function listCols(){
     return c.k.indexOf("cf:")===0?!!fieldById(c.k.slice(3)):LIST_COLS.some(x=>x[0]===c.k);});
   LIST_COLS.forEach(x=>{if(!seen[x[0]])cols.push({k:x[0],on:false});});
   b.fields.forEach(f=>{if(!seen["cf:"+f.id])cols.push({k:"cf:"+f.id,on:f.list!==false});});
+  /* A task shows the same fields wherever it is seen: a column with a part
+     in the task panel is on exactly when that part is. Only Lane and
+     Created, which the panel has no switch for, keep a setting of their own. */
+  cols.forEach(c=>{
+    if(c.k.indexOf("cf:")===0){const f=fieldById(c.k.slice(3));if(f)c.on=f.panel!==false;}
+    else if(FEAT_COL_OF[c.k])c.on=feat(FEAT_COL_OF[c.k]);});
   return cols;
 }
 function colLabel(k){
@@ -1631,24 +1639,14 @@ const LIST_ONLY={Schedule:[["created","Created","When it was added","i-plus"]],O
 function czPanel(){
   const b=board(),full=!!b.fullSubs,kids=S.tasks.some(t=>t.parent),cols=listCols();
   const colOn=k=>{const c=cols.find(x=>x.k===k);return !!(c&&c.on);};
-  const sw=(k,w,on,label)=>'<label class="switch cz-rsw"><input type="checkbox" data-act="cz-where" data-k="'+esc(k)+'" data-w="'+w+'"'+(on?" checked":"")+' aria-label="'+esc(label)+'"><span></span></label>';
-  const none='<span class="cz-na" title="Not available here">—</span>';
-  /* One row: its panel key (or none), its list column (or none). */
+  /* One row, one switch: its part of the task panel, or for Lane and
+     Created its list column. The list follows the panel (listCols()). */
   const row=(name,hint,ic,pk,ck,edit)=>{
-    const p=pk?(edit?fieldById(pk).panel!==false:feat(pk)):false,l=ck?colOn(ck):false;
-    return '<div class="cz-row'+(p||l?"":" off")+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
+    const on=pk?(edit?fieldById(pk).panel!==false:feat(pk)):colOn(ck),k=pk||ck,w=pk?"panel":"list";
+    return '<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
       '<span class="cz-row-t"><b>'+esc(name)+'</b><small>'+esc(hint)+'</small></span>'+
       (edit?'<button class="icon-btn btn-sm cz-row-edit" data-act="cz-field-edit" data-id="'+pk+'" aria-label="Edit '+esc(name)+'">'+icon("i-edit","ic-14")+'</button>':"")+
-      '<span class="cz-cell">'+(pk?sw(pk,"panel",p,"Show "+name+" in the task"):none)+'</span>'+
-      '<span class="cz-cell">'+(ck?sw(ck,"list",l,"Show "+name+" as a list column"):none)+'</span></div>';};
-  const heads='<span class="cz-cell" title="Inside the task">'+icon("i-panel","ic-12")+'Task</span><span class="cz-cell" title="A column in the list">'+icon("i-table","ic-12")+'List</span>';
-  /* What the two switches mean, drawn: "in task" and "in list" alone were
-     read as two names for one thing. */
-  const legend='<div class="cz-key">'+
-    '<div class="cz-key-i"><span class="cz-key-pic kp-task" aria-hidden="true"><i></i><em></em><em></em><em></em></span>'+
-      '<span><b>'+icon("i-panel","ic-12")+'Task</b><small>Inside a task, in the panel that opens when you click it. This is where you fill it in.</small></span></div>'+
-    '<div class="cz-key-i"><span class="cz-key-pic kp-list" aria-hidden="true"><i></i><i></i><i></i></span>'+
-      '<span><b>'+icon("i-table","ic-12")+'List</b><small>A column in the list view, to see it across all your tasks at a glance.</small></span></div></div>';
+      '<label class="switch cz-rsw"><input type="checkbox" data-act="cz-where" data-k="'+esc(k)+'" data-w="'+w+'"'+(on?" checked":"")+' aria-label="Show '+esc(name)+'"><span></span></label></div>';};
   const mode=(v,title,text,pic)=>'<button class="cz-mode'+((v==="full")===full?" on":"")+'" data-act="cz-subs" data-v="'+v+'" role="radio" aria-checked="'+((v==="full")===full)+'">'+
     '<span class="cz-mode-pic" aria-hidden="true">'+pic+'</span><span class="cz-mode-t"><i class="cz-radio"></i><b>'+title+'</b></span><small>'+text+'</small></button>';
   const checkPic='<span class="czp-parent"></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
@@ -1663,13 +1661,13 @@ function czPanel(){
         :kids?"Subtasks you already made as full tasks stay that way; new ones are checklist items."
         :"You can switch at any time. Checklist items become full subtasks when you do.")+'</p></div>'+
     '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh"><span class="cz-step">2</span>Fields</h3>'+
-      (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything in the task</button>')+'</div>'+
-      '<p class="cz-lead">Each field can show in two places. Turning one off only hides it; anything filled in is kept.</p>'+legend+
+      (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything</button>')+'</div>'+
+      '<p class="cz-lead">What each task shows, both when you open it and as columns in the list. Turning one off only hides it; anything filled in is kept.</p>'+
       '<div class="cz-split"><div class="cz-rows">'+
-        BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh"><span>'+esc(g[0])+'</span>'+heads+'</div>'+
+        BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh"><span>'+esc(g[0])+'</span></div>'+
           g[1].map(x=>row(x[1],x[2],x[3],x[0],FEAT_COL[x[0]]||"")).join("")+
           (LIST_ONLY[g[0]]||[]).map(x=>row(x[1],x[2],x[3],"",x[0])).join("")+'</div>').join("")+
-        '<div class="cz-group"><div class="cz-gh"><span>Your own fields</span>'+(b.fields.length?heads:"")+'</div>'+
+        '<div class="cz-group"><div class="cz-gh"><span>Your own fields</span></div>'+
           b.fields.map(f=>row(f.name,f.desc||cfType(f.type)[1],cfType(f.type)[2],f.id,"cf:"+f.id,true)).join("")+
           (b.fields.length?"":'<p class="cz-empty">Track anything the planner doesn’t, like a client, a budget or how much energy it takes.</p>')+
           '<button class="btn btn-sm cz-newf" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button></div>'+
@@ -1684,7 +1682,7 @@ function czPanel(){
             '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="-1" aria-label="Move '+esc(colLabel(c.k))+' up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
             '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="1" aria-label="Move '+esc(colLabel(c.k))+' down"'+(i<shown.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
           '</div>';}).join("")+'</div>'
-        :'<p class="cz-empty">No columns yet: the list shows just each task’s name. Switch on <b>In list</b> for any field above.</p>')+
+        :'<p class="cz-empty">No columns yet: the list shows just each task’s name. Switch on a field above to add one.</p>')+
     '</div>';
 }
 /* A task panel in miniature, drawn from the switches. */
@@ -1728,7 +1726,7 @@ function czFieldEditor(){
           '<button class="icon-btn btn-sm" data-act="cz-opt-del" data-v="'+i+'" aria-label="Remove option">'+icon("i-x","ic-14")+'</button></div>').join("")+
         '<button class="btn btn-sm" data-act="cz-opt-add">'+icon("i-plus","ic-14")+'Add an option</button></div>':"")+
       '<div class="cz-l">Show it</div>'+
-      '<div class="cz-where">'+[["panel","In the task panel"],["list","As a column in the list"],["card","On board cards"]].map(x=>
+      '<div class="cz-where">'+[["panel","On tasks and in the list"],["card","On board cards too"]].map(x=>
         '<label class="chk"><input type="checkbox" id="czW_'+x[0]+'"'+(d[x[0]]!==false?" checked":"")+'><span>'+x[1]+'</span></label>').join("")+'</div>'+
     '</div>'+
     '<div class="cz-foot">'+(d.isNew?"":'<button class="btn btn-ghost btn-danger" data-act="cz-field-del" data-id="'+d.id+'">'+icon("i-trash","ic-14")+'Delete field</button>')+
@@ -1740,7 +1738,7 @@ function czReadDraft(){
   const d=V.cz&&V.cz.draft;if(!d)return;
   const n=el("czFName");if(n)d.name=n.value;
   const ds=el("czFDesc");if(ds)d.desc=ds.value;
-  ["panel","list","card"].forEach(k=>{const c=el("czW_"+k);if(c)d[k]=c.checked;});
+  ["panel","card"].forEach(k=>{const c=el("czW_"+k);if(c)d[k]=c.checked;});d.list=d.panel;
   document.querySelectorAll('[data-act="cz-opt-name"]').forEach(i=>{const o=d.options[Number(i.dataset.v)];if(o)o.name=i.value;});
 }
 function czSaveField(){
@@ -3372,7 +3370,7 @@ document.addEventListener("click",function(e){
       toast(on?(had?had+" checklist item"+(had===1?" is":"s are")+" now full subtasks":"Subtasks now work like full tasks"):"New subtasks are checklist items");
       render();renderSheet();customiseModal();
       const f=document.querySelector('.cz [data-act="cz-subs"][data-v="'+n.dataset.v+'"]');if(f)f.focus({preventScroll:true});break;}
-    case "cz-feat-all":{const b=board();BOARD_FEATS.forEach(g=>g[1].forEach(x=>{b.show[x[0]]=true;}));b.fields.forEach(f=>{f.panel=true;});
+    case "cz-feat-all":{const b=board();BOARD_FEATS.forEach(g=>g[1].forEach(x=>{b.show[x[0]]=true;}));b.fields.forEach(f=>{f.panel=true;f.list=true;});
       save("prefs");renderSheet();render();customiseModal();break;}
     case "cz-tab":czReadDraft();V.cz.tab=n.dataset.v;V.cz.edit=null;V.cz.draft=null;V.cz.del=null;customiseModal();break;
     case "cz-lane-pal":V.cz.pal=V.cz.pal===id?null:id;customiseModal();break;
@@ -3812,12 +3810,12 @@ document.addEventListener("change",function(e){
   /* A field shown in the task, or as a column in the list. */
   if(t.dataset&&t.dataset.act==="cz-where"){
     const k=t.dataset.k,w=t.dataset.w;
-    if(w==="panel"){const fd=fieldById(k);if(fd)fd.panel=t.checked;else board().show[k]=t.checked;}
-    else{const cols=listCols(),c=cols.find(x=>x.k===k);if(!c)return;c.on=t.checked;
-      /* A column switched on joins the end of the ones already showing. */
-      const on=cols.filter(x=>x.on&&x!==c),off=cols.filter(x=>!x.on);
-      board().cols=c.on?on.concat([c],off):on.concat(off);
-      if(k.indexOf("cf:")===0){const fd=fieldById(k.slice(3));if(fd)fd.list=c.on;}}
+    if(w==="panel"){const fd=fieldById(k);if(fd){fd.panel=t.checked;fd.list=t.checked;}else board().show[k]=t.checked;}
+    else{const cols=listCols(),c=cols.find(x=>x.k===k);if(!c)return;c.on=t.checked;}
+    /* A column that comes on joins the end of the ones already showing. */
+    {const cols=listCols(),ck=w==="panel"?(FEAT_COL[k]||(fieldById(k)?"cf:"+k:"")):k,c=ck&&cols.find(x=>x.k===ck);
+      if(c&&c.on){const rest=cols.filter(x=>x!==c);board().cols=rest.filter(x=>x.on).concat([c],rest.filter(x=>!x.on));}
+      else board().cols=cols;}
     save("prefs");renderSheet();render();customiseModal();
     const f=document.querySelector('.cz [data-act="cz-where"][data-k="'+k+'"][data-w="'+w+'"]');if(f)f.focus({preventScroll:true});
     return;}
