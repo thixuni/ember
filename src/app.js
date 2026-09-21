@@ -127,15 +127,10 @@ const CAT_COLORS=["#4C6FE0","#7C5CE0","#E0854A","#D95C93","#2F9C86","#D8544E","#
 /* ============ starting data ============ */
 function baseCategories(){
   return [
-   {id:"office",name:"Office",icon:"i-briefcase",color:"#4C6FE0"},
-   {id:"freelance",name:"Freelance",icon:"i-laptop",color:"#7C5CE0"},
-   {id:"home",name:"Home",icon:"i-home",color:"#E0854A"},
-   {id:"personal",name:"Personal",icon:"i-user",color:"#D95C93"},
    {id:"goals",name:"Goals",icon:"i-target",color:"#2F9C86"},
-   {id:"hubby",name:"Hubby",icon:"i-heart",color:"#D8544E"},
-   {id:"passion",name:"Passion",icon:"i-flame",color:"#D99A16"},
-   {id:"pets",name:"Pets",icon:"i-paw",color:"#A9713B"},
-   {id:"side",name:"Side Hustle",icon:"i-rocket",color:"#3F8F4F"},
+   {id:"work",name:"Work",icon:"i-briefcase",color:"#4C6FE0"},
+   {id:"side",name:"Side Hustle",icon:"i-rocket",color:"#7C5CE0"},
+   {id:"personal",name:"Personal",icon:"i-user",color:"#D95C93"},
    {id:"other",name:"Other",icon:"i-circle",color:"#7A8A80"}];
 }
 function blankState(){
@@ -193,24 +188,24 @@ function sampleState(){
   const T=(title,due,cat,status,u,i,extra)=>Object.assign({id:uid("t"),title:title,desc:"",due:due,cat:cat,status:status,
     urgent:u,important:i,subtasks:[],created:o(-4),completedAt:status==="completed"?due:null},extra||{});
   st.tasks=[
-   T("Reply to the emails still sitting in the inbox",o(-1),"office","planned",true,true),
-   T("Send the invoice for last month",o(0),"freelance","in_progress",true,true,{dueTime:"15:00",endTime:"15:30"}),
-   T("Draft the project brief",o(2),"office","planned",false,true,
+   T("Reply to the emails still sitting in the inbox",o(-1),"work","planned",true,true),
+   T("Send the invoice for last month",o(0),"side","in_progress",true,true,{dueTime:"15:00",endTime:"15:30"}),
+   T("Draft the project brief",o(2),"work","planned",false,true,
      {dueTime:"14:00",endTime:"15:30",deadline:o(4),desc:"One page: the problem, who it is for, and how we will know it worked.",
       subtasks:[{id:uid("s"),t:"Collect the background notes",d:true},{id:uid("s"),t:"Write the first pass",d:false},{id:uid("s"),t:"Send it round for comments",d:false}]}),
    T("Book the dentist",o(1),"personal","backlog",true,false),
-   T("Tidy the desk",o(3),"home","backlog",false,false),
+   T("Tidy the desk",o(3),"personal","backlog",false,false),
    T("Buy a birthday gift",o(5),"other","planned",false,true),
    T("Plan next month's goals",o(6),"goals","backlog",null,null),
    T("Renew the gym membership",o(-3),"personal","completed",false,true)];
   const R=(title,cat,days,time,dur)=>({id:uid("r"),title:title,cat:cat,freq:"weekly",days:days,every:2,
     time:time,dur:dur,start:o(-28),end:"",active:true,note:""});
   st.routines=[
-   R("Morning stand-up","office",[1,2,3,4,5],"09:30",15),
-   R("Deep work block","office",[1,2,3,4,5],"10:00",90),
+   R("Morning stand-up","work",[1,2,3,4,5],"09:30",15),
+   R("Deep work block","work",[1,2,3,4,5],"10:00",90),
    R("Evening walk","goals",[1,2,3,4,5,6,0],"18:30",30),
    R("Weekly review","goals",[5],"16:00",45),
-   R("Water the plants","home",[1,4],"08:00",10)];
+   R("Water the plants","personal",[1,4],"08:00",10)];
   st.routines.forEach(function(r){
     for(var i=1;i<=5;i++){var d=addDays(today(),-i);
       if(r.days.indexOf(d.getDay())>-1&&i!==2)st.completions[r.id+"|"+ymd(d)]=true;}
@@ -1691,7 +1686,7 @@ function czPanelPreview(){
   const line=(ic,label,w)=>'<div class="czv-f">'+icon(ic,"ic-12")+'<span>'+esc(label)+'</span><i style="width:'+w+'%"></i></div>';
   let h='<div class="czv-title"><i class="czv-tick"></i><b>Plan the team offsite</b></div>';
   const sched=[on("when")&&line("i-calendar","Date","56"),on("deadline")&&line("i-deadline","Deadline","40"),on("reminder")&&line("i-bell","Reminder","34")].filter(Boolean);
-  const org=[on("category")&&'<span class="czv-chip">Office</span>',on("priority")&&'<span class="czv-chip">Do first</span>',on("tags")&&'<span class="czv-chip">#planning</span>'].filter(Boolean);
+  const org=[on("category")&&'<span class="czv-chip">Work</span>',on("priority")&&'<span class="czv-chip">Do first</span>',on("tags")&&'<span class="czv-chip">#planning</span>'].filter(Boolean);
   const eff=[on("estimate")&&line("i-clock","Estimate","30"),on("timer")&&'<div class="czv-timer">'+icon("i-play","ic-12")+'<span>Start</span><b class="num">0:00</b></div>'].filter(Boolean);
   if(sched.length)h+='<div class="czv-sec">'+sched.join("")+'</div>';
   if(org.length)h+='<div class="czv-chips">'+org.join("")+'</div>';
@@ -2340,13 +2335,13 @@ function obShowCats(){
 
 /* ---- starter routines ---- */
 const OB_RT=[
-  {k:"standup",title:"Morning stand-up",cat:"office",days:[1,2,3,4,5],time:"09:30",dur:15,ic:"i-coffee"},
-  {k:"deep",title:"Deep work block",cat:"office",days:[1,2,3,4,5],time:"10:00",dur:90,ic:"i-bolt"},
+  {k:"standup",title:"Morning stand-up",cat:"work",days:[1,2,3,4,5],time:"09:30",dur:15,ic:"i-coffee"},
+  {k:"deep",title:"Deep work block",cat:"work",days:[1,2,3,4,5],time:"10:00",dur:90,ic:"i-bolt"},
   {k:"workout",title:"Workout",cat:"goals",days:[1,3,5],time:"07:00",dur:45,ic:"i-dumbbell"},
   {k:"walk",title:"Evening walk",cat:"goals",days:[0,1,2,3,4,5,6],time:"18:30",dur:30,ic:"i-sun"},
   {k:"read",title:"Read before bed",cat:"personal",days:[0,1,2,3,4,5,6],time:"21:30",dur:20,ic:"i-book"},
   {k:"review",title:"Weekly review",cat:"goals",days:[5],time:"16:00",dur:45,ic:"i-target"},
-  {k:"plants",title:"Water the plants",cat:"home",days:[1,4],time:"08:00",dur:10,ic:"i-leaf"}];
+  {k:"plants",title:"Water the plants",cat:"personal",days:[1,4],time:"08:00",dur:10,ic:"i-leaf"}];
 function obRt(){
   if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:false},x));
   return OB.rt;
