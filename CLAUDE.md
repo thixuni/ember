@@ -218,6 +218,22 @@ its runs laid where they happened. It is open while `V.tmBreak` holds the
 task id; a click elsewhere or Escape takes it out in place rather than
 redrawing the panel.
 
+Timing a task means it has begun: `startTimer()` moves a task still in an
+earlier lane to the lane for work in hand (`workLane()`, found by a name
+like "In progress" or "Doing", since lanes are the person's) and says so in
+a toast. A task already past that lane, or done, stays where it is.
+
+The timer is drawn as a small orbit, in the top bar (`timerBar()`) and in
+the floating window: a ring filling against the estimate, a planet at its
+end (lapping once a minute with no estimate or once over), hollow when
+paused. Both are one line — the floating one is a capsule of two lines at
+most, 320×76 with its shadow — and their controls appear only on hover:
+Stop and Pop out in the bar, pause, stop, open and hide over the clock in
+the window, whose clock then moves into its second line. The floating
+window has no system drag region, because one swallows the hover; it is
+moved by hand (`drag-start`, `drag`, `drag-end` commands on
+`timer:state`, handled in main.js before anything is forwarded).
+
 Time tracking has one control, Start, and no modes. A run counts up; if the
 task has an estimate the readouts say "elapsed of estimate" and turn red past
 it, and with no estimate they simply count. Stopping asks whether the task is

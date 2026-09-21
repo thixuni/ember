@@ -4468,7 +4468,22 @@ function startTimer(taskId){
   S.prefs.running=cur&&cur.task===taskId
     ? Object.assign({},cur,{since:Date.now()})
     : {task:taskId,acc:0,since:Date.now(),began:Date.now()};
+  const moved=toWorkLane(taskId);
   save("prefs");syncTimerWindow();render();renderSheet();
+  if(moved)toast("Moved to "+moved.name);
+}
+/* Timing a task means it has begun, so a task still waiting in an earlier
+   lane (Backlog, To do, Planned) moves to the lane for work in hand. The
+   lanes are the person's, so that lane is found by its name -- "In
+   progress", "Doing" -- or the built-in id; with none, nothing moves. A task
+   already past that lane (waiting for review, say) or finished stays put. */
+function workLane(){const L=lanes();
+  return L.find(l=>!l.done&&/progress|doing|working|active/i.test(l.name))||L.find(l=>l.id==="in_progress"&&!l.done)||null;}
+function toWorkLane(taskId){
+  const t=taskById(taskId),w=workLane();if(!t||!w||isDoneT(t)||t.status===w.id)return null;
+  const L=lanes().map(l=>l.id);if(L.indexOf(t.status)>L.indexOf(w.id))return null;
+  const before=JSON.parse(JSON.stringify(t));t.status=w.id;logChanges(t.id,before,t);save("tasks");
+  return w;
 }
 function pauseTimer(){
   const r=running();if(!r||!r.since)return;
@@ -4514,19 +4529,28 @@ function toggleTimer(taskId){
   else startTimer(taskId);
 }
 
-/* The strip that sits in the top bar whenever a timer exists. */
+/* The strip that sits in the top bar whenever a timer exists: a small
+   orbit that fills against the estimate, with pause or resume at its
+   centre, then the task and the time. Stop and Pop out come in on hover,
+   so the strip is one quiet line the rest of the time. */
+function orbitAngle(secs,est){return est&&secs<=est?secs/est*360:(secs%60)*6;}
 function timerBar(){
   const r=running();if(!r)return "";
   const t=taskById(r.task);if(!t)return "";
   const c=cat(t.cat),secs=liveSecs(),est=tEst(t)*60;
-  const over=est&&secs>est;
+  const over=est&&secs>est,p=est?Math.min(1,secs/est):0;
   return '<div class="tbar'+(over?" over":"")+(r.since?"":" held")+'" style="--c:'+c.color+'">'+
-    '<button class="tbar-btn" data-act="timer-toggle" data-id="'+t.id+'" aria-label="'+(r.since?"Pause":"Resume")+'">'+icon(r.since?"i-pause":"i-play","ic-14")+'</button>'+
+    '<button class="tbar-orb" data-act="timer-toggle" data-id="'+t.id+'" aria-label="'+(r.since?"Pause":"Resume")+'" title="'+(r.since?"Pause":"Resume")+'">'+
+      '<svg viewBox="0 0 30 30" aria-hidden="true"><circle class="to-track" cx="15" cy="15" r="12"/>'+
+        '<circle class="to-fill" cx="15" cy="15" r="12" pathLength="100" stroke-dasharray="100" stroke-dashoffset="'+(100-p*100).toFixed(1)+'" transform="rotate(-90 15 15)"/>'+
+        '<g class="to-spin" style="transform:rotate('+orbitAngle(secs,est).toFixed(1)+'deg)"><circle class="to-planet" cx="15" cy="3" r="2.6"/></g></svg>'+
+      icon(r.since?"i-pause":"i-play","ic-12")+'</button>'+
     '<span class="tbar-name">'+esc(t.title)+'</span>'+
     '<span class="tbar-time num">'+fmtDur(secs)+(est?'<em> of '+esc(fmtMins(est/60))+'</em>':"")+'</span>'+
-    '<button class="tbar-btn" data-act="timer-stop" aria-label="Stop and log">'+icon("i-stop","ic-14")+'</button>'+
-    '<button class="tbar-btn" data-act="timer-pop" aria-label="Pop out the timer" title="Pop out">'+icon("i-pop","ic-14")+'</button>'+
-    '</div>';
+    '<span class="tbar-more">'+
+      '<button class="tbar-btn" data-act="timer-stop" aria-label="Stop and log" title="Stop and log">'+icon("i-stop","ic-14")+'</button>'+
+      (desktop()?'<button class="tbar-btn" data-act="timer-pop" aria-label="Pop out the timer" title="Pop out">'+icon("i-pop","ic-14")+'</button>':"")+
+    '</span></div>';
 }
 
 /* ============ documents ============ */
@@ -7134,6 +7158,8 @@ setInterval(function(){
   if(bar){
     bar.innerHTML=esc(fmtDur(secs))+(est?"<em> of "+esc(fmtMins(est/60))+"</em>":"");
     const wrap=bar.closest(".tbar");if(wrap)wrap.classList.toggle("over",!!over);
+    const f=document.querySelector(".tbar .to-fill");if(f)f.setAttribute("stroke-dashoffset",(100-(est?Math.min(1,secs/est):0)*100).toFixed(1));
+    const sp=document.querySelector(".tbar .to-spin");if(sp)sp.style.transform="rotate("+orbitAngle(secs,est).toFixed(1)+"deg)";
   }
   /* Keep the panel readout live without redrawing it and losing the caret. */
   if(V.sheet&&V.sheet.id===r.task){

@@ -4,7 +4,8 @@ const fs = require('fs');
 const KEY = 'everyday-orbit-v1';
 
 let win = null;              // the planner
-let timerWin = null;         // the floating timer
+let timerWin = null;
+let timerDrag = null;         // where the timer window was when a drag began         // the floating timer
 let updater = null;          // lazily required; absent in dev
 let updateCheckIsManual = false;
 let lastTimerState = {state: 'idle'};
@@ -101,9 +102,10 @@ function createTimerWindow(){
   const saved = readSettings().timerPos;
   const area = screen.getPrimaryDisplay().workArea;
   timerWin = new BrowserWindow({
-    width: 232, height: 158,
-    x: saved ? saved.x : area.x + area.width - 256,
-    y: saved ? saved.y : area.y + area.height - 190,
+    /* A capsule of two lines at most, with room round it for its shadow. */
+    width: 320, height: 76,
+    x: saved ? saved.x : area.x + area.width - 336,
+    y: saved ? saved.y : area.y + area.height - 96,
     frame: false, transparent: true, resizable: false, movable: true,
     minimizable: false, maximizable: false, fullscreenable: false,
     skipTaskbar: true, alwaysOnTop: true, show: false,
@@ -138,6 +140,16 @@ function closeTimerWindow(){
 ipcMain.on('timer:state', (e, payload) => {
   /* Two directions share this channel: a command carries `cmd`, state does not. */
   if(payload && payload.cmd){
+    /* The capsule is moved by hand, not by a system drag region, which would
+       swallow the hover that shows its controls. */
+    if(/^drag/.test(payload.cmd)){
+      if(!timerWin || timerWin.isDestroyed()) return;
+      if(payload.cmd === 'drag-start') timerDrag = timerWin.getPosition();
+      else if(payload.cmd === 'drag' && timerDrag)
+        timerWin.setPosition(Math.round(timerDrag[0] + (payload.dx || 0)), Math.round(timerDrag[1] + (payload.dy || 0)));
+      else if(payload.cmd === 'drag-end'){ timerDrag = null; const b = timerWin.getBounds(); writeSettings({timerPos: {x: b.x, y: b.y}}); }
+      return;
+    }
     if(payload.cmd === 'hide'){ closeTimerWindow(); return; }
     if(payload.cmd === 'open'){ showPlanner(); }
     if(win && !win.isDestroyed()) win.webContents.send('timer:cmd', payload);

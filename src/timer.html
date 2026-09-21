@@ -7,10 +7,11 @@
 /* The same greys as the planner, which clear WCAG AA; this window has its
    own stylesheet and did not get them when the planner's were raised. */
 :root{
-  --surface:#FFFFFF; --surface-2:#FAFAFB; --line:#E6E6E9; --line-2:#D6D6DA;
+  --surface:#FFFFFF; --surface-2:#F4F4F6; --line:#E6E6E9; --line-2:#D6D6DA;
   --ink:#232428; --ink-2:#3E3F44; --muted:#54555B; --faint:#606167;
   --accent:#3F7D5C; --danger:#C25340; --danger-soft:#FAE8E4; --danger-ink:#7A4133;
   --on-accent:#FFFFFF; --tint-base:#FFFFFF;
+  --shadow:0 12px 30px -14px rgba(20,20,24,.45);
   --ff:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --fd:"Gabarito","Plus Jakarta Sans",system-ui,sans-serif;
   --c:#3F7D5C;
@@ -20,86 +21,117 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme: dark;
-    --surface:#28282B; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
+    --surface:#232326; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
     --ink:#EDEDEF; --ink-2:#D2D2D6; --muted:#B6B6BB; --faint:#A4A4AA;
-    --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#E58270;
-    --on-accent:#0E1113; --tint-base:#28282B;
+    --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#EC9A8A;
+    --on-accent:#0E1113; --tint-base:#232326;
+    --shadow:0 14px 32px -12px rgba(0,0,0,.8);
   }
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  --surface:#28282B; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
+  --surface:#232326; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
   --ink:#EDEDEF; --ink-2:#D2D2D6; --muted:#B6B6BB; --faint:#A4A4AA;
-  --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#E58270;
-  --on-accent:#0E1113; --tint-base:#28282B;
+  --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#EC9A8A;
+  --on-accent:#0E1113; --tint-base:#232326;
+  --shadow:0 14px 32px -12px rgba(0,0,0,.8);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font-family:var(--ff);color:var(--ink);background:transparent;
   -webkit-font-smoothing:antialiased;overflow:hidden;user-select:none;cursor:default}
 
-.tower{height:100%;display:flex;flex-direction:column;background:var(--surface);
-  border:1px solid var(--line);border-radius:14px;overflow:hidden;
-  box-shadow:0 18px 44px -18px rgba(0,0,0,.45)}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]) .tower{box-shadow:0 18px 44px -16px rgba(0,0,0,.72)}
-}
-:root[data-theme="dark"] .tower{box-shadow:0 18px 44px -16px rgba(0,0,0,.72)}
+/* One capsule, two lines at most: a little orbit, the task and how it
+   stands, and the clock. Its controls come in over the clock only while the
+   pointer is on it, so the rest of the time it is a quiet strip. The whole
+   capsule is dragged to move it; that is done by hand (see below) because a
+   system drag region swallows the hover. */
+.cap{position:absolute;inset:8px;display:flex;align-items:center;gap:11px;padding:0 12px 0 8px;border-radius:30px;
+  background:
+    radial-gradient(90px 70px at 22px 50%,color-mix(in srgb,var(--c) 26%,transparent),transparent 72%),
+    linear-gradient(100deg,color-mix(in srgb,var(--c) 9%,var(--surface)),var(--surface) 55%);
+  border:1px solid color-mix(in srgb,var(--c) 34%,var(--line));box-shadow:var(--shadow);cursor:grab;overflow:hidden}
+.cap.dragging{cursor:grabbing}
+.cap.over{--c:var(--danger)}
 
-/* The whole strip is the drag handle; the controls opt out below. */
-.grip{-webkit-app-region:drag;display:flex;align-items:center;gap:7px;padding:8px 9px 5px}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
-.name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font-size:11.5px;font-weight:600;color:var(--ink-2)}
-.close{-webkit-app-region:no-drag;width:18px;height:18px;border:0;background:none;cursor:pointer;
-  border-radius:5px;color:var(--faint);display:grid;place-items:center;padding:0;flex:none}
-.close:hover{background:var(--surface-2);color:var(--ink)}
+/* The orbit: a ring that fills against the estimate, and a planet going
+   round it with a short tail. With no estimate the planet laps once a
+   minute. Paused, it stops and the centre shows two bars. */
+.orb{flex:none;width:40px;height:40px;position:relative}
+.orb svg{position:absolute;inset:0;width:40px;height:40px;overflow:visible}
+.orb .track{fill:none;stroke:color-mix(in srgb,var(--c) 18%,var(--line));stroke-width:2.4}
+.orb .fill{fill:none;stroke:var(--c);stroke-width:2.4;stroke-linecap:round;transition:stroke-dashoffset .6s ease}
+.orb .tail{fill:none;stroke:var(--c);stroke-width:2.4;stroke-linecap:round;opacity:.45}
+.orb .spin{transform-origin:20px 20px;transition:transform .9s linear}
+.orb .planet{fill:var(--c);stroke:var(--surface);stroke-width:1.6}
+.orb .core{fill:color-mix(in srgb,var(--c) 22%,var(--surface))}
+.orb .bars{stroke:var(--c);stroke-width:2;stroke-linecap:round;opacity:0}
+.cap.paused .orb .bars{opacity:1}
+.cap.paused .orb .planet{fill:var(--surface);stroke:var(--c)}
 
-.clock{-webkit-app-region:drag;text-align:center;font-family:var(--fd);font-size:34px;font-weight:600;
-  letter-spacing:-.02em;line-height:1;padding:2px 8px 4px;font-variant-numeric:tabular-nums}
-.clock.over{color:var(--danger)}
-.mode{-webkit-app-region:drag;text-align:center;font-size:9.5px;font-weight:700;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--faint);padding-bottom:6px}
+.txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.name{font-size:12.5px;font-weight:650;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{font-size:10.5px;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.meta b{font-weight:700;color:var(--ink-2)}
+.cap.over .meta{color:var(--danger-ink)}
+.meta .hv{display:none}
 
-.bar{height:3px;background:var(--surface-2);flex:none}
-.bar i{display:block;height:100%;background:var(--c);width:0}
-.bar.over i{background:var(--danger)}
+.right{flex:none;position:relative;display:flex;align-items:center;justify-content:flex-end;min-width:84px;height:40px}
+.clock{font-family:var(--fd);font-size:20px;font-weight:600;letter-spacing:-.01em;line-height:1;
+  font-variant-numeric:tabular-nums;color:var(--ink);transition:opacity .15s,transform .15s}
+.cap.over .clock{color:var(--danger-ink)}
+.cap.paused .clock{color:var(--muted)}
 
-.row{-webkit-app-region:no-drag;display:flex;gap:5px;padding:7px 8px 8px}
-button.act{flex:1;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);
-  cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;color:var(--ink-2);
-  display:flex;align-items:center;justify-content:center;gap:5px}
-button.act:hover{background:var(--surface-2);border-color:var(--line-2)}
-button.act.go{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-button.act.stop:hover{background:var(--danger-soft);border-color:var(--danger-soft);color:var(--danger-ink)}
-svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ctl{position:absolute;right:-4px;top:50%;display:flex;gap:3px;opacity:0;pointer-events:none;
+  transform:translate(8px,-50%);transition:opacity .15s,transform .15s}
+.ctl button{width:27px;height:27px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);display:grid;place-items:center;padding:0;cursor:pointer}
+.ctl button:hover{background:var(--surface-2);border-color:var(--line-2);color:var(--ink)}
+.ctl button.go{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.ctl button.go:hover{background:color-mix(in srgb,var(--accent) 86%,var(--ink));color:var(--on-accent)}
+.ctl button.stop:hover{background:var(--danger-soft);border-color:var(--danger-soft);color:var(--danger-ink)}
+.ctl svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.ctl .go svg{fill:currentColor;stroke-width:1.2}
 
-.idle{flex:1;display:grid;place-items:center;text-align:center;padding:0 14px;color:var(--faint);font-size:11.5px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Hovered: the controls take the clock's place, and the clock moves into
+   the second line so the time is never out of sight. */
+.cap:hover .clock{opacity:0;transform:translateX(-6px)}
+.cap:hover .ctl{opacity:1;pointer-events:auto;transform:translate(0,-50%)}
+.cap:hover .meta .hv{display:inline}
+.cap:hover .meta .nh{display:none}
+.cap:hover .right{min-width:118px}
+
+.idle{flex:1;text-align:center;color:var(--muted);font-size:11.5px;font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<div class="tower" id="tower">
-  <div class="grip">
-    <span class="dot" id="dot"></span>
-    <span class="name" id="name">Nothing running</span>
-    <button class="close" id="hide" title="Hide" aria-label="Hide the timer">
-      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
-    </button>
+<div class="cap" id="cap">
+  <div class="orb" aria-hidden="true">
+    <svg viewBox="0 0 40 40">
+      <circle class="track" cx="20" cy="20" r="16"/>
+      <circle class="fill" id="fill" cx="20" cy="20" r="16" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 20 20)"/>
+      <circle class="core" cx="20" cy="20" r="7.5"/>
+      <path class="bars" d="M17.6 17.2v5.6M22.4 17.2v5.6"/>
+      <g class="spin" id="spin">
+        <circle class="tail" cx="20" cy="20" r="16" pathLength="100" stroke-dasharray="12 88" stroke-dashoffset="12" transform="rotate(-90 20 20)"/>
+        <circle class="planet" cx="20" cy="4" r="3.6"/>
+      </g>
+    </svg>
   </div>
-  <div id="live" hidden>
-    <div class="clock" id="clock">0:00</div>
-    <div class="mode" id="mode">of 45m</div>
-    <div class="bar" id="bar"><i id="fill"></i></div>
-    <div class="row">
-      <button class="act go" id="toggle"><svg viewBox="0 0 24 24" id="ticon"><path d="M9 5.5v13M15 5.5v13"/></svg><span id="tlabel">Pause</span></button>
-      <button class="act stop" id="stop"><svg viewBox="0 0 24 24"><rect x="6.2" y="6.2" width="11.6" height="11.6" rx="2"/></svg>Stop</button>
-      <button class="act" id="open" title="Open the task">
-        <svg viewBox="0 0 24 24"><path d="M14 4.4h5.6V10M19.2 4.8 12 12"/><path d="M18.4 14v5A1.6 1.6 0 0 1 16.8 20.6H5.4A1.6 1.6 0 0 1 3.8 19V7.6A1.6 1.6 0 0 1 5.4 6h5"/></svg>
-      </button>
+  <div class="txt" id="txt">
+    <span class="name" id="name">Nothing running</span>
+    <span class="meta" id="meta"></span>
+  </div>
+  <div class="right" id="right">
+    <span class="clock" id="clock">0:00</span>
+    <div class="ctl">
+      <button class="go" id="toggle" title="Pause" aria-label="Pause"><svg viewBox="0 0 24 24" id="ticon"><path d="M9 5.5v13M15 5.5v13"/></svg></button>
+      <button class="stop" id="stop" title="Stop and log" aria-label="Stop and log"><svg viewBox="0 0 24 24"><rect x="6.2" y="6.2" width="11.6" height="11.6" rx="2"/></svg></button>
+      <button id="open" title="Open the task" aria-label="Open the task"><svg viewBox="0 0 24 24"><path d="M14 4.4h5.6V10M19.2 4.8 12 12"/><path d="M18.4 14v5A1.6 1.6 0 0 1 16.8 20.6H5.4A1.6 1.6 0 0 1 3.8 19V7.6A1.6 1.6 0 0 1 5.4 6h5"/></svg></button>
+      <button id="hide" title="Hide the timer" aria-label="Hide the timer"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
   </div>
-  <div class="idle" id="idle">Start a timer on a task and it will show up here.</div>
 </div>
 
 <script>
@@ -107,7 +139,7 @@ svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke
   "use strict";
   var api = window.orbit || null;
   var el = function(id){ return document.getElementById(id); };
-  var state = {state:"idle"};
+  var state = {state:"idle"}, lap = 0, lastA = 0;
 
   function fmt(s){
     s = Math.max(0, Math.round(s));
@@ -115,52 +147,78 @@ svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.9;stroke
     var p = function(n){ return String(n).padStart(2,"0"); };
     return (h ? h+":"+p(m) : m) + ":" + p(ss);
   }
-
   function mins(s){
     var m = Math.round(s/60), h = Math.floor(m/60), mm = m%60;
     return (h ? h+"h" : "") + (h && mm ? " " : "") + (mm || !h ? mm+"m" : "");
   }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 
   function paint(){
-    if(typeof state.dark === "boolean")
-      document.documentElement.setAttribute("data-theme", state.dark ? "dark" : "light");
-    if(state.accent)
-      document.documentElement.style.setProperty("--accent", state.accent);
-    var live = state.state === "running" || state.state === "paused";
-    el("live").hidden = !live;
-    el("idle").hidden = live;
+    var root = document.documentElement;
+    if(typeof state.dark === "boolean") root.setAttribute("data-theme", state.dark ? "dark" : "light");
+    if(state.accent) root.style.setProperty("--accent", state.accent);
+    var live = state.state === "running" || state.state === "paused", cap = el("cap");
+    root.style.setProperty("--c", live && state.colour ? state.colour : "#3F7D5C");
+    cap.classList.toggle("paused", state.state === "paused");
+    cap.classList.toggle("over", live && !!state.over);
     if(!live){
       el("name").textContent = "Nothing running";
-      document.documentElement.style.setProperty("--c", "#3F7D5C");
+      el("meta").textContent = "Start a timer on a task";
+      el("clock").textContent = "";
       return;
     }
-    document.documentElement.style.setProperty("--c", state.colour || "#3F7D5C");
+    var secs = state.secs || 0, est = state.est || 0, run = state.state === "running";
     el("name").textContent = state.title || "Task";
-    el("dot").style.background = state.colour || "#3F7D5C";
-
-    var secs = state.secs || 0, est = state.est || 0;
     el("clock").textContent = fmt(secs);
-    el("clock").classList.toggle("over", !!state.over);
-    el("bar").classList.toggle("over", !!state.over);
-    el("mode").textContent = state.state === "paused" ? "Paused"
-      : est ? (state.over ? fmt(secs-est) + " over " + mins(est) : "of " + mins(est))
+    var how = !run ? "Paused" + (est ? " · of " + mins(est) : "")
+      : est ? (state.over ? mins(secs-est) + " over " + mins(est) : "of " + mins(est) + " · " + Math.floor(secs/est*100) + "%")
             : "No estimate";
-    el("fill").style.width = est ? Math.min(100, secs/est*100).toFixed(1)+"%" : "0%";
+    var short = !run ? "Paused" : est ? (state.over ? "over" : Math.floor(secs/est*100) + "%") : "";
+    el("meta").innerHTML = '<span class="hv"><b>' + esc(fmt(secs)) + '</b>' + (short ? " · " + esc(short) : "") + '</span><span class="nh">' + esc(how) + '</span>';
 
-    var run = state.state === "running";
-    el("tlabel").textContent = run ? "Pause" : "Resume";
-    el("toggle").classList.toggle("go", run);
-    el("ticon").innerHTML = run ? '<path d="M9 5.5v13M15 5.5v13"/>' : '<path d="M7.5 5.4v13.2l10.6-6.6z"/>';
+    /* The ring fills against the estimate; the planet sits at its end, or
+       laps once a minute when there is no estimate or it has run over. */
+    var p = est ? Math.min(1, secs/est) : 0;
+    el("fill").setAttribute("stroke-dashoffset", String(100 - p*100));
+    var a = est && !state.over ? p*360 : (secs % 60) * 6;
+    if(a < lastA - 180) lap++;                     // carry on round, never spin back
+    lastA = a;
+    el("spin").style.transform = "rotate(" + (a + lap*360) + "deg)";
+
+    el("toggle").title = run ? "Pause" : "Resume";
+    el("toggle").setAttribute("aria-label", run ? "Pause" : "Resume");
+    el("ticon").innerHTML = run ? '<path d="M9 5.5v13M15 5.5v13"/>' : '<path d="M8 5.6v12.8l10.2-6.4z"/>';
   }
 
   if(api && api.onTimerCmd){
     api.onTimerCmd(function(d){ state = d || {state:"idle"}; paint(); });
   }
-  var send = function(cmd){ if(api && api.timer) api.timer({cmd:cmd}); };
+  var send = function(cmd, more){ if(api && api.timer) api.timer(Object.assign({cmd:cmd}, more || {})); };
   el("toggle").addEventListener("click", function(){ send("toggle"); });
   el("stop").addEventListener("click", function(){ send("stop"); });
   el("hide").addEventListener("click", function(){ send("hide"); });
   el("open").addEventListener("click", function(){ send("open"); });
+  el("cap").addEventListener("dblclick", function(e){ if(!e.target.closest("button")) send("open"); });
+
+  /* Moving the capsule: held and dragged anywhere but a button. The shell
+     moves the window by the distance the pointer has gone. */
+  var drag = null;
+  el("cap").addEventListener("pointerdown", function(e){
+    if(e.button !== 0 || e.target.closest("button")) return;
+    drag = {x:e.screenX, y:e.screenY, moved:false};
+    try{ el("cap").setPointerCapture(e.pointerId); }catch(x){}
+    send("drag-start");
+  });
+  el("cap").addEventListener("pointermove", function(e){
+    if(!drag) return;
+    var dx = e.screenX - drag.x, dy = e.screenY - drag.y;
+    if(!drag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+    drag.moved = true; el("cap").classList.add("dragging");
+    send("drag", {dx:dx, dy:dy});
+  });
+  var end = function(){ if(!drag) return; drag = null; el("cap").classList.remove("dragging"); send("drag-end"); };
+  el("cap").addEventListener("pointerup", end);
+  el("cap").addEventListener("pointercancel", end);
   paint();
 })();
 </script>
