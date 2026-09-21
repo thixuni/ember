@@ -3480,6 +3480,7 @@ document.addEventListener("click",function(e){
     case "sh-deadline":{if(!V.sheet)break;V.sheet.dl=true;renderSheet();
       const b=document.querySelector('.when-dl .pk-btn');if(b)pkOpen(b);break;}
     case "sh-tab":V.sheet.tab=n.dataset.v;renderSheet();break;
+    case "sh-est-u":if(V.sheet){V.sheet.estU=n.dataset.v;renderSheet();const b=document.querySelector('#sheetRoot [data-act="sh-est-u"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});}break;
     case "sh-done":{const t=sheetTask();if(t&&V.sheet.id)toggleTaskDone(t.id),renderSheet();break;}
     case "sh-delete":if(arm(n,"Delete for good?"))deleteTask(V.sheet.id);break;
     case "pk-open":pkOpen(n);break;
@@ -3961,6 +3962,8 @@ document.addEventListener("change",function(e){
     save("prefs");renderSheet();render();customiseModal();
     const f=document.querySelector('.cz [data-act="cz-where"][data-k="'+k+'"][data-w="'+w+'"]');if(f)f.focus({preventScroll:true});
     return;}
+  if(t.dataset&&t.dataset.act==="sh-est"){const cur=sheetTask()||{},n=Math.max(0,parseFloat(t.value)||0);
+    patchCurrent({est:Math.round(estUnit(cur)==="h"?n*60:n)});return;}
   if(t.dataset&&t.dataset.act==="sh-set"){
     const k=t.dataset.k;let v=t.value;
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);
@@ -4347,6 +4350,14 @@ function patchDraft(patch){
   if(V.sheet&&V.sheet.draft)Object.assign(V.sheet.draft,patch);
   /* The placeholder on the grid showed the times it was dragged to. */
   if("due" in patch||"dueTime" in patch||"endTime" in patch)clearGhosts();
+}
+/* An estimate in minutes or hours, whichever reads better; it is kept in
+   minutes either way. A whole number of hours opens in hours. */
+const estUnit=t=>(V.sheet&&V.sheet.estU)||(tEst(t)>=60&&tEst(t)%15===0?"h":"m");
+function estField(t){
+  const u=estUnit(t),m=tEst(t),v=!m?"":u==="h"?String(Math.round(m/60*100)/100):String(m);
+  return '<div class="est-wrap"><input class="inp inp-sm est-in" type="number" min="0" step="'+(u==="h"?"0.25":"5")+'" value="'+v+'" placeholder="0" data-act="sh-est" aria-label="Time estimate in '+(u==="h"?"hours":"minutes")+'">'+
+    '<div class="seg est-u" role="group" aria-label="Unit">'+[["m","minutes"],["h","hours"]].map(x=>'<button type="button" data-act="sh-est-u" data-v="'+x[0]+'" aria-pressed="'+(u===x[0])+'">'+x[1]+'</button>').join("")+'</div></div>';
 }
 function patchCurrent(patch,redraw){
   const s=V.sheet;if(!s)return;
@@ -5002,8 +5013,7 @@ function renderSheet(){
           feat("priority")?metaRow("Priority",sheetPrio(t),"i-flag"):"",
           feat("tags")?metaRow("Tags",sheetTags(t),"i-tag"):""])+
         group("Effort",[
-          feat("estimate")?metaRow("Estimate",'<div class="est-wrap"><input class="inp inp-sm est-in" type="number" min="0" step="5" value="'+(tEst(t)||"")+
-            '" placeholder="0" data-act="sh-set" data-k="est" aria-label="Time estimate in minutes"><span>minutes</span></div>',"i-timer"):"",
+          feat("estimate")?metaRow("Estimate",estField(t),"i-timer"):"",
           feat("timer")?metaRow("Time",sheetTime(t,isNew),"i-clock"):""])+
         group("Fields",cfRows)+
         group("Attached",[
