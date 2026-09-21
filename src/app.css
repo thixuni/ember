@@ -98,8 +98,8 @@
   /* Shown on the "any colour" swatch before one is picked. It stands for the
      whole spectrum, so it belongs to neither theme and never changes. */
   /* The Light and Dark pictures in setup show those themes whichever one is on. */
-  --thumb-l-bg:#F5F5F6;--thumb-l-card:#FFFFFF;--thumb-l-line:#E6E6E9;
-  --thumb-d-bg:#1B1B1D;--thumb-d-card:#28282B;--thumb-d-line:#39393E;
+  --thumb-l-bg:#F5F5F6;--thumb-l-card:#FFFFFF;--thumb-l-line:#E6E6E9;--thumb-l-ink:#CFCFD4;
+  --thumb-d-bg:#1B1B1D;--thumb-d-card:#28282B;--thumb-d-line:#39393E;--thumb-d-ink:#55555C;
   --wheel:conic-gradient(from .25turn,#C0517A,#B5791C,#6D7A2E,#2F7D7A,#3A6DA6,#6B5AC4,#C0517A);
 }
 
@@ -222,7 +222,10 @@
 ::placeholder{color:var(--faint);opacity:1}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--ff);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
-button{background:none;border:0;cursor:pointer;padding:0}
+button{background:none;border:0;cursor:pointer;padding:0;align-items:normal}
+/* The desktop app runs an older Chrome whose own style gives a flex button
+   align-items:flex-start, which shrank everything inside card-like buttons
+   (setup's theme previews drew 2px wide). normal is what current Chrome does. */
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em;text-wrap:balance}
 .ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -1041,15 +1044,21 @@ button.obx-rt-txt > *{pointer-events:none}
 .obx-theme:hover{transform:translateY(-2px)}
 .obx-theme.on{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
 .obx-theme b{padding:0 4px;font-size:13px;color:var(--ink)}
-.obx-thumb{position:relative;height:78px;border-radius:11px;overflow:hidden;background:var(--thumb-l-bg);border:1px solid var(--thumb-l-line)}
-.obx-thumb.dark{background:var(--thumb-d-bg);border-color:var(--thumb-d-line)}
-.obx-thumb.system{background:linear-gradient(115deg,var(--thumb-l-bg) 50%,var(--thumb-d-bg) 50%)}
-.obx-thumb i{position:absolute;border-radius:5px;background:var(--thumb-l-card);border:1px solid var(--thumb-l-line)}
-.obx-thumb.dark i{background:var(--thumb-d-card);border-color:var(--thumb-d-line)}
-.obx-thumb i:nth-child(1){left:8px;top:8px;bottom:8px;width:18px}
-.obx-thumb i:nth-child(2){left:32px;right:8px;top:8px;height:24px}
-.obx-thumb i:nth-child(3){left:32px;width:40%;top:39px;height:14px;border-color:transparent;background:var(--accent)}
-.obx-thumb.system i:nth-child(2){background:var(--thumb-d-card);border-color:var(--thumb-d-line)}
+.obx-thumb{position:relative;display:block;width:100%;height:84px;border-radius:11px;overflow:hidden;border:1px solid var(--line)}
+.mini{position:absolute;inset:0;display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:16px 1fr 1fr;gap:5px;padding:6px;background:var(--mb)}
+.mini.light{--mb:var(--thumb-l-bg);--mc:var(--thumb-l-card);--ml:var(--thumb-l-line);--mt:var(--thumb-l-ink)}
+.mini.dark{--mb:var(--thumb-d-bg);--mc:var(--thumb-d-card);--ml:var(--thumb-d-line);--mt:var(--thumb-d-ink)}
+.mini.half{clip-path:polygon(62% 0,100% 0,100% 100%,38% 100%)}
+.mini i{display:flex;align-items:center;gap:4px;border-radius:5px;background:var(--mc);border:1px solid var(--ml)}
+.m-rail{grid-row:1/-1;flex-direction:column;justify-content:flex-start;padding:5px 0}
+.m-rail b{width:9px;height:4px;border-radius:2px;background:var(--mt)}
+.m-rail b:first-child{background:var(--accent)}
+.m-top{padding:0 4px;justify-content:space-between;background:transparent!important;border-color:transparent!important}
+.m-top u{width:44%;height:5px;border-radius:3px;background:var(--mt)}
+.m-top em{width:24px;height:9px;border-radius:4px;background:var(--accent)}
+.m-card{padding:0 5px}
+.m-card s{width:16px;height:6px;flex:none;border-radius:3px;background:var(--c)}
+.m-card u{flex:1;max-width:60%;height:4px;border-radius:2px;background:var(--mt)}
 .obx-set{display:flex;flex-direction:column;gap:10px}
 .obx-flabel{font-size:12px;font-weight:700;color:var(--muted)}
 .obx-app{width:min(460px,100%);height:310px;display:grid;grid-template-columns:120px minmax(0,1fr);border-radius:20px;overflow:hidden;

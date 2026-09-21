@@ -2500,8 +2500,14 @@ function obShowVault(){
 /* ---- appearance ---- */
 function obLook(){
   const cur=S.prefs.theme||"system";
+  /* Each theme as the app in miniature: a sidebar, a header with the accent
+     button, and two task cards in the person's own category colours. */
+  const cc=S.categories;
+  const mini=t=>'<span class="mini '+t+'"><i class="m-rail"><b></b><b></b><b></b></i>'+
+    '<i class="m-top"><u></u><em></em></i>'+
+    [0,1].map(k=>'<i class="m-card"><s style="--c:'+((cc[k]||{}).color||CAT_COLORS[k])+'"></s><u></u></i>').join("")+'</span>';
   const card=(v,label)=>'<button class="obx-theme'+(cur===v?" on":"")+'" data-act="set-theme" data-v="'+v+'" aria-pressed="'+(cur===v)+'">'+
-    '<span class="obx-thumb '+v+'"><i></i><i></i><i></i></span><b>'+label+'</b></button>';
+    '<span class="obx-thumb">'+(v==="system"?mini("light")+mini("dark half"):mini(v))+'</span><b>'+label+'</b></button>';
   return obHead("Appearance","Make it feel like <em>yours</em>",
       "Pick a theme and an accent colour. Change them whenever you like.")+
     '<div class="obx-themes">'+card("light","Light")+card("dark","Dark")+card("system","Match system")+'</div>'+
