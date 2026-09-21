@@ -2011,6 +2011,8 @@ function linkBar(host){
 }
 function closeLinkBar(){const b=document.querySelector(".link-bar");if(b)b.remove();}
 function toast(msg){
+  /* One note at a time: a second click replaces it rather than stacking. */
+  document.querySelectorAll("body > .toast").forEach(x=>x.remove());
   const n=document.createElement("div");n.className="toast";n.textContent=msg;document.body.appendChild(n);
   setTimeout(()=>n.remove(),2200);
 }
@@ -5741,7 +5743,7 @@ function remindTest(){
      arrived at another moment and read as a second notification. */
   if(o&&o.testReminder){o.testReminder(msg);return;}
   if(typeof Notification==="undefined"){toast("This browser cannot show notifications");return;}
-  if(Notification.permission!=="granted"){toast("Allow notifications first");return;}
+  if(Notification.permission!=="granted"){toast(Notification.permission==="denied"?"Your browser is blocking reminders. The steps to allow them are just below.":"Press Allow notifications first");return;}
   try{new Notification(msg.title,{body:msg.body});}catch(e){toast("The browser would not show it");}
 }
 function remindBoot(){
