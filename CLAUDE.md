@@ -630,6 +630,16 @@ grey the operating system chose and matched nothing on the page.
   it puts the chosen category's colour as a dot inside the closed field too,
   and a `change` listener keeps that dot in step where nothing redraws. On a touch screen the phone's own picker is better, so there it
   is left alone (`pkSelectable`).
+- **Colours** open the planner's own picker (`cpOpen()`, the colour picker
+  section), never `<input type="color">`: the accent, a category, a lane
+  and a field's option. It opens from the multicoloured swatch (`cpSwatch()`,
+  the spectrum until a colour of one's own is set, then that colour ringed
+  in it), in the panel colours of the theme: a shade square, a hue strip, a
+  preview, the colour code to type and a dropper where the system has one.
+  A drag shows as it goes (`onLive`), letting go or Done keeps it
+  (`onDone`), Escape puts back what was there. Its code sits after the
+  accent section on purpose: `test/contrast.test.js` lifts the colour maths
+  out by position, and code that touches the page cannot sit in that stretch.
 - The pop-over is appended to `<body>`, so a modal's or the panel's
   overflow cannot clip it, and is placed against its field. A redraw under an
   open one is common — a sync lands, the panel refreshes — so it finds its

@@ -1775,7 +1775,7 @@ function czLanes(){
           '<button class="icon-btn btn-sm" data-act="cz-lane-move" data-id="'+l.id+'" data-v="1" aria-label="Move down"'+(i<L.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
         '<button class="icon-btn btn-sm cz-del" data-act="cz-lane-del" data-id="'+l.id+'" aria-label="Remove '+esc(l.name)+'"'+(L.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
         (pal?'<div class="cz-pal">'+LANE_COLORS.map(x=>'<button class="'+(x===l.color?"on":"")+'" style="--c:'+x+'" data-act="cz-lane-color" data-id="'+l.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
-          '<label class="cz-own" title="Any colour"><input type="color" data-act="cz-lane-hex" data-id="'+l.id+'" value="'+l.color+'"><span>Custom</span></label></div>':"")+
+          cpSwatch('data-act="cp-open" data-cp="lane" data-id="'+l.id+'"',l.color,LANE_COLORS.indexOf(l.color)<0,"Any colour you like")+'</div>':"")+
         (del&&del.id===l.id?czDelRow(l,n):"")+
         '</div>';}).join("")+'</div>'+
     '<button class="btn btn-sm" data-act="cz-lane-add">'+icon("i-plus","ic-14")+'Add a lane</button>'+
@@ -1881,7 +1881,7 @@ function czFieldEditor(){
         :'<button class="linkish" data-act="cz-desc-show">'+icon("i-plus","ic-14")+'Add a description</button>')+
 
       (sel?'<div class="cz-l">Options</div><div class="cz-opts">'+(d.options||[]).map((o,i)=>
-          '<div class="cz-opt"><button class="cz-dot" style="--c:'+o.color+'" data-act="cz-opt-color" data-v="'+i+'" aria-label="Change colour"></button>'+
+          '<div class="cz-opt"><button type="button" class="cz-dot" style="--c:'+o.color+'" data-act="cp-open" data-cp="opt" data-v="'+i+'" aria-label="Colour of this option" aria-haspopup="dialog"></button>'+
           '<input class="inp inp-sm" data-act="cz-opt-name" data-v="'+i+'" value="'+esc(o.name)+'" placeholder="Option '+(i+1)+'" maxlength="40">'+
           '<button class="icon-btn btn-sm" data-act="cz-opt-del" data-v="'+i+'" aria-label="Remove option">'+icon("i-x","ic-14")+'</button></div>').join("")+
         '<button class="btn btn-sm" data-act="cz-opt-add">'+icon("i-plus","ic-14")+'Add an option</button></div>':"")+
@@ -2871,6 +2871,17 @@ function accentTrio(hex){
   while(!liftOk(lift)&&li<100){li+=1;lift=shade(h,s,li);}
   return {base:rgb2hex(base),dark:rgb2hex(dark),lift:rgb2hex(lift)};
 }
+/* The page takes a custom accent as it is being picked; the settings around
+   the picker are only marked, not redrawn. */
+function accentLive(hex){
+  setCustomAccent(hex);
+  const note=document.querySelector(".accent-note");
+  if(note){const b=note.querySelector("b");if(b)b.textContent=S.prefs.accentHex;
+    const lab=note.querySelector("span");if(lab)lab.textContent="Your own colour";}
+  const tri=accentTrio(S.prefs.accentHex);
+  document.querySelectorAll('.cp-swatch[data-cp="accent"]').forEach(x=>{x.classList.add("on");x.style.setProperty("--dot",isDark()?tri.lift:tri.base);});
+  document.querySelectorAll('[data-act="set-accent"]').forEach(x=>{x.classList.remove("on");x.setAttribute("aria-pressed","false");});
+}
 function setCustomAccent(hex){
   S.prefs.accent="custom";
   S.prefs.accentHex=String(hex||"").toUpperCase();
@@ -2935,12 +2946,86 @@ function accentPickHtml(plain){
     ' data-act="set-accent" data-v="'+a.id+'" title="'+esc(a.name)+'" aria-label="'+esc(a.name)+'"'+
     ' aria-pressed="'+(cur===a.id)+'"></button>';
   return '<div class="accents">'+ACCENTS.map(swatch).join("")+
-    '<input type="color" class="accent-dot accent-custom'+(cur==="custom"?" on":" empty")+'"'+
-      ' style="--dot:'+shade(curHex)+'" value="'+esc(curHex)+'" data-act="set-accent-hex"'+
-      ' title="Any colour you like" aria-label="Custom accent colour"></div>'+
+    cpSwatch('data-act="cp-open" data-cp="accent"',shade(curHex),cur==="custom","Any colour you like")+'</div>'+
     '<div class="accent-note"><span>'+(cur==="custom"?"Your own colour":
       esc((ACCENTS.filter(a=>a.id===cur)[0]||ACCENTS[0]).name))+'</span>'+(plain?'':'<b>'+esc(curHex)+'</b>')+'</div>';
 }
+/* ---- the colour picker ----
+   The planner's own, for every "any colour" in it: the accent, a category,
+   a lane and a field's option. The operating system's came in its own grey
+   and its own layout. It opens under the multicoloured swatch, in the panel
+   colours of the theme: a square to pick the shade, a strip for the hue, a
+   preview, the colour's code to type, and a dropper where the system has
+   one. A drag shows as it goes (onLive); letting go keeps it (onDone);
+   Escape puts back what was there. */
+const CPK={el:null,hsv:null,start:"",live:null,done:null,btn:null};
+const cpSwatch=(attrs,hex,on,label)=>'<button type="button" class="cp-swatch'+(on?" on":"")+'" '+attrs+' style="--dot:'+esc(hex||"")+'" title="'+esc(label)+'" aria-label="'+esc(label)+'" aria-haspopup="dialog"></button>';
+function hexToHsv(hex){
+  const m=/^#?([0-9a-f]{6})$/i.exec(String(hex||"").trim());const v=m?parseInt(m[1],16):0x3F7D5C;
+  const r=(v>>16&255)/255,g=(v>>8&255)/255,b=(v&255)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;
+  let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h*=60;if(h<0)h+=360;}
+  return {h:h,s:mx?d/mx:0,v:mx};
+}
+function hsvToHex(o){
+  const c=o.v*o.s,x=c*(1-Math.abs((o.h/60)%2-1)),m=o.v-c;
+  const [r,g,b]=o.h<60?[c,x,0]:o.h<120?[x,c,0]:o.h<180?[0,c,x]:o.h<240?[0,x,c]:o.h<300?[x,0,c]:[c,0,x];
+  return "#"+[r,g,b].map(q=>Math.round((q+m)*255).toString(16).padStart(2,"0")).join("").toUpperCase();
+}
+function cpOpen(btn,hex,onLive,onDone){
+  if(CPK.el&&CPK.btn===btn){cpClose(true);return;}
+  cpClose(true);pkClose();catMenuClose();
+  CPK.hsv=hexToHsv(hex);CPK.start=hsvToHex(CPK.hsv);CPK.live=onLive;CPK.done=onDone;CPK.btn=btn;
+  const p=document.createElement("div");p.className="cpk";p.setAttribute("role","dialog");p.setAttribute("aria-label","Pick a colour");
+  p.innerHTML='<div class="cpk-sv" data-cp="sv"><i class="cpk-knob"></i></div>'+
+    '<div class="cpk-row">'+(window.EyeDropper?'<button type="button" class="cpk-drop" data-act="cp-drop" title="Pick a colour from the screen" aria-label="Pick a colour from the screen">'+icon("i-dropper","ic-14")+'</button>':"")+
+      '<span class="cpk-prev"></span><div class="cpk-hue" data-cp="hue" role="slider" aria-label="Hue" aria-valuemin="0" aria-valuemax="360" tabindex="0"><i class="cpk-knob"></i></div></div>'+
+    '<div class="cpk-row"><label class="cpk-hex"><span>Colour code</span><input id="cpkHex" class="inp inp-sm num" maxlength="7" autocomplete="off" spellcheck="false"></label>'+
+      '<button type="button" class="btn btn-sm btn-primary" data-act="cp-done">Done</button></div>';
+  document.body.appendChild(p);CPK.el=p;cpDraw();
+  const r=btn.getBoundingClientRect(),w=p.offsetWidth,h=p.offsetHeight;
+  let top=r.bottom+8;if(top+h>innerHeight-8)top=Math.max(8,r.top-8-h);
+  p.style.left=Math.round(Math.min(Math.max(8,r.left+r.width/2-w/2),innerWidth-w-8))+"px";p.style.top=Math.round(top)+"px";
+  const hx=el("cpkHex");if(hx)hx.focus({preventScroll:true});
+}
+function cpDraw(txt){
+  const p=CPK.el;if(!p)return;const o=CPK.hsv,hex=hsvToHex(o);
+  p.style.setProperty("--cp-h",String(Math.round(o.h)));p.style.setProperty("--cp",hex);
+  const sv=p.querySelector(".cpk-sv .cpk-knob"),hu=p.querySelector(".cpk-hue .cpk-knob");
+  sv.style.left=(o.s*100)+"%";sv.style.top=((1-o.v)*100)+"%";hu.style.left=(o.h/360*100)+"%";
+  p.querySelector(".cpk-hue").setAttribute("aria-valuenow",String(Math.round(o.h)));
+  const hx=el("cpkHex");if(hx&&!txt)hx.value=hex;
+}
+function cpClose(revert){
+  if(!CPK.el)return;const hsvHex=hsvToHex(CPK.hsv),start=CPK.start,live=CPK.live,done=CPK.done,b=CPK.btn;
+  CPK.el.remove();CPK.el=null;CPK.btn=null;
+  if(revert){if(live&&hsvHex!==start)live(start,true);}
+  else if(done)done(hsvHex);
+  if(b&&b.isConnected)b.focus({preventScroll:true});
+}
+function cpSet(o,txt){Object.assign(CPK.hsv,o);cpDraw(txt);if(CPK.live)CPK.live(hsvToHex(CPK.hsv));}
+document.addEventListener("pointerdown",function(e){
+  if(!CPK.el)return;const t=e.target;
+  if(!CPK.el.contains(t)){if(!(CPK.btn&&CPK.btn.contains(t)))cpClose(false);return;}
+  const area=t.closest&&t.closest("[data-cp]");if(!area)return;
+  e.preventDefault();try{area.setPointerCapture(e.pointerId);}catch(x){}
+  const move=ev=>{const r=area.getBoundingClientRect(),x=Math.min(1,Math.max(0,(ev.clientX-r.left)/r.width)),y=Math.min(1,Math.max(0,(ev.clientY-r.top)/r.height));
+    if(area.dataset.cp==="sv")cpSet({s:x,v:1-y});else cpSet({h:x*360});};
+  move(e);
+  const up=()=>{area.removeEventListener("pointermove",move);area.removeEventListener("pointerup",up);area.removeEventListener("pointercancel",up);};
+  area.addEventListener("pointermove",move);area.addEventListener("pointerup",up);area.addEventListener("pointercancel",up);
+},true);
+document.addEventListener("keydown",function(e){
+  if(!CPK.el)return;
+  if(e.key==="Escape"){e.preventDefault();e.stopPropagation();cpClose(true);return;}
+  const t=e.target;
+  if(t&&t.id==="cpkHex"&&e.key==="Enter"){e.preventDefault();cpClose(false);return;}
+  if(t&&t.classList&&t.classList.contains("cpk-hue")&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){e.preventDefault();
+    cpSet({h:(CPK.hsv.h+(e.key==="ArrowRight"?5:-5)+360)%360});}
+},true);
+document.addEventListener("input",function(e){
+  if(!CPK.el||!e.target||e.target.id!=="cpkHex")return;
+  const v=e.target.value.trim(),m=/^#?([0-9a-f]{6})$/i.exec(v);if(m)cpSet(hexToHsv(m[1]),true);
+});
 function settingsModal(){
   const n=S.tasks.length+S.routines.length+S.notes.length;
   const p=S.prefs||{};
@@ -3313,7 +3398,7 @@ function catsModal(){
       (off?'<span class="cm-hid" title="Hidden from your views">'+icon("i-eye-off","ic-14")+'</span>':"")+
       '<button type="button" class="icon-btn btn-sm cm-more" data-act="cm-more" data-id="'+c.id+'" aria-label="More for '+esc(c.name)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button>'+
       (open==="color"?'<div class="cm-pick">'+CAT_COLORS.map(x=>'<button type="button" class="cm-dot'+(x.toLowerCase()===c.color.toLowerCase()?" on":"")+'" style="--c:'+x+'" data-act="cm-color" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
-        '<label class="cm-own'+(CAT_COLORS.some(x=>x.toLowerCase()===c.color.toLowerCase())?"":" on")+'" title="Any colour you like"><input type="color" data-act="cm-hex" data-id="'+c.id+'" value="'+esc(c.color)+'"><span>Custom</span></label></div>':"")+
+        cpSwatch('data-act="cp-open" data-cp="cat" data-id="'+c.id+'"',c.color,!CAT_COLORS.some(x=>x.toLowerCase()===c.color.toLowerCase()),"Any colour you like")+'</div>':"")+
       (open==="icon"?'<div class="cm-pick cm-icons">'+CAT_ICONS.map(i=>'<button type="button" class="cm-icon'+(i===c.icon?" on":"")+'" data-act="cm-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+i.replace("i-","")+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>':"")+
       (del&&del.id===c.id?'<div class="cz-delrow"><span>'+(n?'Delete “'+esc(c.name)+'”? '+(n===1?"Its one item moves":"Its "+n+" items move")+' to '+esc(to?to.name:"")+'.':'Delete “'+esc(c.name)+'”?')+'</span>'+
         '<span class="spacer" style="flex:1"></span><button type="button" class="btn btn-sm" data-act="cm-del-no">Keep it</button>'+
@@ -3599,6 +3684,17 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v);break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
+    case "cp-done":cpClose(false);break;
+    case "cp-drop":if(window.EyeDropper){new EyeDropper().open().then(r=>{if(r&&r.sRGBHex&&CPK.el)cpSet(hexToHsv(r.sRGBHex));}).catch(()=>{});}break;
+    case "cp-open":{const k=n.dataset.cp,id=n.dataset.id;
+      if(k==="accent"){const was={a:S.prefs.accent,h:S.prefs.accentHex};
+        cpOpen(n,accentHex(),(hex,back)=>{if(back){S.prefs.accent=was.a;S.prefs.accentHex=was.h;applyAppearance();panels();}else accentLive(hex);},
+          hex=>{setCustomAccent(hex);save("prefs");syncTimerWindow();render();panels();});}
+      else if(k==="cat"){const c=cat(id);if(c&&c.id===id)cpOpen(n,c.color,hex=>{n.style.setProperty("--dot",hex);n.classList.add("on");},hex=>cmSet(id,{color:hex}));}
+      else if(k==="lane"){const l=lane(id);if(l)cpOpen(n,l.color,hex=>{n.style.setProperty("--dot",hex);n.classList.add("on");},hex=>{l.color=hex;save("prefs");customiseModal();render();});}
+      else if(k==="opt"){czReadDraft();const o=V.cz.draft&&V.cz.draft.options[Number(n.dataset.v)];
+        if(o)cpOpen(n,o.color,hex=>n.style.setProperty("--c",hex),hex=>{czReadDraft();o.color=hex;customiseModal();});}
+      break;}
     case "task-menu":taskMenu(id,null,n,false);break;
     case "tm-do":tmDo(n.dataset.v,id,n);break;
     case "qa-open":qaOpen(n.dataset.status);break;
@@ -3956,7 +4052,9 @@ document.addEventListener("input",function(e){
      so the choice can be judged in place, but the modal is left alone --
      redrawing it would tear the picker off its own input. */
   if(e.target&&e.target.dataset&&e.target.dataset.act==="set-accent-hex"){
-    setCustomAccent(e.target.value);
+    accentLive(e.target.value);return;
+  }
+  if(false){
     const note=document.querySelector(".accent-note");
     if(note){
       const b=note.querySelector("b");if(b)b.textContent=S.prefs.accentHex;

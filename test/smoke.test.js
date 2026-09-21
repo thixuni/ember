@@ -284,3 +284,23 @@ test("the release flow is wired up and the version is clean", () => {
   const release = read("scripts/release.js");
   assert.ok(/npm version|--no-git-tag-version/.test(release), "the release script should be the thing that sets the version");
 });
+
+/* Removing a rule that runs over two lines by its first line leaves the rest
+   behind: a bare "  background:...}" that closes nothing and swallows the
+   rule after it, with no error anywhere. It happened twice. */
+test('the stylesheet has no half rules left behind', () => {
+  const css = read('src/app.css').replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '));
+  let depth = 0, line = 1;
+  for (const ch of css) {
+    if (ch === '\n') line++;
+    if (ch === '{') depth++;
+    if (ch === '}') { depth--; assert.ok(depth >= 0, 'a stray } at line ' + line + ' of src/app.css'); }
+  }
+  assert.strictEqual(depth, 0, 'src/app.css leaves a rule open');
+  let d = 0;
+  css.split('\n').forEach((l, i) => {
+    const t = l.trim();
+    if (d === 0 && /^[a-z-]+\s*:[^{]*}\s*$/.test(t)) assert.fail('line ' + (i + 1) + ' of src/app.css is the tail of a rule with no selector: ' + t.slice(0, 60));
+    for (const ch of l) { if (ch === '{') d++; if (ch === '}') d--; }
+  });
+});

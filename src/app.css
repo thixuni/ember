@@ -100,6 +100,8 @@
   /* The Light and Dark pictures in setup show those themes whichever one is on. */
   --thumb-l-bg:#F5F5F6;--thumb-l-card:#FFFFFF;--thumb-l-line:#E6E6E9;--thumb-l-ink:#CFCFD4;
   --thumb-d-bg:#1B1B1D;--thumb-d-card:#28282B;--thumb-d-line:#39393E;--thumb-d-ink:#55555C;
+  --cp-white:#FFFFFF;--cp-black:#000000;
+  --cp-hue:linear-gradient(90deg,#FF0000,#FFFF00,#00FF00,#00FFFF,#0000FF,#FF00FF,#FF0000);
   --wheel:conic-gradient(from .25turn,#C0517A,#B5791C,#6D7A2E,#2F7D7A,#3A6DA6,#6B5AC4,#C0517A);
 }
 
@@ -1311,9 +1313,6 @@ button.obx-rt-txt > *{pointer-events:none}
 .cm-dot{width:24px;height:24px;border-radius:50%;background:var(--c);border:2px solid transparent}
 .cm-dot > *{pointer-events:none}
 .cm-dot.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
-.cm-own{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 4px;margin-left:4px;border-radius:20px;border:1px dashed var(--line-2);font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
-.cm-own.on{border-style:solid;border-color:var(--c);color:var(--ink)}
-.cm-own input{width:22px;height:22px;padding:0;border:0;border-radius:50%;background:none;cursor:pointer}
 .cm-icons{gap:4px}
 .cm-icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
 .cm-icon > *{pointer-events:none}
@@ -1809,17 +1808,28 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .accent-dot.on::after{content:"";position:absolute;left:50%;top:50%;width:8px;height:8px;
   margin:-4px 0 0 -4px;border-radius:50%;background:var(--on-accent)}
 
-/* The custom swatch IS the colour input, wearing the same circle -- a wrapper
-   with the input laid over it would not take a size, because a form control
-   carries its own and a parent shrink-wraps to it. Clicking it opens the
-   platform picker, which is the one dialog worth deferring to. */
-input.accent-custom{-webkit-appearance:none;appearance:none;padding:0;cursor:pointer;
-  background:var(--dot)}
-input.accent-custom::-webkit-color-swatch-wrapper{padding:0}
-input.accent-custom::-webkit-color-swatch{border:0;border-radius:50%}
-/* Before a colour is chosen it shows the spectrum instead of a colour. */
-input.accent-custom.empty{background:var(--wheel)}
-input.accent-custom.empty::-webkit-color-swatch{opacity:0}
+/* The multicoloured "any colour" swatch, the same everywhere: the spectrum
+   until a colour of one's own is chosen, then that colour ringed in it. */
+.cp-swatch{position:relative;width:26px;height:26px;flex:none;border-radius:50%;background:var(--wheel);cursor:pointer}
+.cp-swatch.on{border:3px solid transparent;background:linear-gradient(var(--dot),var(--dot)) padding-box,var(--wheel) border-box}
+.cp-swatch:hover{transform:scale(1.08)}
+.cp-swatch:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.accents .cp-swatch{width:30px;height:30px}
+/* The picker, in the panel colours of the theme. */
+.cpk{position:fixed;z-index:74;width:244px;padding:12px;display:flex;flex-direction:column;gap:12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:pop .14s ease}
+.cpk-sv{position:relative;height:150px;border-radius:10px;cursor:crosshair;touch-action:none;
+  background:linear-gradient(to top,var(--cp-black),transparent),linear-gradient(to right,var(--cp-white),transparent),hsl(var(--cp-h) 100% 50%)}
+.cpk-knob{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2.5px solid var(--cp-white);box-shadow:0 0 0 1px color-mix(in srgb,var(--cp-black) 40%,transparent),0 1px 4px color-mix(in srgb,var(--cp-black) 35%,transparent);background:var(--cp);pointer-events:none}
+.cpk-row{display:flex;align-items:center;gap:10px}
+.cpk-prev{width:28px;height:28px;flex:none;border-radius:50%;background:var(--cp);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.cpk-hue{position:relative;flex:1;height:12px;border-radius:6px;background:var(--cp-hue);cursor:pointer;touch-action:none}
+.cpk-hue .cpk-knob{top:50%;background:hsl(var(--cp-h) 100% 50%)}
+.cpk-hue:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.cpk-drop{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;color:var(--muted)}
+.cpk-drop:hover{background:var(--surface-3);color:var(--ink)}
+.cpk-drop > *{pointer-events:none}
+.cpk-hex{flex:1;display:flex;flex-direction:column;gap:3px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.cpk-hex .inp{text-transform:uppercase;letter-spacing:.04em}
 .accent-note{display:flex;align-items:center;justify-content:space-between;gap:10px;
   font-size:11.5px;color:var(--muted);width:100%}
 .accent-note b{font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums;text-transform:uppercase}
@@ -2017,8 +2027,6 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .cz-pal{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0 2px 26px}
 .cz-pal button{width:22px;height:22px;border-radius:50%;background:var(--c);border:2px solid transparent}
 .cz-pal button.on{border-color:var(--ink)}
-.cz-own{display:inline-flex;align-items:center;gap:6px;margin-left:4px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
-.cz-own input{width:26px;height:26px;padding:0;border:0;background:none;cursor:pointer}
 .cz-delrow{flex-basis:100%;display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:4px 0 0 26px;padding:8px 10px;border-radius:var(--r-s);
   background:var(--danger-soft);font-size:12.5px;color:var(--ink)}
 .cz-delrow select{width:auto;min-width:140px}
@@ -2124,7 +2132,6 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .cz-l small{font-weight:500;color:var(--muted)}
 .cz-l .req{color:var(--danger-ink);margin-left:2px}
 .cz-form > .linkish{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-size:12.5px}
-  background:var(--surface);border:1px solid var(--line);transition:border-color .12s,background .12s}
 .cz-opts{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .cz-opt{display:flex;align-items:center;gap:8px;width:100%;max-width:420px}
 .cz-dot{width:20px;height:20px;flex:none;border-radius:50%;background:var(--c)}
