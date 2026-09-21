@@ -504,7 +504,7 @@ const COL_EMPTY={todo:"Nothing to do yet",backlog:"Park ideas here",planned:"Not
 
 /* ============ view state ============ */
 const V={view:"dashboard",calMode:"week",anchor:today(),taskMode:"board",q:"",odOpen:true,adv:false,sheet:null,range:"week",
-  f:{quick:"open",status:"",cat:"",quad:"",from:"",to:"",sort:"due"},noteId:null,noteTag:""};
+  f:{quick:"all",status:"",cat:"",quad:"",from:"",to:"",sort:"due"},noteId:null,noteTag:""};
 
 /* Google Calendar's working state. In memory only: events are Google's data,
    not the planner's, so they are never saved, synced to the cloud store, or
@@ -1304,7 +1304,7 @@ function viewCalendar(){
 }
 
 /* ============ tasks: filters ============ */
-const QUICKS=[{id:"open",name:"Open"},{id:"today",name:"Today"},{id:"week",name:"This week"},{id:"overdue",name:"Overdue"},{id:"done",name:"Completed"},{id:"all",name:"Everything"}];
+const QUICKS=[{id:"all",name:"All"},{id:"today",name:"Today"},{id:"week",name:"This Week"},{id:"overdue",name:"Overdue"},{id:"done",name:"Completed"}];
 function filterTasks(mode){
   const f=V.f,t0=TODAY(),wkEnd=ymd(addDays(startOfWeek(today()),6));
   let list=tops().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q));
@@ -1312,8 +1312,6 @@ function filterTasks(mode){
   else if(f.quick==="week")list=list.filter(t=>t.due&&t.due>=ymd(startOfWeek(today()))&&t.due<=wkEnd);
   else if(f.quick==="overdue")list=list.filter(isOverdue);
   else if(f.quick==="done")list=list.filter(t=>isDoneT(t));
-  else if(f.quick==="open"&&mode!=="board")list=list.filter(isOpen);
-  else if(f.quick==="open"&&mode==="board")list=list.filter(t=>t.status!=="dropped"||true);
   if(f.status)list=list.filter(t=>t.status===f.status);
   if(f.cat)list=list.filter(t=>t.cat===f.cat);
   if(f.quad)list=list.filter(t=>f.quad==="none"?!quadOf(t):quadOf(t)===f.quad);
@@ -1420,7 +1418,7 @@ function viewList(){
   if(!list.length){
     const any=tops().some(t=>visibleCat(t.cat)),n=activeFilterCount();
     const acts=any?(n?'<button class="btn btn-sm" data-act="filter-clear">'+icon("i-x","ic-14")+'Clear filters</button>':"")+
-        (V.f.quick!=="all"?'<button class="btn btn-sm" data-act="quick" data-v="all">Show everything</button>':"")
+        (V.f.quick!=="all"?'<button class="btn btn-sm" data-act="quick" data-v="all">Show all</button>':"")
       :'<button class="btn btn-sm btn-primary" data-act="new-task">'+icon("i-plus","ic-14")+'New task</button>';
     return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+(any
       ?es("filter","Nothing matches",V.q?"Nothing fits “"+esc(V.q)+"” with these filters.":"No task fits this view. Try another filter.",{hue:"var(--apricot)",actions:acts})
@@ -1841,7 +1839,7 @@ czDragWire();
 
 /* ============ matrix ============ */
 function viewMatrix(){
-  const base=tops().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped"&&(V.f.quick==="done"?true:!isDoneT(t)||V.f.quick==="all"));
+  const base=tops().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped"&&(!isDoneT(t)||V.f.quick==="done"));
   const byDue=(a,b)=>{if(!a.due)return 1;if(!b.due)return -1;return a.due<b.due?-1:(a.due>b.due?1:0);};
   const grid='<div class="mx">'+QUADS.map(Q=>{
     const items=base.filter(t=>quadOf(t)===Q.id).sort(byDue);
