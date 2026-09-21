@@ -1808,14 +1808,11 @@ function czLanes(){
   return '<p class="cz-lead">The columns on your board, left to right. Drag to reorder, click a name to rename it, and switch on <b>Done</b> for the lane finished tasks go to.</p>'+
     '<div class="cz-lanes" id="czLanes">'+L.map((l,i)=>{const n=count(l.id),pal=V.cz.pal===l.id;
       return '<div class="cz-lane" draggable="true" data-lane="'+l.id+'" style="--s:'+l.color+'">'+
-        '<span class="cz-grip" title="Drag to reorder" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
+        '<button type="button" class="cz-grip" data-grip="lane" data-id="'+l.id+'" title="Drag to reorder" aria-label="Move '+esc(l.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
         '<button class="cz-swatch" data-act="cz-lane-pal" data-id="'+l.id+'" aria-label="Colour of '+esc(l.name)+'" aria-expanded="'+pal+'"></button>'+
         '<input class="cz-name" data-act="cz-lane-name" data-id="'+l.id+'" value="'+esc(l.name)+'" maxlength="40" aria-label="Lane name">'+
         '<span class="cz-n num" title="Tasks in this lane">'+n+'</span>'+
         '<label class="switch cz-done" title="Ticking a task moves it here, and it counts as finished"><input type="checkbox" data-act="cz-lane-done" data-id="'+l.id+'"'+(l.done?" checked":"")+'><span></span><i>Done</i></label>'+
-        '<span class="cz-move">'+
-          '<button class="icon-btn btn-sm" data-act="cz-lane-move" data-id="'+l.id+'" data-v="-1" aria-label="Move up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
-          '<button class="icon-btn btn-sm" data-act="cz-lane-move" data-id="'+l.id+'" data-v="1" aria-label="Move down"'+(i<L.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
         '<button class="icon-btn btn-sm cz-del" data-act="cz-lane-del" data-id="'+l.id+'" aria-label="Remove '+esc(l.name)+'"'+(L.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
         (pal?'<div class="cz-pal">'+LANE_COLORS.map(x=>'<button class="'+(x===l.color?"on":"")+'" style="--c:'+x+'" data-act="cz-lane-color" data-id="'+l.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
           cpSwatch('data-act="cp-open" data-cp="lane" data-id="'+l.id+'"',l.color,LANE_COLORS.indexOf(l.color)<0,"Any colour you like")+'</div>':"")+
@@ -1871,17 +1868,18 @@ function czPanel(){
       '<div class="cz-modes" role="radiogroup" aria-label="How subtasks work">'+
         mode("check","Checklist","Steps you tick off",checkPic)+
         mode("full","Full tasks","Steps with their own date and timer",fullPic)+'</div></div>'+
-    '<div class="cz-sec"><h3 class="cz-sh">Column order</h3>'+
-      '<p class="cz-lead">The list’s columns, left to right, after the task’s name.</p>'+
-      (shown.length?'<div class="cz-cols" id="czCols">'+shown.map((c,i)=>
+    /* The list's columns, said to be the List view's and drawn as its
+       heading, since "Column order" alone did not say which list it meant. */
+    '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">'+icon("i-list","ic-16")+'Columns in the List view</h3>'+
+        '<button class="linkish" data-act="cz-open-list">Open the List view</button></div>'+
+      '<p class="cz-lead">Tasks ▸ List shows each lane as a table: the task’s name, then these columns, left to right. Drag to change the order here, or drag a heading in the list itself; drag a heading’s edge there to change its width.</p>'+
+      (shown.length?'<div class="czl-head" aria-hidden="true"><span>Task</span>'+shown.map(c=>'<span>'+esc(colLabel(c.k))+'</span>').join("")+'</div>'+
+        '<div class="cz-cols" id="czCols">'+shown.map(c=>
         '<div class="cz-col" draggable="true" data-col="'+esc(c.k)+'">'+
-          '<span class="cz-grip" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
+          '<button type="button" class="cz-grip" data-grip="col" data-id="'+esc(c.k)+'" title="Drag to reorder" aria-label="Move '+esc(colLabel(c.k))+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
           '<span class="cz-col-n">'+esc(colLabel(c.k))+'</span>'+
-          '<span class="cz-move">'+
-            '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="-1" aria-label="Move '+esc(colLabel(c.k))+' up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
-            '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="1" aria-label="Move '+esc(colLabel(c.k))+' down"'+(i<shown.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
           '</div>').join("")+'</div>'
-        :'<p class="cz-empty">No columns: the list shows just each task’s name.</p>')+
+        :'<p class="cz-empty">No columns: the list shows just each task’s name. Switch on a field above to add one.</p>')+
     '</div>';
 }
 /* A task panel in miniature, drawn from the switches. */
@@ -3434,7 +3432,7 @@ function catsModal(){
     const n=S.tasks.filter(t=>t.cat===c.id).length+S.routines.filter(r=>r.cat===c.id).length;
     const to=S.categories.find(x=>x.id!==c.id);
     return '<div class="cm-row'+(off?" off":"")+(open?" open":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
-      '<span class="cz-grip" title="Drag to reorder" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
+      '<button type="button" class="cz-grip" data-grip="cat" data-id="'+c.id+'" title="Drag to reorder" aria-label="Move '+esc(c.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
       '<button type="button" class="cm-ic'+(open==="icon"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="icon" aria-label="Icon for '+esc(c.name)+'" aria-expanded="'+(open==="icon")+'">'+icon(c.icon,"ic-16")+'</button>'+
       '<button type="button" class="cm-sw'+(open==="color"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="color" aria-label="Colour of '+esc(c.name)+'" aria-expanded="'+(open==="color")+'"></button>'+
       '<input class="cm-name" data-act="cm-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="40" aria-label="Category name" autocomplete="off">'+
@@ -3455,6 +3453,15 @@ function catsModal(){
     '<div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
 }
 document.addEventListener("keydown",function(e){const t=e.target;if(t&&t.classList&&t.classList.contains("cm-name")&&e.key==="Enter"){e.preventDefault();t.blur();}});
+/* Rows move by their handle only: dragged, or with the arrow keys once it
+   has the keyboard. Up and down buttons beside it were a second way to do
+   one thing. */
+document.addEventListener("keydown",function(e){
+  const g=e.target&&e.target.closest&&e.target.closest(".cz-grip[data-grip]");if(!g||(e.key!=="ArrowUp"&&e.key!=="ArrowDown"))return;
+  e.preventDefault();const step=e.key==="ArrowUp"?-1:1,k=g.dataset.grip,id=g.dataset.id;
+  if(k==="lane")czMoveLane(id,step);else if(k==="col")czMoveCol(id,step);else if(k==="cat")cmMove(id,step);
+  const n=document.querySelector('.cz-grip[data-grip="'+k+'"][data-id="'+CSS.escape(id)+'"]');if(n)n.focus({preventScroll:true});
+});
 function cmSet(id,patch){const c=cat(id);if(!c||c.id!==id)return;Object.assign(c,patch);save("categories");renderRail();renderView();catsModal();}
 function cmMove(id,step){const L=S.categories,i=L.findIndex(c=>c.id===id),j=i+step;if(i<0||j<0||j>=L.length)return;
   const x=L.splice(i,1)[0];L.splice(j,0,x);save("categories");renderRail();renderView();catsModal();}
@@ -3739,6 +3746,7 @@ document.addEventListener("click",function(e){
       qaMenu(n,[{v:0,label:"No estimate"}].concat(QA_EST.map(m=>({v:m,label:fmtMins(m)}))),tEst(t),v=>patchTask(id,{est:v}));break;}
     case "lqa-open":V.lqa=n.dataset.v;renderView();{const i=el("lqaTitle");if(i)i.focus();}break;
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
+    case "cz-open-list":closeModal();V.view="tasks";V.taskMode="list";render();break;
     case "cp-done":cpClose(false);break;
     case "cp-drop":if(window.EyeDropper){new EyeDropper().open().then(r=>{if(r&&r.sRGBHex&&CPK.el)cpSet(hexToHsv(r.sRGBHex));}).catch(()=>{});}break;
     case "cp-open":{const k=n.dataset.cp,id=n.dataset.id;
@@ -3874,8 +3882,7 @@ document.addEventListener("click",function(e){
       const i=document.querySelector('.cm-name[data-id="'+nid+'"]');if(i){i.focus();i.select();}break;}
     case "cm-more":{const c=cat(id);if(!c||c.id!==id)break;const i=S.categories.indexOf(c),off=!visibleCat(id);
       const items=[{v:"vis",label:off?"Show in my views":"Hide from my views"},{v:"only",label:"Show only this"}]
-        .concat(i>0?[{v:"up",label:"Move up"}]:[],i<S.categories.length-1?[{v:"down",label:"Move down"}]:[],
-          S.categories.length>1?[{v:"del",label:"Delete…"}]:[]);
+        .concat(S.categories.length>1?[{v:"del",label:"Delete…"}]:[]);
       qaMenu(n,items,null,v=>{
         if(v==="vis")toggleCat(id);
         else if(v==="only"){S.prefs.hidden=S.categories.filter(x=>x.id!==id).map(x=>x.id);touched.prefs=true;save("prefs");render();catsModal();}

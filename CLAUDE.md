@@ -390,8 +390,8 @@ there; they live in Settings > Your data, in words.
 Categories are edited in one window (`catsModal()`, from the pencil by the
 sidebar's Categories): a row each, dragged by its handle to reorder; the
 icon and colour open their choices under the row (`V.catEdit`), with any
-colour through Custom; the name is typed into. Hide, Show only this, Move and
-Delete are behind the row's ⋯, and Delete asks in the row, saying where its
+colour through Custom; the name is typed into. Hide, Show only this and Delete
+are behind the row's ⋯, and Delete asks in the row, saying where its
 tasks go. A second window for name, colour and icon, and a Shown label and
 count on every row, were taken out. The sidebar has no "None"; "Show all"
 appears only while something is hidden.
@@ -785,6 +785,11 @@ show everything). The matrix quadrants (`QUAD_EMPTY`) and board columns
 (`COL_EMPTY`) have a line each of their own.
 
 ## Conventions that exist for a reason
+
+- **Rows are reordered by their handle only** (`.cz-grip[data-grip]`: lanes,
+  the list's columns, categories): dragged, or moved with the arrow keys
+  once the handle has the keyboard. Up and down buttons beside it were a
+  second way to do one thing and were taken out.
 
 - **Icons and labels inside a clickable row need `pointer-events: none`.** Clicks
   landing on an inner SVG were breaking the category toggles.

@@ -2068,8 +2068,17 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .cz-lane{border-left:3px solid var(--s)}
 .cz-lane:hover,.cz-col:hover{border-color:var(--line-2)}
 .cz-lane.dragging,.cz-col.dragging{opacity:.45}
+.czl-head{display:flex;gap:1px;overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--line)}
+.czl-head span{flex:none;padding:7px 12px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--panel);white-space:nowrap}
+.czl-head span:first-child{min-width:120px;color:var(--ink-2)}
+.cz-sh .ic{margin-right:7px;color:var(--muted)}
+.cz-grip:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:5px}
+.cz-grip > *{pointer-events:none}
 .cz-grip{display:grid;place-items:center;width:18px;color:var(--faint);cursor:grab}
 .cz-swatch{width:22px;height:22px;flex:none;border-radius:7px;background:var(--s);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.cz-name{flex:1;min-width:120px;height:32px;padding:0 8px;border:1px solid transparent;border-radius:7px;background:none;font-size:13.5px;font-weight:600;color:var(--ink);outline:0}
+.cz-name:hover{background:var(--surface-2)}
+.cz-name:focus{border-color:var(--accent);background:var(--surface-2)}
 .cz-n{min-width:26px;text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);background:var(--surface-2);border-radius:20px;padding:2px 7px}
 .cz-done{font-size:12px}
 .cz-move{display:flex;gap:2px}
