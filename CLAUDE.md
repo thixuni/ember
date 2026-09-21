@@ -252,11 +252,14 @@ on start-up, so a timer left running overnight does not bank the hours.
 ### Routines
 
 The routine window (`routineModal(id, preset)`) is one short form: the
-name, then At / For / In on one line, then Repeats as four choices, with
-only what the choice needs under it — the days for Chosen days, the gap
-for Every few days. Reminder, start, end and Paused are folded under More
-options, open when editing a routine that uses any of them. Every field
-was once on show at once, most of them for a repeat not chosen.
+name; Time, How long and Category as three labelled fields; then Repeats,
+one drop-down (Every day, Weekdays, On chosen days, Every few days) with
+the week under it, lit for the choice. Tapping a day makes it On chosen
+days, or Every day or Weekdays again when the days match (`rtRepeat()`
+and the `r-day` case); Every few days shows its gap instead of the week.
+Reminder, start, end and Paused sit under More options, always closed at
+first. "At 9am For 30m In Personal" as a sentence read as a puzzle, and
+four tabs with nothing under two of them looked broken.
 
 A routine's schedule is a plan, not a rule. `routineOn(r, d)` says when it
 is *due* — reminders, the calendar's recurring events in Google and the

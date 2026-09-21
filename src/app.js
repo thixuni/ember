@@ -3589,17 +3589,19 @@ function subRow(s){return '<div class="sub-row'+(s.d?" done":"")+'" data-sid="'+
   '<button class="tick'+(s.d?" on":"")+'" data-act="sub-toggle" aria-label="Toggle subtask">'+icon("i-check")+'</button>'+
   '<span class="t"><input value="'+esc(s.t)+'" placeholder="Subtask"></span>'+
   '<button class="rowbtn" style="opacity:1" data-act="sub-del" aria-label="Remove subtask">'+icon("i-x","ic-14")+'</button></div>';}
-/* A routine in one short form: its name, when and for how long, and how it
-   repeats. Only the repeat chosen shows what it needs -- the days for
-   Chosen days, the gap for Every few days -- and the rest (reminder, start
-   and end, paused) waits behind More options, open already when editing a
-   routine that uses any of it. */
+/* A routine in one short form: its name; its time, length and category as
+   three labelled fields; then how it repeats, as one drop-down with the
+   week under it. The week is always there (bar Every few days, which shows
+   its gap instead), lit for the choice, and tapping a day turns the choice
+   into On chosen days -- or back into Every day or Weekdays when the days
+   come to match. The rest (reminder, start and end, paused) waits behind
+   More options, closed. "At 9am for 30m in Personal" as a sentence read as
+   a puzzle, and four tabs with nothing under two of them looked broken. */
 function routineModal(id,preset){
   const r=id?routineById(id):Object.assign({id:"",title:"",cat:S.categories[0].id,freq:"weekly",days:[1,2,3,4,5],every:2,time:"09:00",dur:30,start:TODAY(),end:"",active:true,note:""},preset||{});
   if(!r)return;
   const days=r.days||[],wk=days.length===5&&[1,2,3,4,5].every(x=>days.indexOf(x)>-1);
   const rep=r.freq==="interval"?"interval":days.length===7?"daily":wk?"weekdays":"weekly";
-  const more=!!id&&(r.remind!=null||!!r.end||!r.active||r.start>TODAY());
   const durs=[5,10,15,20,30,45,60,90,120,180];if(durs.indexOf(r.dur)<0)durs.push(r.dur);durs.sort((a,b)=>a-b);
   openModal('<div class="modal rt-modal" role="dialog" aria-modal="true" aria-label="Routine">'+
     '<div class="mhead2"><h2>'+(id?"Edit routine":"New routine")+'</h2>'+
@@ -3607,19 +3609,19 @@ function routineModal(id,preset){
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="mbody rt-body">'+
     '<input class="rt-title" id="rTitle" value="'+esc(r.title)+'" maxlength="120" placeholder="Name it: skincare, stand-up, weekly review…" aria-label="Routine name">'+
-    '<div class="rt-line">'+
-      '<label class="rt-bit"><span>At</span>'+timeField('id="rTime"',r.time,{label:"Time",req:1})+'</label>'+
-      '<label class="rt-bit"><span>For</span><select class="inp" id="rDur" aria-label="How long">'+durs.map(m=>'<option value="'+m+'"'+(m===r.dur?" selected":"")+'>'+esc(fmtMins(m))+'</option>').join("")+'</select></label>'+
-      '<label class="rt-bit rt-cat"><span>In</span>'+catSelect('class="inp" id="rCat" aria-label="Category"',r.cat)+'</label>'+
+    '<div class="rt-grid">'+
+      field("Time",timeField('id="rTime"',r.time,{label:"Time",req:1}))+
+      field("How long",'<select class="inp" id="rDur" aria-label="How long">'+durs.map(m=>'<option value="'+m+'"'+(m===r.dur?" selected":"")+'>'+esc(fmtMins(m))+'</option>').join("")+'</select>')+
+      field("Category",catSelect('class="inp" id="rCat" aria-label="Category"',r.cat))+
     '</div>'+
-    '<div class="rt-sec"><div class="rt-lab">Repeats</div><div class="rt-seg" role="radiogroup" aria-label="Repeats" id="rFreq">'+
-      [["daily","Every day"],["weekdays","Weekdays"],["weekly","Chosen days"],["interval","Every few days"]].map(x=>
-        '<button type="button" role="radio" aria-checked="'+(rep===x[0])+'" class="rt-opt'+(rep===x[0]?" on":"")+'" data-act="r-freq" data-v="'+x[0]+'">'+x[1]+'</button>').join("")+'</div>'+
-      '<div class="rt-sub" id="rDaysWrap"'+(rep==="weekly"?"":" hidden")+'><div class="dow-pick" id="rDays">'+
+    '<div class="rt-sec"><div class="rt-rep">'+field("Repeats",'<select class="inp" id="rRep" aria-label="Repeats">'+
+      [["daily","Every day"],["weekdays","Weekdays (Mon – Fri)"],["weekly","On chosen days"],["interval","Every few days"]].map(x=>
+        '<option value="'+x[0]+'"'+(rep===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select>')+
+      '<div class="rt-sub" id="rDaysWrap"'+(rep==="interval"?" hidden":"")+'><div class="dow-pick" id="rDays" role="group" aria-label="Days">'+
         [1,2,3,4,5,6,0].map((d,i)=>'<button type="button" class="'+(days.indexOf(d)>-1?"on":"")+'" data-act="r-day" data-v="'+d+'" aria-pressed="'+(days.indexOf(d)>-1)+'" aria-label="'+DOWS[i]+'">'+DOWS[i][0]+'</button>').join("")+'</div></div>'+
-      '<div class="rt-sub rt-every" id="rEveryWrap"'+(rep==="interval"?"":" hidden")+'><span>Every</span><input class="inp" type="number" min="2" max="60" id="rEvery" value="'+Math.max(2,r.every||2)+'" aria-label="Number of days"><span>days, from the start date</span></div>'+
-    '</div>'+
-    '<details class="rt-more"'+(more?" open":"")+'><summary>'+icon("i-chev-r","ic-14")+'More options</summary>'+
+      '<div class="rt-sub rt-every" id="rEveryWrap"'+(rep==="interval"?"":" hidden")+'><span>Every</span><input class="inp" type="number" min="2" max="60" id="rEvery" value="'+Math.max(2,r.every||2)+'" aria-label="Number of days"><span>days</span></div>'+
+    '</div></div>'+
+    '<details class="rt-more"><summary>'+icon("i-chev-r","ic-14")+'More options</summary>'+
       '<div class="rt-more-in">'+
         field("Reminder",'<select class="inp" id="rRemind">'+remindOptions(r)+'</select>')+
         '<div class="grid2">'+field("Starts",dateField('id="rStart"',r.start||TODAY(),{label:"Starts",req:1}))+
@@ -3631,6 +3633,15 @@ function routineModal(id,preset){
     '<button class="btn btn-primary" data-act="routine-save" data-id="'+(id||"")+'">'+icon("i-check")+(id?"Save":"Add routine")+'</button></div></div>');
   const M=el("modalRoot");M.dataset.freq=r.freq;M.dataset.active=String(!!r.active);
   if(!id){const t=el("rTitle");if(t)t.focus();}
+}
+/* How a routine repeats, chosen from the drop-down: the week lights the
+   days it means, or gives way to the gap for Every few days. */
+function rtRepeat(v){
+  const M=el("modalRoot");M.dataset.freq=v==="interval"?"interval":"weekly";
+  const days=M.querySelectorAll("#rDays button"),set=b=>{b.setAttribute("aria-pressed",String(b.classList.contains("on")));};
+  if(v==="daily")days.forEach(b=>{b.classList.add("on");set(b);});
+  if(v==="weekdays")days.forEach(b=>{b.classList.toggle("on",["1","2","3","4","5"].indexOf(b.dataset.v)>-1);set(b);});
+  el("rDaysWrap").hidden=v==="interval";el("rEveryWrap").hidden=v!=="interval";
 }
 /* ---- editing categories ----
    One window, one row a category, changed where it is: drag the handle to
@@ -4088,13 +4099,11 @@ document.addEventListener("click",function(e){
       else if(n.dataset.date>TODAY()){toast("You can tick this on "+fmtDate(n.dataset.date));break;}
       else S.completions[k]=true;
       save("completions");render();break;}
-    case "r-freq":{const v=n.dataset.v;M.dataset.freq=v==="interval"?"interval":"weekly";
-      M.querySelectorAll('[data-act="r-freq"]').forEach(b=>{b.classList.toggle("on",b===n);b.setAttribute("aria-checked",String(b===n));});
-      const days=M.querySelectorAll("#rDays button");
-      if(v==="daily")days.forEach(b=>b.classList.add("on"));
-      if(v==="weekdays")days.forEach(b=>b.classList.toggle("on",["1","2","3","4","5"].indexOf(b.dataset.v)>-1));
-      el("rDaysWrap").hidden=v!=="weekly";el("rEveryWrap").hidden=v!=="interval";break;}
-    case "r-day":n.classList.toggle("on");n.setAttribute("aria-pressed",String(n.classList.contains("on")));break;
+    case "r-day":{n.classList.toggle("on");n.setAttribute("aria-pressed",String(n.classList.contains("on")));
+      /* The drop-down follows the days: all seven is Every day, Monday to
+         Friday is Weekdays, anything else is On chosen days. */
+      const on=[...M.querySelectorAll("#rDays button.on")].map(b=>b.dataset.v).sort().join("");
+      const sel=el("rRep");if(sel)sel.value=on==="0123456"?"daily":on==="12345"?"weekdays":"weekly";break;}
     case "r-active":{const on=M.dataset.active!=="false";M.dataset.active=String(!on);n.classList.toggle("on",on);n.setAttribute("aria-checked",String(on));break;}
     case "manage-cats":V.catEdit={};catsModal();break;
     case "cm-part":{const E=V.catEdit||{};V.catEdit=(E.id===id&&E.part===n.dataset.v)?{}:{id:id,part:n.dataset.v};catsModal();
@@ -4408,6 +4417,7 @@ document.addEventListener("change",function(e){
   const cs=t.tagName==="SELECT"&&t.closest(".catsel");
   if(cs){const c=t.value?cat(t.value):null;cs.style.setProperty("--c",c?c.color:"transparent");cs.classList.toggle("none",!c);}
   if(t.id==="importFile"){importPicked(t.files&&t.files[0]);return;}
+  if(t.id==="rRep"){rtRepeat(t.value);return;}
   if(t.id==="qcStart"&&QC.v){const v=QC.v,len=Math.max(15,hm2m(v.end)-hm2m(v.start));qcRead();v.start=t.value;v.end=m2hm(Math.min(24*60-1,hm2m(v.start)+len));qcDraw();return;}
   if(QC.v&&(t.id==="qcEnd"||t.id==="qcDate"||t.id==="qcDur")){qcRead();qcDraw();return;}
   if(t.id==="dashQuickCat"){S.prefs.quickCat=t.value;save("prefs");return;}
