@@ -3608,7 +3608,7 @@ function routineModal(id,preset){
     (id?'<button class="btn btn-sm btn-ghost btn-danger" data-act="routine-delete" data-id="'+id+'">'+icon("i-trash","ic-14")+'Delete</button>':"")+
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="mbody rt-body">'+
-    '<input class="rt-title" id="rTitle" value="'+esc(r.title)+'" maxlength="120" placeholder="Name it: skincare, stand-up, weekly review…" aria-label="Routine name">'+
+    '<input class="rt-title" id="rTitle" value="'+esc(r.title)+'" maxlength="120" placeholder="Routine name" aria-label="Routine name">'+
     '<div class="rt-grid">'+
       field("Time",timeField('id="rTime"',r.time,{label:"Time",req:1}))+
       field("How long",'<select class="inp" id="rDur" aria-label="How long">'+durs.map(m=>'<option value="'+m+'"'+(m===r.dur?" selected":"")+'>'+esc(fmtMins(m))+'</option>').join("")+'</select>')+
