@@ -1335,8 +1335,13 @@ button.obx-rt-txt > *{pointer-events:none}
 .pk-gh{position:sticky;top:0;z-index:1;padding:8px 4px 5px;font-size:10.5px;font-weight:700;letter-spacing:.08em;
   text-transform:uppercase;color:var(--faint);background:var(--surface)}
 .pk-opts{display:grid;gap:3px}
-.pk-time .pk-opts{grid-template-columns:repeat(2,minmax(0,1fr))}
-.pk-time .pk-opts.one{grid-template-columns:minmax(0,1fr)}
+/* Times: one plain column, as Google Calendar lists them. */
+.pk-tlist{max-height:240px;padding:6px}
+.pk-tlist .pk-opt{height:32px;font-weight:500}
+.pk-tlist .pk-opt.aim:not(.on){background:var(--surface-3);box-shadow:none}
+.pk-dur{flex:none;margin-left:auto;padding-left:10px}
+.pk-tin{cursor:text;text-align:left}
+.pkf-time .pk-tin{width:108px}
 .pk-opt small{font-size:11.5px;font-weight:500;color:var(--muted)}
 .pk-opt.on small{color:inherit}
 .pk-opt{display:flex;align-items:center;gap:8px;width:100%;height:30px;padding:0 10px;border-radius:8px;

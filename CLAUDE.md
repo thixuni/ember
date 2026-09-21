@@ -579,7 +579,13 @@ pickers section of app.js), never the browser's: those came in whatever
 grey the operating system chose and matched nothing on the page.
 
 - **Dates and times** are written with `dateField(attrs, value, opts)` and
-  `timeField(...)`, never `<input type="date|time">`. Each is a button
+  `timeField(...)`, never `<input type="date|time">`. A time is a box you type
+  in, as Google Calendar's is (`pk-tin`): clicking opens one plain column of
+  quarter hours scrolled to the time, typing jumps the list to it
+  (`tinTyped()`), arrows walk it, and Enter or leaving the box reads what was
+  typed (`tinCommit()`). An end time (`after`) lists the times after the
+  start with how long each makes it at the row's end. A grid of times in two
+  columns with a separate box to type in was tried and read as hard to use. Each is a button
   showing the value in words beside a hidden input carrying `attrs` — the
   `id`, or `data-act`/`data-k`. Picking sets that input and fires a real
   `change` from it, so the existing handlers (`sh-set`, `set-pref`, `f`, a

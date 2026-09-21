@@ -4382,6 +4382,15 @@ const pkText=(kind,v,fmt)=>kind==="date"?(fmt==="long"?pkLongDate(v):pkDateText(
 const durLabel=m=>m<60?m+" mins":(Math.round(m/60*100)/100)+(m===60?" hr":" hrs");
 function pickField(kind,attrs,val,o){
   o=o||{};val=val||"";
+  /* A time is a box you type in or pick from, as Google Calendar's is: the
+     list opens under it, and what is typed is read when Enter is pressed or
+     the box is left. */
+  if(kind==="time")return '<span class="pkf pkf-time">'+
+    '<input type="text" class="inp'+(o.sm?" inp-sm":"")+(o.cls?" "+o.cls:"")+' pk-btn pk-tin'+(val?"":" is-empty")+'" data-act="pk-open" data-pk="time"'+
+      ' data-ph="'+esc(o.ph||"Pick a time")+'"'+(o.req?' data-req="1"':"")+' data-label="'+esc(o.label||"")+'"'+(o.after?' data-after="'+esc(o.after)+'"':"")+
+      ' value="'+esc(val?fmtTime(val):"")+'" placeholder="'+esc(o.ph||"Pick a time")+'" aria-label="'+esc(o.label||"Time")+'" autocomplete="off" spellcheck="false"'+
+      ' role="combobox" aria-haspopup="listbox" aria-expanded="false"'+(o.disabled?" disabled":"")+'>'+
+    '<input type="hidden" '+attrs+' value="'+esc(val)+'"></span>';
   const txt=val?pkText(kind,val,o.long?"long":""):(o.ph||(kind==="date"?"Pick a date":"Pick a time"));
   return '<span class="pkf">'+
     '<button type="button" class="inp'+(o.sm?" inp-sm":"")+(o.cls?" "+o.cls:"")+' pk-btn'+(val?"":" is-empty")+'" data-act="pk-open" data-pk="'+kind+'"'+
@@ -4423,7 +4432,7 @@ function pkOpen(btn){
   const sel=btn.tagName==="SELECT";
   const src=sel?btn:btn.parentNode.querySelector('input[type="hidden"]');
   if(!src||btn.disabled)return;
-  if(PK.src===src){pkClose();return;}
+  if(PK.src===src){if(btn.tagName!=="INPUT")pkClose();return;}
   pkClose();
   Object.assign(PK,{src:src,btn:btn,kind:sel?"select":btn.dataset.pk,key:pkKey(src)});
   if(PK.kind==="date"){const d=src.value?parseD(src.value):today();
@@ -4434,9 +4443,9 @@ function pkOpen(btn){
   document.body.appendChild(p);PK.el=p;
   pkDraw();pkMark(true);pkPlace();
   if(PK.kind==="time"){
-    const list=p.querySelector(".pk-body"),aim=p.querySelector(".pk-opt.aim");
-    if(list&&aim)list.scrollTop=aim.offsetTop-list.offsetTop-list.clientHeight/2+aim.offsetHeight/2;
-    const inp=el("pkType");if(inp){inp.focus();inp.select();}
+    tinScroll();
+    if(document.activeElement!==btn)btn.focus({preventScroll:true});
+    btn.select();
   }else if(PK.kind==="date"){pkFocusDay();}
   else{
     const on=p.querySelector(".pk-opt.on")||p.querySelector(".pk-opt");
@@ -4459,6 +4468,7 @@ function pkPlace(){
   if(!b.isConnected){pkRelink();return;}
   const r=b.getBoundingClientRect(),vw=innerWidth,vh=innerHeight,gap=6;
   if(PK.kind==="select")p.style.width=Math.max(200,Math.min(340,r.width))+"px";
+  if(PK.kind==="time")p.style.width=Math.max(b.dataset.after?196:140,r.width)+"px";
   const w=p.offsetWidth,h=p.offsetHeight;
   let top=r.bottom+gap;
   if(top+h>vh-8)top=r.top-gap-h>8?r.top-gap-h:Math.max(8,vh-h-8);
@@ -4531,35 +4541,44 @@ function parseTimeStr(s){
   return pad(h)+":"+pad(mm);
 }
 function pkTimeHtml(){
-  const cur=PK.src.value,after=PK.btn.dataset.after;
-  /* An end time lists the quarter hours after the start, each with how long
-     that makes it, as Google Calendar does. */
-  if(after){
-    const a=hm2m(after),aim=cur||m2hm(Math.min(a+60,23*60+45));let items="";
-    for(let m=a+15;m<24*60;m+=15){const v=m2hm(m);
-      items+='<button type="button" class="pk-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="pk-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'">'+
-        '<span>'+esc(fmtTime(v))+' <small>('+esc(durLabel(m-a))+')</small></span>'+(v===cur?icon("i-check","ic-14"):"")+'</button>';}
-    return '<div class="pk-top"><input id="pkType" class="inp inp-sm" placeholder="Type a time, like 4:30pm" autocomplete="off" value="'+esc(cur?fmtTime(cur):"")+'">'+
-        '<button type="button" class="btn btn-sm btn-primary" data-act="pk-type">Set</button></div>'+
-      '<div class="pk-body" role="listbox"><div class="pk-opts one">'+items+'</div></div>'+
-      pkFoot("Ends after "+esc(fmtTime(after)),"");
-  }
+  const cur=PK.src.value,after=PK.btn.dataset.after,a=after?hm2m(after):null;
   const n=new Date(),next=Math.min(23*60+45,Math.ceil((n.getHours()*60+n.getMinutes())/15)*15);
-  const aim=cur||pad(Math.floor(next/60))+":"+pad(next%60);
-  const groups=TP_PARTS.map(g=>{let items="";
-    for(let mins=g[1]*60;mins<g[2]*60;mins+=15){const v=pad(Math.floor(mins/60))+":"+pad(mins%60);
-      items+='<button type="button" class="pk-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="pk-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'">'+
-        '<span>'+esc(fmtTime(v))+'</span>'+(v===cur?icon("i-check","ic-14"):"")+'</button>';}
-    return '<div class="pk-gh">'+g[0]+'</div><div class="pk-opts">'+items+'</div>';}).join("");
-  return '<div class="pk-top"><input id="pkType" class="inp inp-sm" placeholder="Type a time, like 8:15pm" autocomplete="off" value="'+esc(cur?fmtTime(cur):"")+'">'+
-      '<button type="button" class="btn btn-sm btn-primary" data-act="pk-type">Set</button></div>'+
-    '<div class="pk-body" role="listbox">'+groups+'</div>'+
-    pkFoot(clock24()?"24-hour clock":"Enter a time or pick one",pkClearable()?"Clear time":"");
+  const aim=cur||(after?m2hm(Math.min(a+60,23*60+45)):m2hm(next));
+  const vals=[];for(let m=after?a+15:0;m<24*60;m+=15)vals.push(m2hm(m));
+  if(cur&&vals.indexOf(cur)<0&&(!after||hm2m(cur)>a)){vals.push(cur);vals.sort();}
+  return '<div class="pk-body pk-tlist" role="listbox" aria-label="'+esc(PK.btn.dataset.label||"Times")+'">'+vals.map(v=>
+    '<button type="button" class="pk-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="pk-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'" tabindex="-1">'+
+      '<span>'+esc(fmtTime(v))+'</span>'+(after?'<small class="pk-dur">'+esc(durLabel(hm2m(v)-a))+'</small>':"")+'</button>').join("")+'</div>';
 }
-function pkTyped(){
-  const i=el("pkType"),v=parseTimeStr(i&&i.value);
-  if(v)pkPick(v);else{toast("Try a time like 9, 9:30, 2:15pm or 14:15");if(i)i.focus();}
+/* The row the keyboard is on, and keeping it in view. */
+function tinScroll(){
+  const p=PK.el;if(!p)return;const list=p.querySelector(".pk-body"),aim=p.querySelector(".pk-opt.aim");
+  if(list&&aim)list.scrollTop=aim.offsetTop-list.clientHeight/2+aim.offsetHeight/2;
 }
+function tinAim(opt){
+  if(!PK.el||!opt)return;PK.el.querySelectorAll(".pk-opt.aim").forEach(o=>o.classList.remove("aim"));
+  opt.classList.add("aim");tinScroll();
+}
+/* Typing moves the list to the nearest time at or after what is typed. */
+function tinTyped(inp){
+  if(!PK.el||PK.btn!==inp)pkOpen(inp);
+  const v=parseTimeStr(inp.value);if(!v||!PK.el)return;
+  const opts=[...PK.el.querySelectorAll(".pk-opt")];
+  tinAim(opts.find(o=>o.dataset.v>=v)||opts[opts.length-1]);
+}
+/* Read what is typed: a time, nothing (where allowed), or back to what it was. */
+function tinCommit(inp){
+  const src=inp.parentNode.querySelector('input[type="hidden"]');if(!src)return;
+  const txt=inp.value.trim(),cur=src.value;
+  let v=txt?parseTimeStr(txt):"";
+  if(txt&&!v){inp.value=cur?fmtTime(cur):"";toast("Try a time like 9, 9:30, 2:15pm or 14:15");return;}
+  if(!v&&inp.dataset.req){inp.value=cur?fmtTime(cur):"";return;}
+  if(v&&inp.dataset.after&&hm2m(v)<=hm2m(inp.dataset.after)){inp.value=cur?fmtTime(cur):"";toast("The end has to be after the start");return;}
+  inp.value=v?fmtTime(v):"";inp.classList.toggle("is-empty",!v);
+  if(v===cur)return;
+  src.value=v;src.dispatchEvent(new Event("change",{bubbles:true}));
+}
+function pkTyped(){if(PK.btn&&PK.btn.classList.contains("pk-tin")){const b=PK.btn;pkClose();tinCommit(b);}}
 
 /* ---- the drop-down ----
    The select's own options, as rows. A list of categories shows each one's
@@ -4596,7 +4615,8 @@ function pkPick(v){
   if(src.value===v)return;
   src.value=v;
   const b=src.tagName==="INPUT"&&src.parentNode.querySelector(".pk-btn");
-  if(b){const txt=v?pkText(b.dataset.pk,v,b.dataset.fmt):(b.dataset.ph||"");
+  if(b&&b.tagName==="INPUT"){b.value=v?fmtTime(v):"";b.classList.toggle("is-empty",!v);}
+  else if(b){const txt=v?pkText(b.dataset.pk,v,b.dataset.fmt):(b.dataset.ph||"");
     b.querySelector(".pk-val").textContent=txt;b.classList.toggle("is-empty",!v);
     b.setAttribute("aria-label",(b.dataset.label?b.dataset.label+": ":"")+txt);}
   src.dispatchEvent(new Event("change",{bubbles:true}));
@@ -4627,11 +4647,23 @@ document.addEventListener("keydown",function(e){
   if(!PK.el&&pkSelectable(t)&&(e.key==="Enter"||e.key===" "||e.key==="F4"||(e.altKey&&e.key==="ArrowDown"))){
     e.preventDefault();pkOpen(t);return;
   }
+  if(t.classList&&t.classList.contains("pk-tin")){
+    if(!PK.el||PK.btn!==t){if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();pkOpen(t);}
+      else if(e.key==="Enter"){e.preventDefault();tinCommit(t);}return;}
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();
+      const opts=[...PK.el.querySelectorAll(".pk-opt")],i=opts.findIndex(o=>o.classList.contains("aim"));
+      const n=opts[Math.max(0,Math.min(opts.length-1,(i<0?0:i)+(e.key==="ArrowDown"?1:-1)))];
+      tinAim(n);if(n)t.value=fmtTime(n.dataset.v);t.select();return;}
+    if(e.key==="Enter"){e.preventDefault();pkClose();tinCommit(t);return;}
+    if(e.key==="Escape"){e.preventDefault();e.stopPropagation();const src=t.parentNode.querySelector('input[type="hidden"]');
+      t.value=src&&src.value?fmtTime(src.value):"";pkClose();return;}
+    if(e.key==="Tab"){pkClose();return;}
+    return;
+  }
   if(!PK.el)return;
   if(e.key==="Escape"){e.preventDefault();e.stopPropagation();pkClose(true);return;}
   if(e.key==="Tab"&&PK.kind==="select"){pkClose();return;}
   if(!PK.el.contains(t))return;
-  if(t.id==="pkType"&&e.key==="Enter"){e.preventDefault();pkTyped();return;}
   if(PK.kind==="date"&&t.classList.contains("pk-day")){pkDayKey(e);return;}
   if(PK.kind==="select"&&(e.key==="ArrowDown"||e.key==="ArrowUp"||(t.id==="pkFind"&&e.key==="Enter"))){
     const list=[...PK.el.querySelectorAll(".pk-opt:not([hidden]):not(:disabled)")];if(!list.length)return;
@@ -4641,7 +4673,14 @@ document.addEventListener("keydown",function(e){
     if(n<0){const f=el("pkFind");if(f)f.focus();}else list[n].focus();
   }
 },true);
-document.addEventListener("input",function(e){if(e.target&&e.target.id==="pkFind")pkFind(e.target.value);});
+document.addEventListener("input",function(e){if(e.target&&e.target.id==="pkFind")pkFind(e.target.value);
+  if(e.target&&e.target.classList&&e.target.classList.contains("pk-tin"))tinTyped(e.target);});
+/* Leaving a time box reads what was typed, unless the move is into its list. */
+document.addEventListener("focusout",function(e){
+  const t=e.target;if(!t||!t.classList||!t.classList.contains("pk-tin"))return;
+  if(PK.el&&e.relatedTarget&&PK.el.contains(e.relatedTarget))return;
+  tinCommit(t);
+});
 document.addEventListener("scroll",function(e){if(PK.el&&!PK.el.contains(e.target))pkPlace();},true);
 window.addEventListener("resize",function(){if(PK.el)pkPlace();});
 try{new MutationObserver(function(){if(PK.el&&!(PK.btn&&PK.btn.isConnected))pkRelink();})
