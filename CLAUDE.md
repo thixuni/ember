@@ -112,6 +112,14 @@ one already open swaps it in place — no pop-in replayed, its lists left
 where they were scrolled. The day popup is redrawn by `render()` while it is
 open (`V.peek`), because the ticks in it change the page underneath.
 
+A task has one menu (`taskMenu()`), from the ⋯ in the panel's header and from a
+right-click on the task anywhere on the page: Add subtask, Track time, Attach
+files, Link task, Duplicate task, then Delete task apart from the rest (it
+asks twice). Parts switched off in Customise are left out; from a card it
+starts with Open task, and each action opens the task's panel where it
+lands. A new task is created from the header's top right, or by Enter in its
+name.
+
 The task detail panel is a **second root**, `#sheetRoot`, drawn by
 `renderSheet()`. `render()` deliberately does not touch it, because a redraw
 while someone is typing in it would throw the caret away — so anything that

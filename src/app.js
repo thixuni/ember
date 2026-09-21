@@ -3563,6 +3563,8 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v);break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
+    case "task-menu":taskMenu(id,null,n,false);break;
+    case "tm-do":tmDo(n.dataset.v,id,n);break;
     case "qa-open":qaOpen(n.dataset.status);break;
     case "qa-save":qaSave();break;
     case "qa-close":qaClose();break;
@@ -4391,6 +4393,82 @@ function deleteDoc(id){
    fields at the top, its history underneath. Fields save as you leave them,
    so there is no save button to forget. */
 
+/* ---- a task's menu ----
+   The same list from the ⋯ in the side panel and from a right-click on a
+   task anywhere: adding to the task first (a subtask, time, files, a link),
+   then copying it, and deleting last, apart from the rest. Parts switched off
+   in Customise are left out. From a card, the task opens first, since each
+   of these lands in its panel. */
+const TMN={el:null,btn:null};
+function taskMenuClose(){if(TMN.el){TMN.el.remove();TMN.el=null;}if(TMN.btn){TMN.btn.setAttribute("aria-expanded","false");TMN.btn=null;}}
+function taskMenu(id,at,btn,fromCard){
+  const t=taskById(id);if(!t)return;
+  if(btn&&TMN.btn===btn){taskMenuClose();return;}
+  taskMenuClose();catMenuClose();pkClose();
+  const r=running(),going=r&&r.task===id&&r.since;
+  const items=[];
+  if(fromCard)items.push(["open","i-panel","Open task"]);
+  if(feat("subtasks")&&!t.parent)items.push(["sub","i-checklist","Add subtask"]);
+  if(feat("timer"))items.push(["time",going?"i-pause":"i-play",going?"Pause the timer":"Track time"]);
+  if(feat("files"))items.push(["files","i-clip","Attach files"]);
+  if(feat("links"))items.push(["link","i-link","Link task"]);
+  items.push(["dup","i-copy","Duplicate task"]);
+  const m=document.createElement("div");m.className="catmenu tmenu";m.setAttribute("role","menu");
+  m.innerHTML=items.map(x=>'<button type="button" role="menuitem" class="cm-opt" data-act="tm-do" data-v="'+x[0]+'" data-id="'+id+'">'+icon(x[1],"ic-14")+'<span>'+x[2]+'</span></button>').join("")+
+    '<div class="tm-sep" role="separator"></div><button type="button" role="menuitem" class="cm-opt tm-danger" data-act="tm-do" data-v="del" data-id="'+id+'">'+icon("i-trash","ic-14")+'<span>Delete task</span></button>';
+  document.body.appendChild(m);TMN.el=m;TMN.btn=btn||null;if(btn)btn.setAttribute("aria-expanded","true");
+  const w=m.offsetWidth,h=m.offsetHeight;let x,y;
+  if(btn){const b=btn.getBoundingClientRect();x=b.right-w;y=b.bottom+6;if(y+h>innerHeight-8)y=Math.max(8,b.top-6-h);}
+  else{x=at.x;y=at.y;if(y+h>innerHeight-8)y=Math.max(8,innerHeight-8-h);}
+  m.style.left=Math.round(Math.min(Math.max(8,x),innerWidth-w-8))+"px";m.style.top=Math.round(y)+"px";
+  const f=m.querySelector(".cm-opt");if(f)f.focus({preventScroll:true});
+}
+function tmDo(v,id,n){
+  if(v==="del"){if(!arm(n,"Delete for good?"))return;taskMenuClose();deleteTask(id);return;}
+  taskMenuClose();
+  if(v==="dup"){duplicateTask(id);return;}
+  if(v==="time"){toggleTimer(id);renderSheet();return;}
+  if(!V.sheet||V.sheet.id!==id)openSheet(id);
+  const find=sel=>document.querySelector("#sheetRoot "+sel);
+  const show=node=>{if(node)node.scrollIntoView({block:"center"});};
+  if(v==="sub"){
+    if(board().fullSubs){const i=find("#shKid");show(i);if(i)i.focus();}
+    else{const b=find('[data-act="sh-sub-add"]');show(b);if(b)b.click();}
+  }else if(v==="files"){const b=find('[data-act="sh-file-add"]');show(b||find(".filebox"));pickAttachment();}
+  else if(v==="link"){const sel=find('[data-act="sh-link-add"]');show(sel||find(".linkbox"));
+    if(sel){sel.focus();if(pkSelectable(sel))pkOpen(sel);}else toast("There are no other tasks to link yet");}
+}
+/* A copy with its details, checklist and fields, in the same lane; not its
+   history, its tracked time or its comments, which belong to the original. */
+function duplicateTask(id){
+  const t=taskById(id);if(!t)return;
+  const c=JSON.parse(JSON.stringify(t));
+  c.id=uid("t");c.title=t.title+" (copy)";c.created=TODAY();
+  c.subtasks=(c.subtasks||[]).map(x=>Object.assign({},x,{id:uid("s")}));
+  if(!isDoneT(c))c.completedAt=null;
+  S.tasks.splice(S.tasks.indexOf(t)+1,0,c);
+  logAct(c.id,"created","Duplicated from “"+t.title+"”");save("tasks");render();
+  openSheet(c.id);toast("Task duplicated");
+}
+document.addEventListener("mousedown",function(e){if(TMN.el&&!TMN.el.contains(e.target)&&!(TMN.btn&&TMN.btn.contains(e.target)))taskMenuClose();},true);
+document.addEventListener("scroll",function(e){if(TMN.el&&!TMN.el.contains(e.target))taskMenuClose();},true);
+document.addEventListener("keydown",function(e){
+  if(!TMN.el)return;
+  if(e.key==="Escape"){e.preventDefault();e.stopPropagation();const b=TMN.btn;taskMenuClose();if(b&&b.isConnected)b.focus();return;}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const o=[...TMN.el.querySelectorAll(".cm-opt")],i=o.indexOf(document.activeElement);
+    const n=o[(i+(e.key==="ArrowDown"?1:-1)+o.length)%o.length];if(n)n.focus();}
+  if(e.key==="Tab")taskMenuClose();
+},true);
+/* A new task: type the name, press Enter, and it is made. */
+document.addEventListener("keydown",function(e){const t=e.target;
+  if(!t||t.id!=="shTitle"||e.key!=="Enter"||e.isComposing||!V.sheet||V.sheet.id)return;
+  e.preventDefault();patchDraft({title:t.value});createFromDraft();});
+/* Right-click on a task anywhere on the page opens the same menu there. */
+document.addEventListener("contextmenu",function(e){
+  const t=e.target&&e.target.closest&&e.target.closest('[data-act="task"][data-id]');
+  if(!t||t.closest("#sheetRoot")||!taskById(t.dataset.id))return;
+  e.preventDefault();taskMenu(t.dataset.id,{x:e.clientX,y:e.clientY},null,true);
+});
 function openSheet(id,preset){
   if(id&&!taskById(id))return;
   V.tmBreak=null;
@@ -5056,7 +5134,10 @@ function renderSheet(){
         lanes().map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>':"")+
       '<div class="spacer" style="flex:1"></div>'+
       (isNew||!feat("timer")?"":'<button class="icon-btn btn-sm" data-act="sh-timer" title="Start the timer" aria-label="Start the timer">'+icon(running()&&running().task===t.id&&running().since?"i-pause":"i-play","ic-14")+'</button>')+
-      (isNew?"":'<button class="icon-btn btn-sm btn-danger" data-act="sh-delete" title="Delete" aria-label="Delete task">'+icon("i-trash","ic-14")+'</button>')+
+      /* A new task is made from the top right, beside close, where the eye
+         already is after typing the name; Enter in the name does it too. */
+      (isNew?'<button class="btn btn-sm btn-primary sh-create-top" data-act="sh-create">'+icon("i-check","ic-14")+'Create task</button>'
+        :'<button class="icon-btn btn-sm" data-act="task-menu" data-id="'+t.id+'" title="More" aria-label="More options" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button>')+
       '<button class="icon-btn btn-sm" data-act="sheet-close" aria-label="Close">'+icon("i-x","ic-14")+'</button>';
 
   const bodyHtml=
@@ -5099,8 +5180,7 @@ function renderSheet(){
       (feat("docs")?docsSection(t,isNew):"")+
       (feat("comments")?commentsPane(t,isNew):""))+
 
-      (isNew?'<div class="sh-create"><button class="btn btn-primary" data-act="sh-create">'+icon("i-check")+'Create task</button>'+
-          '<span class="mnone">Comments and the timer open up once it’s created.</span></div>':"");
+      (isNew?'<p class="sh-create-note mnone">Comments and the timer open up once it’s created.</p>':"");
 
   /* Hold the scroll position across a redraw, but start at the top when the
      content underneath actually changed — a different task, or the other tab. */
