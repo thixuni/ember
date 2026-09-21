@@ -63,7 +63,7 @@ const DEFAULT_LANES=[
 const LANE_COLORS=["#6B7CE0","#D99A16","#3F7D5C","#9AA298","#7C5CE0","#C25340","#2F9BA8","#D0588F","#8A6A3F","#5B8C3A"];
 /* The task panel's parts that can be switched off, in the panel's order. */
 const BOARD_FEATS=[
- ["Schedule",[["when","Date and time","When you plan to do it","i-calendar"],["deadline","Deadline","The day it must be done by","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
+ ["Schedule",[["when","Start date","The day you plan to work on it","i-calendar"],["deadline","Deadline","The last day it can be done","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
  ["Organise",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"],["status","Lane","Which board lane it’s in","i-board"]]],
  ["Effort",[["estimate","Estimate","How long you think it’ll take","i-clock"],["timer","Time tracker","Time how long it really takes","i-timer"]]],
  ["Attached",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
@@ -72,7 +72,7 @@ const BOARD_FEATS=[
    to begin with. Custom fields join these as "cf:<id>". */
 /* Which part of the task panel each list column belongs to. */
 const FEAT_COL_OF={date:"when",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",tracked:"timer",status:"status",created:"created"};
-const LIST_COLS=[["date","Date"],["priority","Priority"],["category","Category"],["status","Status"],
+const LIST_COLS=[["date","Start date"],["priority","Priority"],["category","Category"],["status","Status"],
  ["deadline","Deadline"],["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
 /* The board settings, filled in on the one object (as gcalPrefs() is): a sync
    or a save may be holding it. The first time, it is written down at once,
@@ -1760,7 +1760,7 @@ function czPanelPreview(){
   const b=board(),on=k=>feat(k);
   const line=(ic,label,w)=>'<div class="czv-f">'+icon(ic,"ic-12")+'<span>'+esc(label)+'</span><i style="width:'+w+'%"></i></div>';
   let h=(on("status")?'<div class="czv-lane"><i></i>In progress</div>':"")+'<div class="czv-title"><i class="czv-tick"></i><b>Plan the team offsite</b></div>';
-  const sched=[on("when")&&line("i-calendar","Date","56"),on("deadline")&&line("i-deadline","Deadline","40"),on("reminder")&&line("i-bell","Reminder","34"),on("created")&&'<div class="czv-f">'+icon("i-plus","ic-12")+'<span>Created</span><b class="czv-val">19 Sep</b></div>'].filter(Boolean);
+  const sched=[on("when")&&line("i-calendar","Start","56"),on("deadline")&&line("i-deadline","Deadline","40"),on("reminder")&&line("i-bell","Reminder","34"),on("created")&&'<div class="czv-f">'+icon("i-plus","ic-12")+'<span>Created</span><b class="czv-val">19 Sep</b></div>'].filter(Boolean);
   const org=[on("category")&&'<span class="czv-chip">Work</span>',on("priority")&&'<span class="czv-chip">Do first</span>',on("tags")&&'<span class="czv-chip">#planning</span>'].filter(Boolean);
   const eff=[on("estimate")&&line("i-clock","Estimate","30"),on("timer")&&'<div class="czv-timer">'+icon("i-play","ic-12")+'<span>Start</span><b class="num">0:00</b></div>'].filter(Boolean);
   if(sched.length)h+='<div class="czv-sec">'+sched.join("")+'</div>';
@@ -4372,19 +4372,18 @@ const metaRow=(label,inner,ic)=>'<div class="mrow"><div class="mlab">'+(ic?icon(
    deadline, which stays out of the way behind "Add deadline" until a task
    needs one. The times wait for a date to hang on. */
 function sheetDates(t){
-  const day=t.due||"",all=!t.dueTime,open=!!(V.sheet&&V.sheet.dl);
+  const day=t.due||"",all=!t.dueTime;
   const line='<div class="when-line">'+
-    dateField('data-act="sh-set" data-k="due"',day,{sm:1,long:1,label:"Date",ph:"Add a date",cls:"when-date"})+
+    dateField('data-act="sh-set" data-k="due"',day,{sm:1,long:1,label:"Start date",ph:"Add a start date",cls:"when-date"})+
     (day&&!all?timeField('data-act="sh-set" data-k="dueTime"',t.dueTime,{sm:1,label:"Start time",req:1,cls:"when-time"})+
       '<span class="when-dash" aria-hidden="true">–</span>'+
       timeField('data-act="sh-set" data-k="endTime"',t.endTime||m2hm(tSpan(t).end),{sm:1,label:"End time",req:1,after:t.dueTime,cls:"when-time"}):"")+
     '</div>';
   const allday=day?'<label class="when-all"><input type="checkbox" data-act="sh-allday"'+(all?" checked":"")+'><span>All day</span></label>':"";
-  const dl=t.deadline||open
-    ? '<div class="when-dl">'+icon("i-deadline","ic-14")+'<span class="when-dl-k">Deadline</span>'+
-        dateField('data-act="sh-set" data-k="deadline"',t.deadline,{sm:1,label:"Deadline",ph:"Pick a deadline",cls:"when-dl-f"})+'</div>'
-    : '<button class="when-add" data-act="sh-deadline">'+icon("i-deadline","ic-14")+'Add deadline</button>';
-  return '<div class="when">'+line+allday+dl+'</div>';
+  return '<div class="when">'+line+allday+'</div>';
+}
+function sheetDeadline(t){
+  return dateField('data-act="sh-set" data-k="deadline"',t.deadline,{sm:1,long:1,label:"Deadline",ph:"No deadline",cls:"when-date"});
 }
 
 /* ============ pickers ============
@@ -4991,7 +4990,11 @@ function renderSheet(){
          form reads as when, what, how long, and what it is tied to. */
       (s.tab==="activity"?historyPane(t):'<div class="sh-meta">'+
         group("Schedule",[
-          feat("when")||feat("deadline")?metaRow("When",sheetDates(t),"i-clock"):"",
+          /* The day it is planned for and the day it is due are two rows, each
+             with its own switch: one row for both read as two deadlines, and
+             turning either off alone changed nothing. */
+          feat("when")?metaRow("Start",sheetDates(t),"i-calendar"):"",
+          feat("deadline")?metaRow("Deadline",sheetDeadline(t),"i-deadline"):"",
           feat("reminder")?metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell"):"",
           feat("created")&&!isNew&&t.created?metaRow("Created",'<span class="mnone">'+esc(fmtDate(t.created))+'</span>',"i-plus"):""])+
         group("Organise",[

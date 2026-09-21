@@ -305,9 +305,12 @@ deadline and no date sits on its deadline's day. `tSpan()` gives the start
 and end in minutes — a start with no end, from before tasks had one, is half
 an hour.
 
-In the panel it reads as Google's event form: the date, then start – end on
-one line, "All day" beneath, and "Add deadline" hidden until it is wanted
-(`V.sheet.dl`). A new start time keeps the length the task had; the end
+In the panel the date is the **Start** row: the start date, then start – end
+on one line, "All day" beneath, as Google's event form has it. The deadline
+is a row of its own, **Deadline**. Each row has its own switch in Customise
+(`when`, `deadline`). One "When" row holding both, with "Add deadline"
+tucked under it, read as two deadlines, and switching either off alone
+changed nothing. A new start time keeps the length the task had; the end
 time's list starts after the start and says how long each choice makes it.
 
 A planner still on the ten categories it started with, untouched
