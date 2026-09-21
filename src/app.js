@@ -1706,12 +1706,15 @@ function czFieldEditor(){
      will sit, not on a page of its own. It shows on tasks and in the list
      like every other field, so where to show it is not asked. */
   return '<div class="cz-inline" id="czEditor"><div class="cz-form">'+
-      '<label class="cz-l"><span>Field name<span class="req" aria-hidden="true">*</span></span><input class="inp" id="czFName" maxlength="40" value="'+esc(d.name)+'" placeholder="Related work, Effort in days, Client…" autocomplete="off"></label>'+
+      '<div class="cz-pair">'+
+        '<label class="cz-l"><span>Field name<span class="req" aria-hidden="true">*</span></span><input class="inp" id="czFName" maxlength="40" value="'+esc(d.name)+'" placeholder="Client, Effort, Budget…" autocomplete="off"></label>'+
+        '<label class="cz-l cz-typel"><span>Type</span><select class="inp" data-act="cz-ftype-sel" aria-label="Field type">'+CF_TYPES.map(x=>
+          '<option value="'+x[0]+'" data-ic="'+x[2]+'" data-sub="'+esc(x[3])+'"'+(d.type===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select></label>'+
+      '</div>'+
+      (d.isNew?"":'<small class="cz-hint">Changing the type clears values that don’t fit it.</small>')+
       (d.showDesc||d.desc?'<label class="cz-l">Description<input class="inp" id="czFDesc" maxlength="120" value="'+esc(d.desc||"")+'" placeholder="What goes in it"></label>'
         :'<button class="linkish" data-act="cz-desc-show">'+icon("i-plus","ic-14")+'Add a description</button>')+
-      '<div class="cz-l">Field type'+(d.isNew?"":'<small>Changing the type clears values that do not fit it.</small>')+'</div>'+
-      '<div class="cz-types" role="radiogroup" aria-label="Field type">'+CF_TYPES.map(x=>
-        '<button class="cz-type'+(d.type===x[0]?" on":"")+'" data-act="cz-ftype" data-v="'+x[0]+'" role="radio" aria-checked="'+(d.type===x[0])+'">'+icon(x[2],"ic-16")+'<b>'+x[1]+'</b><small>'+x[3]+'</small></button>').join("")+'</div>'+
+
       (sel?'<div class="cz-l">Options</div><div class="cz-opts">'+(d.options||[]).map((o,i)=>
           '<div class="cz-opt"><button class="cz-dot" style="--c:'+o.color+'" data-act="cz-opt-color" data-v="'+i+'" aria-label="Change colour"></button>'+
           '<input class="inp inp-sm" data-act="cz-opt-name" data-v="'+i+'" value="'+esc(o.name)+'" placeholder="Option '+(i+1)+'" maxlength="40">'+
@@ -3382,10 +3385,6 @@ document.addEventListener("click",function(e){
     case "cz-field-save":czSaveField();break;
     case "cz-field-del":if(arm(n,"Delete field and its values?"))czDeleteField(id);break;
     case "cz-desc-show":czReadDraft();V.cz.draft.showDesc=true;customiseModal();{const i=el("czFDesc");if(i)i.focus();}break;
-    case "cz-ftype":czReadDraft();V.cz.draft.type=n.dataset.v;
-      if((V.cz.draft.type==="single"||V.cz.draft.type==="multi")&&!V.cz.draft.options.length)
-        V.cz.draft.options=[{id:uid("o"),name:"",color:CAT_COLORS[0]},{id:uid("o"),name:"",color:CAT_COLORS[1]}];
-      customiseModal();break;
     case "cz-opt-add":{czReadDraft();const o=V.cz.draft.options;o.push({id:uid("o"),name:"",color:CAT_COLORS[o.length%CAT_COLORS.length]});customiseModal();
       const ins=document.querySelectorAll('[data-act="cz-opt-name"]');if(ins.length)ins[ins.length-1].focus();break;}
     case "cz-opt-del":czReadDraft();V.cz.draft.options.splice(Number(n.dataset.v),1);customiseModal();break;
@@ -3798,6 +3797,10 @@ document.addEventListener("change",function(e){
     save("prefs");save("tasks");customiseModal();render();renderSheet();return;}
   if(t.dataset&&t.dataset.act==="cz-opt-name"){czReadDraft();return;}
   if(t.dataset&&t.dataset.act==="cz-lane-hex"){const l=lane(t.dataset.id);if(l){l.color=t.value;save("prefs");customiseModal();render();}return;}
+  if(t.dataset&&t.dataset.act==="cz-ftype-sel"){czReadDraft();const d=V.cz.draft;if(!d)return;d.type=t.value;
+    if((d.type==="single"||d.type==="multi")&&!d.options.length)
+      d.options=[{id:uid("o"),name:"",color:CAT_COLORS[0]},{id:uid("o"),name:"",color:CAT_COLORS[1]}];
+    customiseModal();const f=document.querySelector('.cz [data-act="cz-ftype-sel"]');if(f)f.focus({preventScroll:true});return;}
   /* A field shown in the task, or as a column in the list. */
   if(t.dataset&&t.dataset.act==="cz-where"){
     const k=t.dataset.k,w=t.dataset.w;
@@ -4462,7 +4465,9 @@ function pkSelectHtml(){
     const on=o.selected,c=cats&&o.value?cat(o.value):null;
     rows+='<button type="button" class="pk-opt'+(on?" on":"")+(o.value?"":" blank")+'" data-act="pk-opt" data-i="'+i+'" role="option" aria-selected="'+on+'"'+
       (o.disabled?" disabled":"")+(c?' style="--c:'+c.color+'"':"")+'>'+
-      (c?'<i class="pk-dot"></i>':"")+'<span>'+esc(o.text)+'</span>'+(on?icon("i-check","ic-14"):"")+'</button>';
+      (c?'<i class="pk-dot"></i>':"")+(o.dataset.ic?icon(o.dataset.ic,"ic-14 pk-ic"):"")+
+      (o.dataset.sub?'<span class="pk-two"><span>'+esc(o.text)+'</span><small>'+esc(o.dataset.sub)+'</small></span>':'<span>'+esc(o.text)+'</span>')+
+      (on?icon("i-check","ic-14"):"")+'</button>';
   });
   return (opts.length>12?'<div class="pk-top"><input id="pkFind" class="inp inp-sm" placeholder="Find…" autocomplete="off" aria-label="Narrow the list"></div>':"")+
     '<div class="pk-body" role="listbox"><div class="pk-opts">'+rows+'</div></div>';

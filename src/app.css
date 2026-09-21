@@ -1959,8 +1959,14 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 /* Two switch columns, the same width in the heading and in every row. */
 .cz-row-edit{width:28px;height:28px;border-color:transparent;background:none;color:var(--muted)}
 .cz-row-edit:hover{background:var(--surface-3);color:var(--ink)}
+.cz-pair{display:grid;grid-template-columns:minmax(0,1fr) 170px;gap:10px}
+.cz-hint{margin-top:-4px;font-size:11.5px;color:var(--muted)}
+.pk-ic{flex:none;color:var(--muted)}
+.pk-two{display:flex;flex-direction:column;min-width:0;flex:1;text-align:left}
+.pk-opt:has(.pk-two){height:auto;min-height:40px;padding:5px 10px}
+.pk-two small{font-size:11px;font-weight:500;color:var(--muted)}
+@media (max-width:560px){.cz-pair{grid-template-columns:minmax(0,1fr)}}
 .cz-inline{margin:4px 2px 2px;padding:12px;border-radius:var(--r-m);background:var(--surface);border:1.5px solid var(--accent)}
-.cz-inline .cz-types{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
 .cz-newf{align-self:flex-start;margin:6px 6px 4px}
 .cz-empty{margin:2px 6px 0;font-size:12px;line-height:1.5;color:var(--muted)}
 .cz-sh{display:flex;align-items:center}
@@ -2009,16 +2015,7 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .cz-l small{font-weight:500;color:var(--muted)}
 .cz-l .req{color:var(--danger-ink);margin-left:2px}
 .cz-form > .linkish{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-size:12.5px}
-.cz-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
-.cz-type{display:grid;grid-template-columns:22px 1fr;column-gap:8px;align-items:center;padding:9px 10px;border-radius:var(--r-s);text-align:left;
   background:var(--surface);border:1px solid var(--line);transition:border-color .12s,background .12s}
-.cz-type > *{pointer-events:none}
-.cz-type .ic{grid-row:span 2;color:var(--muted)}
-.cz-type b{font-size:12.5px;color:var(--ink)}
-.cz-type small{font-size:11px;color:var(--muted)}
-.cz-type:hover{border-color:var(--line-2)}
-.cz-type.on{border-color:var(--accent);background:var(--accent-soft)}
-.cz-type.on .ic{color:var(--accent-ink)}
 .cz-opts{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .cz-opt{display:flex;align-items:center;gap:8px;width:100%;max-width:420px}
 .cz-dot{width:20px;height:20px;flex:none;border-radius:50%;background:var(--c)}
