@@ -1977,6 +1977,9 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .czv{position:sticky;top:0;display:flex;flex-direction:column;gap:6px}
 .czv-cap{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
 .czv-card{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:var(--r-m);background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-2)}
+.czv-lane{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 7px;border-radius:6px;font-size:10px;font-weight:600;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line)}
+.czv-lane i{width:6px;height:6px;border-radius:50%;background:var(--amber)}
+.czv-val{font-size:10.5px;font-weight:600;color:var(--ink-2)}
 .czv-title{display:flex;align-items:center;gap:7px}
 .czv-title b{font-size:12.5px;color:var(--ink)}
 .czv-tick{width:13px;height:13px;flex:none;border-radius:50%;border:1.5px solid var(--line-2)}

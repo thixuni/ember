@@ -63,15 +63,15 @@ const DEFAULT_LANES=[
 const LANE_COLORS=["#6B7CE0","#D99A16","#3F7D5C","#9AA298","#7C5CE0","#C25340","#2F9BA8","#D0588F","#8A6A3F","#5B8C3A"];
 /* The task panel's parts that can be switched off, in the panel's order. */
 const BOARD_FEATS=[
- ["Schedule",[["when","Date and time","When you plan to do it","i-calendar"],["deadline","Deadline","The day it must be done by","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"]]],
- ["Organise",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"]]],
+ ["Schedule",[["when","Date and time","When you plan to do it","i-calendar"],["deadline","Deadline","The day it must be done by","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
+ ["Organise",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"],["status","Lane","Which board lane it’s in","i-board"]]],
  ["Effort",[["estimate","Estimate","How long you think it’ll take","i-clock"],["timer","Time tracker","Time how long it really takes","i-timer"]]],
  ["Attached",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
  ["Content",[["desc","Description","Notes about the task","i-note"],["subtasks","Subtasks","Smaller steps inside it","i-checklist"],["docs","Documents","Longer pages of writing","i-doc"],["comments","Comments","Updates and thoughts","i-chat"],["activity","Activity history","A record of every change","i-chart"]]]];
 /* The list view's columns besides the task itself; the first four are on
    to begin with. Custom fields join these as "cf:<id>". */
 /* Which part of the task panel each list column belongs to. */
-const FEAT_COL_OF={date:"when",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",tracked:"timer"};
+const FEAT_COL_OF={date:"when",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",tracked:"timer",status:"status",created:"created"};
 const LIST_COLS=[["date","Date"],["priority","Priority"],["category","Category"],["status","Status"],
  ["deadline","Deadline"],["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
 /* The board settings, filled in on the one object (as gcalPrefs() is): a sync
@@ -88,6 +88,7 @@ function board(){
     b.lanes=JSON.parse(JSON.stringify(old?LEGACY_LANES:DEFAULT_LANES));made=true;
   }
   if(!b.show||typeof b.show!=="object")b.show={};
+  if(b.show.created==null&&Array.isArray(b.cols)&&b.cols.some(c=>c.k==="created"&&c.on))b.show.created=true;
   if(!Array.isArray(b.fields))b.fields=[];
   if(!Array.isArray(b.cols)){b.cols=LIST_COLS.map((c,i)=>({k:c[0],on:i<4}));made=true;}
   if(made)setTimeout(()=>save("prefs"),0);
@@ -99,7 +100,9 @@ const ST=id=>lane(id)||{id:id,name:"No lane",color:"#8A8F98",done:false};
 const isDoneT=t=>{const l=lane(t.status);return l?!!l.done:(isDoneT(t)||t.status==="dropped");};
 const firstOpen=()=>(lanes().find(l=>!l.done)||lanes()[0]).id;
 const firstDone=()=>(lanes().find(l=>l.done)||lanes()[lanes().length-1]).id;
-const feat=k=>board().show[k]!==false;
+/* Every part starts on except Created, a date nobody fills in. */
+const FEAT_OFF={created:1};
+const feat=k=>{const v=board().show[k];return v==null?!FEAT_OFF[k]:v!==false;};
 /* A status from before -- the sample week, an old backup -- lands in the
    nearest lane there is. */
 function laneFor(status){
@@ -1627,8 +1630,7 @@ function czDelRow(l,n){
    columns. Each row carries a short line on what it is for. */
 /* The list column that goes with a part of the task panel, and the columns
    that have no part in the panel of their own. */
-const FEAT_COL={when:"date",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",timer:"tracked"};
-const LIST_ONLY={Schedule:[["created","Created","When it was added","i-plus"]],Organise:[["status","Lane","Which board lane it’s in","i-board"]]};
+const FEAT_COL={when:"date",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",timer:"tracked",status:"status",created:"created"};
 function czPanel(){
   const b=board(),full=!!b.fullSubs,cols=listCols();
   const colOn=k=>{const c=cols.find(x=>x.k===k);return !!(c&&c.on);};
@@ -1644,7 +1646,7 @@ function czPanel(){
     '<span class="cz-mode-pic" aria-hidden="true">'+pic+'</span><span class="cz-mode-t"><b><i class="cz-radio"></i>'+title+'</b><small>'+text+'</small></span></button>';
   const checkPic='<span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
   const fullPic='<span class="czp-kid"><i></i><em></em><u>Fri</u></span><span class="czp-kid"><i></i><em></em><u>Mon</u></span>';
-  const allOn=BOARD_FEATS.every(g=>g[1].every(x=>feat(x[0])))&&b.fields.every(f=>f.panel!==false);
+  const allOn=BOARD_FEATS.every(g=>g[1].every(x=>FEAT_OFF[x[0]]||feat(x[0])))&&b.fields.every(f=>f.panel!==false);
   const shown=cols.filter(c=>c.on);
   return '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">Fields</h3>'+
       (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything</button>')+'</div>'+
@@ -1652,7 +1654,7 @@ function czPanel(){
       '<div class="cz-split"><div class="cz-rows">'+
         BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh"><span>'+esc(g[0])+'</span></div>'+
           g[1].map(x=>row(x[1],x[2],x[3],x[0],FEAT_COL[x[0]]||"")).join("")+
-          (LIST_ONLY[g[0]]||[]).map(x=>row(x[1],x[2],x[3],"",x[0])).join("")+'</div>').join("")+
+'</div>').join("")+
         '<div class="cz-group"><div class="cz-gh"><span>Your own fields</span></div>'+
           b.fields.map(f=>V.cz.edit===f.id?czFieldEditor():row(f.name,f.desc||cfType(f.type)[1],cfType(f.type)[2],f.id,"cf:"+f.id,true)).join("")+
           (V.cz.edit==="new"?czFieldEditor():'<button class="btn btn-sm cz-newf" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button>')+'</div>'+
@@ -1678,8 +1680,8 @@ function czPanel(){
 function czPanelPreview(){
   const b=board(),on=k=>feat(k);
   const line=(ic,label,w)=>'<div class="czv-f">'+icon(ic,"ic-12")+'<span>'+esc(label)+'</span><i style="width:'+w+'%"></i></div>';
-  let h='<div class="czv-title"><i class="czv-tick"></i><b>Plan the team offsite</b></div>';
-  const sched=[on("when")&&line("i-calendar","Date","56"),on("deadline")&&line("i-deadline","Deadline","40"),on("reminder")&&line("i-bell","Reminder","34")].filter(Boolean);
+  let h=(on("status")?'<div class="czv-lane"><i></i>In progress</div>':"")+'<div class="czv-title"><i class="czv-tick"></i><b>Plan the team offsite</b></div>';
+  const sched=[on("when")&&line("i-calendar","Date","56"),on("deadline")&&line("i-deadline","Deadline","40"),on("reminder")&&line("i-bell","Reminder","34"),on("created")&&'<div class="czv-f">'+icon("i-plus","ic-12")+'<span>Created</span><b class="czv-val">19 Sep</b></div>'].filter(Boolean);
   const org=[on("category")&&'<span class="czv-chip">Work</span>',on("priority")&&'<span class="czv-chip">Do first</span>',on("tags")&&'<span class="czv-chip">#planning</span>'].filter(Boolean);
   const eff=[on("estimate")&&line("i-clock","Estimate","30"),on("timer")&&'<div class="czv-timer">'+icon("i-play","ic-12")+'<span>Start</span><b class="num">0:00</b></div>'].filter(Boolean);
   if(sched.length)h+='<div class="czv-sec">'+sched.join("")+'</div>';
@@ -4777,8 +4779,8 @@ function renderSheet(){
 
   const headHtml=
       '<button class="tick'+(done?" on":"")+'" data-act="sh-done" aria-label="Mark complete"'+(isNew?" disabled":"")+'>'+icon("i-check")+'</button>'+
-      '<select class="inp inp-sm sh-status" data-act="sh-set" data-k="status">'+
-        lanes().map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>'+
+      (feat("status")?'<select class="inp inp-sm sh-status" data-act="sh-set" data-k="status" aria-label="Lane">'+
+        lanes().map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>':"")+
       '<div class="spacer" style="flex:1"></div>'+
       (isNew||!feat("timer")?"":'<button class="icon-btn btn-sm" data-act="sh-timer" title="Start the timer" aria-label="Start the timer">'+icon(running()&&running().task===t.id&&running().since?"i-pause":"i-play","ic-14")+'</button>')+
       (isNew?"":'<button class="icon-btn btn-sm btn-danger" data-act="sh-delete" title="Delete" aria-label="Delete task">'+icon("i-trash","ic-14")+'</button>')+
@@ -4798,7 +4800,8 @@ function renderSheet(){
       (s.tab==="activity"?historyPane(t):'<div class="sh-meta">'+
         group("Schedule",[
           feat("when")||feat("deadline")?metaRow("When",sheetDates(t),"i-clock"):"",
-          feat("reminder")?metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell"):""])+
+          feat("reminder")?metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell"):"",
+          feat("created")&&!isNew&&t.created?metaRow("Created",'<span class="mnone">'+esc(fmtDate(t.created))+'</span>',"i-plus"):""])+
         group("Organise",[
           feat("category")?metaRow("Category",sheetCats(t),c.icon):"",
           feat("priority")?metaRow("Priority",sheetPrio(t),"i-flag"):"",

@@ -268,9 +268,11 @@ goes with backups and Drive like any setting.
   is for, beside a task panel in miniature (`czPanelPreview()`); then
   Subtasks, as two small picture cards; then the order of the list's columns. A task shows the same fields opened and in the list: `listCols()`
   turns a column on exactly when its panel part is (`FEAT_COL_OF`; a field's
-  `list` follows its `panel`), and only Lane and Created, which the panel has
-  no part for (`LIST_ONLY`), keep a switch of their own. Separate In task and
-  In list switches were tried and read as two names for one thing.
+  `list` follows its `panel`). Lane is the lane picker at the top of the
+  panel and Created a line under Schedule, so they obey the rule too; Created
+  starts off (`FEAT_OFF`). Separate In task and In list switches were tried
+  and read as two names for one thing; Lane and Created as list-only switches
+  changed nothing the preview could show.
 - **Subtasks that are tasks** (`board().fullSubs`), offered as two drawn
   choices, Checklist and Full tasks, not a switch: a subtask is a task with
   a `parent`, opening like any task with a way back to its parent. Switching
