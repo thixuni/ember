@@ -308,16 +308,21 @@ goes with backups and Drive like any setting.
 - **A category pill is a button** where it belongs to a task or routine
   (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
   list of categories (`catMenu()`) and changes it in place.
-- **The list view** (`viewList()`) is one table per lane, in board order, each
-  with its own Add task (`V.lqa`) and collapsible (`V.lshut`). Every cell is
-  edited in place (`lrCell()`): the name by clicking it (`V.lrename`), dates
-  from the picker, priority, lane and estimate from a short list, tags added
-  (`V.ltag`) and removed, fields in their own controls (`cfControl(t,f,tid)`
-  names the task). Column widths are variables on the page (`--w-<col>`),
-  dragged at a heading's edge and kept in `board().colW`; a heading dragged
-  along reorders `board().cols`, which Customise shows. All tables share the
-  widths so they line up, and the page scrolls sideways as one. Move to and
-  Details on a hovered row stay pinned at the right edge.
+- **The list view** (`viewList()`) is one sheet, drawn after Asana's: a
+  single sticky heading row, then each lane as a section heading (in board
+  order, collapsible with `V.lshut`) over plain rows, and its own **+ Add
+  task** under the names (`V.lqa`). Lane is not a column: the sections say
+  it. Every cell is edited in place (`lrCell()`): the name by clicking it
+  (`V.lrename`), dates from the picker, priority and estimate from a short
+  list, tags added (`V.ltag`) and removed, fields in their own controls
+  (`cfControl(t,f,tid)` names the task). **An empty cell is empty** — no
+  dash, no "Pick a date" (`dateField(..., {ph:""})`); hovering one cell
+  shows only that cell's control, never the whole row's. The task column is
+  wide (380px by default) and ends in the row's own actions, Move to and
+  Details, shown on the row's hover. Column widths are variables on the
+  page (`--w-<col>`), dragged at a heading's edge and kept in
+  `board().colW`; a heading dragged along reorders `board().cols`, which
+  Customise shows.
 - **The list's columns** are `board().cols` (`{k, on}` in order, a field as
   `"cf:<id>"`), read through `listCols()`, which sets `on` from the panel; the row grid is built from them,
   so a hidden column takes no room.

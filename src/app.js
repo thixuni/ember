@@ -1561,30 +1561,30 @@ function viewList(){
      clicking it, dates from the picker, priority, lane and estimate from a
      short list, tags added and taken off, fields in their own controls.
      Hovering a row shows Move to (another lane) and Details (the panel). */
-  const cols=listCols().filter(c=>c.on),W=lrWidths(cols);
-  const grid='grid-template-columns:28px var(--w-name) '+cols.map(c=>'var(--w-'+lrVar(c.k)+')').join(" ")+' minmax(64px,1fr)';
+  const cols=listCols().filter(c=>c.on&&c.k!=="status"),W=lrWidths(cols);
+  const grid='grid-template-columns:28px var(--w-name) '+cols.map(c=>'var(--w-'+lrVar(c.k)+')').join(" ")+' minmax(0,1fr)';
   const vars=Object.keys(W).map(k=>'--w-'+lrVar(k)+':'+W[k]+'px').join(";");
   const head='<div class="lrow head" style="'+grid+'"><span></span>'+
     '<span class="lh" data-col="name">Task<i class="lh-rs" data-rs="name" title="Drag to resize"></i></span>'+
     cols.map(c=>'<span class="lh" draggable="true" data-col="'+esc(c.k)+'" title="Drag to move this column">'+esc(colLabel(c.k))+'<i class="lh-rs" data-rs="'+esc(c.k)+'" title="Drag to resize"></i></span>').join("")+'<span></span></div>';
   const everything=V.f.quick==="all"&&!V.q&&!activeFilterCount();
-  const tables=lanes().map(L=>{
+  const sections=lanes().map(L=>{
     const items=list.filter(t=>t.status===L.id);
     if(!items.length&&!everything)return "";
     const shut=!!(V.lshut&&V.lshut[L.id]);
     return '<section class="lgroup" style="--s:'+L.color+'">'+
-      '<h3><button class="lg-head" data-act="lg-toggle" data-v="'+L.id+'" aria-expanded="'+!shut+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+'<i class="lg-dot"></i>'+esc(L.name)+'<span class="n num">'+items.length+'</span></button></h3>'+
-      (shut?"":'<div class="ltable">'+head+items.map(t=>lrRow(t,cols,grid)).join("")+
-        (V.lqa===L.id?'<div class="lrow lr-add" style="'+grid+'"><span></span><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(L.name)+'"></div>'
-          :'<button class="lrow lr-addbtn" data-act="lqa-open" data-v="'+L.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>')+
+      '<h3 class="lg-h"><button class="lg-head" data-act="lg-toggle" data-v="'+L.id+'" aria-expanded="'+!shut+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+'<i class="lg-dot"></i>'+esc(L.name)+'<span class="n num">'+items.length+'</span></button></h3>'+
+      (shut?"":items.map(t=>lrRow(t,cols,grid)).join("")+
+        (V.lqa===L.id?'<div class="lrow lr-add" style="'+grid+'"><span></span><span class="name"><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(L.name)+'"></span></div>'
+          :'<div class="lrow lr-add" style="'+grid+'"><span></span><button class="lr-addbtn" data-act="lqa-open" data-v="'+L.id+'">'+icon("i-plus","ic-14")+'Add task</button></div>'))+
       '</section>';}).join("");
-  return '<div class="task-main">'+filterBar()+'<div class="list-scroll lr-root" style="'+vars+'">'+tables+'</div></div>';
+  return '<div class="task-main">'+filterBar()+'<div class="list-scroll lr-root" style="'+vars+'"><div class="lr-sheet">'+head+sections+'</div></div></div>';
 }
 /* A column's width is the person's once they drag it; until then it has one
    to suit what it holds. */
 const lrVar=k=>String(k).replace(/[^a-z0-9]/gi,"_");
 function lrWidths(cols){
-  const saved=board().colW||{},W={name:saved.name||280};
+  const saved=board().colW||{},W={name:saved.name||380};
   cols.forEach(c=>{W[c.k]=saved[c.k]||(parseInt(String(colW(c.k)).replace("minmax(",""),10)||110)+20;});
   return W;
 }
@@ -1595,25 +1595,27 @@ function lrRow(t,cols,grid){
     '<span class="name">'+icon(c.icon,"ic-14")+
       (edit?'<input class="lr-in lr-rename" id="lrRename" data-id="'+t.id+'" value="'+esc(t.title)+'" maxlength="200" aria-label="Task name">'
         :'<button type="button" class="lr-title" data-act="lr-rename" data-id="'+t.id+'" title="Click to rename">'+esc(t.title)+'</button>')+
-      (sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+'</span>'+
-    cols.map(k=>'<span class="lr-cell">'+lrCell(k.k,t)+'</span>').join("")+
-    '<span class="lr-acts"><button type="button" class="rowbtn" data-act="lr-move" data-id="'+t.id+'" title="Move to another lane" aria-label="Move to another lane" aria-haspopup="menu">'+icon("i-swap","ic-14")+'</button>'+
-      '<button type="button" class="rowbtn" data-act="sh-open" data-id="'+t.id+'" title="Details" aria-label="Details">'+icon("i-chev-r","ic-14")+'</button></span></div>';
+      (sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+
+      '<span class="lr-acts"><button type="button" class="rowbtn" data-act="lr-move" data-id="'+t.id+'" title="Move to another lane" aria-label="Move to another lane" aria-haspopup="menu">'+icon("i-swap","ic-14")+'</button>'+
+        '<button type="button" class="rowbtn lr-det" data-act="sh-open" data-id="'+t.id+'" title="Details" aria-label="Details">Details'+icon("i-chev-r","ic-12")+'</button></span></span>'+
+    cols.map(k=>'<span class="lr-cell">'+lrCell(k.k,t)+'</span>').join("")+'<span></span></div>';
 }
 function lrCell(k,t){
   const a=v=>'data-act="'+v+'" data-id="'+t.id+'"';
   switch(k){
-    case "date":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="due"',t.due||"",{sm:1,ph:"—",label:"Start date",cls:"lr-f"+(isOverdue(t)&&t.due&&t.due<TODAY()?" over":"")});
-    case "deadline":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="deadline"',t.deadline||"",{sm:1,ph:"—",label:"Due date",cls:"lr-f"+(isOpen(t)&&t.deadline&&t.deadline<TODAY()?" over":"")});
-    case "priority":return '<button type="button" class="lr-pick" '+a("lr-prio")+' aria-haspopup="menu" title="Priority">'+(quadChip(t)||'<span class="sub">—</span>')+'</button>';
+    case "date":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="due"',t.due||"",{sm:1,ph:"",label:"Start date",cls:"lr-f"+(isOverdue(t)&&t.due&&t.due<TODAY()?" over":"")});
+    case "deadline":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="deadline"',t.deadline||"",{sm:1,ph:"",label:"Due date",cls:"lr-f"+(isOpen(t)&&t.deadline&&t.deadline<TODAY()?" over":"")});
+    case "priority":return '<button type="button" class="lr-pick'+(quadChip(t)?"":" empty")+'" '+a("lr-prio")+' aria-haspopup="menu" title="Priority" aria-label="Priority">'+(quadChip(t)||icon("i-chev-d","ic-12 lr-hint"))+'</button>';
     case "category":return catChip(t.cat,"task",t.id);
     case "status":{const st=ST(t.status);return '<button type="button" class="lr-pick" '+a("lr-move")+' aria-haspopup="menu" title="Lane"><span class="status-dot" style="--s:'+st.color+'"><span class="sw"></span>'+esc(st.name)+'</span></button>';}
-    case "estimate":return '<button type="button" class="lr-pick" '+a("lr-est")+' aria-haspopup="menu" title="Estimate"><span class="sub num">'+(tEst(t)?esc(fmtMins(tEst(t))):"—")+'</span></button>';
+    case "estimate":return '<button type="button" class="lr-pick'+(tEst(t)?"":" empty")+'" '+a("lr-est")+' aria-haspopup="menu" title="Estimate" aria-label="Estimate">'+(tEst(t)?'<span class="num lr-v">'+esc(fmtMins(tEst(t)))+'</span>':icon("i-chev-d","ic-12 lr-hint"))+'</button>';
     case "tags":return '<span class="lr-tags">'+(t.tags||[]).map(x=>'<span class="chip lr-tag">#'+esc(x)+'<button type="button" data-act="lr-tag-del" data-id="'+t.id+'" data-v="'+esc(x)+'" aria-label="Remove '+esc(x)+'">'+icon("i-x","ic-12")+'</button></span>').join("")+
       (V.ltag===t.id?'<input class="lr-in lr-tagin" id="lrTag" data-id="'+t.id+'" placeholder="Tag" maxlength="40" autocomplete="off" aria-label="New tag">'
         :'<button type="button" class="lr-tagadd" '+a("lr-tag-add")+' aria-label="Add a tag">'+icon("i-plus","ic-12")+'</button>')+'</span>';
   }
   if(k.indexOf("cf:")===0){const f=fieldById(k.slice(3));return f?'<span class="lr-cf">'+cfControl(t,f,t.id)+'</span>':"";}
+  if(k==="tracked"){const x=trackedSecs(t.id);return x?'<span class="num lr-v">'+esc(fmtTracked(x))+'</span>':"";}
+  if(k==="created")return t.created?'<span class="num lr-v">'+esc(fmtDate(t.created))+'</span>':"";
   return colCell(k,t);
 }
 function lrSaveCols(order){const cols=listCols();board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean).concat(cols.filter(c=>order.indexOf(c.k)<0));save("prefs");renderView();}
@@ -1852,7 +1854,7 @@ function czPanel(){
   const checkPic='<span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
   const fullPic='<span class="czp-kid"><i></i><em></em><u>Fri</u></span><span class="czp-kid"><i></i><em></em><u>Mon</u></span>';
   const allOn=BOARD_FEATS.every(g=>g[1].every(x=>FEAT_OFF[x[0]]||feat(x[0])))&&b.fields.every(f=>f.panel!==false);
-  const shown=cols.filter(c=>c.on);
+  const shown=cols.filter(c=>c.on&&c.k!=="status");
   return '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">Fields</h3>'+
       (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything</button>')+'</div>'+
       '<p class="cz-lead">What a task shows, when opened and in the list. Hiding one keeps what’s in it.</p>'+
@@ -4848,10 +4850,10 @@ function pickField(kind,attrs,val,o){
       ' value="'+esc(val?fmtTime(val):"")+'" placeholder="'+esc(o.ph||"Pick a time")+'" aria-label="'+esc(o.label||"Time")+'" autocomplete="off" spellcheck="false"'+
       ' role="combobox" aria-haspopup="listbox" aria-expanded="false"'+(o.disabled?" disabled":"")+'>'+
     '<input type="hidden" '+attrs+' value="'+esc(val)+'"></span>';
-  const txt=val?pkText(kind,val,o.long?"long":""):(o.ph||(kind==="date"?"Pick a date":"Pick a time"));
+  const txt=val?pkText(kind,val,o.long?"long":""):(o.ph!=null?o.ph:(kind==="date"?"Pick a date":"Pick a time"));
   return '<span class="pkf">'+
     '<button type="button" class="inp'+(o.sm?" inp-sm":"")+(o.cls?" "+o.cls:"")+' pk-btn'+(val?"":" is-empty")+'" data-act="pk-open" data-pk="'+kind+'"'+
-      ' data-ph="'+esc(o.ph||(kind==="date"?"Pick a date":"Pick a time"))+'"'+(o.req?' data-req="1"':"")+' data-label="'+esc(o.label||"")+'"'+(o.long?' data-fmt="long"':"")+(o.after?' data-after="'+esc(o.after)+'"':"")+
+      ' data-ph="'+esc(o.ph!=null?o.ph:(kind==="date"?"Pick a date":"Pick a time"))+'"'+(o.req?' data-req="1"':"")+' data-label="'+esc(o.label||"")+'"'+(o.long?' data-fmt="long"':"")+(o.after?' data-after="'+esc(o.after)+'"':"")+
       ' aria-label="'+esc((o.label?o.label+": ":"")+txt)+'" aria-haspopup="dialog" aria-expanded="false"'+(o.disabled?" disabled":"")+'>'+
       '<span class="pk-val">'+esc(txt)+'</span>'+icon(kind==="date"?"i-calendar":"i-clock","ic-14")+'</button>'+
     '<input type="hidden" '+attrs+' value="'+esc(val)+'"></span>';
