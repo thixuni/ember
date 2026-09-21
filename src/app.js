@@ -2335,13 +2335,12 @@ function obShowCats(){
 
 /* ---- starter routines ---- */
 const OB_RT=[
-  {k:"standup",title:"Morning stand-up",cat:"work",days:[1,2,3,4,5],time:"09:30",dur:15,ic:"i-coffee"},
-  {k:"deep",title:"Deep work block",cat:"work",days:[1,2,3,4,5],time:"10:00",dur:90,ic:"i-bolt"},
-  {k:"workout",title:"Workout",cat:"goals",days:[1,3,5],time:"07:00",dur:45,ic:"i-dumbbell"},
-  {k:"walk",title:"Evening walk",cat:"goals",days:[0,1,2,3,4,5,6],time:"18:30",dur:30,ic:"i-sun"},
+  {k:"walk",title:"Morning walk",cat:"goals",days:[0,1,2,3,4,5,6],time:"07:00",dur:30,ic:"i-sun"},
+  {k:"workout",title:"Workout",cat:"goals",days:[1,3,5],time:"18:00",dur:45,ic:"i-dumbbell"},
   {k:"read",title:"Read before bed",cat:"personal",days:[0,1,2,3,4,5,6],time:"21:30",dur:20,ic:"i-book"},
+  {k:"plants",title:"Water the plants",cat:"personal",days:[1,4],time:"08:00",dur:10,ic:"i-leaf"},
   {k:"review",title:"Weekly review",cat:"goals",days:[5],time:"16:00",dur:45,ic:"i-target"},
-  {k:"plants",title:"Water the plants",cat:"personal",days:[1,4],time:"08:00",dur:10,ic:"i-leaf"}];
+  {k:"cook",title:"Cook dinner",cat:"personal",days:[0,1,2,3,4,5,6],time:"19:00",dur:45,ic:"i-pot"}];
 function obRt(){
   if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:false},x));
   return OB.rt;
