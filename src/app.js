@@ -1623,7 +1623,7 @@ function czDelRow(l,n){
 /* What a task holds, in one place and kept plain: the fields first, one
    switch each beside a task panel drawn from the same switches; then how
    subtasks work, as two small picture cards; then the order of the list's
-   columns. Each row's line on what it is for is its tooltip, not text. */
+   columns. Each row carries a short line on what it is for. */
 /* The list column that goes with a part of the task panel, and the columns
    that have no part in the panel of their own. */
 const FEAT_COL={when:"date",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",timer:"tracked"};
@@ -1635,8 +1635,8 @@ function czPanel(){
      Created its list column. The list follows the panel (listCols()). */
   const row=(name,hint,ic,pk,ck,edit)=>{
     const on=pk?(edit?fieldById(pk).panel!==false:feat(pk)):colOn(ck),k=pk||ck,w=pk?"panel":"list";
-    return '<div class="cz-row'+(on?"":" off")+'" title="'+esc(hint)+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
-      '<span class="cz-row-t"><b>'+esc(name)+'</b></span>'+
+    return '<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
+      '<span class="cz-row-t"><b>'+esc(name)+'</b><small>'+esc(hint)+'</small></span>'+
       (edit?'<button class="icon-btn btn-sm cz-row-edit" data-act="cz-field-edit" data-id="'+pk+'" aria-label="Edit '+esc(name)+'">'+icon("i-edit","ic-14")+'</button>':"")+
       '<label class="switch cz-rsw"><input type="checkbox" data-act="cz-where" data-k="'+esc(k)+'" data-w="'+w+'"'+(on?" checked":"")+' aria-label="Show '+esc(name)+'"><span></span></label></div>';};
   const mode=(v,title,text,pic)=>'<button class="cz-mode'+((v==="full")===full?" on":"")+'" data-act="cz-subs" data-v="'+v+'" role="radio" aria-checked="'+((v==="full")===full)+'">'+
