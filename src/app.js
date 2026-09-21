@@ -1620,64 +1620,57 @@ function czDelRow(l,n){
     '<div class="spacer" style="flex:1"></div><button class="btn btn-sm" data-act="cz-lane-del-no">Keep it</button>'+
     '<button class="btn btn-sm btn-danger" data-act="cz-lane-del-yes" data-id="'+l.id+'">Remove lane</button></div>';
 }
-/* What a task holds, in one place. Subtasks first, as a choice between two
-   ways of working drawn so the difference shows. Then every field, built in
-   or the person's own, as one row with two switches: shown in the task, and
-   shown as a column in the list. These were two tabs once, each switching
-   some of the same things, which made it unclear where a field was managed.
-   Last, the order of the list's columns, for just the ones that are on.
-   The task panel beside the rows is drawn from the same switches. */
+/* What a task holds, in one place and kept plain: the fields first, one
+   switch each beside a task panel drawn from the same switches; then how
+   subtasks work, as two small picture cards; then the order of the list's
+   columns. Each row's line on what it is for is its tooltip, not text. */
 /* The list column that goes with a part of the task panel, and the columns
    that have no part in the panel of their own. */
 const FEAT_COL={when:"date",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",timer:"tracked"};
 const LIST_ONLY={Schedule:[["created","Created","When it was added","i-plus"]],Organise:[["status","Lane","Which board lane it’s in","i-board"]]};
 function czPanel(){
-  const b=board(),full=!!b.fullSubs,kids=S.tasks.some(t=>t.parent),cols=listCols();
+  const b=board(),full=!!b.fullSubs,cols=listCols();
   const colOn=k=>{const c=cols.find(x=>x.k===k);return !!(c&&c.on);};
   /* One row, one switch: its part of the task panel, or for Lane and
      Created its list column. The list follows the panel (listCols()). */
   const row=(name,hint,ic,pk,ck,edit)=>{
     const on=pk?(edit?fieldById(pk).panel!==false:feat(pk)):colOn(ck),k=pk||ck,w=pk?"panel":"list";
-    return '<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
-      '<span class="cz-row-t"><b>'+esc(name)+'</b><small>'+esc(hint)+'</small></span>'+
+    return '<div class="cz-row'+(on?"":" off")+'" title="'+esc(hint)+'"><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span>'+
+      '<span class="cz-row-t"><b>'+esc(name)+'</b></span>'+
       (edit?'<button class="icon-btn btn-sm cz-row-edit" data-act="cz-field-edit" data-id="'+pk+'" aria-label="Edit '+esc(name)+'">'+icon("i-edit","ic-14")+'</button>':"")+
       '<label class="switch cz-rsw"><input type="checkbox" data-act="cz-where" data-k="'+esc(k)+'" data-w="'+w+'"'+(on?" checked":"")+' aria-label="Show '+esc(name)+'"><span></span></label></div>';};
   const mode=(v,title,text,pic)=>'<button class="cz-mode'+((v==="full")===full?" on":"")+'" data-act="cz-subs" data-v="'+v+'" role="radio" aria-checked="'+((v==="full")===full)+'">'+
-    '<span class="cz-mode-pic" aria-hidden="true">'+pic+'</span><span class="cz-mode-t"><i class="cz-radio"></i><b>'+title+'</b></span><small>'+text+'</small></button>';
-  const checkPic='<span class="czp-parent"></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
-  const fullPic='<span class="czp-parent"></span><span class="czp-kid"><i></i><em></em><u>Fri</u></span><span class="czp-kid"><i></i><em></em><u>Mon</u></span>';
+    '<span class="cz-mode-pic" aria-hidden="true">'+pic+'</span><span class="cz-mode-t"><b><i class="cz-radio"></i>'+title+'</b><small>'+text+'</small></span></button>';
+  const checkPic='<span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
+  const fullPic='<span class="czp-kid"><i></i><em></em><u>Fri</u></span><span class="czp-kid"><i></i><em></em><u>Mon</u></span>';
   const allOn=BOARD_FEATS.every(g=>g[1].every(x=>feat(x[0])))&&b.fields.every(f=>f.panel!==false);
   const shown=cols.filter(c=>c.on);
-  return '<div class="cz-sec"><h3 class="cz-sh"><span class="cz-step">1</span>How subtasks work</h3>'+
-      '<div class="cz-modes" role="radiogroup" aria-label="How subtasks work">'+
-        mode("check","Checklist","Quick steps you tick off inside the task.",checkPic)+
-        mode("full","Full tasks","Each step gets its own date, lane and timer, and opens like a task.",fullPic)+'</div>'+
-      '<p class="cz-note">'+(full?"Subtasks stay inside their task, so your board only shows the main ones."
-        :kids?"Subtasks you already made as full tasks stay that way; new ones are checklist items."
-        :"You can switch at any time. Checklist items become full subtasks when you do.")+'</p></div>'+
-    '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh"><span class="cz-step">2</span>Fields</h3>'+
+  return '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">Fields</h3>'+
       (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything</button>')+'</div>'+
-      '<p class="cz-lead">What each task shows, both when you open it and as columns in the list. Turning one off only hides it; anything filled in is kept.</p>'+
+      '<p class="cz-lead">What a task shows, when opened and in the list. Hiding one keeps what’s in it.</p>'+
       '<div class="cz-split"><div class="cz-rows">'+
         BOARD_FEATS.map(g=>'<div class="cz-group"><div class="cz-gh"><span>'+esc(g[0])+'</span></div>'+
           g[1].map(x=>row(x[1],x[2],x[3],x[0],FEAT_COL[x[0]]||"")).join("")+
           (LIST_ONLY[g[0]]||[]).map(x=>row(x[1],x[2],x[3],"",x[0])).join("")+'</div>').join("")+
         '<div class="cz-group"><div class="cz-gh"><span>Your own fields</span></div>'+
           b.fields.map(f=>row(f.name,f.desc||cfType(f.type)[1],cfType(f.type)[2],f.id,"cf:"+f.id,true)).join("")+
-          (b.fields.length?"":'<p class="cz-empty">Track anything the planner doesn’t, like a client, a budget or how much energy it takes.</p>')+
           '<button class="btn btn-sm cz-newf" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button></div>'+
       '</div>'+czPanelPreview()+'</div></div>'+
-    '<div class="cz-sec"><h3 class="cz-sh"><span class="cz-step">3</span>List column order</h3>'+
-      '<p class="cz-lead">The list shows the task’s name first, then these, left to right. Drag to reorder.</p>'+
-      (shown.length?'<div class="cz-cols" id="czCols">'+shown.map((c,i)=>{const cf=c.k.indexOf("cf:")===0?fieldById(c.k.slice(3)):null;
-        return '<div class="cz-col" draggable="true" data-col="'+esc(c.k)+'">'+
+    '<div class="cz-sec"><h3 class="cz-sh">Subtasks</h3>'+
+      '<div class="cz-modes" role="radiogroup" aria-label="How subtasks work">'+
+        mode("check","Checklist","Steps you tick off",checkPic)+
+        mode("full","Full tasks","Steps with their own date and timer",fullPic)+'</div></div>'+
+    '<div class="cz-sec"><h3 class="cz-sh">Column order</h3>'+
+      '<p class="cz-lead">The list’s columns, left to right, after the task’s name.</p>'+
+      (shown.length?'<div class="cz-cols" id="czCols">'+shown.map((c,i)=>
+        '<div class="cz-col" draggable="true" data-col="'+esc(c.k)+'">'+
           '<span class="cz-grip" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
-          '<span class="cz-col-n">'+esc(colLabel(c.k))+(cf?'<small>Your field</small>':"")+'</span>'+
+          '<span class="cz-col-n">'+esc(colLabel(c.k))+'</span>'+
           '<span class="cz-move">'+
             '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="-1" aria-label="Move '+esc(colLabel(c.k))+' up"'+(i?"":" disabled")+'>'+icon("i-chev-u","ic-14")+'</button>'+
             '<button class="icon-btn btn-sm" data-act="cz-col-move" data-k="'+esc(c.k)+'" data-v="1" aria-label="Move '+esc(colLabel(c.k))+' down"'+(i<shown.length-1?"":" disabled")+'>'+icon("i-chev-d","ic-14")+'</button></span>'+
-          '</div>';}).join("")+'</div>'
-        :'<p class="cz-empty">No columns yet: the list shows just each task’s name. Switch on a field above to add one.</p>')+
+          '</div>').join("")+'</div>'
+        :'<p class="cz-empty">No columns: the list shows just each task’s name.</p>')+
     '</div>';
 }
 /* A task panel in miniature, drawn from the switches. */

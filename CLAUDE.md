@@ -263,10 +263,10 @@ goes with backups and Drive like any setting.
 - **The task panel's parts** can be switched off (`BOARD_FEATS`: key, name, a
   line on what it is for, icon; read with `feat(k)`); hidden parts keep their
   data, and cards and the list follow. The Task details tab is the one place
-  fields are managed, in three steps: how subtasks work, then every field
-  (built in or the person's own) as a row with **one** switch beside a task
-  panel in miniature (`czPanelPreview()`), then the order of the list's
-  columns. A task shows the same fields opened and in the list: `listCols()`
+  fields are managed, kept plain: every field (built in or the person's
+  own) as a row with **one** switch and its name (what it is for is the
+  tooltip), beside a task panel in miniature (`czPanelPreview()`); then
+  Subtasks, as two small picture cards; then the order of the list's columns. A task shows the same fields opened and in the list: `listCols()`
   turns a column on exactly when its panel part is (`FEAT_COL_OF`; a field's
   `list` follows its `panel`), and only Lane and Created, which the panel has
   no part for (`LIST_ONLY`), keep a switch of their own. Separate In task and
