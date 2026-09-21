@@ -193,6 +193,21 @@ function fixCats(){
   if(p.quickCat)p.quickCat=to(p.quickCat);
   ["categories","tasks","routines","notes","prefs"].forEach(k=>save(k));
 }
+/* The routines setup suggests are the default set, the way the five
+   categories are. A planner that never chose any (setup skipped, or begun
+   before this) gets them once; one that has routines, or chose in setup,
+   keeps what it has, and emptying the list later is a choice too. Held
+   back while setup is on screen, which makes this choice itself. */
+function fixRoutines(){
+  const p=S.prefs;if(p.rtSeeded||OB.open||obNeeded())return;
+  p.rtSeeded=true;
+  if(!S.routines.length){
+    S.routines=OB_RT.map(x=>({id:uid("r"),title:x.title,cat:S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id,
+      freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""}));
+    save("routines");
+  }
+  save("prefs");
+}
 function fixTasks(){
   let n=0;
   (S.tasks||[]).forEach(t=>{
@@ -2356,7 +2371,7 @@ const OB_RT=[
   {k:"review",title:"Weekly review",cat:"goals",days:[5],time:"16:00",dur:45,ic:"i-target"},
   {k:"cook",title:"Cook dinner",cat:"personal",days:[0,1,2,3,4,5,6],time:"19:00",dur:45,ic:"i-pot"}];
 function obRt(){
-  if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:false},x));
+  if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:true},x));
   return OB.rt;
 }
 const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
@@ -2419,7 +2434,7 @@ function obRtCommit(){
   obRt().filter(x=>x.on&&x.days.length).forEach(x=>{const id=uid("r");ids.push(id);
     S.routines.push({id:id,title:(x.title||"").trim()||"My routine",cat:obRtCat(x),freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""});});
   save("routines");
-  S.prefs.onboard=Object.assign({},S.prefs.onboard||{},{made:ids});save("prefs");
+  S.prefs.onboard=Object.assign({},S.prefs.onboard||{},{made:ids});S.prefs.rtSeeded=true;save("prefs");
 }
 
 /* ---- Google Calendar ---- */
@@ -3192,7 +3207,7 @@ function renderView(){
 function render(){
   /* The lanes are settled before anything else: first thing on a new planner,
      before any task can arrive and make it look like an old one. */
-  ixDrop();board();fixCats();fixTasks();
+  ixDrop();board();fixCats();fixRoutines();fixTasks();
   renderRail();renderTopbar();renderView();
   /* The day popup lists what the page does; a tick in it redraws the page, so
      the popup is redrawn with it rather than left showing the old state. */

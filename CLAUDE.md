@@ -443,6 +443,11 @@ created, replaced rather than added to when someone goes back and forth.
   explain where things appear or how they work, and it never shows a code, a
   file name or a key (the accent picker hides its hex here: `accentPickHtml(true)`).
   The previews carry no captions; they speak for themselves.
+- The routines setup suggests (`OB_RT`) are the default set, like the five
+  categories: the step starts with all six picked, and a planner that never
+  chose (setup skipped, or begun before) is given them once by
+  `fixRoutines()` in `render()`, held back while setup is needed or open.
+  `prefs.rtSeeded` marks the choice made, so an emptied list stays empty.
 - On the routines step a card only picks a routine; its days and length are
   changed in the week preview beside it, which is the editor: a square is a
   day to tap, the length at the end of a row opens the lengths under it
