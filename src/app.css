@@ -698,7 +698,7 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .lr-title:hover{background:var(--surface-3)}
 .lrow.done .lr-title{text-decoration:line-through;color:var(--muted)}
 .lr-in{flex:1;min-width:0;height:28px;padding:0 8px;border-radius:7px;border:1px solid var(--accent);background:var(--surface);font:inherit;font-size:13px;color:var(--ink);outline:0}
-/* Move to and Details: the task column's own end, on the row's hover. */
+/* Details: the task column's own end, on the row's hover. */
 .lr-acts{margin-left:auto;padding-left:8px;display:flex;align-items:center;gap:4px;flex:none;opacity:0}
 .lrow:hover .lr-acts,.lr-acts:focus-within{opacity:1}
 .lr-acts .rowbtn{opacity:1}

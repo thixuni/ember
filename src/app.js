@@ -1559,7 +1559,7 @@ function viewList(){
      on its own. The tables share one set of column widths (`lrWidths()`),
      so they line up, and the page scrolls sideways as one. Every cell is
      changed where it is; hovering one shows only that cell's control, and
-     hovering a row shows Move to and Details in the task column's own end.
+     hovering a row shows Details in the task column's own end.
      A heading is clicked to sort: A to Z, Z to A, then back as it was
      (`board().lsort`); a heading is dragged to move it and its edge to
      size it. */
@@ -1640,7 +1640,7 @@ function lrRow(t,cols,grid){
       (edit?'<input class="lr-in lr-rename" id="lrRename" data-id="'+t.id+'" value="'+esc(t.title)+'" maxlength="200" aria-label="Task name">'
         :'<button type="button" class="lr-title" data-act="lr-rename" data-id="'+t.id+'" title="Click to rename">'+esc(t.title)+'</button>')+
       (sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+
-      '<span class="lr-acts"><button type="button" class="rowbtn lr-mv" data-act="lr-move" data-id="'+t.id+'" title="Move to another lane" aria-label="Move to another lane" aria-haspopup="menu">'+icon("i-swap","ic-14")+'</button>'+
+      '<span class="lr-acts">'+
         '<button type="button" class="rowbtn lr-det" data-act="sh-open" data-id="'+t.id+'" title="Details" aria-label="Details">Details'+icon("i-chev-r","ic-12")+'</button></span></span>'+
     cols.map(k=>'<span class="lr-cell">'+lrCell(k.k,t)+'</span>').join("")+'<span></span></div>';
 }

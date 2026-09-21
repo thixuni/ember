@@ -319,8 +319,9 @@ goes with backups and Drive like any setting.
   (`V.ltag`) and removed, fields in their own controls. **An empty cell is
   empty** — no dash, no "Pick a date" (`dateField(..., {ph:""})`) — and
   hovering one shows only its control, centred in it. The task column ends
-  in a set place for Move to and Details, shown on the row's hover: the name
-  is always cut where they begin, so a long name never runs under them.
+  in a set place for Details, shown on the row's hover: the name
+  is always cut where it begins, so a long name never runs under it. Changing
+  lane is the Status cell's job; a Move button beside Details repeated it.
   **A heading click sorts** A to Z, then Z to A, then back to the usual
   order (`board().lsort`, `lrSorted()`: within each month, empty cells last
   either way); Enter does the same on a focused heading. Column widths are
