@@ -3506,7 +3506,7 @@ document.addEventListener("click",function(e){
     case "remind-test":remindTest();break;
     case "remind-allow":if(typeof Notification!=="undefined")
       Promise.resolve(Notification.requestPermission()).then(p=>{panels();remindSoon();
-        if(p==="granted"){toast("Notifications are on");try{new Notification("Everyday Orbit",{body:"This is how your reminders will look."});}catch(e){}}
+        if(p==="granted"){try{new Notification("Everyday Orbit",{body:"This is how your reminders will look."});}catch(e){toast("Notifications are on");}}
         else if(p==="denied")toast("Notifications are blocked in this browser");
       });break;
     case "tm-break":if(V.tmBreak===id)closeTimeBreakdown();else{V.tmBreak=id;renderSheet();}break;
@@ -5735,10 +5735,12 @@ function openReminder(o){
 }
 function remindTest(){
   const o=desktop(),msg={title:"Reminders are working",body:"This is how a reminder will look."};
-  if(o&&o.testReminder){o.testReminder(msg);toast("Test sent");return;}
+  /* The notification is the answer; a "Test sent" note on the page as well
+     arrived at another moment and read as a second notification. */
+  if(o&&o.testReminder){o.testReminder(msg);return;}
   if(typeof Notification==="undefined"){toast("This browser cannot show notifications");return;}
   if(Notification.permission!=="granted"){toast("Allow notifications first");return;}
-  try{new Notification(msg.title,{body:msg.body});toast("Test sent");}catch(e){toast("The browser would not show it");}
+  try{new Notification(msg.title,{body:msg.body});}catch(e){toast("The browser would not show it");}
 }
 function remindBoot(){
   const o=desktop();
