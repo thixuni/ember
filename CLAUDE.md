@@ -349,6 +349,11 @@ section were inventory, and a number that is always there stops being seen.
 What is due today is a plan, not an alarm. The badge is a `<b>`, not a
 `<span>`, because the icon-only rail hides every span in a nav button.
 
+The foot of the sidebar is one button to Settings (`renderMe()`): a letter,
+the person's name, and under it where the planner is kept (`saveWhere()`,
+written by `setSync()`). Backup and restore were two bare arrow icons
+there; they live in Settings > Your data, in words.
+
 The category boxes in the sidebar can be swept: press one and drag over the
 others, and every row between takes the state the first took, saved once on
 release (`CP`, the sweeping section of app.js). On a touch screen the sweep

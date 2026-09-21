@@ -285,6 +285,7 @@ const flushLocal=()=>{if(lsTimer)saveLocalNow();};
 window.addEventListener("pagehide",flushLocal);
 window.addEventListener("beforeunload",flushLocal);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)flushLocal();});
+function saveWhere(){let d=false;try{d=driveOn();}catch(e){}return d?"Backed up to Google Drive":"Saved on this "+(hasDesktop()?"computer":"browser");}
 function setSync(state,label){
   const n=el("sync");if(!n)return;
   if(!storageOK&&!db){state="warn";label="This browser is blocking storage — back up often";}
@@ -303,11 +304,11 @@ function save(key){
   clearTimeout(timers[key]);
   timers[key]=setTimeout(()=>{
     timers[key]=null;
-    if(!db){setSync("ok","Saved on this device");dirty[key]=false;return;}
+    if(!db){setSync("ok",saveWhere());dirty[key]=false;return;}
     const body=bodyFor(key);
     suppress[key]=Date.now();
     db.doc("state/"+key).set(body).then(()=>{dirty[key]=false;setSync("ok","All changes saved");})
-      .catch(()=>{dirty[key]=false;setSync("warn","Saved on this device");});
+      .catch(()=>{dirty[key]=false;setSync("warn",saveWhere());});
   },500);
 }
 function readDoc(key,snap){
@@ -323,7 +324,7 @@ function readDoc(key,snap){
 async function connect(){
   let cap=null;
   try{cap=window.claude&&claude.use?await claude.use("db"):null;}catch(e){cap=null;}
-  if(!cap){setSync("warn","Saved on this device");return;}
+  if(!cap){setSync("warn",saveWhere());return;}
   db=cap;
   try{
     const meta=await db.doc("state/meta").get();
@@ -345,7 +346,7 @@ async function connect(){
         readDoc(k,snap);saveLocal();render();
       },()=>{});
     });
-  }catch(e){setSync("warn","Saved on this device");}
+  }catch(e){setSync("warn",saveWhere());}
 }
 
 /* ============ derived helpers ============ */
@@ -535,8 +536,19 @@ function navAlert(id){
    class is inert because the rail is always in the layout. */
 function closeRail(){document.body.classList.remove("rail-open");}
 
+/* The foot of the sidebar is who this planner is for and whether it is
+   safe: a letter, the name, and the save state under it, the whole row
+   opening Settings. Backup and restore were two bare arrows here; they live
+   in Settings > Your data, with words. */
+function renderMe(){
+  const st=GC.status||{},name=S.prefs.name||st.first||st.name||"";
+  const n=el("meName"),av=el("meAv");
+  if(n)n.textContent=name||"Your planner";
+  if(av)av.textContent=(name||st.email||"?").charAt(0).toUpperCase();
+}
 function renderRail(){
   const bs=el("brandSub");if(bs)bs.textContent="Personal planner";
+  renderMe();
   el("nav").innerHTML=NAV.map(n=>{const a=navAlert(n.id);
     return '<button class="nav-btn" data-act="view" data-view="'+n.id+'" aria-current="'+(V.view===n.id)+'" title="'+esc(n.name+(a?" · "+a.label:""))+'">'+
       icon(n.icon,"ic-18")+'<span>'+esc(n.name)+'</span>'+

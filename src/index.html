@@ -122,11 +122,11 @@
       <div id="catList"></div>
     </div>
     <div class="rail-foot">
-      <div class="sync" id="sync"><span class="dot"></span><span>Saved</span></div>
-      <div class="spacer" style="flex:1"></div>
-      <button class="foot-btn" data-act="export" title="Back up everything to a file" aria-label="Back up to a file"><svg class="ic ic-14" aria-hidden="true"><use href="#i-download"/></svg></button>
-      <button class="foot-btn" data-act="import" title="Restore from a backup file" aria-label="Restore from a backup file"><svg class="ic ic-14" aria-hidden="true"><use href="#i-upload"/></svg></button>
-      <button class="foot-btn" data-act="settings" title="Settings" aria-label="Settings"><svg class="ic ic-14" aria-hidden="true"><use href="#i-settings"/></svg></button>
+      <button class="me" data-act="settings" title="Settings" aria-label="Settings">
+        <span class="me-av" id="meAv" aria-hidden="true">?</span>
+        <span class="me-txt"><b id="meName">Your planner</b><span class="sync" id="sync"><span class="dot"></span><span>Saved</span></span></span>
+        <svg class="ic ic-16 me-gear" aria-hidden="true"><use href="#i-settings"/></svg>
+      </button>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none">
     </div>
   </aside>
