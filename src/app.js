@@ -4655,9 +4655,11 @@ function parseTimeStr(s){
 }
 function pkTimeHtml(){
   const cur=PK.src.value,after=PK.btn.dataset.after,a=after?hm2m(after):null;
-  const n=new Date(),next=Math.min(23*60+45,Math.ceil((n.getHours()*60+n.getMinutes())/15)*15);
-  const aim=cur||(after?m2hm(Math.min(a+60,23*60+45)):m2hm(next));
-  const vals=[];for(let m=after?a+15:0;m<24*60;m+=15)vals.push(m2hm(m));
+  /* Half hours, as Google Calendar lists them; a time typed in between is
+     kept and shown in its place. */
+  const n=new Date(),next=Math.min(23*60+30,Math.ceil((n.getHours()*60+n.getMinutes())/30)*30);
+  const aim=cur||(after?m2hm(Math.min(a+60,23*60+30)):m2hm(next));
+  const vals=[];for(let m=after?a+30:0;m<24*60;m+=30)vals.push(m2hm(m));
   if(cur&&vals.indexOf(cur)<0&&(!after||hm2m(cur)>a)){vals.push(cur);vals.sort();}
   return '<div class="pk-body pk-tlist" role="listbox" aria-label="'+esc(PK.btn.dataset.label||"Times")+'">'+vals.map(v=>
     '<button type="button" class="pk-opt'+(v===cur?" on":"")+(v===aim?" aim":"")+'" data-act="pk-pick" data-v="'+v+'" role="option" aria-selected="'+(v===cur)+'" tabindex="-1">'+
