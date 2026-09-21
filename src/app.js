@@ -3315,7 +3315,7 @@ function catsModal(){
       (open==="color"?'<div class="cm-pick">'+CAT_COLORS.map(x=>'<button type="button" class="cm-dot'+(x.toLowerCase()===c.color.toLowerCase()?" on":"")+'" style="--c:'+x+'" data-act="cm-color" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
         '<label class="cm-own'+(CAT_COLORS.some(x=>x.toLowerCase()===c.color.toLowerCase())?"":" on")+'" title="Any colour you like"><input type="color" data-act="cm-hex" data-id="'+c.id+'" value="'+esc(c.color)+'"><span>Custom</span></label></div>':"")+
       (open==="icon"?'<div class="cm-pick cm-icons">'+CAT_ICONS.map(i=>'<button type="button" class="cm-icon'+(i===c.icon?" on":"")+'" data-act="cm-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+i.replace("i-","")+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>':"")+
-      (del&&del.id===c.id?'<div class="cz-delrow"><span>'+(n?'Delete “'+esc(c.name)+'”? Its '+n+' item'+(n===1?"":"s")+' move to '+esc(to?to.name:"")+'.':'Delete “'+esc(c.name)+'”?')+'</span>'+
+      (del&&del.id===c.id?'<div class="cz-delrow"><span>'+(n?'Delete “'+esc(c.name)+'”? '+(n===1?"Its one item moves":"Its "+n+" items move")+' to '+esc(to?to.name:"")+'.':'Delete “'+esc(c.name)+'”?')+'</span>'+
         '<span class="spacer" style="flex:1"></span><button type="button" class="btn btn-sm" data-act="cm-del-no">Keep it</button>'+
         '<button type="button" class="btn btn-sm btn-danger" data-act="cm-del-yes" data-id="'+c.id+'">Delete</button></div>':"")+
       '</div>';};
