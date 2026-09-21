@@ -612,7 +612,43 @@ function catSelect(attrs,val,o){
     S.categories.map(x=>'<option value="'+x.id+'"'+(val===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+
     '</select></span>';
 }
-function catChip(id){const c=cat(id);return '<span class="chip chip-cat" style="--c:'+c.color+'">'+icon(c.icon)+esc(c.name)+'</span>';}
+/* With what it belongs to, the pill is a button: a click on it changes the
+   category right there, from a short list of them (catMenu()). */
+function catChip(id,kind,of){const c=cat(id);
+  if(kind)return '<button type="button" class="chip chip-cat chip-pick" style="--c:'+c.color+'" data-act="cat-pick" data-kind="'+kind+'" data-id="'+of+'" title="Change category" aria-haspopup="menu">'+icon(c.icon)+esc(c.name)+icon("i-chev-d","ic-12 chip-caret")+'</button>';
+  return '<span class="chip chip-cat" style="--c:'+c.color+'">'+icon(c.icon)+esc(c.name)+'</span>';}
+/* ---- changing a category from its pill ---- */
+const CM={el:null,btn:null};
+function catMenuClose(){if(CM.el){CM.el.remove();CM.el=null;}if(CM.btn){CM.btn.setAttribute("aria-expanded","false");CM.btn=null;}}
+function catOf(kind,id){const x=kind==="task"?taskById(id):kind==="routine"?S.routines.find(r=>r.id===id):S.notes.find(n=>n.id===id);return x||null;}
+function catMenu(btn){
+  if(CM.btn===btn){catMenuClose();return;}
+  catMenuClose();pkClose();
+  const x=catOf(btn.dataset.kind,btn.dataset.id);if(!x)return;
+  const m=document.createElement("div");m.className="catmenu";m.setAttribute("role","menu");
+  m.innerHTML=S.categories.map(c=>'<button type="button" role="menuitemradio" aria-checked="'+(x.cat===c.id)+'" class="cm-opt'+(x.cat===c.id?" on":"")+'" style="--c:'+c.color+'" data-act="cat-set" data-kind="'+btn.dataset.kind+'" data-id="'+btn.dataset.id+'" data-v="'+c.id+'">'+
+    '<i></i><span>'+esc(c.name)+'</span>'+(x.cat===c.id?icon("i-check","ic-14"):"")+'</button>').join("");
+  document.body.appendChild(m);CM.el=m;CM.btn=btn;btn.setAttribute("aria-expanded","true");
+  const r=btn.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  let top=r.bottom+6;if(top+h>innerHeight-8)top=Math.max(8,r.top-6-h);
+  m.style.left=Math.round(Math.min(Math.max(8,r.left),innerWidth-w-8))+"px";m.style.top=Math.round(top)+"px";
+  const on=m.querySelector(".cm-opt.on")||m.querySelector(".cm-opt");if(on)on.focus({preventScroll:true});
+}
+function catSet(kind,id,v){
+  const x=catOf(kind,id);catMenuClose();if(!x||x.cat===v)return;
+  if(kind==="task"){patchTask(id,{cat:v});return;}
+  x.cat=v;if(kind==="note")x.updated=Date.now();
+  save(kind==="routine"?"routines":"notes");render();
+}
+document.addEventListener("mousedown",function(e){if(CM.el&&!CM.el.contains(e.target)&&!(CM.btn&&CM.btn.contains(e.target)))catMenuClose();},true);
+document.addEventListener("scroll",function(e){if(CM.el&&!CM.el.contains(e.target))catMenuClose();},true);
+document.addEventListener("keydown",function(e){
+  if(!CM.el)return;
+  if(e.key==="Escape"){e.preventDefault();e.stopPropagation();const b=CM.btn;catMenuClose();if(b&&b.isConnected)b.focus();return;}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const o=[...CM.el.querySelectorAll(".cm-opt")],i=o.indexOf(document.activeElement);
+    const n=o[(i+(e.key==="ArrowDown"?1:-1)+o.length)%o.length];if(n)n.focus();}
+  if(e.key==="Tab")catMenuClose();
+},true);
 function dueChip(t){
   if(!t.due)return"";
   const d=dayDiff(t.due,TODAY());const k=isOpen(t)?(d<0?"over":(d<=1?"soon":"")):"";
@@ -1378,7 +1414,7 @@ function taskCard(t){
   const state=isDoneT(t)?'<span class="tc-state done">'+icon("i-check","ic-14")+'Done'+esc(doneWhen(t.completedAt))+'</span>'
     :t.status==="dropped"?'<span class="tc-state dropped">'+icon("i-x","ic-14")+'Dropped</span>':"";
   const head='<div class="tc-head">'+
-    '<span class="tc-cat">'+icon(c.icon,"ic-14")+esc(c.name)+'</span>'+
+    '<button type="button" class="tc-cat chip-pick" data-act="cat-pick" data-kind="task" data-id="'+t.id+'" title="Change category" aria-haspopup="menu">'+icon(c.icon,"ic-14")+esc(c.name)+'</button>'+
     '<span class="tc-right">'+(state?state:
       (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+dlMark(t)+
       (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':""))+
@@ -1613,7 +1649,7 @@ function colCell(k,t){
   switch(k){
     case "date":return '<span class="sub num lr-when" style="color:'+(isOverdue(t)?"var(--danger)":"var(--muted)")+'">'+esc(t.due?fmtDate(t.due):"—")+dlMark(t)+'</span>';
     case "priority":return '<span>'+(quadChip(t)||'<span class="sub">—</span>')+'</span>';
-    case "category":return '<span>'+catChip(t.cat)+'</span>';
+    case "category":return '<span>'+catChip(t.cat,"task",t.id)+'</span>';
     case "status":{const s=ST(t.status);return '<span class="status-dot" style="--s:'+s.color+'"><span class="sw"></span>'+esc(s.name)+'</span>';}
     case "deadline":return '<span class="sub num">'+esc(t.deadline?fmtDate(t.deadline):"—")+'</span>';
     case "estimate":return '<span class="sub num">'+(tEst(t)?esc(fmtMins(tEst(t))):"—")+'</span>';
@@ -1859,7 +1895,7 @@ function viewMatrix(){
     return '<section class="quad '+Q.cls+'"><div class="quad-head">'+icon(Q.icon,"ic-18")+'<div><h3>'+esc(Q.name)+'</h3><p>'+esc(Q.note)+'</p></div><span class="n num">'+items.length+'</span></div>'+
       '<div class="quad-body">'+(items.length?items.map(t=>
         '<div class="qrow'+(isDoneT(t)?" done":"")+'" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+
-        '<div class="t"><b>'+esc(t.title)+'</b><div class="m">'+catChip(t.cat)+'<span class="chip">'+esc(ST(t.status).name)+'</span></div></div>'+
+        '<div class="t"><b>'+esc(t.title)+'</b><div class="m">'+catChip(t.cat,"task",t.id)+'<span class="chip">'+esc(ST(t.status).name)+'</span></div></div>'+
         '<span class="chip chip-due '+(isOverdue(t)?"over":(t.due&&dayDiff(t.due,TODAY())<=1?"soon":""))+'">'+esc(t.due?fmtDate(t.due):"No date")+'</span></div>').join("")
         :es("",QUAD_EMPTY[Q.id][0],QUAD_EMPTY[Q.id][1],{icon:Q.icon,hue:"var(--q)",cls:"es-quad"}))+'</div></section>';}).join("")+'</div>';
   const un=base.filter(t=>!quadOf(t));
@@ -1903,7 +1939,7 @@ function viewRoutines(){
       '<span class="rbell'+(remindMins(r)===null?" off":"")+'" title="Reminder">'+icon("i-bell","ic-14")+esc(remindLabel(r))+'</span></div></div>'+
       (st?'<span class="streak" title="'+st+(st===1?" day":" days")+' in a row">'+icon("i-flame","ic-14")+st+'</span>':"")+'</div>'+
       days+
-      '<div style="display:flex;gap:6px;align-items:center">'+catChip(r.cat)+'<div class="spacer" style="flex:1"></div>'+
+      '<div style="display:flex;gap:6px;align-items:center">'+catChip(r.cat,"routine",r.id)+'<div class="spacer" style="flex:1"></div>'+
       '<button class="btn btn-sm btn-ghost" data-act="routine-edit" data-id="'+r.id+'">'+icon("i-edit","ic-14")+'Edit</button></div>'+
       '</article>';}).join("")+'</div>';
 }
@@ -3461,6 +3497,8 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v);break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
+    case "cat-pick":catMenu(n);break;
+    case "cat-set":catSet(n.dataset.kind,n.dataset.id,n.dataset.v);break;
     case "cz-subs":{const on=n.dataset.v==="full";if(!!board().fullSubs===on)break;
       const had=S.tasks.reduce((c,t)=>c+(t.parent?0:(t.subtasks||[]).filter(x=>x.t).length),0);
       setFullSubs(on);
