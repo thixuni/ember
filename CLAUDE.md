@@ -251,6 +251,13 @@ on start-up, so a timer left running overnight does not bank the hours.
 
 ### Routines
 
+The routine window (`routineModal(id, preset)`) is one short form: the
+name, then At / For / In on one line, then Repeats as four choices, with
+only what the choice needs under it — the days for Chosen days, the gap
+for Every few days. Reminder, start, end and Paused are folded under More
+options, open when editing a routine that uses any of them. Every field
+was once on show at once, most of them for a repeat not chosen.
+
 A routine's schedule is a plan, not a rule. `routineOn(r, d)` says when it
 is *due* — reminders, the calendar's recurring events in Google and the
 missed list all go by that — but any day's square up to today can be ticked (a day still to come
@@ -392,7 +399,19 @@ Calendar); all-day tasks stay in the band across the top, and in the month
 a timed task is a line with its time. **Dragging down an empty stretch of a
 day makes a task** for that time, as in Google Calendar (`DG`): quarter-hour
 steps, a click without a drag makes an hour, and the placeholder stays on the
-grid until the new task is made or abandoned. The once-a-minute redraw of
+grid until the new thing is made or abandoned. Letting go opens a small
+card beside the stretch, as Google Calendar's does (`qcOpen()`, the quick
+create section; `QC`): a name, then **Task**, **Routine** or **Unavailable**
+across the top, and only the fields that matter for each — a task's date,
+start and end, category and priority; a routine's time, length, how it
+repeats (every day, weekdays, or that weekday) and category; unavailable
+time's date and hours. Enter or Save makes it, More options carries what is
+typed into the task panel or the routine window, and a click away or
+Escape drops it with the placeholder. Unavailable time is
+`prefs.away` (`{id, date, start, end, title}`, so it goes with backups),
+drawn hatched in the greys in the week and as a hollow-dot line in the
+month; clicking it opens the same card to change or delete it. It is the
+planner's own and is not synced to Google. The once-a-minute redraw of
 the week waits while a drag or a placeholder is on it. Google Calendar sync
 writes a timed task as a timed event and reads times back from it; the
 deadline is the planner's own and is never synced.
