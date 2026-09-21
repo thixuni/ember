@@ -1554,27 +1554,69 @@ function viewList(){
       ?es("filter","Nothing matches",V.q?"Nothing fits “"+esc(V.q)+"” with these filters.":"No task fits this view. Try another filter.",{hue:"var(--apricot)",actions:acts})
       :es("list","Your list is empty","Capture the first thing on your mind. You can sort it out later.",{actions:acts}))+'</div></div>';
   }
-  const groups={},order=[];
-  list.forEach(t=>{const k=t.due?MONS[parseD(t.due).getMonth()]+" "+parseD(t.due).getFullYear():"No date";
-    if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(t);});
-  /* The columns chosen in Customise, in their order; the grid is sized to
-     match, so hidden columns take no room. */
-  const cols=listCols().filter(c=>c.on);
-  const grid='grid-template-columns:26px minmax(180px,1fr) '+cols.map(c=>colW(c.k)).join(" ")+' 30px';
-  /* Every row of a table is at least as wide as the columns need, the same
-     for all; sized each by its own content, a long name made its row wider
-     and pushed its columns out of line with the rest. */
-  const minW=26+180+30+cols.reduce((n,c)=>n+(parseInt(String(colW(c.k)).replace("minmax(",""),10)||110),0)+10*(cols.length+2)+24;
-  const head='<div class="lrow head" style="'+grid+'"><span></span><span>Task</span>'+cols.map(c=>'<span>'+esc(colLabel(c.k))+'</span>').join("")+'<span></span></div>';
-  return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+order.map(k=>'<div class="lgroup"><h3>'+esc(k)+'<span class="n num">'+groups[k].length+'</span></h3><div class="ltable" style="--lmin:'+minW+'px">'+head+
-    groups[k].map(t=>{const c=cat(t.cat),sp=subProgress(t);
-      return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-act="task" data-id="'+t.id+'">'+
-        tickBtn(t)+
-        '<span class="name">'+icon(c.icon,"ic-14")+'<b>'+esc(t.title)+'</b>'+(sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+'</span>'+
-        cols.map(c=>colCell(c.k,t)).join("")+
-        '<button class="rowbtn" data-act="task" data-id="'+t.id+'" data-stop="1" aria-label="Edit task">'+icon("i-edit","ic-14")+'</button></div>';}).join("")+
-    '</div></div>').join("")+'</div></div>';
+  /* One table per lane, in the board's order, each headed by the lane's
+     colour, name and count, and ending in its own Add task. All tables share
+     one set of column widths (`lrWidths()`), so they line up, and the page
+     scrolls sideways as one. Every cell is changed where it is: the name by
+     clicking it, dates from the picker, priority, lane and estimate from a
+     short list, tags added and taken off, fields in their own controls.
+     Hovering a row shows Move to (another lane) and Details (the panel). */
+  const cols=listCols().filter(c=>c.on),W=lrWidths(cols);
+  const grid='grid-template-columns:28px var(--w-name) '+cols.map(c=>'var(--w-'+lrVar(c.k)+')').join(" ")+' minmax(64px,1fr)';
+  const vars=Object.keys(W).map(k=>'--w-'+lrVar(k)+':'+W[k]+'px').join(";");
+  const head='<div class="lrow head" style="'+grid+'"><span></span>'+
+    '<span class="lh" data-col="name">Task<i class="lh-rs" data-rs="name" title="Drag to resize"></i></span>'+
+    cols.map(c=>'<span class="lh" draggable="true" data-col="'+esc(c.k)+'" title="Drag to move this column">'+esc(colLabel(c.k))+'<i class="lh-rs" data-rs="'+esc(c.k)+'" title="Drag to resize"></i></span>').join("")+'<span></span></div>';
+  const everything=V.f.quick==="all"&&!V.q&&!activeFilterCount();
+  const tables=lanes().map(L=>{
+    const items=list.filter(t=>t.status===L.id);
+    if(!items.length&&!everything)return "";
+    const shut=!!(V.lshut&&V.lshut[L.id]);
+    return '<section class="lgroup" style="--s:'+L.color+'">'+
+      '<h3><button class="lg-head" data-act="lg-toggle" data-v="'+L.id+'" aria-expanded="'+!shut+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+'<i class="lg-dot"></i>'+esc(L.name)+'<span class="n num">'+items.length+'</span></button></h3>'+
+      (shut?"":'<div class="ltable">'+head+items.map(t=>lrRow(t,cols,grid)).join("")+
+        (V.lqa===L.id?'<div class="lrow lr-add" style="'+grid+'"><span></span><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(L.name)+'"></div>'
+          :'<button class="lrow lr-addbtn" data-act="lqa-open" data-v="'+L.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>')+
+      '</section>';}).join("");
+  return '<div class="task-main">'+filterBar()+'<div class="list-scroll lr-root" style="'+vars+'">'+tables+'</div></div>';
 }
+/* A column's width is the person's once they drag it; until then it has one
+   to suit what it holds. */
+const lrVar=k=>String(k).replace(/[^a-z0-9]/gi,"_");
+function lrWidths(cols){
+  const saved=board().colW||{},W={name:saved.name||280};
+  cols.forEach(c=>{W[c.k]=saved[c.k]||(parseInt(String(colW(c.k)).replace("minmax(",""),10)||110)+20;});
+  return W;
+}
+function lrRow(t,cols,grid){
+  const c=cat(t.cat),sp=subProgress(t),edit=V.lrename===t.id;
+  return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-act="task" data-id="'+t.id+'">'+
+    tickBtn(t)+
+    '<span class="name">'+icon(c.icon,"ic-14")+
+      (edit?'<input class="lr-in lr-rename" id="lrRename" data-id="'+t.id+'" value="'+esc(t.title)+'" maxlength="200" aria-label="Task name">'
+        :'<button type="button" class="lr-title" data-act="lr-rename" data-id="'+t.id+'" title="Click to rename">'+esc(t.title)+'</button>')+
+      (sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+'</span>'+
+    cols.map(k=>'<span class="lr-cell">'+lrCell(k.k,t)+'</span>').join("")+
+    '<span class="lr-acts"><button type="button" class="rowbtn" data-act="lr-move" data-id="'+t.id+'" title="Move to another lane" aria-label="Move to another lane" aria-haspopup="menu">'+icon("i-swap","ic-14")+'</button>'+
+      '<button type="button" class="rowbtn" data-act="sh-open" data-id="'+t.id+'" title="Details" aria-label="Details">'+icon("i-chev-r","ic-14")+'</button></span></div>';
+}
+function lrCell(k,t){
+  const a=v=>'data-act="'+v+'" data-id="'+t.id+'"';
+  switch(k){
+    case "date":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="due"',t.due||"",{sm:1,ph:"—",label:"Start date",cls:"lr-f"+(isOverdue(t)&&t.due&&t.due<TODAY()?" over":"")});
+    case "deadline":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="deadline"',t.deadline||"",{sm:1,ph:"—",label:"Due date",cls:"lr-f"+(isOpen(t)&&t.deadline&&t.deadline<TODAY()?" over":"")});
+    case "priority":return '<button type="button" class="lr-pick" '+a("lr-prio")+' aria-haspopup="menu" title="Priority">'+(quadChip(t)||'<span class="sub">—</span>')+'</button>';
+    case "category":return catChip(t.cat,"task",t.id);
+    case "status":{const st=ST(t.status);return '<button type="button" class="lr-pick" '+a("lr-move")+' aria-haspopup="menu" title="Lane"><span class="status-dot" style="--s:'+st.color+'"><span class="sw"></span>'+esc(st.name)+'</span></button>';}
+    case "estimate":return '<button type="button" class="lr-pick" '+a("lr-est")+' aria-haspopup="menu" title="Estimate"><span class="sub num">'+(tEst(t)?esc(fmtMins(tEst(t))):"—")+'</span></button>';
+    case "tags":return '<span class="lr-tags">'+(t.tags||[]).map(x=>'<span class="chip lr-tag">#'+esc(x)+'<button type="button" data-act="lr-tag-del" data-id="'+t.id+'" data-v="'+esc(x)+'" aria-label="Remove '+esc(x)+'">'+icon("i-x","ic-12")+'</button></span>').join("")+
+      (V.ltag===t.id?'<input class="lr-in lr-tagin" id="lrTag" data-id="'+t.id+'" placeholder="Tag" maxlength="40" autocomplete="off" aria-label="New tag">'
+        :'<button type="button" class="lr-tagadd" '+a("lr-tag-add")+' aria-label="Add a tag">'+icon("i-plus","ic-12")+'</button>')+'</span>';
+  }
+  if(k.indexOf("cf:")===0){const f=fieldById(k.slice(3));return f?'<span class="lr-cf">'+cfControl(t,f,t.id)+'</span>':"";}
+  return colCell(k,t);
+}
+function lrSaveCols(order){const cols=listCols();board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean).concat(cols.filter(c=>order.indexOf(c.k)<0));save("prefs");renderView();}
 
 /* ============ customise ============
    How tasks work, set by the person: the board's lanes, which parts the task
@@ -1626,29 +1668,30 @@ function cfChip(t,f){
 }
 /* The control for a field in the task panel. Every one saves on change, as
    the rest of the panel does. */
-function cfControl(t,f){
-  const v=cfVal(t,f),a='data-act="sh-cf" data-k="'+f.id+'"';
+function cfControl(t,f,tid){
+  const v=cfVal(t,f),to=tid?' data-tid="'+tid+'"':"",a='data-act="sh-cf" data-k="'+f.id+'"'+to;
   switch(f.type){
     case "number":return '<input class="inp inp-sm cf-in" type="number" '+a+' value="'+esc(v)+'" placeholder="0">';
     case "date":return dateField(a,v,{sm:1,label:f.name,ph:"Pick a day"});
     case "single":return '<select class="inp inp-sm" '+a+'><option value="">None</option>'+(f.options||[]).map(o=>
       '<option value="'+o.id+'"'+(v===o.id?" selected":"")+'>'+esc(o.name)+'</option>').join("")+'</select>';
     case "multi":return '<div class="cf-pills">'+(f.options||[]).map(o=>
-      '<button class="cf-pill'+(v.indexOf(o.id)>-1?" on":"")+'" style="--c:'+o.color+'" data-act="sh-cf-multi" data-k="'+f.id+'" data-v="'+o.id+'" aria-pressed="'+(v.indexOf(o.id)>-1)+'">'+esc(o.name)+'</button>').join("")+
+      '<button class="cf-pill'+(v.indexOf(o.id)>-1?" on":"")+'" style="--c:'+o.color+'" data-act="sh-cf-multi" data-k="'+f.id+'"'+to+' data-v="'+o.id+'" aria-pressed="'+(v.indexOf(o.id)>-1)+'">'+esc(o.name)+'</button>').join("")+
       (!(f.options||[]).length?'<span class="mnone">No options yet. Add some in Customise.</span>':"")+'</div>';
     case "checkbox":return '<label class="switch"><input type="checkbox" '+a+(v?" checked":"")+'><span></span><i>'+(v?"Yes":"No")+'</i></label>';
     case "link":return '<div class="cf-linkrow"><input class="inp inp-sm" type="url" '+a+' value="'+esc(v)+'" placeholder="https://…">'+
       (v?'<a class="icon-btn btn-sm" href="'+esc(/^https?:\/\//i.test(v)?v:"https://"+v)+'" target="_blank" rel="noopener noreferrer" aria-label="Open link">'+icon("i-pop","ic-14")+'</a>':"")+'</div>';
     case "rating":return '<div class="cf-rate" role="radiogroup" aria-label="'+esc(f.name)+'">'+[1,2,3,4,5].map(n=>
-      '<button class="'+(n<=v?"on":"")+'" data-act="sh-cf-rate" data-k="'+f.id+'" data-v="'+n+'" role="radio" aria-checked="'+(n===Number(v))+'" aria-label="'+n+' of 5">★</button>').join("")+'</div>';
+      '<button class="'+(n<=v?"on":"")+'" data-act="sh-cf-rate" data-k="'+f.id+'"'+to+' data-v="'+n+'" role="radio" aria-checked="'+(n===Number(v))+'" aria-label="'+n+' of 5">★</button>').join("")+'</div>';
     case "progress":return '<div class="cf-range"><input type="range" min="0" max="100" step="5" '+a+' value="'+(Number(v)||0)+'"><span class="num">'+(Number(v)||0)+'%</span></div>';
     default:return '<input class="inp inp-sm" '+a+' value="'+esc(v)+'" placeholder="'+esc(f.desc||"Add text")+'">';
   }
 }
-function setCf(k,v){
-  const t=sheetTask();if(!t)return;
+function setCf(k,v,tid){
+  const t=tid?taskById(tid):sheetTask();if(!t)return;
   const cf=Object.assign({},t.cf||{});
   if(v===""||v==null||(Array.isArray(v)&&!v.length))delete cf[k];else cf[k]=v;
+  if(tid){patchTask(tid,{cf:cf});return;}
   patchCurrent({cf:cf});
 }
 
@@ -3679,10 +3722,22 @@ document.addEventListener("click",function(e){
       const k=n.dataset.k,cur=flagVal(t[k]);
       patchCurrent({[k]:cur===n.dataset.v?null:n.dataset.v==="1"});break;}
     case "sh-prio-clear":if(sheetTask())patchCurrent({urgent:null,important:null});break;
-    case "sh-cf-multi":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
-      const v=cfVal(t,fd).slice(),i=v.indexOf(n.dataset.v);if(i>-1)v.splice(i,1);else v.push(n.dataset.v);setCf(fd.id,v);break;}
-    case "sh-cf-rate":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
-      const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v);break;}
+    case "sh-cf-multi":{const tid=n.dataset.tid,t=tid?taskById(tid):sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
+      const v=cfVal(t,fd).slice(),i=v.indexOf(n.dataset.v);if(i>-1)v.splice(i,1);else v.push(n.dataset.v);setCf(fd.id,v,tid);break;}
+    case "sh-cf-rate":{const tid=n.dataset.tid,t=tid?taskById(tid):sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
+      const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v,tid);break;}
+    case "lg-toggle":V.lshut=V.lshut||{};V.lshut[n.dataset.v]=!V.lshut[n.dataset.v];renderView();break;
+    case "lr-rename":V.lrename=id;renderView();{const i=el("lrRename");if(i){i.focus();i.select();}}break;
+    case "lr-tag-add":V.ltag=id;renderView();{const i=el("lrTag");if(i)i.focus();}break;
+    case "lr-tag-del":{const t=taskById(id);if(t)patchTask(id,{tags:(t.tags||[]).filter(x=>x!==n.dataset.v)});break;}
+    case "lr-move":{const t=taskById(id);if(!t)break;
+      qaMenu(n,lanes().map(l=>({v:l.id,label:l.name,color:l.color})),t.status,v=>{if(v&&v!==t.status)patchTask(id,{status:v});});break;}
+    case "lr-prio":{const t=taskById(id);if(!t)break;
+      qaMenu(n,[{v:"",label:"No priority"}].concat(QA_PRIO.map(x=>({v:x[0],label:x[1]}))),quadOf(t)||"",v=>{
+        const f={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[v]||[null,null];patchTask(id,{urgent:f[0],important:f[1]});});break;}
+    case "lr-est":{const t=taskById(id);if(!t)break;
+      qaMenu(n,[{v:0,label:"No estimate"}].concat(QA_EST.map(m=>({v:m,label:fmtMins(m)}))),tEst(t),v=>patchTask(id,{est:v}));break;}
+    case "lqa-open":V.lqa=n.dataset.v;renderView();{const i=el("lqaTitle");if(i)i.focus();}break;
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
     case "cp-done":cpClose(false);break;
     case "cp-drop":if(window.EyeDropper){new EyeDropper().open().then(r=>{if(r&&r.sRGBHex&&CPK.el)cpSet(hexToHsv(r.sRGBHex));}).catch(()=>{});}break;
@@ -4155,9 +4210,10 @@ document.addEventListener("change",function(e){
     else googleAsk("drive").then(ok=>{if(ok)on();else panels();},e=>{DB.err=e.message;panels();});
     return;
   }
+  if(t.dataset&&t.dataset.act==="lr-set"){patchTask(t.dataset.id,{[t.dataset.k]:t.value});return;}
   if(t.dataset&&t.dataset.act==="sh-cf"){
     const fd=fieldById(t.dataset.k);if(!fd)return;
-    setCf(fd.id,fd.type==="checkbox"?t.checked:fd.type==="number"?(t.value===""?"":Number(t.value)):fd.type==="progress"?Number(t.value):t.value.trim());
+    setCf(fd.id,fd.type==="checkbox"?t.checked:fd.type==="number"?(t.value===""?"":Number(t.value)):fd.type==="progress"?Number(t.value):t.value.trim(),t.dataset.tid);
     return;
   }
   if(t.dataset&&t.dataset.act==="cz-lane-name"){const l=lane(t.dataset.id);if(l&&t.value.trim()){l.name=t.value.trim().slice(0,40);save("prefs");render();renderSheet();}else if(l)t.value=l.name;return;}
@@ -4614,6 +4670,50 @@ document.addEventListener("keydown",function(e){
     const n=o[(i+(e.key==="ArrowDown"?1:-1)+o.length)%o.length];if(n)n.focus();}
   if(e.key==="Tab")taskMenuClose();
 },true);
+/* The list's in-place boxes: Enter keeps what is typed, Esc leaves it,
+   and leaving the box keeps it too. A new task in a lane stays open for the
+   next, as the board's does. */
+function lrCommit(i,keep){
+  if(i.id==="lrRename"){const v=i.value.trim();V.lrename=null;
+    if(keep&&v&&taskById(i.dataset.id)&&v!==taskById(i.dataset.id).title)patchTask(i.dataset.id,{title:v});else renderView();}
+  else if(i.id==="lrTag"){const v=i.value.trim().replace(/^#/,""),t=taskById(i.dataset.id);V.ltag=null;
+    if(keep&&v&&t&&(t.tags||[]).indexOf(v)<0)patchTask(t.id,{tags:(t.tags||[]).concat([v])});else renderView();}
+  else if(i.id==="lqaTitle"){const v=i.value.trim(),lane=V.lqa;
+    if(keep&&v){const x=newTask({title:v,status:lane,cat:(S.categories.find(c=>c.id==="other")||S.categories[0]).id});if(isDoneT(x))x.completedAt=TODAY();
+      S.tasks.push(x);logAct(x.id,"created","Created this task");save("tasks");render();const n=el("lqaTitle");if(n)n.focus();}
+    else{V.lqa=null;renderView();}}
+}
+document.addEventListener("keydown",function(e){const t=e.target;if(!t||!/^(lrRename|lrTag|lqaTitle)$/.test(t.id))return;
+  if(e.key==="Enter"&&!e.isComposing){e.preventDefault();lrCommit(t,true);}
+  else if(e.key==="Escape"){e.preventDefault();if(t.id==="lqaTitle")V.lqa=null;V.lrename=null;V.ltag=null;renderView();}});
+document.addEventListener("focusout",function(e){const t=e.target;if(!t||!/^(lrRename|lrTag|lqaTitle)$/.test(t.id))return;
+  setTimeout(()=>{if(t.isConnected)lrCommit(t,t.id!=="lqaTitle"||!!t.value.trim()?true:false);},0);});
+/* Column widths: drag a heading's edge. All the tables follow at once, as the
+   widths are variables on the page; the new width is kept on letting go. */
+document.addEventListener("pointerdown",function(e){
+  const h=e.target&&e.target.closest&&e.target.closest(".lh-rs");if(!h)return;
+  e.preventDefault();e.stopPropagation();
+  const k=h.dataset.rs,root=h.closest(".lr-root"),cell=h.parentNode,x0=e.clientX,w0=cell.getBoundingClientRect().width,min=k==="name"?160:64;
+  document.body.classList.add("lr-resizing");
+  const move=ev=>{const w=Math.max(min,Math.round(w0+ev.clientX-x0));root.style.setProperty("--w-"+lrVar(k),w+"px");h.dataset.w=w;};
+  const up=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up);document.body.classList.remove("lr-resizing");
+    if(h.dataset.w){const b=board();b.colW=Object.assign({},b.colW||{},{[k]:Number(h.dataset.w)});save("prefs");}};
+  document.addEventListener("pointermove",move);document.addEventListener("pointerup",up);
+},true);
+/* Column order: hold a heading and drag it along. */
+(function(){
+  let from=null;
+  document.addEventListener("dragstart",e=>{const h=e.target&&e.target.closest&&e.target.closest(".lrow.head .lh[draggable]");if(!h)return;
+    from=h.dataset.col;h.classList.add("dragging");try{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain","");}catch(x){}});
+  document.addEventListener("dragover",e=>{if(!from)return;const h=e.target.closest&&e.target.closest(".lrow.head .lh[draggable]");if(!h)return;
+    e.preventDefault();document.querySelectorAll(".lh.drop-l,.lh.drop-r").forEach(x=>x.classList.remove("drop-l","drop-r"));
+    if(h.dataset.col===from)return;const r=h.getBoundingClientRect();h.classList.add(e.clientX<r.left+r.width/2?"drop-l":"drop-r");});
+  document.addEventListener("drop",e=>{if(!from)return;const h=e.target.closest&&e.target.closest(".lrow.head .lh[draggable]");if(!h||h.dataset.col===from)return;
+    e.preventDefault();const before=h.classList.contains("drop-l");
+    const order=listCols().filter(c=>c.on).map(c=>c.k).filter(k=>k!==from),i=order.indexOf(h.dataset.col);
+    order.splice(before?i:i+1,0,from);from=null;lrSaveCols(order);});
+  document.addEventListener("dragend",()=>{from=null;document.querySelectorAll(".lh.dragging,.lh.drop-l,.lh.drop-r").forEach(x=>x.classList.remove("dragging","drop-l","drop-r"));});
+})();
 /* A new task: type the name, press Enter, and it is made. */
 document.addEventListener("keydown",function(e){const t=e.target;
   if(!t||t.id!=="shTitle"||e.key!=="Enter"||e.isComposing||!V.sheet||V.sheet.id)return;

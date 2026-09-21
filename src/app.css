@@ -240,9 +240,9 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
    only under the pointer. The transparent border with background-clip is what
    gives the thumb its inset, since a scrollbar thumb takes no padding. */
 *{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
-::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--line-2);background-clip:content-box;border:3px solid transparent;border-radius:10px}
+::-webkit-scrollbar-thumb{background:var(--line-2);background-clip:content-box;border:2px solid transparent;border-radius:8px}
 ::-webkit-scrollbar-thumb:hover{background:var(--faint);background-clip:content-box}
 ::-webkit-scrollbar-corner{background:transparent}
 
@@ -544,7 +544,7 @@ body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
    calendar, so moving between the two does not change the furniture. */
 .task-main{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--canvas)}
 .board-scroll{flex:1;min-height:0;overflow:auto;padding:16px 18px 18px}
-.list-scroll{flex:1;min-height:0;overflow-y:auto;padding:16px 18px 24px}
+.list-scroll{flex:1;min-height:0;overflow:auto;padding:16px 18px 24px}
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--canvas)}
 .filter-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .filter-pill:hover{border-color:var(--line-2)}
@@ -646,11 +646,65 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .addcard:hover{background:var(--surface);color:var(--ink)}
 
 /* ---------- list ---------- */
-.lgroup{margin-bottom:18px}
+.lgroup{margin-bottom:18px;width:max-content;min-width:100%}
 .lgroup > h3{font-size:12.5px;margin-bottom:7px;display:flex;align-items:center;gap:8px}
 .lgroup > h3 .n{font-size:11px;font-weight:700;color:var(--faint)}
-.ltable{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);overflow-x:auto}
-.ltable > .lrow{min-width:var(--lmin,max-content)}
+/* Every lane's table is as wide as its columns, the same for all, and the
+   page scrolls sideways as one. */
+.ltable{width:max-content;min-width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m)}
+.lgroup > h3{margin:0 0 7px}
+.lg-head{display:inline-flex;align-items:center;gap:8px;padding:3px 6px 3px 2px;border-radius:7px;font-size:13px;font-weight:700;color:var(--ink)}
+.lg-head > *{pointer-events:none}
+.lg-head:hover{background:var(--surface-3)}
+.lg-head .ic{color:var(--muted)}
+.lg-dot{width:9px;height:9px;border-radius:50%;background:var(--s)}
+.lrow.head .lh{position:relative;display:flex;align-items:center;min-width:0;height:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:grab}
+.lrow.head .lh[data-col="name"]{cursor:default}
+.lh.dragging{opacity:.4}
+.lh.drop-l{box-shadow:inset 2px 0 0 var(--accent)}
+.lh.drop-r{box-shadow:inset -2px 0 0 var(--accent)}
+.lh-rs{position:absolute;top:-7px;bottom:-7px;right:-6px;width:9px;cursor:col-resize;z-index:1}
+.lh-rs::after{content:"";position:absolute;top:25%;bottom:25%;left:4px;width:1px;background:var(--line-2);opacity:0;transition:opacity .12s}
+.lrow.head:hover .lh-rs::after{opacity:1}
+.lh-rs:hover::after,.lr-resizing .lh-rs::after{opacity:1;background:var(--accent);width:2px}
+body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none}
+.lr-cell{display:flex;align-items:center;min-width:0;overflow:hidden}
+.lr-title{min-width:0;padding:3px 5px;margin-left:-5px;border-radius:6px;font-weight:600;font-size:13px;color:var(--ink);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
+.lr-title:hover{background:var(--surface-3)}
+.lrow.done .lr-title{text-decoration:line-through;color:var(--muted)}
+.lr-in{flex:1;min-width:0;height:28px;padding:0 8px;border-radius:7px;border:1px solid var(--accent);background:var(--surface);font:inherit;font-size:13px;color:var(--ink);outline:0}
+.lr-cell .pkf{max-width:100%}
+.lr-cell .pk-btn.lr-f{height:28px;padding:0 8px;border-color:transparent;background:none;font-size:12px;color:var(--muted)}
+.lr-cell .pk-btn.lr-f:not(.is-empty){color:var(--ink-2)}
+.lr-cell .pk-btn.lr-f.over{color:var(--danger-ink)}
+.lr-cell .pk-btn.lr-f .ic{opacity:0}
+.lrow:hover .lr-cell .pk-btn.lr-f{border-color:var(--line)}
+.lrow:hover .lr-cell .pk-btn.lr-f .ic,.lr-cell .pk-btn.lr-f:focus .ic{opacity:1}
+.lr-pick{display:inline-flex;align-items:center;max-width:100%;min-height:26px;padding:2px 6px;margin-left:-6px;border-radius:7px}
+.lr-pick > *{pointer-events:none}
+.lr-pick:hover{background:var(--surface-3)}
+.lr-tags{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden}
+.lr-tag{flex:none;padding-right:3px}
+.lr-tag button{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;color:var(--muted);opacity:0}
+.lr-tag button > *{pointer-events:none}
+.lr-tag:hover button{opacity:1}
+.lr-tag button:hover{background:var(--surface-3);color:var(--ink)}
+.lr-tagadd{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:6px;color:var(--muted);opacity:0}
+.lr-tagadd > *{pointer-events:none}
+.lrow:hover .lr-tagadd,.lr-tagadd:focus-visible{opacity:1}
+.lr-tagadd:hover{background:var(--surface-3);color:var(--ink)}
+.lr-tagin{flex:0 0 90px;height:24px;font-size:12px}
+.lr-cf{display:flex;align-items:center;min-width:0;max-width:100%}
+.lr-cf .inp{height:28px;border-color:transparent;background:none}
+.lrow:hover .lr-cf .inp{border-color:var(--line)}
+/* Move to and Details stay at the right edge of what can be seen, however
+   far the list is scrolled. */
+.lr-acts{position:sticky;right:0;z-index:1;display:flex;align-items:center;justify-content:flex-end;gap:2px;align-self:stretch;padding-left:14px;background:linear-gradient(to right,transparent,var(--panel) 14px)}
+.lrow:hover .lr-acts{background:linear-gradient(to right,transparent,var(--surface) 14px)}
+.lr-addbtn{display:flex!important;align-items:center;gap:7px;width:100%;padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--muted);border-bottom:0}
+.lr-addbtn > *{pointer-events:none}
+.lr-addbtn:hover{color:var(--ink);background:var(--surface)}
+.lr-add{border-bottom:0}
 .lrow{display:grid;grid-template-columns:26px minmax(0,1fr) 30px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;width:100%}
 .lrow:last-child{border-bottom:0}
 .lrow:hover{background:var(--surface)}
