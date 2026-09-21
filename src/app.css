@@ -646,66 +646,80 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .addcard:hover{background:var(--surface);color:var(--ink)}
 
 /* ---------- list ---------- */
-.lgroup > h3{font-size:12.5px;margin-bottom:7px;display:flex;align-items:center;gap:8px}
-.lgroup > h3 .n{font-size:11px;font-weight:700;color:var(--faint)}
-/* The list as Asana draws it: one heading for the whole list, pinned at
-   the top; each lane a section heading with its tasks as plain rows under
-   it; thin lines between the cells; an empty cell left empty, its control
-   showing only while that cell is hovered. The page scrolls sideways as
-   one, and every row is as wide as the columns. */
+/* A table per month, each a card with its own headings, the rows divided by
+   hairlines and nothing between the cells. The tables share their column
+   widths and the page scrolls sideways as one. An empty cell is left empty;
+   hovering it shows its control alone, in its middle. */
 .lr-sheet{width:max-content;min-width:100%}
-.list-scroll.lr-root{padding:0 0 24px}
-.lr-sheet .lrow{padding:0 0 0 14px;gap:0;min-height:40px;border-bottom:1px solid var(--line);align-items:stretch}
-.lr-sheet .lrow > *{display:flex;align-items:center;min-width:0}
-.lr-sheet .lrow > .lr-cell{padding:0 8px;border-left:1px solid var(--line)}
-.lr-sheet .lrow > .tick{align-self:center;justify-self:center;display:grid}
-.lr-sheet .lrow:hover{background:var(--fill-hover)}
-.lr-sheet .lrow.head{position:sticky;top:0;z-index:3;min-height:34px;background:var(--canvas);font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);padding:0 0 0 14px}
-.lr-sheet .lrow.head > .lh{padding:0 8px;border-left:1px solid var(--line)}
-.lr-sheet .lrow.head > .lh[data-col="name"]{border-left:0;padding-left:0}
-.lgroup{margin:0}
-.lg-h{margin:0;padding:18px 14px 6px;position:sticky;left:0;width:max-content}
-.lg-head{display:inline-flex;align-items:center;gap:8px;padding:3px 8px 3px 2px;border-radius:7px;font-size:14px;font-weight:700;color:var(--ink)}
+.list-scroll.lr-root{padding:8px 18px 28px}
+.lgroup{margin:0 0 20px}
+.lg-h{margin:0 0 8px;position:sticky;left:0;width:max-content}
+.lg-head{display:inline-flex;align-items:center;gap:7px;padding:3px 8px 3px 2px;border-radius:7px;font-size:13px;font-weight:700;color:var(--ink)}
 .lg-head > *{pointer-events:none}
 .lg-head:hover{background:var(--surface-3)}
 .lg-head .ic{color:var(--muted)}
-.lg-head .n{font-size:12px;font-weight:600;color:var(--muted)}
-.lg-dot{width:9px;height:9px;border-radius:50%;background:var(--s)}
-.lrow.head .lh{position:relative;display:flex;align-items:center;min-width:0;height:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:grab}
-.lrow.head .lh[data-col="name"]{cursor:default}
+.lg-head .n{font-size:11.5px;font-weight:600;color:var(--accent-ink)}
+.ltable{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden}
+.lr-sheet .lrow{padding:0 6px 0 0;gap:0;min-height:42px;border-bottom:1px solid var(--line);align-items:stretch}
+.lr-sheet .lrow:last-child{border-bottom:0}
+.lr-sheet .lrow > *{display:flex;align-items:center;min-width:0}
+.lr-sheet .lrow > .lr-cell{padding:0 10px}
+.lr-sheet .lrow > .tick{align-self:center;justify-self:center;display:grid}
+.lr-sheet .lrow:hover{background:var(--surface)}
+.lr-sheet .lrow.head:hover,.lr-sheet .lrow.lr-add:hover{background:none}
+.lr-sheet .lrow.head{min-height:36px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lr-sheet .lrow.head > .lh{padding:0 10px}
+.lr-sheet .lrow.head > .lh[data-col="name"]{padding-left:0}
+/* A heading sorts on a click: its arrow shows on hover, and stays, in the
+   accent, while the list is sorted by it. */
+.lrow.head .lh{position:relative;display:flex;align-items:center;gap:5px;min-width:0;height:100%;white-space:nowrap;cursor:pointer;user-select:none}
+.lrow.head .lh > :not(.lh-rs){pointer-events:none}
+.lh-t{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.lh-ar{opacity:0;color:var(--muted);transition:opacity .12s}
+.lrow.head .lh:hover{color:var(--ink-2)}
+.lh:hover .lh-ar,.lh:focus-visible .lh-ar{opacity:1}
+.lrow.head .lh.sorted{color:var(--ink)}
+.lh.sorted .lh-ar{opacity:1;color:var(--accent-ink)}
+.lh:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:6px}
 .lh.dragging{opacity:.4}
 .lh.drop-l{box-shadow:inset 2px 0 0 var(--accent)}
 .lh.drop-r{box-shadow:inset -2px 0 0 var(--accent)}
 .lh-rs{position:absolute;top:0;bottom:0;right:-5px;width:9px;cursor:col-resize;z-index:1}
 .lh-rs::after{content:"";position:absolute;top:22%;bottom:22%;left:4px;width:2px;border-radius:1px;background:var(--accent);opacity:0;transition:opacity .12s}
-.lh-rs:hover::after,.lr-resizing .lh-rs::after{opacity:1}
+.lrow.head:hover .lh-rs::after{opacity:1;width:1px;background:var(--line-2)}
+.lh-rs:hover::after,.lr-resizing .lh-rs::after{opacity:1;width:2px;background:var(--accent)}
 body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none}
 .lr-cell{overflow:hidden}
-.lr-sheet .lrow .name{gap:8px;padding-right:6px;overflow:hidden}
+.lr-sheet .lrow .name{gap:8px;padding-right:8px;overflow:hidden}
+.lr-sheet .lrow .name > .lr-title{flex:0 1 auto}
+.lr-sheet .lrow .name > .lr-in{flex:1 1 auto}
+.lr-when{font-size:11.5px;color:var(--muted);white-space:nowrap}
 .lr-title{flex:0 1 auto;min-width:0;padding:3px 5px;margin-left:-5px;border-radius:6px;font-weight:500;font-size:13px;color:var(--ink);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
 .lr-title:hover{background:var(--surface-3)}
 .lrow.done .lr-title{text-decoration:line-through;color:var(--muted)}
 .lr-in{flex:1;min-width:0;height:28px;padding:0 8px;border-radius:7px;border:1px solid var(--accent);background:var(--surface);font:inherit;font-size:13px;color:var(--ink);outline:0}
 /* Move to and Details: the task column's own end, on the row's hover. */
-.lr-acts{margin-left:auto;display:flex;align-items:center;gap:2px;flex:none;opacity:0}
+.lr-acts{margin-left:auto;padding-left:8px;display:flex;align-items:center;gap:4px;flex:none;opacity:0}
 .lrow:hover .lr-acts,.lr-acts:focus-within{opacity:1}
 .lr-acts .rowbtn{opacity:1}
 .lr-det{width:auto!important;padding:0 6px 0 8px;gap:2px;font-size:11.5px;font-weight:600;display:inline-flex!important;align-items:center;border:1px solid var(--line)}
 .lr-v{font-size:12px;color:var(--ink-2)}
-.lr-cell .pkf{max-width:100%}
-.lr-cell .pk-btn.lr-f{height:28px;padding:0 6px;border-color:transparent;background:none;font-size:12px;color:var(--ink-2)}
+.lr-cell .pkf{flex:1;min-width:0;max-width:100%}
+.lr-cell .pk-btn.lr-f{height:28px;padding:0 6px;margin-left:-6px;border-color:transparent;background:none;font-size:12px;color:var(--ink-2)}
+.lr-cell .pk-btn.lr-f:hover,.lr-cell .pk-btn.lr-f[aria-expanded="true"]{background:var(--surface-3)}
 .lr-cell .pk-btn.lr-f.over{color:var(--danger-ink)}
 .lr-cell .pk-btn.lr-f .ic{opacity:0}
-.lr-cell .pk-btn.lr-f.is-empty{width:100%}
-.lr-cell:hover .pk-btn.lr-f{border-color:var(--line)}
+.lr-cell .pk-btn.lr-f.is-empty{width:100%;margin-left:0;padding:0;justify-content:center}
+.lr-cell .pk-btn.lr-f.is-empty .pk-val{display:none}
 .lr-cell:hover .pk-btn.lr-f .ic,.lr-cell .pk-btn.lr-f:focus .ic{opacity:1}
 .lr-pick{display:inline-flex;align-items:center;max-width:100%;min-height:26px;padding:2px 6px;margin-left:-4px;border-radius:7px}
-.lr-pick.empty{flex:1;justify-content:flex-end}
+.lr-pick.empty{flex:1;height:28px;margin-left:0;padding:0;justify-content:center}
 .lr-pick > *{pointer-events:none}
 .lr-pick:hover{background:var(--surface-3)}
 .lr-hint{opacity:0;color:var(--muted)}
 .lr-cell:hover .lr-hint,.lr-pick:focus .lr-hint{opacity:1}
 .lr-tags{display:flex;align-items:center;gap:4px;min-width:0;width:100%;overflow:hidden}
+.lr-tags:not(:has(.lr-tag)){justify-content:center}
 .lr-tag{flex:none;padding-right:3px}
 .lr-tag button{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;color:var(--muted);opacity:0}
 .lr-tag button > *{pointer-events:none}

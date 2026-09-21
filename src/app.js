@@ -1554,31 +1554,75 @@ function viewList(){
       ?es("filter","Nothing matches",V.q?"Nothing fits “"+esc(V.q)+"” with these filters.":"No task fits this view. Try another filter.",{hue:"var(--apricot)",actions:acts})
       :es("list","Your list is empty","Capture the first thing on your mind. You can sort it out later.",{actions:acts}))+'</div></div>';
   }
-  /* One table per lane, in the board's order, each headed by the lane's
-     colour, name and count, and ending in its own Add task. All tables share
-     one set of column widths (`lrWidths()`), so they line up, and the page
-     scrolls sideways as one. Every cell is changed where it is: the name by
-     clicking it, dates from the picker, priority, lane and estimate from a
-     short list, tags added and taken off, fields in their own controls.
-     Hovering a row shows Move to (another lane) and Details (the panel). */
-  const cols=listCols().filter(c=>c.on&&c.k!=="status"),W=lrWidths(cols);
-  const grid='grid-template-columns:28px var(--w-name) '+cols.map(c=>'var(--w-'+lrVar(c.k)+')').join(" ")+' minmax(0,1fr)';
+  /* A table per month of the task's date, in order, and No date last, as the
+     list always was: each a card with its own headings, as a month is read
+     on its own. The tables share one set of column widths (`lrWidths()`),
+     so they line up, and the page scrolls sideways as one. Every cell is
+     changed where it is; hovering one shows only that cell's control, and
+     hovering a row shows Move to and Details in the task column's own end.
+     A heading is clicked to sort: A to Z, Z to A, then back as it was
+     (`board().lsort`); a heading is dragged to move it and its edge to
+     size it. */
+  const cols=listCols().filter(c=>c.on),W=lrWidths(cols),srt=lrSort();
+  const grid='grid-template-columns:40px var(--w-name) '+cols.map(c=>'var(--w-'+lrVar(c.k)+')').join(" ")+' minmax(0,1fr)';
   const vars=Object.keys(W).map(k=>'--w-'+lrVar(k)+':'+W[k]+'px').join(";");
-  const head='<div class="lrow head" style="'+grid+'"><span></span>'+
-    '<span class="lh" data-col="name">Task<i class="lh-rs" data-rs="name" title="Drag to resize"></i></span>'+
-    cols.map(c=>'<span class="lh" draggable="true" data-col="'+esc(c.k)+'" title="Drag to move this column">'+esc(colLabel(c.k))+'<i class="lh-rs" data-rs="'+esc(c.k)+'" title="Drag to resize"></i></span>').join("")+'<span></span></div>';
-  const everything=V.f.quick==="all"&&!V.q&&!activeFilterCount();
-  const sections=lanes().map(L=>{
-    const items=list.filter(t=>t.status===L.id);
-    if(!items.length&&!everything)return "";
-    const shut=!!(V.lshut&&V.lshut[L.id]);
-    return '<section class="lgroup" style="--s:'+L.color+'">'+
-      '<h3 class="lg-h"><button class="lg-head" data-act="lg-toggle" data-v="'+L.id+'" aria-expanded="'+!shut+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+'<i class="lg-dot"></i>'+esc(L.name)+'<span class="n num">'+items.length+'</span></button></h3>'+
-      (shut?"":items.map(t=>lrRow(t,cols,grid)).join("")+
-        (V.lqa===L.id?'<div class="lrow lr-add" style="'+grid+'"><span></span><span class="name"><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(L.name)+'"></span></div>'
-          :'<div class="lrow lr-add" style="'+grid+'"><span></span><button class="lr-addbtn" data-act="lqa-open" data-v="'+L.id+'">'+icon("i-plus","ic-14")+'Add task</button></div>'))+
+  const hd=(k,label,drag)=>{const on=srt&&srt.k===k,dir=on?srt.dir:"";
+    const next=!on?"Sort A to Z":dir==="asc"?"Sort Z to A":"Back to the usual order";
+    return '<span class="lh'+(on?" sorted":"")+'" role="columnheader" aria-sort="'+(on?(dir==="asc"?"ascending":"descending"):"none")+'" tabindex="0" data-act="lr-sort" data-v="'+esc(k)+'" data-col="'+esc(k)+'"'+(drag?' draggable="true"':"")+' title="'+next+(drag?", or drag to move":"")+'">'+
+      '<span class="lh-t">'+esc(label)+'</span>'+icon(on&&dir==="desc"?"i-arr-d":"i-arr-u","ic-12 lh-ar")+
+      '<i class="lh-rs" data-rs="'+esc(k)+'" title="Drag to resize"></i></span>';};
+  const head='<div class="lrow head" style="'+grid+'"><span></span>'+hd("name","Task",false)+cols.map(c=>hd(c.k,colLabel(c.k),true)).join("")+'<span></span></div>';
+  const groups={},order=[];
+  list.forEach(t=>{const k=t.due?t.due.slice(0,7):"none";if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(t);});
+  order.sort((a,b)=>a==="none"?1:b==="none"?-1:a<b?-1:a>b?1:0);
+  const body=order.map(k=>{
+    const items=srt?lrSorted(groups[k],srt):groups[k],shut=!!(V.lshut&&V.lshut[k]);
+    const name=k==="none"?"No date":MONS[Number(k.slice(5))-1]+" "+k.slice(0,4);
+    return '<section class="lgroup">'+
+      '<h3 class="lg-h"><button class="lg-head" data-act="lg-toggle" data-v="'+k+'" aria-expanded="'+!shut+'" title="'+(shut?"Show":"Hide")+' '+esc(name)+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+esc(name)+'<span class="n num">'+items.length+'</span></button></h3>'+
+      (shut?"":'<div class="ltable">'+head+items.map(t=>lrRow(t,cols,grid)).join("")+
+        (V.lqa===k?'<div class="lrow lr-add" style="'+grid+'"><span></span><span class="name"><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(name)+'">'+
+            (k!=="none"?'<span class="lr-when">'+esc(pkDateText(lqaDate(k)))+'</span>':"")+'</span></div>'
+          :'<div class="lrow lr-add" style="'+grid+'"><span></span><button class="lr-addbtn" data-act="lqa-open" data-v="'+k+'">'+icon("i-plus","ic-14")+'Add task</button></div>')+
+      '</div>')+
       '</section>';}).join("");
-  return '<div class="task-main">'+filterBar()+'<div class="list-scroll lr-root" style="'+vars+'"><div class="lr-sheet">'+head+sections+'</div></div></div>';
+  return '<div class="task-main">'+filterBar()+'<div class="list-scroll lr-root" style="'+vars+'"><div class="lr-sheet">'+body+'</div></div></div>';
+}
+/* A task added under a month is dated in it, or it would vanish from where it
+   was typed: today in this month, otherwise the month's first day. */
+const lqaDate=k=>TODAY().slice(0,7)===k?TODAY():k+"-01";
+/* Sorting the list. Empty cells go last either way, so a sort never opens
+   with a page of blanks; equal values keep the order they had. */
+function lrSort(){const x=board().lsort;if(!x||!x.k)return null;
+  if(x.k!=="name"&&!listCols().some(c=>c.on&&c.k===x.k))return null;return x;}
+function lrSortVal(k,t){
+  switch(k){
+    case "name":return (t.title||"").toLowerCase();
+    case "date":return t.due?t.due+" "+(t.dueTime||""):null;
+    case "deadline":return t.deadline||null;
+    case "priority":{const q=quadOf(t);return q?["do","decide","delegate","drop"].indexOf(q):null;}
+    case "category":{const i=S.categories.findIndex(c=>c.id===t.cat);return i<0?null:i;}
+    case "status":{const i=lanes().findIndex(l=>l.id===t.status);return i<0?null:i;}
+    case "estimate":return tEst(t)||null;
+    case "tracked":return trackedSecs(t.id)||null;
+    case "tags":return (t.tags||[]).length?t.tags.slice().sort()[0].toLowerCase():null;
+    case "created":return t.created||null;
+  }
+  if(k.indexOf("cf:")===0){const f=fieldById(k.slice(3));if(!f)return null;const v=cfVal(t,f);
+    if(v==null||v===""||v===false||(Array.isArray(v)&&!v.length))return null;
+    if(f.type==="single"){const i=(f.options||[]).findIndex(o=>o.id===v);return i<0?null:i;}
+    if(f.type==="multi")return v.map(id=>{const i=(f.options||[]).findIndex(o=>o.id===id);return i<0?99:i;}).sort((a,b)=>a-b)[0];
+    if(f.type==="checkbox")return 1;
+    if(f.type==="number"||f.type==="rating"||f.type==="progress")return Number(v);
+    return String(v).toLowerCase();}
+  return null;
+}
+function lrSorted(items,x){
+  const m=x.dir==="desc"?-1:1;
+  return items.map((t,i)=>({t:t,i:i,v:lrSortVal(x.k,t)})).sort((a,b)=>{
+    if(a.v==null||b.v==null)return a.v==null&&b.v==null?a.i-b.i:a.v==null?1:-1;
+    const c=typeof a.v==="number"&&typeof b.v==="number"?a.v-b.v:String(a.v).localeCompare(String(b.v),undefined,{numeric:true});
+    return c?c*m:a.i-b.i;}).map(x=>x.t);
 }
 /* A column's width is the person's once they drag it; until then it has one
    to suit what it holds. */
@@ -1596,7 +1640,7 @@ function lrRow(t,cols,grid){
       (edit?'<input class="lr-in lr-rename" id="lrRename" data-id="'+t.id+'" value="'+esc(t.title)+'" maxlength="200" aria-label="Task name">'
         :'<button type="button" class="lr-title" data-act="lr-rename" data-id="'+t.id+'" title="Click to rename">'+esc(t.title)+'</button>')+
       (sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+
-      '<span class="lr-acts"><button type="button" class="rowbtn" data-act="lr-move" data-id="'+t.id+'" title="Move to another lane" aria-label="Move to another lane" aria-haspopup="menu">'+icon("i-swap","ic-14")+'</button>'+
+      '<span class="lr-acts"><button type="button" class="rowbtn lr-mv" data-act="lr-move" data-id="'+t.id+'" title="Move to another lane" aria-label="Move to another lane" aria-haspopup="menu">'+icon("i-swap","ic-14")+'</button>'+
         '<button type="button" class="rowbtn lr-det" data-act="sh-open" data-id="'+t.id+'" title="Details" aria-label="Details">Details'+icon("i-chev-r","ic-12")+'</button></span></span>'+
     cols.map(k=>'<span class="lr-cell">'+lrCell(k.k,t)+'</span>').join("")+'<span></span></div>';
 }
@@ -1854,7 +1898,7 @@ function czPanel(){
   const checkPic='<span class="czp-chk on"><i></i><em></em></span><span class="czp-chk on"><i></i><em></em></span><span class="czp-chk"><i></i><em></em></span>';
   const fullPic='<span class="czp-kid"><i></i><em></em><u>Fri</u></span><span class="czp-kid"><i></i><em></em><u>Mon</u></span>';
   const allOn=BOARD_FEATS.every(g=>g[1].every(x=>FEAT_OFF[x[0]]||feat(x[0])))&&b.fields.every(f=>f.panel!==false);
-  const shown=cols.filter(c=>c.on&&c.k!=="status");
+  const shown=cols.filter(c=>c.on);
   return '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">Fields</h3>'+
       (allOn?"":'<button class="linkish" data-act="cz-feat-all">Show everything</button>')+'</div>'+
       '<p class="cz-lead">What a task shows, when opened and in the list. Hiding one keeps what’s in it.</p>'+
@@ -3747,6 +3791,10 @@ document.addEventListener("click",function(e){
     case "lr-est":{const t=taskById(id);if(!t)break;
       qaMenu(n,[{v:0,label:"No estimate"}].concat(QA_EST.map(m=>({v:m,label:fmtMins(m)}))),tEst(t),v=>patchTask(id,{est:v}));break;}
     case "lqa-open":V.lqa=n.dataset.v;renderView();{const i=el("lqaTitle");if(i)i.focus();}break;
+    case "lr-sort":{if(e.target.closest(".lh-rs")||Date.now()-LR.resized<400)break;
+      const b=board(),k=n.dataset.v,x=b.lsort&&b.lsort.k===k?b.lsort:null;
+      b.lsort=!x?{k:k,dir:"asc"}:x.dir==="asc"?{k:k,dir:"desc"}:null;save("prefs");renderView();
+      if(!e.detail){const h=document.querySelector('.lh[data-act="lr-sort"][data-v="'+CSS.escape(k)+'"]');if(h)h.focus({preventScroll:true});}break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
     case "cz-open-list":closeModal();V.view="tasks";V.taskMode="list";render();break;
     case "cp-done":cpClose(false);break;
@@ -4687,8 +4735,8 @@ function lrCommit(i,keep){
     if(keep&&v&&taskById(i.dataset.id)&&v!==taskById(i.dataset.id).title)patchTask(i.dataset.id,{title:v});else renderView();}
   else if(i.id==="lrTag"){const v=i.value.trim().replace(/^#/,""),t=taskById(i.dataset.id);V.ltag=null;
     if(keep&&v&&t&&(t.tags||[]).indexOf(v)<0)patchTask(t.id,{tags:(t.tags||[]).concat([v])});else renderView();}
-  else if(i.id==="lqaTitle"){const v=i.value.trim(),lane=V.lqa;
-    if(keep&&v){const x=newTask({title:v,status:lane,cat:(S.categories.find(c=>c.id==="other")||S.categories[0]).id});if(isDoneT(x))x.completedAt=TODAY();
+  else if(i.id==="lqaTitle"){const v=i.value.trim(),k=V.lqa;
+    if(keep&&v){const x=newTask({title:v,status:firstOpen(),due:k&&k!=="none"?lqaDate(k):"",cat:(S.categories.find(c=>c.id==="other")||S.categories[0]).id});if(isDoneT(x))x.completedAt=TODAY();
       S.tasks.push(x);logAct(x.id,"created","Created this task");save("tasks");render();const n=el("lqaTitle");if(n)n.focus();}
     else{V.lqa=null;renderView();}}
 }
@@ -4699,13 +4747,17 @@ document.addEventListener("focusout",function(e){const t=e.target;if(!t||!/^(lrR
   setTimeout(()=>{if(t.isConnected)lrCommit(t,t.id!=="lqaTitle"||!!t.value.trim()?true:false);},0);});
 /* Column widths: drag a heading's edge. All the tables follow at once, as the
    widths are variables on the page; the new width is kept on letting go. */
+const LR={resized:0};
+/* A heading has the keyboard: Enter or Space sorts by it. */
+document.addEventListener("keydown",function(e){const h=e.target&&e.target.classList&&e.target.classList.contains("lh")?e.target:null;
+  if(!h||(e.key!=="Enter"&&e.key!==" "))return;e.preventDefault();h.click();});
 document.addEventListener("pointerdown",function(e){
   const h=e.target&&e.target.closest&&e.target.closest(".lh-rs");if(!h)return;
   e.preventDefault();e.stopPropagation();
   const k=h.dataset.rs,root=h.closest(".lr-root"),cell=h.parentNode,x0=e.clientX,w0=cell.getBoundingClientRect().width,min=k==="name"?160:64;
   document.body.classList.add("lr-resizing");
   const move=ev=>{const w=Math.max(min,Math.round(w0+ev.clientX-x0));root.style.setProperty("--w-"+lrVar(k),w+"px");h.dataset.w=w;};
-  const up=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up);document.body.classList.remove("lr-resizing");
+  const up=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up);document.body.classList.remove("lr-resizing");LR.resized=Date.now();
     if(h.dataset.w){const b=board();b.colW=Object.assign({},b.colW||{},{[k]:Number(h.dataset.w)});save("prefs");}};
   document.addEventListener("pointermove",move);document.addEventListener("pointerup",up);
 },true);

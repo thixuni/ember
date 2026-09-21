@@ -308,21 +308,25 @@ goes with backups and Drive like any setting.
 - **A category pill is a button** where it belongs to a task or routine
   (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
   list of categories (`catMenu()`) and changes it in place.
-- **The list view** (`viewList()`) is one sheet, drawn after Asana's: a
-  single sticky heading row, then each lane as a section heading (in board
-  order, collapsible with `V.lshut`) over plain rows, and its own **+ Add
-  task** under the names (`V.lqa`). Lane is not a column: the sections say
-  it. Every cell is edited in place (`lrCell()`): the name by clicking it
-  (`V.lrename`), dates from the picker, priority and estimate from a short
-  list, tags added (`V.ltag`) and removed, fields in their own controls
-  (`cfControl(t,f,tid)` names the task). **An empty cell is empty** — no
-  dash, no "Pick a date" (`dateField(..., {ph:""})`); hovering one cell
-  shows only that cell's control, never the whole row's. The task column is
-  wide (380px by default) and ends in the row's own actions, Move to and
-  Details, shown on the row's hover. Column widths are variables on the
-  page (`--w-<col>`), dragged at a heading's edge and kept in
-  `board().colW`; a heading dragged along reorders `board().cols`, which
-  Customise shows.
+- **The list view** (`viewList()`) is a table per month of the task's
+  date, in order, with No date last, each a card with its own headings, and
+  each with its own + Add task (`V.lqa` is the month; a task added there is
+  dated in it, today in this month, by `lqaDate()`, or it would vanish from
+  where it was typed). A single heading over lane sections was tried and
+  taken back: a month reads on its own. Every cell is edited in place
+  (`lrCell()`): the name by clicking it (`V.lrename`), dates from the
+  picker, priority, lane and estimate from a short list, tags added
+  (`V.ltag`) and removed, fields in their own controls. **An empty cell is
+  empty** — no dash, no "Pick a date" (`dateField(..., {ph:""})`) — and
+  hovering one shows only its control, centred in it. The task column ends
+  in a set place for Move to and Details, shown on the row's hover: the name
+  is always cut where they begin, so a long name never runs under them.
+  **A heading click sorts** A to Z, then Z to A, then back to the usual
+  order (`board().lsort`, `lrSorted()`: within each month, empty cells last
+  either way); Enter does the same on a focused heading. Column widths are
+  variables on the page (`--w-<col>`), dragged at a heading's edge and kept
+  in `board().colW` (a click just after a resize does not sort); a heading
+  dragged along reorders `board().cols`, which Customise shows.
 - **The list's columns** are `board().cols` (`{k, on}` in order, a field as
   `"cf:<id>"`), read through `listCols()`, which sets `on` from the panel; the row grid is built from them,
   so a hidden column takes no room.
