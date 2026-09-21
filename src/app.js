@@ -2338,7 +2338,7 @@ async function obDataNext(){
 /* ---- about you ---- */
 function obName(){
   return obHead("About you","What should we <em>call you</em>?","A nickname works just as well.")+
-    '<label class="obx-big"><span>I’m</span><input id="obName" autocomplete="given-name" maxlength="40" placeholder="your name" value="'+esc(S.prefs.name||"")+'"></label>';
+    '<label class="obx-big"><span>I’m</span><input id="obName" autocomplete="given-name" maxlength="40" placeholder="your name" required aria-required="true" value="'+esc(S.prefs.name||"")+'"></label>'+obErr();
 }
 function obShowName(){
   const n=S.prefs.name||"",d=today();
@@ -3607,7 +3607,10 @@ document.addEventListener("click",function(e){
     case "ob-skip":obGo(obNext());break;
     case "ob-next":{
       if(OB.step==="data"){obDataNext();break;}
-      if(OB.step==="name"){const v=(el("obName")||{}).value||"";S.prefs.name=v.trim();save("prefs");}
+      /* A name is needed: the planner greets and addresses the person by it. */
+      if(OB.step==="name"){const v=((el("obName")||{}).value||"").trim();
+        if(!v){OB.err="Add your name to carry on.";obRender();const i=el("obName");if(i)i.focus();break;}
+        S.prefs.name=v;save("prefs");}
       if(OB.step==="routines")obRtCommit();
       obGo(obNext());break;}
     case "ob-finish":obFinish();break;
@@ -3773,7 +3776,8 @@ document.addEventListener("input",function(e){
   if(t.id==="q"){V.q=t.value;clearTimeout(V.qTimer);V.qTimer=setTimeout(renderView,V.q?140:0);return;}
   if(t.id==="rte"){const x=noteById(V.noteId);if(x){x.html=t.innerHTML;x.updated=Date.now();save("notes");}return;}
   if(t.id==="scratchPad"){S.prefs.scratch=t.innerHTML;save("prefs");return;}
-  if(t.id==="obName"){const h=el("obxHi"),v=t.value.trim();if(h)h.textContent=dashGreeting()+(v?", "+v:"");return;}
+  if(t.id==="obName"){const h=el("obxHi"),v=t.value.trim();if(h)h.textContent=dashGreeting()+(v?", "+v:"");
+    if(OB.err&&v){OB.err="";const e=document.querySelector("#obRoot .obx-err");if(e)e.remove();}return;}
   if(t.dataset&&t.dataset.act==="ob-rt-name"){const x=obRtFind(t.dataset.k);if(x){x.title=t.value;
     const b=document.querySelector('#obRoot [data-rt-name="'+x.k+'"]');if(b)b.textContent=t.value||"Your own routine";}return;}
   if(t.dataset&&t.dataset.act==="ob-cat-name"){t.size=Math.max(4,t.value.length);
