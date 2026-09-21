@@ -732,8 +732,15 @@ show everything). The matrix quadrants (`QUAD_EMPTY`) and board columns
 - **Never hardcode a colour in a rule.** Every colour is a token on `:root`,
   including `--on-accent` (text on a filled colour) and `--tint-base` (what
   `color-mix()` mixes a category colour toward). A test enforces this.
-- **Downloads**: `exportData()` tries the artifact `downloads` capability first,
-  then falls back to a blob link. Both paths must keep working.
+- **Backups go to a folder the person chose, not Downloads.** `exportData()`
+  writes into `prefs.autoBackup.dir`, asking for a folder first if there is
+  none (`pickBackupFolder()`): the main process on the desktop, and in Chrome
+  or Edge the File System Access API, its folder kept in IndexedDB (`BF`,
+  `bfWrite()`; after the browser restarts it asks once before writing again,
+  so an automatic backup there waits for that). Setup's All set step asks for
+  the folder (`obBackupCard()`), which turns on a weekly copy. Only where no
+  folder can be chosen (Firefox, Safari, the artifact) does it fall back to
+  the artifact `downloads` capability, then a blob link; keep both working.
 - **Dates** are `YYYY-MM-DD` strings in local time throughout. Use the helpers
   `ymd`, `parseD`, `addDays`, `startOfWeek`. Weeks start on Monday.
 - **Eisenhower quadrant** is derived, never stored. `urgent` and `important` are

@@ -1116,6 +1116,9 @@ button.obx-rt-txt > *{pointer-events:none}
 .obx-getapp-txt b{font-size:14px}
 .obx-getapp-txt small{font-size:12px;line-height:1.45;color:var(--muted)}
 .obx-getapp .btn{flex:none;pointer-events:none}
+.obx-bk .btn{pointer-events:auto}
+.obx-bk:hover{transform:none}
+.obx-bk.set .obx-getapp-ic{background:var(--accent-soft)}
 .obx.enter .obx-getapp{animation:obup .5s cubic-bezier(.2,.7,.3,1) .4s both}
 @media (max-width:520px){.obx-getapp{flex-wrap:wrap}.obx-getapp .btn{width:100%;justify-content:center}}
 .obx.enter .obx-sum{animation:obup .5s cubic-bezier(.2,.7,.3,1) both}

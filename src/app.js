@@ -2585,7 +2585,18 @@ function obDone(){
       (OB.mode==="new"?item(true,"i-tag",S.categories.length+" categories",rts?rts+" routine"+(rts===1?"":"s")+" to start with":"Ready for your first task"):"")+
       (g?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Connect anytime in Settings"):"")+
       (d?item(!!vaultPath(),"i-folder",vaultPath()?"Obsidian vault linked":"Obsidian",vaultPath()?esc(vaultPath()):"Link a vault anytime in Settings"):"")+
-    '</div>'+(d?"":obGetApp());
+    '</div>'+obBackupCard()+(d?"":obGetApp());
+}
+/* Where backups go, chosen at the end of setup. Picking a folder turns on a
+   weekly copy there; it can be changed or switched off in Settings. */
+function obBackupCard(){
+  if(!canPickFolder())return "";
+  const dir=(S.prefs.autoBackup||{}).dir;
+  return '<div class="obx-getapp obx-bk'+(dir?" set":"")+'">'+
+    '<span class="obx-getapp-ic">'+icon(dir?"i-check":"i-folder")+'</span>'+
+    '<span class="obx-getapp-txt"><b>'+(dir?"Backups go to "+esc(dir):"Where should backups go?")+'</b><small>'+
+      (dir?"A copy of your planner is saved there every week.":"Choose a folder, and a copy of your planner is saved there every week.")+'</small></span>'+
+    '<button class="btn btn-sm'+(dir?"":" btn-primary")+'" data-act="backup-dir">'+icon("i-folder","ic-14")+(dir?"Change":"Choose folder")+'</button></div>';
 }
 /* In a browser, the one thing setup cannot do for you: the desktop app. */
 const DOWNLOAD_URL="https://thixuni.github.io/everyday-orbit/";
@@ -2859,7 +2870,7 @@ function settingsModal(){
   }
   else{
     const bk=p.autoBackup||{};
-    const auto=hasDesktop()
+    const auto=canPickFolder()
       ? field("",toggle("autoBackup.on",bk.on,"Back up automatically")+
           (bk.on?'<div class="set-actions">'+
             '<select class="inp inp-sm" data-act="set-pref" data-k="autoBackup.every">'+
@@ -2867,16 +2878,17 @@ function settingsModal(){
               '<option value="'+x[0]+'"'+((bk.every||"week")===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select>'+
             '<button class="btn btn-sm" data-act="backup-dir">'+icon("i-folder","ic-14")+(bk.dir?"Change folder":"Choose folder")+'</button>'+
             '</div>':""),
-          bk.on?(bk.dir?"Into <b>"+esc(bk.dir)+"</b> · "+(bk.last?"last ran "+esc(relTime(bk.last)):"not run yet"):"Choose a folder to keep them in.")
+          bk.on?(bk.dir?"Into <b>"+esc(bk.dir)+"</b> · "+(bk.last?"last ran "+esc(relTime(bk.last)):"not run yet")+
+              (hasDesktop()?"":". After your browser restarts, it asks once before saving there again."):"Choose a folder to keep them in.")
             :"A copy is saved to a folder of your choosing, on a schedule.")
-      : field("",'<span class="mnone">Automatic backups need the desktop app.</span>');
+      : field("",'<span class="mnone">This browser can only save backups as downloads. Chrome, Edge or the desktop app can save them to a folder you choose.</span>');
 
     pane=sec("Backups",
         field("",'<div class="set-actions">'+
           '<button class="btn btn-sm" data-act="export">'+icon("i-download","ic-14")+'Back up now</button>'+
           '<button class="btn btn-sm" data-act="import">'+icon("i-upload","ic-14")+'Restore</button>'+
           (n===0?'<button class="btn btn-sm" data-act="load-sample">'+icon("i-sparkle","ic-14")+'Load the sample week</button>':"")+
-          '</div>',n+" item"+(n===1?"":"s")+" saved on this device.")+auto)+
+          '</div>',n+" item"+(n===1?"":"s")+" saved on this device."+(canPickFolder()?(bk.dir?" Back up now saves a copy into <b>"+esc(bk.dir)+"</b>.":" Back up now asks where to keep your backups."):""))+auto)+
       sec("Start over",field("",
         '<button class="btn btn-sm btn-danger" data-act="reset-all">'+icon("i-trash","ic-14")+'Clear everything</button>',
         "Removes every task, routine, note, document and tracked hour. Your settings stay as they are."));
@@ -2967,33 +2979,72 @@ function gcalSettings(toggle){
 let pendingImport=null;
 /* ---- automatic backups ---- */
 const BACKUP_EVERY={day:864e5,week:7*864e5,month:30*864e5};
-function pickBackupFolder(){
-  const o=desktop();if(!o||!o.chooseBackupDir)return;
-  Promise.resolve(o.chooseBackupDir()).then(dir=>{
-    if(!dir)return;
+/* ---- a folder of the person's choosing ----
+   Backups go to a folder the person picks, not to Downloads. The desktop app
+   asks the main process. In a browser, Chrome and Edge let a page be handed
+   one folder to write into (the File System Access API); the folder is kept
+   in IndexedDB, since it cannot be written into localStorage, and after the
+   browser restarts it asks once before writing there again. Firefox, Safari
+   and the artifact cannot, and there a backup is handed over as a download. */
+const BF={handle:null,loaded:null};
+const bfCan=()=>!hasDesktop()&&!window.claude&&typeof window.showDirectoryPicker==="function"&&typeof indexedDB!=="undefined";
+const canPickFolder=()=>!!(desktop()&&desktop().chooseBackupDir)||bfCan();
+function bfKv(k,v){
+  return new Promise((ok,no)=>{const r=indexedDB.open("everyday-orbit",1);
+    r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onerror=()=>no(r.error);
+    r.onsuccess=()=>{const tx=r.result.transaction("kv",v===undefined?"readonly":"readwrite"),st=tx.objectStore("kv");
+      const q=v===undefined?st.get(k):st.put(v,k);q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error);};});
+}
+function bfLoad(){
+  if(!BF.loaded)BF.loaded=bfCan()?bfKv("backupDir").then(h=>BF.handle=h||null,()=>null):Promise.resolve(null);
+  return BF.loaded;
+}
+/* Write one file into the chosen folder. Asking again for permission needs
+   a click, so an automatic backup passes ask=false and simply waits. */
+async function bfWrite(name,text,ask){
+  const h=BF.handle||await bfLoad();if(!h)return false;
+  let p=await h.queryPermission({mode:"readwrite"});
+  if(p!=="granted"&&ask)p=await h.requestPermission({mode:"readwrite"});
+  if(p!=="granted")return false;
+  const w=await (await h.getFileHandle(name,{create:true})).createWritable();
+  await w.write(text);await w.close();return true;
+}
+function pickBackupFolder(then){
+  const set=dir=>{
     S.prefs.autoBackup=Object.assign({on:true,every:"week",last:0},S.prefs.autoBackup||{},{dir:dir});
-    save("prefs");panels();toast("Backups will be written to "+dir);
-  }).catch(()=>{});
+    save("prefs");panels();if(then)then();else toast("Backups go to "+dir);};
+  const o=desktop();
+  if(o&&o.chooseBackupDir){Promise.resolve(o.chooseBackupDir()).then(dir=>{if(dir)set(dir);}).catch(()=>{});return;}
+  if(bfCan())window.showDirectoryPicker({id:"orbit-backups",mode:"readwrite"})
+    .then(h=>{BF.handle=h;BF.loaded=Promise.resolve(h);return bfKv("backupDir",h).then(()=>set(h.name));}).catch(()=>{});
 }
 /* Runs at most once a launch, and only when the interval has actually passed. */
 function maybeAutoBackup(){
-  const o=desktop();if(!o||!o.writeBackup)return;
-  const b=S.prefs&&S.prefs.autoBackup;
+  const o=desktop(),b=S.prefs&&S.prefs.autoBackup;
   if(!b||!b.on||!b.dir)return;
   const gap=BACKUP_EVERY[b.every||"week"]||BACKUP_EVERY.week;
   if(b.last&&Date.now()-b.last<gap)return;
-  const payload=backupPayload();
-  try{
-    o.writeBackup({dir:b.dir,name:"everyday-orbit-"+TODAY()+".json",text:JSON.stringify(payload,null,2)});
-    S.prefs.autoBackup=Object.assign({},b,{last:Date.now()});
-    save("prefs");
-  }catch(e){}
+  const name="everyday-orbit-"+TODAY()+".json",text=JSON.stringify(backupPayload(),null,2);
+  const done=()=>{S.prefs.autoBackup=Object.assign({},S.prefs.autoBackup,{last:Date.now()});save("prefs");};
+  if(o&&o.writeBackup){try{o.writeBackup({dir:b.dir,name:name,text:text});done();}catch(e){}return;}
+  if(bfCan())bfWrite(name,text,false).then(ok=>{if(ok)done();}).catch(()=>{});
 }
 
 function exportData(){
   const payload=backupPayload();
   const text=JSON.stringify(payload,null,2);
   const name="everyday-orbit-"+TODAY()+".json";
+  /* Into the backup folder, choosing one first if there is none yet. */
+  const bk=S.prefs.autoBackup||{},o=desktop();
+  if(o&&o.writeBackup){
+    if(!bk.dir){pickBackupFolder(exportData);return;}
+    o.writeBackup({dir:bk.dir,name:name,text:text});toast("Backed up to "+bk.dir);return;
+  }
+  if(bfCan()){
+    bfWrite(name,text,true).then(ok=>{if(ok)toast("Backed up to "+BF.handle.name);else pickBackupFolder(exportData);},
+      ()=>toast("Couldn’t write to that folder. Choose it again in Settings."));
+    return;
+  }
   function viaBlob(){
     try{
       const url=URL.createObjectURL(new Blob([text],{type:"application/json"}));
