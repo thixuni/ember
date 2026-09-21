@@ -1422,8 +1422,18 @@ button.obx-rt-txt > *{pointer-events:none}
 
 .est-wrap{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
 .est-wrap .est-in{width:88px}
+.est-wrap .seg{padding:2px}
+.est-wrap .seg button{padding-top:4px;padding-bottom:4px}
 .mrow{display:grid;grid-template-columns:132px minmax(0,1fr);gap:16px;align-items:start;padding:8px 0}
-.mlab{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--muted);padding-top:8px}
+.mlab{display:flex;align-items:center;gap:7px;min-height:32px;font-size:12.5px;font-weight:600;color:var(--muted)}
+/* A row's label and the first line of its value share one 32px line and
+   are centred on it, whatever the value is: a box, a button, a tag field or
+   a line of text. The label was nudged down to meet a box, which left plain
+   text sitting 7 to 9px above it. */
+.mval > .mnone,#shRemind > .mnone,.mval > .tagbox,.mval > .pkf,.mval > .est-wrap,.when-line,.tm-controls{min-height:32px}
+.mval > .mnone,#shRemind > .mnone,.filebox > .mnone{display:flex;align-items:center;min-height:32px}
+.mval > .pkf{display:flex;align-items:center}
+.tm-controls{display:flex;align-items:center}
 .mlab .ic{color:var(--faint)}
 .mval{min-width:0}
 .mnone{font-size:12px;color:var(--faint)}
@@ -2349,7 +2359,7 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
   /* The calendar and its Catch-up panel stack, and the whole view scrolls. */
   .sheet{width:100vw;border-left:0}
   .mrow{grid-template-columns:minmax(0,1fr);gap:3px}
-  .mlab{padding-top:0}
+  .mlab{min-height:0}
   .doc-modal{height:calc(100dvh - 32px)}
   .doc-head{flex-wrap:wrap;padding:12px}
   .doc-ic,.doc-head [data-act="doc-full"]{display:none}
