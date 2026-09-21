@@ -611,6 +611,15 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .m-mark .num{font-weight:600}
 .bar{height:4px;border-radius:4px;background:var(--surface-3);overflow:hidden}
 .bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.qa{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:var(--r-m);background:var(--surface);border:1.5px solid var(--accent);box-shadow:var(--sh-2)}
+.qa-title{width:100%;padding:2px 2px 4px;border:0;background:none;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink);outline:0}
+.qa-title::placeholder{color:var(--faint)}
+.qa-row{display:flex;flex-wrap:wrap;gap:6px}
+.qa-row .qa-f,.qa-row .catsel{flex:1 1 calc(50% - 3px);min-width:0}
+.qa-row .pkf{display:flex;flex:1 1 calc(50% - 3px);min-width:0}
+.qa-row .pkf .pk-btn{width:100%}
+.qa-row .catsel select{width:100%}
+.qa-foot{display:flex;align-items:center;gap:6px}
 .addcard{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;font-weight:600;padding:6px 4px;border-radius:8px}
 .addcard:hover{background:var(--surface);color:var(--ink)}
 

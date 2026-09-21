@@ -1463,7 +1463,63 @@ function viewBoard(){
     const items=list.filter(t=>t.status===s.id);
     return '<div class="col" data-col="'+s.id+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
       '<div class="col-list">'+(items.length?colCards(s.id,items):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
-      '<button class="addcard" data-act="new-task" data-status="'+s.id+'">'+icon("i-plus","ic-14")+'Add task</button></div>';}).join("")+'</div></div></div>';
+      (V.qa&&V.qa.lane===s.id?qaCard():'<button class="addcard" data-act="qa-open" data-status="'+s.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>';}).join("")+'</div></div></div>';
+}
+/* ---- adding tasks in a lane ----
+   "Add task" at the foot of a lane opens a small card there: the name, then
+   the few things most tasks get (a start date, a priority, a category, a
+   tag), each shown only if Customise has it on. Enter adds the task and
+   leaves the card open and empty for the next, keeping the date and the
+   category, so a run of tasks goes in without leaving the board. The side
+   panel is for the rest, opened from the card. V.qa holds what is typed, so
+   a redraw keeps it. */
+const QA_PRIO=[["","No priority"],["do","Do first"],["decide","Schedule"],["delegate","Delegate"],["drop","Eliminate"]];
+function qaCard(){
+  const q=V.qa;
+  return '<div class="qa" data-lane="'+q.lane+'">'+
+    '<input id="qaTitle" class="qa-title" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="Task name" value="'+esc(q.title||"")+'">'+
+    '<div class="qa-row">'+
+      (feat("when")?dateField('id="qaDue"',q.due||"",{sm:1,ph:"Start date",label:"Start date",cls:"qa-f"}):"")+
+      (feat("priority")?'<select id="qaPrio" class="inp inp-sm qa-f" aria-label="Priority">'+QA_PRIO.map(x=>'<option value="'+x[0]+'"'+((q.prio||"")===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select>':"")+
+      (feat("category")?catSelect('id="qaCat" class="inp inp-sm" aria-label="Category"',q.cat,{cls:"qa-f"}):"")+
+      (feat("tags")?'<input id="qaTag" class="inp inp-sm qa-f qa-tag" placeholder="Add a tag" maxlength="40" autocomplete="off" aria-label="Tag" value="'+esc(q.tag||"")+'">':"")+
+    '</div>'+
+    '<div class="qa-foot"><span class="spacer" style="flex:1"></span>'+
+      '<button type="button" class="btn btn-sm btn-ghost" data-act="qa-close">Cancel</button>'+
+      '<button type="button" class="btn btn-sm btn-primary" data-act="qa-save">'+icon("i-check","ic-14")+'Add</button></div></div>';
+}
+function qaOpen(lane){
+  const c=S.categories.find(x=>visibleCat(x.id))||S.categories[0];
+  V.qa={lane:lane,title:"",due:"",prio:"",tag:"",cat:(V.qa&&V.qa.cat)||c.id};
+  renderView();qaFocus();
+}
+function qaFocus(){const i=el("qaTitle");if(i){i.focus({preventScroll:true});i.setSelectionRange(i.value.length,i.value.length);
+  const card=i.closest(".qa");if(card)card.scrollIntoView({block:"nearest"});}}
+/* Typing is kept as it happens; Enter adds, Esc closes; a click away from
+   an empty card closes it. After a redraw the caret goes back where it was. */
+document.addEventListener("input",function(e){const t=e.target;if(!V.qa||!t)return;
+  if(t.id==="qaTitle")V.qa.title=t.value;else if(t.id==="qaTag")V.qa.tag=t.value;});
+document.addEventListener("keydown",function(e){const t=e.target;if(!V.qa||!t||!t.closest||!t.closest(".qa"))return;
+  if(e.key==="Enter"&&(t.id==="qaTitle"||t.id==="qaTag")){e.preventDefault();qaSave();}
+  else if(e.key==="Escape"&&!PK.el){e.preventDefault();qaClose();}});
+document.addEventListener("focusin",function(e){if(V.qa)V.qa.at=e.target&&e.target.closest&&e.target.closest(".qa")?e.target.id||"":"";});
+document.addEventListener("mousedown",function(e){const t=e.target;if(!V.qa||!t||!t.closest)return;
+  if(t.closest(".qa")||t.closest(".pk")||t.closest(".catmenu"))return;
+  if(!(V.qa.title||"").trim()){V.qa=null;setTimeout(renderView,0);}});
+function qaRefocus(){if(!V.qa||!V.qa.at||document.activeElement!==document.body)return;const x=el(V.qa.at);if(x&&x.focus){x.focus({preventScroll:true});if(x.setSelectionRange&&x.type==="text")x.setSelectionRange(x.value.length,x.value.length);}}
+function qaClose(){if(!V.qa)return;const lane=V.qa.lane;V.qa=null;renderView();
+  const b=document.querySelector('[data-act="qa-open"][data-status="'+lane+'"]');if(b)b.focus({preventScroll:true});}
+function qaSave(){
+  const q=V.qa;if(!q)return;
+  const title=(q.title||"").trim();
+  if(!title){toast("Give the task a name");qaFocus();return;}
+  const flags={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[q.prio]||[null,null];
+  const tag=(q.tag||"").trim().replace(/^#/,"");
+  const t=newTask({title:title,status:q.lane,cat:q.cat||S.categories[0].id,due:q.due||"",urgent:flags[0],important:flags[1],tags:tag?[tag]:[]});
+  if(isDoneT(t))t.completedAt=TODAY();
+  S.tasks.push(t);logAct(t.id,"created","Created this task");save("tasks");
+  V.qa=Object.assign({},q,{title:"",prio:"",tag:""});
+  render();qaFocus();
 }
 function viewList(){
   const list=filterTasks("list");
@@ -3317,6 +3373,7 @@ function renderView(){
   if(fk){const b=vp.querySelector(fk);if(b&&document.activeElement===document.body)b.focus({preventScroll:true});}
   if(V.view==="calendar"||V.view==="dashboard")gcalEnsure();
   if(V.view==="calendar"&&document.querySelector(".mgrid"))fitMonth();
+  qaRefocus();
 }
 function render(){
   /* The lanes are settled before anything else: first thing on a new planner,
@@ -3502,6 +3559,9 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const t=sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v);break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
+    case "qa-open":qaOpen(n.dataset.status);break;
+    case "qa-save":qaSave();break;
+    case "qa-close":qaClose();break;
     case "cat-pick":catMenu(n);break;
     case "cat-set":catSet(n.dataset.kind,n.dataset.id,n.dataset.v);break;
     case "cz-subs":{const on=n.dataset.v==="full";if(!!board().fullSubs===on)break;
@@ -3966,6 +4026,7 @@ document.addEventListener("change",function(e){
     save("prefs");renderSheet();render();customiseModal();
     const f=document.querySelector('.cz [data-act="cz-where"][data-k="'+k+'"][data-w="'+w+'"]');if(f)f.focus({preventScroll:true});
     return;}
+  if(V.qa&&(t.id==="qaDue"||t.id==="qaPrio"||t.id==="qaCat")){V.qa[{qaDue:"due",qaPrio:"prio",qaCat:"cat"}[t.id]]=t.value;return;}
   if(t.dataset&&t.dataset.act==="sh-est"){const cur=sheetTask()||{},n=Math.max(0,parseFloat(t.value)||0);
     patchCurrent({est:Math.round(estUnit(cur)==="h"?n*60:n)});return;}
   if(t.dataset&&t.dataset.act==="sh-set"){

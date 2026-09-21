@@ -288,6 +288,16 @@ goes with backups and Drive like any setting.
   the panel, as a list column and on board cards; changes are in the task's
   history. Changing a field's type, or taking options away, clears values
   that no longer fit.
+- **Adding in a lane.** "Add task" at a lane's foot opens a card there
+  (`qaCard()`, `V.qa`): the name, then start date, priority, category and a
+  tag, each only if its switch is on. Enter adds the task and leaves the card
+  open and empty, keeping the date and category, so a run goes in without
+  leaving the board; Esc or a click away from an empty card closes it. What
+  is typed lives on `V.qa`, and `renderView()` puts the caret back
+  (`qaRefocus()`). The side panel is the detail and edit view.
+- **A category pill is a button** where it belongs to a task or routine
+  (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
+  list of categories (`catMenu()`) and changes it in place.
 - **The list's columns** are `board().cols` (`{k, on}` in order, a field as
   `"cf:<id>"`), read through `listCols()`, which sets `on` from the panel; the row grid is built from them,
   so a hidden column takes no room.
