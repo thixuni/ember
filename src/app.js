@@ -616,8 +616,8 @@ function catSelect(attrs,val,o){
 }
 /* With what it belongs to, the pill is a button: a click on it changes the
    category right there, from a short list of them (catMenu()). */
-function catChip(id,kind,of){const c=cat(id);
-  if(kind)return '<button type="button" class="chip chip-cat chip-pick" style="--c:'+c.color+'" data-act="cat-pick" data-kind="'+kind+'" data-id="'+of+'" title="Change category" aria-haspopup="menu">'+icon(c.icon)+esc(c.name)+icon("i-chev-d","ic-12 chip-caret")+'</button>';
+function catChip(id,kind,of,plain){const c=cat(id);
+  if(kind)return '<button type="button" class="chip chip-cat chip-pick" style="--c:'+c.color+'" data-act="cat-pick" data-kind="'+kind+'" data-id="'+of+'" title="Change category" aria-haspopup="menu">'+icon(c.icon)+esc(c.name)+(plain?"":icon("i-chev-d","ic-12 chip-caret"))+'</button>';
   return '<span class="chip chip-cat" style="--c:'+c.color+'">'+icon(c.icon)+esc(c.name)+'</span>';}
 /* ---- changing a category from its pill ---- */
 const CM={el:null,btn:null};
@@ -1571,7 +1571,7 @@ function viewList(){
     return '<span class="lh'+(on?" sorted":"")+'" role="columnheader" aria-sort="'+(on?(dir==="asc"?"ascending":"descending"):"none")+'" tabindex="0" data-act="lr-sort" data-v="'+esc(k)+'" data-col="'+esc(k)+'"'+(drag?' draggable="true"':"")+' title="'+next+(drag?", or drag to move":"")+'">'+
       '<span class="lh-t">'+esc(label)+'</span>'+icon(on&&dir==="desc"?"i-arr-d":"i-arr-u","ic-12 lh-ar")+
       '<i class="lh-rs" data-rs="'+esc(k)+'" title="Drag to resize"></i></span>';};
-  const head='<div class="lrow head" style="'+grid+'"><span></span>'+hd("name","Task",false)+cols.map(c=>hd(c.k,colLabel(c.k),true)).join("")+'<span></span></div>';
+  const head='<div class="lrow head" style="'+grid+'"><span class="lr-lead"></span>'+hd("name","Task",false)+cols.map(c=>hd(c.k,colLabel(c.k),true)).join("")+'<span></span></div>';
   const groups={},order=[];
   list.forEach(t=>{const k=t.due?t.due.slice(0,7):"none";if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(t);});
   order.sort((a,b)=>a==="none"?1:b==="none"?-1:a<b?-1:a>b?1:0);
@@ -1581,9 +1581,9 @@ function viewList(){
     return '<section class="lgroup">'+
       '<h3 class="lg-h"><button class="lg-head" data-act="lg-toggle" data-v="'+k+'" aria-expanded="'+!shut+'" title="'+(shut?"Show":"Hide")+' '+esc(name)+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+esc(name)+'<span class="n num">'+items.length+'</span></button></h3>'+
       (shut?"":'<div class="ltable">'+head+items.map(t=>lrRow(t,cols,grid)).join("")+
-        (V.lqa===k?'<div class="lrow lr-add" style="'+grid+'"><span></span><span class="name"><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(name)+'">'+
+        (V.lqa===k?'<div class="lrow lr-add" style="'+grid+'"><span class="lr-lead"></span><span class="name"><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(name)+'">'+
             (k!=="none"?'<span class="lr-when">'+esc(pkDateText(lqaDate(k)))+'</span>':"")+'</span></div>'
-          :'<div class="lrow lr-add" style="'+grid+'"><span></span><button class="lr-addbtn" data-act="lqa-open" data-v="'+k+'">'+icon("i-plus","ic-14")+'Add task</button></div>')+
+          :'<div class="lrow lr-add" style="'+grid+'"><span class="lr-lead"></span><button class="lr-addbtn" data-act="lqa-open" data-v="'+k+'">'+icon("i-plus","ic-14")+'Add task</button></div>')+
       '</div>')+
       '</section>';}).join("");
   return '<div class="task-main">'+filterBar()+'<div class="list-scroll lr-root" style="'+vars+'"><div class="lr-sheet">'+body+'</div></div></div>';
@@ -1635,7 +1635,7 @@ function lrWidths(cols){
 function lrRow(t,cols,grid){
   const c=cat(t.cat),sp=subProgress(t),edit=V.lrename===t.id;
   return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-act="task" data-id="'+t.id+'">'+
-    tickBtn(t)+
+    '<span class="lr-lead">'+tickBtn(t)+'</span>'+
     '<span class="name">'+icon(c.icon,"ic-14")+
       (edit?'<input class="lr-in lr-rename" id="lrRename" data-id="'+t.id+'" value="'+esc(t.title)+'" maxlength="200" aria-label="Task name">'
         :'<button type="button" class="lr-title" data-act="lr-rename" data-id="'+t.id+'" title="Click to rename">'+esc(t.title)+'</button>')+
@@ -1650,8 +1650,8 @@ function lrCell(k,t){
     case "date":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="due"',t.due||"",{sm:1,ph:"",label:"Start date",cls:"lr-f"+(isOverdue(t)&&t.due&&t.due<TODAY()?" over":"")});
     case "deadline":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="deadline"',t.deadline||"",{sm:1,ph:"",label:"Due date",cls:"lr-f"+(isOpen(t)&&t.deadline&&t.deadline<TODAY()?" over":"")});
     case "priority":return '<button type="button" class="lr-pick'+(quadChip(t)?"":" empty")+'" '+a("lr-prio")+' aria-haspopup="menu" title="Priority" aria-label="Priority">'+(quadChip(t)||icon("i-chev-d","ic-12 lr-hint"))+'</button>';
-    case "category":return catChip(t.cat,"task",t.id);
-    case "status":{const st=ST(t.status);return '<button type="button" class="lr-pick" '+a("lr-move")+' aria-haspopup="menu" title="Lane"><span class="status-dot" style="--s:'+st.color+'"><span class="sw"></span>'+esc(st.name)+'</span></button>';}
+    case "category":return catChip(t.cat,"task",t.id,1);
+    case "status":{const st=ST(t.status);return '<button type="button" class="lr-pick" '+a("lr-move")+' aria-haspopup="menu" title="Change status"><span class="chip chip-cat chip-lane" style="--c:'+st.color+'">'+esc(st.name)+'</span></button>';}
     case "estimate":return '<button type="button" class="lr-pick'+(tEst(t)?"":" empty")+'" '+a("lr-est")+' aria-haspopup="menu" title="Estimate" aria-label="Estimate">'+(tEst(t)?'<span class="num lr-v">'+esc(fmtMins(tEst(t)))+'</span>':icon("i-chev-d","ic-12 lr-hint"))+'</button>';
     case "tags":return '<span class="lr-tags">'+(t.tags||[]).map(x=>'<span class="chip lr-tag">#'+esc(x)+'<button type="button" data-act="lr-tag-del" data-id="'+t.id+'" data-v="'+esc(x)+'" aria-label="Remove '+esc(x)+'">'+icon("i-x","ic-12")+'</button></span>').join("")+
       (V.ltag===t.id?'<input class="lr-in lr-tagin" id="lrTag" data-id="'+t.id+'" placeholder="Tag" maxlength="40" autocomplete="off" aria-label="New tag">'
@@ -4748,6 +4748,8 @@ document.addEventListener("focusout",function(e){const t=e.target;if(!t||!/^(lrR
 /* Column widths: drag a heading's edge. All the tables follow at once, as the
    widths are variables on the page; the new width is kept on letting go. */
 const LR={resized:0};
+/* Scrolled sideways, the task column shows its edge. */
+document.addEventListener("scroll",function(e){const r=e.target;if(r&&r.classList&&r.classList.contains("lr-root"))r.classList.toggle("lr-x",r.scrollLeft>0);},true);
 /* A heading has the keyboard: Enter or Space sorts by it. */
 document.addEventListener("keydown",function(e){const h=e.target&&e.target.classList&&e.target.classList.contains("lh")?e.target:null;
   if(!h||(e.key!=="Enter"&&e.key!==" "))return;e.preventDefault();h.click();});

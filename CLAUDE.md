@@ -322,6 +322,13 @@ goes with backups and Drive like any setting.
   in a set place for Details, shown on the row's hover: the name
   is always cut where it begins, so a long name never runs under it. Changing
   lane is the Status cell's job; a Move button beside Details repeated it.
+  Every cell starts where its heading does — text and labels alike, the
+  pickers' own padding taken back with a negative margin. Status is a label
+  in its lane's colour, like priority; the category label has no arrow here.
+  The tick and task columns stay put when the list scrolls sideways
+  (`.lr-lead` and `.name`, sticky, flush with the edge; `lr-x` draws their
+  edge once scrolled). `.ltable` is `overflow: clip`, not `hidden`, or
+  they would not stick.
   **A heading click sorts** A to Z, then Z to A, then back to the usual
   order (`board().lsort`, `lrSorted()`: within each month, empty cells last
   either way); Enter does the same on a focused heading. Column widths are

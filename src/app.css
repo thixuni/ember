@@ -659,15 +659,23 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .lg-head:hover{background:var(--surface-3)}
 .lg-head .ic{color:var(--muted)}
 .lg-head .n{font-size:11.5px;font-weight:600;color:var(--accent-ink)}
-.ltable{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden}
+.ltable{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);overflow:clip}
+/* The tick and the task stay put while the columns scroll under them; a line
+   marks their edge once the list has been scrolled sideways. */
+.lr-sheet .lrow > .lr-lead,.lr-sheet .lrow > .name,.lr-sheet .lrow > .lh[data-col="name"],.lr-sheet .lrow > .lr-addbtn{position:sticky;z-index:2;background:var(--panel)}
+.lr-sheet .lrow > .lr-lead{left:-18px;justify-content:center}
+.lr-sheet .lrow > .name,.lr-sheet .lrow > .lh[data-col="name"],.lr-sheet .lrow > .lr-addbtn{left:22px}
+.lr-sheet .lrow:not(.head):not(.lr-add):hover > .lr-lead,.lr-sheet .lrow:not(.head):not(.lr-add):hover > .name{background:var(--surface)}
+.lr-root.lr-x .lrow > .name,.lr-root.lr-x .lrow > .lh[data-col="name"]{box-shadow:1px 0 0 var(--line)}
 .lr-sheet .lrow{padding:0 6px 0 0;gap:0;min-height:42px;border-bottom:1px solid var(--line);align-items:stretch}
 .lr-sheet .lrow:last-child{border-bottom:0}
 .lr-sheet .lrow > *{display:flex;align-items:center;min-width:0}
 .lr-sheet .lrow > .lr-cell{padding:0 10px}
-.lr-sheet .lrow > .tick{align-self:center;justify-self:center;display:grid}
+.lr-lead > .tick{flex:none}
+.lr-sheet .lrow > .lr-addbtn:hover{background:var(--surface-3)}
 .lr-sheet .lrow:hover{background:var(--surface)}
 .lr-sheet .lrow.head:hover,.lr-sheet .lrow.lr-add:hover{background:none}
-.lr-sheet .lrow.head{min-height:36px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lr-sheet .lrow.head{padding:0 6px 0 0;min-height:36px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .lr-sheet .lrow.head > .lh{padding:0 10px}
 .lr-sheet .lrow.head > .lh[data-col="name"]{padding-left:0}
 /* A heading sorts on a click: its arrow shows on hover, and stays, in the
@@ -705,14 +713,19 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .lr-det{width:auto!important;padding:0 6px 0 8px;gap:2px;font-size:11.5px;font-weight:600;display:inline-flex!important;align-items:center;border:1px solid var(--line)}
 .lr-v{font-size:12px;color:var(--ink-2)}
 .lr-cell .pkf{flex:1;min-width:0;max-width:100%}
-.lr-cell .pk-btn.lr-f{height:28px;padding:0 6px;margin-left:-6px;border-color:transparent;background:none;font-size:12px;color:var(--ink-2)}
+.lr-cell .pk-btn.lr-f{height:28px;padding:0 6px;margin-left:-7px;border-color:transparent;background:none;font-size:12px;color:var(--ink-2)}
 .lr-cell .pk-btn.lr-f:hover,.lr-cell .pk-btn.lr-f[aria-expanded="true"]{background:var(--surface-3)}
 .lr-cell .pk-btn.lr-f.over{color:var(--danger-ink)}
 .lr-cell .pk-btn.lr-f .ic{opacity:0}
 .lr-cell .pk-btn.lr-f.is-empty{width:100%;margin-left:0;padding:0;justify-content:center}
 .lr-cell .pk-btn.lr-f.is-empty .pk-val{display:none}
 .lr-cell:hover .pk-btn.lr-f .ic,.lr-cell .pk-btn.lr-f:focus .ic{opacity:1}
-.lr-pick{display:inline-flex;align-items:center;max-width:100%;min-height:26px;padding:2px 6px;margin-left:-4px;border-radius:7px}
+.lr-pick{display:inline-flex;align-items:center;max-width:100%;min-height:26px;padding:2px 6px;margin-left:-6px;border-radius:7px}
+/* A label in a cell starts where its heading does, like the text beside it. */
+.lr-pick:has(> .chip){padding:0;margin-left:0;border-radius:20px}
+.lr-pick:has(> .chip):hover{background:none}
+.lr-pick:hover > .chip{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c,var(--qt)) 45%,transparent)}
+.chip-lane{padding:0 9px}
 .lr-pick.empty{flex:1;height:28px;margin-left:0;padding:0;justify-content:center}
 .lr-pick > *{pointer-events:none}
 .lr-pick:hover{background:var(--surface-3)}
