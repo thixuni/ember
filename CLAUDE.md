@@ -827,7 +827,7 @@ a lower number than an installed copy is running strands it, because it
 compares the two and concludes it is already newer. The workflow runs the
 checks, builds on all three platforms, and publishes a release with the
 installers, the single-file build, and the `latest.yml` metadata that
-electron-updater reads. See README.md for code signing.
+electron-updater reads. See DEVELOPMENT.md for code signing.
 
 ## Worth doing next
 
