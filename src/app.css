@@ -2566,3 +2566,77 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
   .rail{width:min(86vw,252px)}
   .seg button span{display:none}
 }
+
+/* ---------- quick create on the week ---------- */
+/* A small card beside the stretch just drawn, as Google Calendar's: a name,
+   the kind of thing to make, the few fields that matter, Save. */
+.qc{position:fixed;z-index:66;width:392px;max-width:calc(100vw - 20px);padding:8px 16px 14px;border-radius:16px;background:var(--surface);
+  border:1px solid var(--line);box-shadow:var(--sh-3);animation:pop .14s ease}
+.qc-top{display:flex;align-items:center;gap:2px;margin:0 -8px 2px 0}
+.qc-title{width:100%;border:0;border-bottom:2px solid var(--line);background:none;padding:4px 0 7px;font:inherit;font-size:19px;font-weight:600;color:var(--ink);outline:0}
+.qc-title:focus{border-bottom-color:var(--accent)}
+.qc-title::placeholder{color:var(--muted)}
+.qc-kinds{display:flex;gap:4px;margin:12px 0 6px}
+.qc-kind{height:30px;padding:0 12px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.qc-kind:hover{background:var(--surface-3);color:var(--ink)}
+.qc-kind.on{background:var(--accent-soft);color:var(--accent-ink)}
+.qc-rows{display:flex;flex-direction:column;gap:6px;padding:6px 0 4px}
+.qc-row{display:flex;align-items:center;gap:12px;min-height:34px}
+.qc-row > .qc-ic{color:var(--muted)}
+.qc-row > .catsel,.qc-row > select{flex:1;min-width:0}
+.qc-when{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.qc-when .pkf{width:auto;flex:0 1 auto}
+.qc-when .pkf:first-child{flex:0 0 124px}
+.qc-when .pk-tin{width:78px}
+.qc-dash,.qc-for{font-size:12.5px;color:var(--muted)}
+.qc-when select.qc-dur{width:auto;flex:0 0 auto;min-width:96px}
+.qc-when .pkf:has(.pk-tin){flex:0 0 auto}
+.qc-reps{flex:1;display:flex;flex-wrap:wrap;gap:5px}
+.qc-rep{height:28px;padding:0 11px;border-radius:20px;border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--ink-2)}
+.qc-rep:hover{border-color:var(--line-2);color:var(--ink)}
+.qc-rep.on{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
+.qc-note{display:flex;align-items:center;gap:8px;margin:2px 0 0;font-size:12px;color:var(--muted)}
+.qc-foot{display:flex;align-items:center;gap:10px;margin-top:10px}
+.qc button > *{pointer-events:none}
+
+/* Time marked unavailable: hatched greys, not a colour, as it is not work. */
+.ev.away{background:repeating-linear-gradient(135deg,var(--surface-2) 0 6px,var(--surface-3) 6px 12px);border-left-color:var(--muted);color:var(--ink-2)}
+.ev.away b{display:flex;align-items:center;gap:5px}
+.ev.away b .ic{flex:none;color:var(--muted)}
+.ev.away i{color:var(--muted)}
+.mline.away .mline-dot{background:none;border:1.5px solid var(--muted)}
+
+/* ---------- the routine window ---------- */
+/* The name, then when as one line, then how it repeats with only what that
+   choice needs; the rest folded under More options. */
+.rt-modal{width:min(520px,calc(100vw - 32px))}
+.rt-body{display:flex;flex-direction:column;gap:18px}
+.rt-title{width:100%;border:0;border-bottom:2px solid var(--line);background:none;padding:4px 0 8px;font:inherit;font-size:19px;font-weight:600;color:var(--ink);outline:0}
+.rt-title:focus{border-bottom-color:var(--accent)}
+.rt-title::placeholder{color:var(--muted)}
+.rt-line{display:flex;flex-wrap:wrap;gap:10px}
+.rt-bit{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.rt-bit .pkf{width:108px}
+.rt-bit select{width:auto;min-width:96px}
+.rt-cat{flex:1;min-width:170px}
+.rt-cat .catsel{flex:1;min-width:0}
+.rt-sec{display:flex;flex-direction:column;gap:10px}
+.rt-lab{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rt-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:3px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line)}
+.rt-opt{height:32px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.rt-opt:hover{color:var(--ink);background:var(--surface-3)}
+.rt-opt.on{background:var(--surface);color:var(--ink);box-shadow:var(--sh-1)}
+.rt-sub[hidden]{display:none}
+.rt-every{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.rt-every .inp{width:64px;text-align:center}
+.rt-more{border-top:1px solid var(--line);padding-top:12px}
+.rt-more summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-2);list-style:none;padding:3px 6px 3px 2px;border-radius:7px}
+.rt-more summary::-webkit-details-marker{display:none}
+.rt-more summary:hover{background:var(--surface-3);color:var(--ink)}
+.rt-more summary .ic{transition:transform .15s;color:var(--muted)}
+.rt-more[open] summary .ic{transform:rotate(90deg)}
+.rt-more-in{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.rt-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer}
+.rt-switch b{display:block;font-size:13px;color:var(--ink)}
+.rt-switch small{font-size:11.5px;color:var(--muted)}
+@media (max-width:560px){.rt-seg{grid-template-columns:repeat(2,1fr)}}

@@ -767,8 +767,9 @@ function weekGrid(){
     const s=ymd(d);let lines="";for(let h=H0;h<H1;h++)lines+='<div class="hourline"></div>';
     const q=(V.q||"").toLowerCase();
     const tev=tasksFor(s).filter(t=>timedOn(t,s)).map(t=>{const sp=tSpan(t);return {kind:"task",t:t,start:sp.start,dur:sp.end-sp.start};});
-    const evs=layoutEvents(eventsFor(d).concat(gcalFor(d).timed,tev).sort((a,b)=>a.start-b.start).filter(e=>{
-      if(!q||e.kind==="task")return true;
+    const aev=awayOn(s).map(a=>({kind:"away",a:a,start:hm2m(a.start),dur:Math.max(15,hm2m(a.end)-hm2m(a.start))}));
+    const evs=layoutEvents(eventsFor(d).concat(gcalFor(d).timed,tev,aev).sort((a,b)=>a.start-b.start).filter(e=>{
+      if(!q||e.kind==="task"||e.kind==="away")return true;
       if(e.kind==="gcal")return e.g.title.toLowerCase().indexOf(q)>-1||e.g.calName.toLowerCase().indexOf(q)>-1;
       const title=e.kind==="session"?e.t.title:e.r.title;
       const cid=e.kind==="session"?e.t.cat:e.r.cat;
@@ -785,6 +786,12 @@ function weekGrid(){
           '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
           '<button class="tev-body" data-act="task" data-id="'+t.id+'" title="'+esc(t.title+" · "+fmtTaskTime(t))+'"><b>'+esc(t.title)+'</b>'+
           '<i class="num">'+esc(sm?fmtTime(t.dueTime):fmtTaskTime(t))+'</i></button></div>';
+      }
+      /* Time marked unavailable: hatched, in the greys, as it is not work. */
+      if(e.kind==="away"){
+        const a=e.a,top=(e.start/60-H0)*PX,ht=Math.max(18,(e.dur/60)*PX-2),w=100/e._n,left=e._c*w,sm=ht<40,clip=Math.max(0,-top);
+        return '<button class="ev away'+(sm?" sm":"")+'" style="top:'+Math.max(0,top).toFixed(1)+'px;height:'+Math.max(18,ht-clip).toFixed(1)+'px;left:calc('+left+'% + 3px);width:calc('+w+'% - 6px)" data-act="away-open" data-id="'+a.id+'" title="'+esc(a.title+" · "+fmtTime(a.start)+" – "+fmtTime(a.end))+'">'+
+          '<b>'+(sm?"":icon("i-moon","ic-14"))+esc(a.title)+'</b><i class="num">'+esc(sm?fmtTime(a.start):fmtTime(a.start)+" – "+fmtTime(a.end))+'</i></button>';
       }
       if(e.kind==="gcal"){
         const top=(e.start/60-H0)*PX,ht=Math.max(18,(e.dur/60)*PX-2),w=100/e._n,left=e._c*w,sm=ht<40;
@@ -878,9 +885,152 @@ document.addEventListener("mouseup",function(){
   if(!DG.on)return;
   DG.on=false;
   const end=Math.min(DG.b,24*60-1);
-  openSheet(null,{due:DG.col.dataset.date,dueTime:m2hm(DG.a),endTime:m2hm(end),status:firstOpen()});
-  const ti=el("shTitle");if(ti)ti.focus();
+  qcOpen({date:DG.col.dataset.date,start:m2hm(DG.a),end:m2hm(end)},DG.g);
 });
+
+/* ---- quick create, from a drag on the week ----
+   As Google Calendar does it: a small card beside the stretch just drawn,
+   with a name to type and the few things that matter, and the kind of thing
+   to make across its top -- a task, a routine, or time you are unavailable.
+   Enter or Save makes it; More options carries what is typed into the full
+   form. A click away, Escape or the close button drops it, and the
+   placeholder on the grid with it. Unavailable time opens here too when
+   its block is clicked, to change or delete. */
+const QC={el:null};
+const AWAY_DEF="Unavailable";
+const qcDurs=[15,30,45,60,90,120,180,240];
+function awayList(){return S.prefs.away||(S.prefs.away=[]);}
+function awayOn(s){return awayList().filter(a=>a.date===s);}
+function qcOpen(o,anchor){
+  qcClose(true);
+  QC.v=Object.assign({kind:"task",title:"",cat:"",prio:"",rep:"week"},o);
+  QC.anchor=anchor;
+  const p=document.createElement("div");p.className="qc";p.setAttribute("role","dialog");p.setAttribute("aria-label","New");
+  document.body.appendChild(p);QC.el=p;
+  qcDraw();qcPlace();
+  const t=el("qcTitle");if(t)t.focus();
+}
+function qcClose(keepGhost){
+  if(QC.el){QC.el.remove();QC.el=null;}
+  pkClose();catMenuClose();
+  if(!keepGhost)clearGhosts();
+  QC.v=null;QC.anchor=null;
+}
+/* What is typed so far, read back before the card is drawn again. */
+function qcRead(){
+  const v=QC.v;if(!v||!QC.el)return v;
+  const g=id=>{const x=el(id);return x?x.value:null;};
+  if(g("qcTitle")!=null)v.title=g("qcTitle");
+  if(g("qcDate")!=null)v.date=g("qcDate")||v.date;
+  if(g("qcStart")!=null)v.start=g("qcStart")||v.start;
+  if(g("qcEnd")!=null)v.end=g("qcEnd")||v.end;
+  if(g("qcCat")!=null)v.cat=g("qcCat");
+  if(g("qcPrio")!=null)v.prio=g("qcPrio");
+  if(g("qcDur")!=null){const d=Number(g("qcDur"))||30;v.end=m2hm(Math.min(24*60-1,hm2m(v.start)+d));}
+  return v;
+}
+function qcDraw(){
+  const v=QC.v,p=QC.el;if(!v||!p)return;
+  const kinds=[["task","Task","i-check"],["routine","Routine","i-repeat"],["away","Unavailable","i-moon"]];
+  const d=parseD(v.date),dow=(d.getDay()+6)%7,len=Math.max(15,hm2m(v.end)-hm2m(v.start));
+  const dayName=d.toLocaleDateString(undefined,{weekday:"long"});
+  const when='<div class="qc-row">'+icon("i-clock","ic-16 qc-ic")+'<div class="qc-when">'+
+      (v.kind==="routine"
+        ?timeField('id="qcStart"',v.start,{sm:1,label:"Starts at",req:1})+'<span class="qc-for">for</span>'+
+          '<select class="inp inp-sm qc-dur" id="qcDur" aria-label="How long">'+qcDurs.concat(qcDurs.indexOf(len)<0?[len]:[]).sort((a,b)=>a-b).map(m=>'<option value="'+m+'"'+(m===len?" selected":"")+'>'+esc(fmtMins(m))+'</option>').join("")+'</select>'
+        :dateField('id="qcDate"',v.date,{sm:1,label:"Date",req:1})+
+          timeField('id="qcStart"',v.start,{sm:1,label:"Starts at",req:1})+'<span class="qc-dash">–</span>'+
+          timeField('id="qcEnd"',v.end,{sm:1,label:"Ends at",req:1,after:v.start}))+
+    '</div></div>';
+  const catRow='<div class="qc-row">'+icon("i-tag","ic-16 qc-ic")+catSelect('class="inp inp-sm" id="qcCat" aria-label="Category"',v.cat||(S.categories.find(c=>c.id==="other")||S.categories[0]).id)+'</div>';
+  let rows="";
+  if(v.kind==="task"){
+    rows=when+catRow+
+      '<div class="qc-row">'+icon("i-flag","ic-16 qc-ic")+'<select class="inp inp-sm" id="qcPrio" aria-label="Priority"><option value="">No priority</option>'+
+        QA_PRIO.map(x=>'<option value="'+x[0]+'"'+(v.prio===x[0]?" selected":"")+'>'+esc(x[1])+'</option>').join("")+'</select></div>';
+  }else if(v.kind==="routine"){
+    const reps=[["day","Every day"],["weekdays","Weekdays"],["week","Every "+dayName]];
+    rows=when+
+      '<div class="qc-row">'+icon("i-repeat","ic-16 qc-ic")+'<div class="qc-reps" role="radiogroup" aria-label="Repeats">'+reps.map(x=>
+        '<button type="button" role="radio" aria-checked="'+(v.rep===x[0])+'" class="qc-rep'+(v.rep===x[0]?" on":"")+'" data-act="qc-rep" data-v="'+x[0]+'">'+esc(x[1])+'</button>').join("")+'</div></div>'+
+      catRow;
+  }else{
+    rows=when+'<p class="qc-note">'+icon("i-moon","ic-14")+'Shown on your calendar as time you are not free.</p>';
+  }
+  const editing=v.kind==="away"&&v.id;
+  p.setAttribute("aria-label",editing?"Unavailable time":"New "+(v.kind==="away"?"unavailable time":v.kind));
+  p.innerHTML='<div class="qc-top"><span class="spacer" style="flex:1"></span>'+
+      (editing?'<button type="button" class="icon-btn btn-sm" data-act="qc-del" aria-label="Delete" title="Delete">'+icon("i-trash","ic-14")+'</button>':"")+
+      '<button type="button" class="icon-btn btn-sm" data-act="qc-close" aria-label="Close" title="Close">'+icon("i-x","ic-14")+'</button></div>'+
+    '<input class="qc-title" id="qcTitle" value="'+esc(v.title)+'" maxlength="200" autocomplete="off" placeholder="'+(v.kind==="task"?"Add a task":v.kind==="routine"?"Name the routine":"Unavailable")+'" aria-label="Name">'+
+    (editing?"":'<div class="qc-kinds" role="tablist" aria-label="What to make">'+kinds.map(k=>
+      '<button type="button" role="tab" aria-selected="'+(v.kind===k[0])+'" class="qc-kind'+(v.kind===k[0]?" on":"")+'" data-act="qc-kind" data-v="'+k[0]+'">'+esc(k[1])+'</button>').join("")+'</div>')+
+    '<div class="qc-rows">'+rows+'</div>'+
+    '<div class="qc-foot">'+(v.kind!=="away"?'<button type="button" class="linkish" data-act="qc-more">More options</button>':"")+'<span class="spacer" style="flex:1"></span>'+
+      '<button type="button" class="btn btn-primary btn-sm" data-act="qc-save">Save</button></div>';
+}
+/* Beside the stretch drawn: to its right where there is room, else its left. */
+function qcPlace(){
+  const p=QC.el;if(!p)return;
+  const a=QC.anchor&&QC.anchor.isConnected?QC.anchor.getBoundingClientRect():null;
+  const w=p.offsetWidth,h=p.offsetHeight;
+  let left=innerWidth/2-w/2,top=innerHeight/2-h/2;
+  if(a){left=a.right+10;if(left+w>innerWidth-10)left=a.left-10-w;if(left<10)left=Math.max(10,Math.min(innerWidth-w-10,a.left));
+    top=Math.min(Math.max(10,a.top-24),innerHeight-h-10);}
+  p.style.left=Math.round(left)+"px";p.style.top=Math.round(Math.max(10,top))+"px";
+}
+function qcSave(){
+  const v=qcRead();if(!v)return;
+  const title=(v.title||"").trim();
+  if(v.kind==="task"){
+    if(!title){toast("Give the task a name");el("qcTitle").focus();return;}
+    const f={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[v.prio]||[null,null];
+    const t=newTask({title:title,status:firstOpen(),cat:v.cat||(S.categories.find(c=>c.id==="other")||S.categories[0]).id,
+      due:v.date,dueTime:v.start,endTime:hm2m(v.end)>hm2m(v.start)?v.end:"",urgent:f[0],important:f[1]});
+    S.tasks.push(t);logAct(t.id,"created","Created this task");save("tasks");toast("Task added");
+  }else if(v.kind==="routine"){
+    if(!title){toast("Give the routine a name");el("qcTitle").focus();return;}
+    const dow=parseD(v.date).getDay();
+    const days=v.rep==="day"?[1,2,3,4,5,6,0]:v.rep==="weekdays"?[1,2,3,4,5]:[dow];
+    S.routines.push({id:uid("r"),title:title,cat:v.cat||S.categories[0].id,freq:"weekly",days:days,every:2,time:v.start,
+      dur:Math.max(5,hm2m(v.end)-hm2m(v.start)||30),start:v.date,end:"",active:true,remind:null,note:""});
+    save("routines");toast("Routine added");
+  }else{
+    const x={date:v.date,start:v.start,end:hm2m(v.end)>hm2m(v.start)?v.end:m2hm(Math.min(24*60-1,hm2m(v.start)+60)),title:title||AWAY_DEF};
+    if(v.id){const a=awayList().find(a=>a.id===v.id);if(a)Object.assign(a,x);}
+    else awayList().push(Object.assign({id:uid("a")},x));
+    save("prefs");toast(v.id?"Updated":"Marked as unavailable");
+  }
+  qcClose();render();
+}
+function qcMore(){
+  const v=qcRead();if(!v)return;const title=(v.title||"").trim();
+  qcClose(v.kind==="task");
+  if(v.kind==="task"){
+    const f={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[v.prio]||[null,null];
+    openSheet(null,Object.assign({title:title,due:v.date,dueTime:v.start,endTime:v.end,status:firstOpen(),urgent:f[0],important:f[1]},v.cat?{cat:v.cat}:{}));
+    const ti=el("shTitle");if(ti){ti.focus();if(title)ti.setSelectionRange(title.length,title.length);}
+  }else if(v.kind==="routine"){
+    const dow=parseD(v.date).getDay();
+    routineModal(null,{title:title,cat:v.cat||S.categories[0].id,time:v.start,dur:Math.max(5,hm2m(v.end)-hm2m(v.start)||30),start:v.date,
+      days:v.rep==="day"?[1,2,3,4,5,6,0]:v.rep==="weekdays"?[1,2,3,4,5]:[dow]});
+  }
+}
+function awayOpen(id,anchor){
+  const a=awayList().find(x=>x.id===id);if(!a)return;
+  qcOpen({kind:"away",id:a.id,title:a.title===AWAY_DEF?"":a.title,date:a.date,start:a.start,end:a.end},anchor);
+}
+document.addEventListener("mousedown",function(e){
+  if(!QC.el)return;const t=e.target;
+  if(QC.el.contains(t)||(t.closest&&t.closest(".pk,.catmenu,.cpk")))return;
+  qcClose();
+},true);
+document.addEventListener("keydown",function(e){
+  if(!QC.el)return;
+  if(e.key==="Escape"&&!PK.el&&!CM.el){e.preventDefault();qcClose();return;}
+  if(e.key==="Enter"&&e.target&&e.target.id==="qcTitle"&&!e.isComposing){e.preventDefault();qcSave();}
+});
+addEventListener("resize",()=>{if(QC.el)qcPlace();});
 
 /* A cell shows this many lines before the rest fold into "+N more". Four
    fits a six-week month on an ordinary laptop screen. */
@@ -909,6 +1059,9 @@ function monthGrid(){
       .concat(gd.timed.filter(x=>hit(x.g.title)).map(x=>({start:x.start,
         html:'<button class="mline ev" style="--c:'+x.g.color+'" data-act="gcal-ev" data-id="'+esc(x.g.id)+'" data-stop="1">'+
           '<i class="mline-dot"></i><span class="mline-t num">'+esc(clock(x.start))+'</span><span class="mline-n">'+esc(x.g.title)+'</span></button>'})))
+      .concat(awayOn(s).filter(a=>hit(a.title)).map(a=>({start:hm2m(a.start),
+        html:'<button class="mline away" data-act="away-open" data-id="'+a.id+'" data-stop="1">'+
+          '<i class="mline-dot"></i><span class="mline-t num">'+esc(clock(hm2m(a.start)))+'</span><span class="mline-n">'+esc(a.title)+'</span></button>'})))
       .concat(tasksFor(s).filter(t=>timedOn(t,s)).map(t=>({start:tSpan(t).start,
         html:'<button class="mline'+(isDoneT(t)?" done":"")+'" style="--c:'+cat(t.cat).color+'" data-act="task" data-id="'+t.id+'" data-stop="1">'+
           '<i class="mline-dot sq"></i><span class="mline-t num">'+esc(fmtTime(t.dueTime))+'</span><span class="mline-n">'+esc(t.title)+'</span></button>'})))
@@ -3436,34 +3589,48 @@ function subRow(s){return '<div class="sub-row'+(s.d?" done":"")+'" data-sid="'+
   '<button class="tick'+(s.d?" on":"")+'" data-act="sub-toggle" aria-label="Toggle subtask">'+icon("i-check")+'</button>'+
   '<span class="t"><input value="'+esc(s.t)+'" placeholder="Subtask"></span>'+
   '<button class="rowbtn" style="opacity:1" data-act="sub-del" aria-label="Remove subtask">'+icon("i-x","ic-14")+'</button></div>';}
-function routineModal(id){
-  const r=id?routineById(id):{id:"",title:"",cat:S.categories[0].id,freq:"weekly",days:[1,2,3,4,5],every:2,time:"09:00",dur:30,start:TODAY(),end:"",active:true,note:""};
+/* A routine in one short form: its name, when and for how long, and how it
+   repeats. Only the repeat chosen shows what it needs -- the days for
+   Chosen days, the gap for Every few days -- and the rest (reminder, start
+   and end, paused) waits behind More options, open already when editing a
+   routine that uses any of it. */
+function routineModal(id,preset){
+  const r=id?routineById(id):Object.assign({id:"",title:"",cat:S.categories[0].id,freq:"weekly",days:[1,2,3,4,5],every:2,time:"09:00",dur:30,start:TODAY(),end:"",active:true,note:""},preset||{});
   if(!r)return;
-  openModal('<div class="modal" role="dialog" aria-modal="true" aria-label="Routine">'+
+  const days=r.days||[],wk=days.length===5&&[1,2,3,4,5].every(x=>days.indexOf(x)>-1);
+  const rep=r.freq==="interval"?"interval":days.length===7?"daily":wk?"weekdays":"weekly";
+  const more=!!id&&(r.remind!=null||!!r.end||!r.active||r.start>TODAY());
+  const durs=[5,10,15,20,30,45,60,90,120,180];if(durs.indexOf(r.dur)<0)durs.push(r.dur);durs.sort((a,b)=>a-b);
+  openModal('<div class="modal rt-modal" role="dialog" aria-modal="true" aria-label="Routine">'+
     '<div class="mhead2"><h2>'+(id?"Edit routine":"New routine")+'</h2>'+
     (id?'<button class="btn btn-sm btn-ghost btn-danger" data-act="routine-delete" data-id="'+id+'">'+icon("i-trash","ic-14")+'Delete</button>':"")+
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody">'+
-    field("Routine",'<input class="inp" id="rTitle" value="'+esc(r.title)+'" placeholder="Skincare routine, stand-up, weekly review…">')+
-    '<div class="grid3">'+
-      field("Category",catSelect('class="inp" id="rCat"',r.cat))+
-      field("Time",timeField('id="rTime"',r.time,{label:"Time",req:1}))+
-      field("Minutes",'<input class="inp" type="number" min="5" step="5" id="rDur" value="'+(r.dur||30)+'">')+
+    '<div class="mbody rt-body">'+
+    '<input class="rt-title" id="rTitle" value="'+esc(r.title)+'" maxlength="120" placeholder="Name it: skincare, stand-up, weekly review…" aria-label="Routine name">'+
+    '<div class="rt-line">'+
+      '<label class="rt-bit"><span>At</span>'+timeField('id="rTime"',r.time,{label:"Time",req:1})+'</label>'+
+      '<label class="rt-bit"><span>For</span><select class="inp" id="rDur" aria-label="How long">'+durs.map(m=>'<option value="'+m+'"'+(m===r.dur?" selected":"")+'>'+esc(fmtMins(m))+'</option>').join("")+'</select></label>'+
+      '<label class="rt-bit rt-cat"><span>In</span>'+catSelect('class="inp" id="rCat" aria-label="Category"',r.cat)+'</label>'+
     '</div>'+
-    field("Reminder",'<select class="inp" id="rRemind">'+remindOptions(r)+'</select>')+
-    field("Repeats",'<div class="pickers" id="rFreq">'+
-      ['daily|Every day','weekdays|Weekdays','weekly|Chosen days','interval|Every N days'].map(o=>{const[v,l]=o.split("|");
-        const on=(v==="daily"&&r.freq==="weekly"&&(r.days||[]).length===7)||(v==="weekdays"&&r.freq==="weekly"&&(r.days||[]).length===5&&[1,2,3,4,5].every(x=>r.days.indexOf(x)>-1))||(v==="weekly"&&r.freq==="weekly"&&!((r.days||[]).length===7||((r.days||[]).length===5&&[1,2,3,4,5].every(x=>r.days.indexOf(x)>-1))))||(v==="interval"&&r.freq==="interval");
-        return '<button class="pick'+(on?" on":"")+'" data-act="r-freq" data-v="'+v+'">'+l+'</button>';}).join("")+'</div>')+
-    '<div class="grid2"><div class="field" id="rDaysWrap"><label>Days of the week</label><div class="dow-pick" id="rDays">'+
-      [1,2,3,4,5,6,0].map((d,i)=>'<button class="'+((r.days||[]).indexOf(d)>-1?"on":"")+'" data-act="r-day" data-v="'+d+'">'+DOWS[i][0]+'</button>').join("")+'</div></div>'+
-      field("Every N days",'<input class="inp" type="number" min="1" max="60" id="rEvery" value="'+(r.every||2)+'">')+'</div>'+
-    '<div class="grid2">'+field("Starts",dateField('id="rStart"',r.start||TODAY(),{label:"Starts",req:1}))+
-      field("Ends (optional)",dateField('id="rEnd"',r.end,{label:"Ends",ph:"No end date"}))+'</div>'+
-    field("Active",'<div class="pickers"><button class="pick'+(r.active?" on":"")+'" data-act="r-active">'+icon("i-repeat")+'<span id="rActiveLbl">'+(r.active?"Running":"Paused")+'</span></button></div>')+
+    '<div class="rt-sec"><div class="rt-lab">Repeats</div><div class="rt-seg" role="radiogroup" aria-label="Repeats" id="rFreq">'+
+      [["daily","Every day"],["weekdays","Weekdays"],["weekly","Chosen days"],["interval","Every few days"]].map(x=>
+        '<button type="button" role="radio" aria-checked="'+(rep===x[0])+'" class="rt-opt'+(rep===x[0]?" on":"")+'" data-act="r-freq" data-v="'+x[0]+'">'+x[1]+'</button>').join("")+'</div>'+
+      '<div class="rt-sub" id="rDaysWrap"'+(rep==="weekly"?"":" hidden")+'><div class="dow-pick" id="rDays">'+
+        [1,2,3,4,5,6,0].map((d,i)=>'<button type="button" class="'+(days.indexOf(d)>-1?"on":"")+'" data-act="r-day" data-v="'+d+'" aria-pressed="'+(days.indexOf(d)>-1)+'" aria-label="'+DOWS[i]+'">'+DOWS[i][0]+'</button>').join("")+'</div></div>'+
+      '<div class="rt-sub rt-every" id="rEveryWrap"'+(rep==="interval"?"":" hidden")+'><span>Every</span><input class="inp" type="number" min="2" max="60" id="rEvery" value="'+Math.max(2,r.every||2)+'" aria-label="Number of days"><span>days, from the start date</span></div>'+
+    '</div>'+
+    '<details class="rt-more"'+(more?" open":"")+'><summary>'+icon("i-chev-r","ic-14")+'More options</summary>'+
+      '<div class="rt-more-in">'+
+        field("Reminder",'<select class="inp" id="rRemind">'+remindOptions(r)+'</select>')+
+        '<div class="grid2">'+field("Starts",dateField('id="rStart"',r.start||TODAY(),{label:"Starts",req:1}))+
+          field("Ends",dateField('id="rEnd"',r.end,{label:"Ends",ph:"Never"}))+'</div>'+
+        (id?'<label class="rt-switch"><span><b>Paused</b><small>Kept, but not on your calendar or reminded</small></span>'+
+          '<span class="switch"><input type="checkbox" id="rPaused"'+(r.active?"":" checked")+' aria-label="Paused"><span></span></span></label>':"")+
+      '</div></details>'+
     '</div><div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Cancel</button>'+
-    '<button class="btn btn-primary" data-act="routine-save" data-id="'+(id||"")+'">'+icon("i-check")+'Save routine</button></div></div>');
+    '<button class="btn btn-primary" data-act="routine-save" data-id="'+(id||"")+'">'+icon("i-check")+(id?"Save":"Add routine")+'</button></div></div>');
   const M=el("modalRoot");M.dataset.freq=r.freq;M.dataset.active=String(!!r.active);
+  if(!id){const t=el("rTitle");if(t)t.focus();}
 }
 /* ---- editing categories ----
    One window, one row a category, changed where it is: drag the handle to
@@ -3680,7 +3847,7 @@ function saveRoutine(id){
   const freq=M.dataset.freq==="interval"?"interval":"weekly";
   const data={title:title,cat:el("rCat").value,time:el("rTime").value||"09:00",dur:Math.max(5,Number(el("rDur").value)||30),
     freq:freq,days:freq==="interval"?[]:days,every:Math.max(1,Number(el("rEvery").value)||2),
-    start:el("rStart").value||TODAY(),end:el("rEnd").value||"",active:M.dataset.active!=="false",
+    start:el("rStart").value||TODAY(),end:el("rEnd").value||"",active:el("rPaused")?!el("rPaused").checked:M.dataset.active!=="false",
     remind:(v=>v==="d"?null:v==="off"?false:Number(v))(el("rRemind").value)};
   if(freq==="weekly"&&!days.length){toast("Pick at least one day");return;}
   let r=id?routineById(id):null;
@@ -3902,6 +4069,13 @@ document.addEventListener("click",function(e){
       const v=n.dataset.v;t.urgent=v==="do"||v==="delegate";t.important=v==="do"||v==="decide";
       save("tasks");render();toast("Moved to "+(QUADS.find(q=>q.id===v)||{}).name);break;}
     case "new-routine":routineModal(null);break;
+    case "qc-kind":qcRead();QC.v.kind=n.dataset.v;qcDraw();qcPlace();{const t=el("qcTitle");if(t)t.focus();}break;
+    case "qc-rep":qcRead();QC.v.rep=n.dataset.v;qcDraw();break;
+    case "qc-close":qcClose();break;
+    case "qc-save":qcSave();break;
+    case "qc-more":qcMore();break;
+    case "qc-del":{const v=QC.v;if(v&&v.id){S.prefs.away=awayList().filter(a=>a.id!==v.id);save("prefs");qcClose();render();toast("Deleted");}break;}
+    case "away-open":awayOpen(id,n);break;
     case "routine":case "routine-edit":routineModal(id);break;
     case "routine-save":saveRoutine(id||null);break;
     case "routine-delete":if(arm(n,"Delete for good?")){S.routines=S.routines.filter(r=>r.id!==id);save("routines");
@@ -3915,13 +4089,13 @@ document.addEventListener("click",function(e){
       else S.completions[k]=true;
       save("completions");render();break;}
     case "r-freq":{const v=n.dataset.v;M.dataset.freq=v==="interval"?"interval":"weekly";
-      M.querySelectorAll('[data-act="r-freq"]').forEach(b=>b.classList.toggle("on",b===n));
+      M.querySelectorAll('[data-act="r-freq"]').forEach(b=>{b.classList.toggle("on",b===n);b.setAttribute("aria-checked",String(b===n));});
       const days=M.querySelectorAll("#rDays button");
       if(v==="daily")days.forEach(b=>b.classList.add("on"));
       if(v==="weekdays")days.forEach(b=>b.classList.toggle("on",["1","2","3","4","5"].indexOf(b.dataset.v)>-1));
-      el("rDaysWrap").style.opacity=v==="interval"?".4":"1";break;}
-    case "r-day":n.classList.toggle("on");break;
-    case "r-active":{const on=M.dataset.active!=="false";M.dataset.active=String(!on);n.classList.toggle("on",!on);el("rActiveLbl").textContent=!on?"Running":"Paused";break;}
+      el("rDaysWrap").hidden=v!=="weekly";el("rEveryWrap").hidden=v!=="interval";break;}
+    case "r-day":n.classList.toggle("on");n.setAttribute("aria-pressed",String(n.classList.contains("on")));break;
+    case "r-active":{const on=M.dataset.active!=="false";M.dataset.active=String(!on);n.classList.toggle("on",on);n.setAttribute("aria-checked",String(on));break;}
     case "manage-cats":V.catEdit={};catsModal();break;
     case "cm-part":{const E=V.catEdit||{};V.catEdit=(E.id===id&&E.part===n.dataset.v)?{}:{id:id,part:n.dataset.v};catsModal();
       const b=document.querySelector('.cm-row[data-cat="'+id+'"] [data-act="cm-part"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});break;}
@@ -4234,6 +4408,8 @@ document.addEventListener("change",function(e){
   const cs=t.tagName==="SELECT"&&t.closest(".catsel");
   if(cs){const c=t.value?cat(t.value):null;cs.style.setProperty("--c",c?c.color:"transparent");cs.classList.toggle("none",!c);}
   if(t.id==="importFile"){importPicked(t.files&&t.files[0]);return;}
+  if(t.id==="qcStart"&&QC.v){const v=QC.v,len=Math.max(15,hm2m(v.end)-hm2m(v.start));qcRead();v.start=t.value;v.end=m2hm(Math.min(24*60-1,hm2m(v.start)+len));qcDraw();return;}
+  if(QC.v&&(t.id==="qcEnd"||t.id==="qcDate"||t.id==="qcDur")){qcRead();qcDraw();return;}
   if(t.id==="dashQuickCat"){S.prefs.quickCat=t.value;save("prefs");return;}
   if(t.dataset&&t.dataset.act==="gcal-cal"){
     gcalPrefs().cals[t.dataset.id]=t.checked;save("prefs");GC.from="";
