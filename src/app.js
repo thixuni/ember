@@ -480,6 +480,9 @@ const ES_ART={
     '<path d="M48 22v-8M26 32l-5-5M70 32l5-5M18 44h-6M84 44h-6" class="es-hl"/><path d="M24 60h16M52 60h22" class="es-l es-dash"/>',
   history:'<circle cx="50" cy="38" r="20" class="es-f"/><path d="M50 26v12l8 5" class="es-hl"/>'+
     '<path d="M24 26a28 28 0 0 0-2 12" class="es-l es-dash"/><circle cx="20" cy="46" r="2.5" class="es-dot"/><circle cx="16" cy="56" r="2" class="es-dot"/>',
+  subs:'<rect x="26" y="12" width="42" height="46" rx="7" class="es-f"/><rect x="33" y="21" width="7" height="7" rx="2" class="es-h"/><path d="m34.5 24.5 1.6 1.6 3-3.2" class="es-on"/>'+
+    '<rect x="33" y="32" width="7" height="7" rx="2" class="es-l"/><rect x="33" y="43" width="7" height="7" rx="2" class="es-l"/><path d="M45 24.5h15M45 35.5h12M45 46.5h14" class="es-l"/>'+
+    '<circle cx="66" cy="54" r="10" class="es-h"/><path d="M62 54h8M66 50v8" class="es-on"/>',
   doc:'<rect x="30" y="12" width="36" height="46" rx="6" class="es-f"/><path d="M38 26h20M38 34h20M38 42h12" class="es-l"/><circle cx="66" cy="54" r="10" class="es-h"/><path d="M62 54h8M66 50v8" class="es-on"/>',
   board:'<rect x="14" y="16" width="20" height="44" rx="5" class="es-f"/><rect x="38" y="16" width="20" height="44" rx="5" class="es-f"/>'+
     '<rect x="62" y="16" width="20" height="44" rx="5" class="es-f"/><rect x="40" y="22" width="16" height="10" rx="3" class="es-h"/>'
@@ -1609,12 +1612,13 @@ function kidRow(k){
 function subtasksSection(t,isNew){
   const light=t.subtasks||[],k=t.id?kidsOf(t.id):NONE,full=!!board().fullSubs,p=subProgress(t);
   let h='<div class="sh-sec"><label class="sec-label">Subtasks'+(p.n?' <span class="num">'+p.d+'/'+p.n+'</span>':"")+'</label>';
+  const none=!light.length&&!k.length?es("subs","No subtasks yet","Break it into smaller steps you can tick off one by one.",{mini:1,hue:"var(--accent)"}):"";
   if(full&&!isNew){
-    h+=(k.length?'<div class="kids">'+k.map(kidRow).join("")+'</div>':"")+
+    h+=none+(k.length?'<div class="kids">'+k.map(kidRow).join("")+'</div>':"")+
       (light.length?'<div id="shSubs">'+light.map(subRow).join("")+'</div>':"")+
       '<div class="kid-add">'+icon("i-plus","ic-14")+'<input id="shKid" autocomplete="off" placeholder="Add a subtask, then press Enter" aria-label="New subtask"></div>';
   }else{
-    h+='<div id="shSubs">'+light.map(subRow).join("")+'</div>'+
+    h+=none+'<div id="shSubs">'+light.map(subRow).join("")+'</div>'+
       (k.length?'<div class="kids">'+k.map(kidRow).join("")+'</div>':"")+
       '<button class="btn btn-sm" data-act="sh-sub-add" style="margin-top:8px">'+icon("i-plus","ic-14")+'Add subtask</button>';
   }
@@ -3470,7 +3474,7 @@ document.addEventListener("click",function(e){
     case "task-done":toggleTaskDone(id);break;
     case "new-task":openSheet(null,{due:n.dataset.date||"",status:n.dataset.status||firstOpen()});break;
     case "task-delete":if(arm(n,"Delete for good?")){closeModal();deleteTask(id);}break;
-    case "sh-sub-add":{const w=el("shSubs");w.insertAdjacentHTML("beforeend",subRow({id:uid("s"),t:"",d:false}));w.lastElementChild.querySelector("input").focus();break;}
+    case "sh-sub-add":{const w=el("shSubs"),e=w.parentNode.querySelector(":scope > .es");if(e)e.remove();w.insertAdjacentHTML("beforeend",subRow({id:uid("s"),t:"",d:false}));w.lastElementChild.querySelector("input").focus();break;}
     case "sub-toggle":n.classList.toggle("on");n.closest(".sub-row").classList.toggle("done");commitSubs();break;
     case "sub-del":n.closest(".sub-row").remove();commitSubs();break;
 
