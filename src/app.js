@@ -622,7 +622,7 @@ function catChip(id,kind,of){const c=cat(id);
   return '<span class="chip chip-cat" style="--c:'+c.color+'">'+icon(c.icon)+esc(c.name)+'</span>';}
 /* ---- changing a category from its pill ---- */
 const CM={el:null,btn:null};
-function catMenuClose(){if(CM.el){CM.el.remove();CM.el=null;}if(CM.btn){CM.btn.setAttribute("aria-expanded","false");CM.btn=null;}}
+function catMenuClose(){CM.pick=null;CM.items=null;if(CM.el){CM.el.remove();CM.el=null;}if(CM.btn){CM.btn.setAttribute("aria-expanded","false");CM.btn=null;}}
 function catOf(kind,id){const x=kind==="task"?taskById(id):kind==="routine"?S.routines.find(r=>r.id===id):S.notes.find(n=>n.id===id);return x||null;}
 function catMenu(btn){
   if(CM.btn===btn){catMenuClose();return;}
@@ -1466,31 +1466,52 @@ function viewBoard(){
       (V.qa&&V.qa.lane===s.id?qaCard():'<button class="addcard" data-act="qa-open" data-status="'+s.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>';}).join("")+'</div></div></div>';
 }
 /* ---- adding tasks in a lane ----
-   "Add task" at the foot of a lane opens a small card there: the name, then
-   the few things most tasks get (a start date, a priority, a category, a
-   tag), each shown only if Customise has it on. Enter adds the task and
-   leaves the card open and empty for the next, keeping the date and the
-   category, so a run of tasks goes in without leaving the board. The side
-   panel is for the rest, opened from the card. V.qa holds what is typed, so
-   a redraw keeps it. */
-const QA_PRIO=[["","No priority"],["do","Do first"],["decide","Schedule"],["delegate","Delegate"],["drop","Eliminate"]];
+   "Add task" at the foot of a lane opens a small card there, kept as plain
+   as a name: the name, then two dashed pills (category and priority, empty
+   until picked), then small round icons for whichever of start date, due
+   date, estimate and files are switched on, each showing its value once
+   set. Enter adds the task and leaves the card open and empty for the next,
+   keeping the date and the category, so a run of tasks goes in without
+   leaving the board. The side panel is for the rest. V.qa holds what is
+   typed and picked, so a redraw keeps it. */
+const QA_PRIO=[["do","Do first"],["decide","Schedule"],["delegate","Delegate"],["drop","Eliminate"]];
+const QA_EST=[15,30,45,60,90,120,180,240,480];
 function qaCard(){
-  const q=V.qa;
+  const q=V.qa,c=q.cat?cat(q.cat):null,P=QA_PRIO.find(x=>x[0]===q.prio);
+  const pill=(act,ic,label,on,style)=>'<button type="button" class="qa-pill'+(on?" on":"")+'" data-act="'+act+'"'+(style||"")+' aria-haspopup="menu">'+ic+'<span>'+esc(label)+'</span></button>';
+  const dateIc=(id,ic,label,v)=>'<span class="pkf qa-icf"><button type="button" class="pk-btn qa-ic'+(v?" on":"")+'" data-act="pk-open" data-pk="date" data-ph="" data-label="'+label+'" title="'+label+'" aria-label="'+label+(v?": "+esc(pkDateText(v)):"")+'">'+
+    icon(ic,"ic-14")+'<span class="pk-val">'+(v?esc(pkDateText(v)):"")+'</span></button><input type="hidden" id="'+id+'" value="'+esc(v||"")+'"></span>';
+  const icons=[
+    feat("when")?dateIc("qaDue","i-calendar","Start date",q.due):"",
+    feat("deadline")?dateIc("qaDl","i-deadline","Due date",q.dl):"",
+    feat("estimate")?'<button type="button" class="qa-ic'+(q.est?" on":"")+'" data-act="qa-est" title="Estimate" aria-label="Estimate'+(q.est?": "+esc(fmtMins(q.est)):"")+'" aria-haspopup="menu">'+icon("i-timer","ic-14")+(q.est?'<span>'+esc(fmtMins(q.est))+'</span>':"")+'</button>':"",
+    feat("files")&&hasDesktop()?'<button type="button" class="qa-ic" data-act="qa-files" title="Create it and attach files" aria-label="Create it and attach files">'+icon("i-clip","ic-14")+'</button>':""].join("");
   return '<div class="qa" data-lane="'+q.lane+'">'+
-    '<input id="qaTitle" class="qa-title" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="Task name" value="'+esc(q.title||"")+'">'+
-    '<div class="qa-row">'+
-      (feat("when")?dateField('id="qaDue"',q.due||"",{sm:1,ph:"Start date",label:"Start date",cls:"qa-f"}):"")+
-      (feat("priority")?'<select id="qaPrio" class="inp inp-sm qa-f" aria-label="Priority">'+QA_PRIO.map(x=>'<option value="'+x[0]+'"'+((q.prio||"")===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select>':"")+
-      (feat("category")?catSelect('id="qaCat" class="inp inp-sm" aria-label="Category"',q.cat,{cls:"qa-f"}):"")+
-      (feat("tags")?'<input id="qaTag" class="inp inp-sm qa-f qa-tag" placeholder="Add a tag" maxlength="40" autocomplete="off" aria-label="Tag" value="'+esc(q.tag||"")+'">':"")+
-    '</div>'+
-    '<div class="qa-foot"><span class="spacer" style="flex:1"></span>'+
-      '<button type="button" class="btn btn-sm btn-ghost" data-act="qa-close">Cancel</button>'+
-      '<button type="button" class="btn btn-sm btn-primary" data-act="qa-save">'+icon("i-check","ic-14")+'Add</button></div></div>';
+    '<div class="qa-name"><span class="qa-dot" aria-hidden="true">'+icon("i-check","ic-12")+'</span>'+
+      '<input id="qaTitle" class="qa-title" placeholder="Write a task name" maxlength="200" autocomplete="off" aria-label="Task name" value="'+esc(q.title||"")+'"></div>'+
+    ((feat("category")||feat("priority"))?'<div class="qa-pills">'+
+      (feat("category")?pill("qa-cat",c?'<i class="qa-cdot" style="--c:'+c.color+'"></i>':icon("i-folder","ic-14"),c?c.name:"Category",!!c):"")+
+      (feat("priority")?pill("qa-prio",icon("i-flag","ic-14"),P?P[1]:"Priority",!!P):"")+'</div>':"")+
+    '<div class="qa-foot">'+icons+'<span class="spacer" style="flex:1"></span>'+
+      '<button type="button" class="btn btn-sm btn-primary qa-add" data-act="qa-save" title="Add (Enter)">'+icon("i-check","ic-14")+'Add</button></div></div>';
 }
+/* A short list under a pill or an icon, as the category pill's is. */
+function qaMenu(btn,items,cur,pick){
+  if(CM.btn===btn){catMenuClose();return;}
+  catMenuClose();pkClose();
+  const m=document.createElement("div");m.className="catmenu";m.setAttribute("role","menu");
+  m.innerHTML=items.map((x,i)=>'<button type="button" role="menuitemradio" aria-checked="'+(x.v===cur)+'" class="cm-opt'+(x.v===cur?" on":"")+(x.v===""?" cm-clear":"")+'" data-act="qa-pick" data-i="'+i+'"'+(x.color?' style="--c:'+x.color+'"':"")+'>'+
+    (x.color?'<i></i>':"")+'<span>'+esc(x.label)+'</span>'+(x.v===cur&&x.v!==""?icon("i-check","ic-14"):"")+'</button>').join("");
+  document.body.appendChild(m);CM.el=m;CM.btn=btn;CM.pick=v=>{catMenuClose();pick(v);};CM.items=items;
+  const r=btn.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  let top=r.bottom+6;if(top+h>innerHeight-8)top=Math.max(8,r.top-6-h);
+  m.style.left=Math.round(Math.min(Math.max(8,r.left),innerWidth-w-8))+"px";m.style.top=Math.round(top)+"px";
+  const on=m.querySelector(".cm-opt.on")||m.querySelector(".cm-opt");if(on)on.focus({preventScroll:true});
+}
+function qaSet(k,v){if(!V.qa)return;V.qa[k]=v;renderView();qaFocus();}
 function qaOpen(lane){
-  const c=S.categories.find(x=>visibleCat(x.id))||S.categories[0];
-  V.qa={lane:lane,title:"",due:"",prio:"",tag:"",cat:(V.qa&&V.qa.cat)||c.id};
+  const keep=V.qa||{};
+  V.qa={lane:lane,title:"",due:keep.due||"",dl:"",est:0,prio:"",cat:keep.cat||""};
   renderView();qaFocus();
 }
 function qaFocus(){const i=el("qaTitle");if(i){i.focus({preventScroll:true});i.setSelectionRange(i.value.length,i.value.length);
@@ -1498,9 +1519,9 @@ function qaFocus(){const i=el("qaTitle");if(i){i.focus({preventScroll:true});i.s
 /* Typing is kept as it happens; Enter adds, Esc closes; a click away from
    an empty card closes it. After a redraw the caret goes back where it was. */
 document.addEventListener("input",function(e){const t=e.target;if(!V.qa||!t)return;
-  if(t.id==="qaTitle")V.qa.title=t.value;else if(t.id==="qaTag")V.qa.tag=t.value;});
+  if(t.id==="qaTitle")V.qa.title=t.value;});
 document.addEventListener("keydown",function(e){const t=e.target;if(!V.qa||!t||!t.closest||!t.closest(".qa"))return;
-  if(e.key==="Enter"&&(t.id==="qaTitle"||t.id==="qaTag")){e.preventDefault();qaSave();}
+  if(e.key==="Enter"&&t.id==="qaTitle"){e.preventDefault();qaSave();}
   else if(e.key==="Escape"&&!PK.el){e.preventDefault();qaClose();}});
 document.addEventListener("focusin",function(e){if(V.qa)V.qa.at=e.target&&e.target.closest&&e.target.closest(".qa")?e.target.id||"":"";});
 document.addEventListener("mousedown",function(e){const t=e.target;if(!V.qa||!t||!t.closest)return;
@@ -1514,12 +1535,14 @@ function qaSave(){
   const title=(q.title||"").trim();
   if(!title){toast("Give the task a name");qaFocus();return;}
   const flags={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[q.prio]||[null,null];
-  const tag=(q.tag||"").trim().replace(/^#/,"");
-  const t=newTask({title:title,status:q.lane,cat:q.cat||S.categories[0].id,due:q.due||"",urgent:flags[0],important:flags[1],tags:tag?[tag]:[]});
+  /* No category picked: Other, where there is one. */
+  const fallback=(S.categories.find(c=>c.id==="other")||S.categories[0]).id;
+  const t=newTask({title:title,status:q.lane,cat:q.cat||fallback,due:q.due||"",deadline:q.dl||"",est:q.est||0,urgent:flags[0],important:flags[1]});
   if(isDoneT(t))t.completedAt=TODAY();
   S.tasks.push(t);logAct(t.id,"created","Created this task");save("tasks");
-  V.qa=Object.assign({},q,{title:"",prio:"",tag:""});
+  V.qa=Object.assign({},q,{title:"",prio:"",dl:"",est:0});
   render();qaFocus();
+  return t;
 }
 function viewList(){
   const list=filterTasks("list");
@@ -3568,6 +3591,12 @@ document.addEventListener("click",function(e){
     case "qa-open":qaOpen(n.dataset.status);break;
     case "qa-save":qaSave();break;
     case "qa-close":qaClose();break;
+    case "qa-cat":qaMenu(n,[{v:"",label:"No category"}].concat(S.categories.map(c=>({v:c.id,label:c.name,color:c.color}))),V.qa.cat||"",v=>qaSet("cat",v));break;
+    case "qa-prio":qaMenu(n,[{v:"",label:"No priority"}].concat(QA_PRIO.map(x=>({v:x[0],label:x[1]}))),V.qa.prio||"",v=>qaSet("prio",v));break;
+    case "qa-est":qaMenu(n,[{v:0,label:"No estimate"}].concat(QA_EST.map(m=>({v:m,label:fmtMins(m)}))),V.qa.est||0,v=>qaSet("est",v));break;
+    case "qa-pick":if(CM.pick&&CM.items){const x=CM.items[Number(n.dataset.i)];if(x)CM.pick(x.v);}break;
+    case "qa-files":{if(!(V.qa.title||"").trim()){toast("Name the task first");qaFocus();break;}
+      const t=qaSave();if(t){openSheet(t.id);pickAttachment();}break;}
     case "cat-pick":catMenu(n);break;
     case "cat-set":catSet(n.dataset.kind,n.dataset.id,n.dataset.v);break;
     case "cz-subs":{const on=n.dataset.v==="full";if(!!board().fullSubs===on)break;
@@ -4032,7 +4061,7 @@ document.addEventListener("change",function(e){
     save("prefs");renderSheet();render();customiseModal();
     const f=document.querySelector('.cz [data-act="cz-where"][data-k="'+k+'"][data-w="'+w+'"]');if(f)f.focus({preventScroll:true});
     return;}
-  if(V.qa&&(t.id==="qaDue"||t.id==="qaPrio"||t.id==="qaCat")){V.qa[{qaDue:"due",qaPrio:"prio",qaCat:"cat"}[t.id]]=t.value;return;}
+  if(V.qa&&(t.id==="qaDue"||t.id==="qaDl")){V.qa[t.id==="qaDue"?"due":"dl"]=t.value;renderView();qaFocus();return;}
   if(t.dataset&&t.dataset.act==="sh-est"){const cur=sheetTask()||{},n=Math.max(0,parseFloat(t.value)||0);
     patchCurrent({est:Math.round(estUnit(cur)==="h"?n*60:n)});return;}
   if(t.dataset&&t.dataset.act==="sh-set"){

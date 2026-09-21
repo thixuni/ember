@@ -297,12 +297,14 @@ goes with backups and Drive like any setting.
   history. Changing a field's type, or taking options away, clears values
   that no longer fit.
 - **Adding in a lane.** "Add task" at a lane's foot opens a card there
-  (`qaCard()`, `V.qa`): the name, then start date, priority, category and a
-  tag, each only if its switch is on. Enter adds the task and leaves the card
-  open and empty, keeping the date and category, so a run goes in without
-  leaving the board; Esc or a click away from an empty card closes it. What
-  is typed lives on `V.qa`, and `renderView()` puts the caret back
-  (`qaRefocus()`). The side panel is the detail and edit view.
+  (`qaCard()`, `V.qa`), kept as plain as a name: the name; category and
+  priority as dashed pills, empty until picked (`qaMenu()`); then round
+  icons for start date, due date, estimate and files, each only if its
+  switch is on, showing its value once set. No category picked means Other.
+  Enter adds the task and leaves the card open, keeping the date and
+  category; Esc or a click away from an empty card closes it. Files creates
+  the task first (a file needs a task to belong to). `renderView()` puts
+  the caret back (`qaRefocus()`). The side panel is the detail and edit view.
 - **A category pill is a button** where it belongs to a task or routine
   (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
   list of categories (`catMenu()`) and changes it in place.
