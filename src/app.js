@@ -2788,7 +2788,7 @@ function accentPickHtml(plain){
 function settingsModal(){
   const n=S.tasks.length+S.routines.length+S.notes.length;
   const p=S.prefs||{};
-  const tab=SET_TABS.some(t=>t.id===V.setTab)?V.setTab:"appearance";
+  const tab=SET_TABS.some(t=>t.id===V.setTab)?V.setTab:"account";
 
   const sec=(title,body)=>'<div class="set-sec"><h3>'+esc(title)+'</h3>'+body+'</div>';
   const field=(label,control,help)=>'<div class="set-field">'+
@@ -3577,7 +3577,7 @@ document.addEventListener("click",function(e){
       driveFind().then(f=>f?driveRead(f.id):null).then(d=>{const data=d&&(d.data||d);
         if(!data||!Array.isArray(data.tasks)){toast("There is no backup in your Drive yet");return;}
         applyBackup(data);closeModal();toast("Restored from Google Drive");}).catch(e=>toast(e.message));}break;
-    case "settings":V.setTab="appearance";settingsModal();break;
+    case "settings":V.setTab="account";settingsModal();break;
     case "set-tab":V.setTab=n.dataset.v;settingsModal();break;
     case "set-theme":S.prefs.theme=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();panels();break;
     case "set-accent":S.prefs.accent=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();panels();break;
