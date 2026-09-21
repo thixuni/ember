@@ -444,8 +444,8 @@ created, replaced rather than added to when someone goes back and forth.
   file name or a key (the accent picker hides its hex here: `accentPickHtml(true)`).
   The previews carry no captions; they speak for themselves.
 - The routines setup suggests (`OB_RT`) are the default set, like the five
-  categories: the step starts with all six picked, and a planner that never
-  chose (setup skipped, or begun before) is given them once by
+  categories: the step starts with none picked and what it ends with is the
+  person's choice; a planner begun before setup offered them is given them once by
   `fixRoutines()` in `render()`, held back while setup is needed or open.
   `prefs.rtSeeded` marks the choice made, so an emptied list stays empty.
 - On the routines step a card only picks a routine; its days and length are

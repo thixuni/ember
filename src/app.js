@@ -194,8 +194,9 @@ function fixCats(){
   ["categories","tasks","routines","notes","prefs"].forEach(k=>save(k));
 }
 /* The routines setup suggests are the default set, the way the five
-   categories are. A planner that never chose any (setup skipped, or begun
-   before this) gets them once; one that has routines, or chose in setup,
+   categories are. A planner begun before setup offered them gets them
+   once (setup itself starts with none picked, and whatever it ends with
+   is the person's choice); one that has routines, or chose in setup,
    keeps what it has, and emptying the list later is a choice too. Held
    back while setup is on screen, which makes this choice itself. */
 function fixRoutines(){
@@ -2089,6 +2090,8 @@ function obGo(step){
 const obNext=()=>{const s=obSteps();return s[s.indexOf(OB.step)+1]||null;};
 const obPrev=()=>{const s=obSteps();return s[s.indexOf(OB.step)-1]||null;};
 function obFinish(){
+  /* Whoever went through setup chose their routines there, none included. */
+  if(obSteps().indexOf("routines")>-1)S.prefs.rtSeeded=true;
   S.prefs.onboard={done:true};S.prefs.setup=true;save("prefs");
   OB.open=false;const r=el("obRoot");if(r)r.remove();
   document.body.classList.remove("ob-open");
@@ -2371,7 +2374,7 @@ const OB_RT=[
   {k:"review",title:"Weekly review",cat:"goals",days:[5],time:"16:00",dur:45,ic:"i-target"},
   {k:"cook",title:"Cook dinner",cat:"personal",days:[0,1,2,3,4,5,6],time:"19:00",dur:45,ic:"i-pot"}];
 function obRt(){
-  if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:true},x));
+  if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:false},x));
   return OB.rt;
 }
 const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
