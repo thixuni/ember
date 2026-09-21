@@ -362,7 +362,7 @@ function toggleCat(id,force){
   if(show){if(i>-1)h.splice(i,1);}else if(i===-1)h.push(id);
   touched.prefs=true;save("prefs");render();refreshCatsModal();
 }
-function refreshCatsModal(){const r=el("modalRoot");if(r&&r.querySelector('[data-act="cat-del"]'))catsModal();}
+function refreshCatsModal(){const r=el("modalRoot");if(r&&r.querySelector("#cmList"))catsModal();}
 /* ---- lookups ----
    One pass over each big list, kept until the data changes, instead of a
    scan per card, per day or per row: a year in, the board was counting 8,000
@@ -560,9 +560,8 @@ function renderRail(){
       (a?'<b class="nav-alert num" aria-label="'+esc(a.label)+'">'+a.n+'</b>':'')+'</button>';}).join("");
   const hid=hiddenCats().length;
   el("railHead").innerHTML='<span class="grow">Categories</span>'+
-    (hid?'<button class="txt" data-act="cat-all" title="Show every category">Show all</button>'
-        :'<button class="txt" data-act="cat-none" title="Hide every category">None</button>')+
-    '<button data-act="manage-cats" title="Manage categories" aria-label="Manage categories">'+icon("i-settings","ic-14")+'</button>';
+    (hid?'<button class="txt" data-act="cat-all" title="Show every category">Show all</button>':"")+
+    '<button data-act="manage-cats" title="Edit categories" aria-label="Edit categories">'+icon("i-edit","ic-14")+'</button>';
   el("catList").innerHTML=S.categories.map(c=>{const off=!visibleCat(c.id);
     return '<button class="cat-row'+(off?" off":"")+'" style="--c:'+c.color+'" data-act="cat-toggle" data-id="'+c.id+'" role="switch" aria-checked="'+(!off)+'" title="'+esc(off?"Show":"Hide")+' '+esc(c.name)+'">'+
       '<span class="cat-box">'+icon("i-check")+'</span>'+icon(c.icon,"ic-14 ic-cat")+'<span class="cname">'+esc(c.name)+'</span></button>';}).join("");
@@ -1954,11 +1953,11 @@ function czRemoveLane(id){
 function czDragWire(){
   let from=null;
   document.addEventListener("dragstart",e=>{
-    const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col");if(!r)return;
+    const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col,.cm-row");if(!r)return;
     from=r;r.classList.add("dragging");try{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain","");}catch(x){}
   });
   document.addEventListener("dragover",e=>{
-    if(!from)return;const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col");
+    if(!from)return;const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col,.cm-row");
     if(!r||r===from||r.parentNode!==from.parentNode)return;
     e.preventDefault();const b=r.getBoundingClientRect(),after=e.clientY>b.top+b.height/2;
     r.parentNode.insertBefore(from,after?r.nextSibling:r);
@@ -1967,6 +1966,8 @@ function czDragWire(){
     if(!from)return;const box=from.parentNode;from.classList.remove("dragging");from=null;
     if(box.id==="czLanes"){const order=[...box.children].map(x=>x.dataset.lane);
       board().lanes=order.map(id=>lane(id)).filter(Boolean);save("prefs");customiseModal();render();}
+    else if(box.id==="cmList"){const order=[...box.children].map(x=>x.dataset.cat);
+      S.categories=order.map(id=>S.categories.find(c=>c.id===id)).filter(Boolean);save("categories");renderRail();renderView();catsModal();}
     else if(box.id==="czCols"){const cols=listCols(),order=[...box.children].map(x=>x.dataset.col);
       board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean).concat(cols.filter(c=>order.indexOf(c.k)<0));save("prefs");customiseModal();render();}
   });
@@ -3292,31 +3293,43 @@ function routineModal(id){
     '<button class="btn btn-primary" data-act="routine-save" data-id="'+(id||"")+'">'+icon("i-check")+'Save routine</button></div></div>');
   const M=el("modalRoot");M.dataset.freq=r.freq;M.dataset.active=String(!!r.active);
 }
+/* ---- editing categories ----
+   One window, one row a category, changed where it is: drag the handle to
+   reorder, the icon and the colour open their choices under the row, the
+   name is typed into. What is done less often (hiding it, showing only it,
+   moving it, deleting it) is behind the row's ⋯. Deleting asks in the row
+   and says where its tasks go. Name, colour and icon were once a second
+   window, and every row carried a Shown label and a task count. */
 function catsModal(){
+  const E=V.catEdit||{},del=E.del?cat(E.del):null;
+  const row=c=>{const open=E.id===c.id?E.part:"",off=!visibleCat(c.id);
+    const n=S.tasks.filter(t=>t.cat===c.id).length+S.routines.filter(r=>r.cat===c.id).length;
+    const to=S.categories.find(x=>x.id!==c.id);
+    return '<div class="cm-row'+(off?" off":"")+(open?" open":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
+      '<span class="cz-grip" title="Drag to reorder" aria-hidden="true">'+icon("i-grip","ic-14")+'</span>'+
+      '<button type="button" class="cm-ic'+(open==="icon"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="icon" aria-label="Icon for '+esc(c.name)+'" aria-expanded="'+(open==="icon")+'">'+icon(c.icon,"ic-16")+'</button>'+
+      '<button type="button" class="cm-sw'+(open==="color"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="color" aria-label="Colour of '+esc(c.name)+'" aria-expanded="'+(open==="color")+'"></button>'+
+      '<input class="cm-name" data-act="cm-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="40" aria-label="Category name" autocomplete="off">'+
+      (off?'<span class="cm-hid" title="Hidden from your views">'+icon("i-eye-off","ic-14")+'</span>':"")+
+      '<button type="button" class="icon-btn btn-sm cm-more" data-act="cm-more" data-id="'+c.id+'" aria-label="More for '+esc(c.name)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button>'+
+      (open==="color"?'<div class="cm-pick">'+CAT_COLORS.map(x=>'<button type="button" class="cm-dot'+(x.toLowerCase()===c.color.toLowerCase()?" on":"")+'" style="--c:'+x+'" data-act="cm-color" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
+        '<label class="cm-own'+(CAT_COLORS.some(x=>x.toLowerCase()===c.color.toLowerCase())?"":" on")+'" title="Any colour you like"><input type="color" data-act="cm-hex" data-id="'+c.id+'" value="'+esc(c.color)+'"><span>Custom</span></label></div>':"")+
+      (open==="icon"?'<div class="cm-pick cm-icons">'+CAT_ICONS.map(i=>'<button type="button" class="cm-icon'+(i===c.icon?" on":"")+'" data-act="cm-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+i.replace("i-","")+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>':"")+
+      (del&&del.id===c.id?'<div class="cz-delrow"><span>'+(n?'Delete “'+esc(c.name)+'”? Its '+n+' item'+(n===1?"":"s")+' move to '+esc(to?to.name:"")+'.':'Delete “'+esc(c.name)+'”?')+'</span>'+
+        '<span class="spacer" style="flex:1"></span><button type="button" class="btn btn-sm" data-act="cm-del-no">Keep it</button>'+
+        '<button type="button" class="btn btn-sm btn-danger" data-act="cm-del-yes" data-id="'+c.id+'">Delete</button></div>':"")+
+      '</div>';};
   openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Categories">'+
     '<div class="mhead2"><h2>Categories</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody"><div class="cat-manage">'+S.categories.map(c=>
-      '<div class="cm-row" style="--c:'+c.color+'"><span class="ravatar" style="width:28px;height:28px;border-radius:9px">'+icon(c.icon,"ic-14")+'</span>'+
-      '<span class="t">'+esc(c.name)+'</span>'+
-      '<span class="chip num" style="color:var(--muted)">'+(function(k){return k+(k===1?" task":" tasks");})(S.tasks.filter(t=>t.cat===c.id).length)+'</span>'+
-      '<button class="tgl'+(visibleCat(c.id)?" on":"")+'" data-act="cat-toggle" data-id="'+c.id+'" title="Show or hide across every view">'+(visibleCat(c.id)?"Shown":"Hidden")+'</button>'+
-      '<button class="rowbtn" style="opacity:1" data-act="cat-only" data-id="'+c.id+'" title="Show only this category">'+icon("i-target","ic-14")+'</button>'+
-      '<button class="rowbtn" style="opacity:1" data-act="cat-edit" data-id="'+c.id+'" aria-label="Edit">'+icon("i-edit","ic-14")+'</button>'+
-      '<button class="rowbtn" style="opacity:1;color:var(--danger)" data-act="cat-del" data-id="'+c.id+'" aria-label="Delete">'+icon("i-trash","ic-14")+'</button></div>').join("")+
-    '</div></div><div class="mfoot"><button class="btn btn-primary" data-act="cat-edit" data-id="">'+icon("i-plus")+'New category</button>'+
-    '<div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Done</button></div></div>');
+    '<div class="mbody"><p class="cz-lead">Rename, recolour or reorder them. Drag the handle to move one.</p>'+
+      '<div class="cat-manage" id="cmList">'+S.categories.map(row).join("")+'</div>'+
+      '<button type="button" class="btn btn-sm cm-new" data-act="cm-new">'+icon("i-plus","ic-14")+'New category</button></div>'+
+    '<div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
 }
-function catEditModal(id){
-  const c=id?cat(id):{id:"",name:"",icon:"i-star",color:CAT_COLORS[Math.floor(Math.random()*CAT_COLORS.length)]};
-  openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Category">'+
-    '<div class="mhead2"><h2>'+(id?"Edit category":"New category")+'</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody">'+field("Name",'<input class="inp" id="cName" value="'+esc(c.name)+'" placeholder="Category name">')+
-    field("Colour",'<div class="swatches" id="cColors">'+CAT_COLORS.map(x=>'<button class="sw-btn'+(x===c.color?" on":"")+'" style="--c:'+x+'" data-act="c-color" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>')+
-    field("Icon",'<div class="icon-pick" id="cIcons">'+CAT_ICONS.map(i=>'<button class="'+(i===c.icon?"on":"")+'" data-act="c-icon" data-v="'+i+'" aria-label="'+i+'">'+icon(i)+'</button>').join("")+'</div>')+
-    '</div><div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn" data-act="cats-back">Back</button>'+
-    '<button class="btn btn-primary" data-act="cat-save" data-id="'+(id||"")+'">Save category</button></div></div>');
-  const M=el("modalRoot");M.dataset.color=c.color;M.dataset.icon=c.icon;
-}
+document.addEventListener("keydown",function(e){const t=e.target;if(t&&t.classList&&t.classList.contains("cm-name")&&e.key==="Enter"){e.preventDefault();t.blur();}});
+function cmSet(id,patch){const c=cat(id);if(!c||c.id!==id)return;Object.assign(c,patch);save("categories");renderRail();renderView();catsModal();}
+function cmMove(id,step){const L=S.categories,i=L.findIndex(c=>c.id===id),j=i+step;if(i<0||j<0||j>=L.length)return;
+  const x=L.splice(i,1)[0];L.splice(j,0,x);save("categories");renderRail();renderView();catsModal();}
 function peekModal(date){
   V.peek=date;
   const ts=tasksFor(date),evs=eventsFor(parseD(date));
@@ -3700,13 +3713,25 @@ document.addEventListener("click",function(e){
       el("rDaysWrap").style.opacity=v==="interval"?".4":"1";break;}
     case "r-day":n.classList.toggle("on");break;
     case "r-active":{const on=M.dataset.active!=="false";M.dataset.active=String(!on);n.classList.toggle("on",!on);el("rActiveLbl").textContent=!on?"Running":"Paused";break;}
-    case "manage-cats":catsModal();break;
-    case "cat-edit":catEditModal(id||null);break;
-    case "cats-back":catsModal();break;
-    case "cat-save":saveCat(id||null);break;
-    case "cat-del":if(arm(n,"Delete?"))delCat(id);break;
-    case "c-color":M.dataset.color=n.dataset.v;M.querySelectorAll('[data-act="c-color"]').forEach(b=>b.classList.toggle("on",b===n));break;
-    case "c-icon":M.dataset.icon=n.dataset.v;M.querySelectorAll('[data-act="c-icon"]').forEach(b=>b.classList.toggle("on",b===n));break;
+    case "manage-cats":V.catEdit={};catsModal();break;
+    case "cm-part":{const E=V.catEdit||{};V.catEdit=(E.id===id&&E.part===n.dataset.v)?{}:{id:id,part:n.dataset.v};catsModal();
+      const b=document.querySelector('.cm-row[data-cat="'+id+'"] [data-act="cm-part"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});break;}
+    case "cm-color":cmSet(id,{color:n.dataset.v});break;
+    case "cm-icon":cmSet(id,{icon:n.dataset.v});break;
+    case "cm-new":{const used=S.categories.map(x=>x.color.toLowerCase()),col=CAT_COLORS.find(x=>used.indexOf(x.toLowerCase())<0)||CAT_COLORS[0],nid=uid("c");
+      S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();catsModal();
+      const i=document.querySelector('.cm-name[data-id="'+nid+'"]');if(i){i.focus();i.select();}break;}
+    case "cm-more":{const c=cat(id);if(!c||c.id!==id)break;const i=S.categories.indexOf(c),off=!visibleCat(id);
+      const items=[{v:"vis",label:off?"Show in my views":"Hide from my views"},{v:"only",label:"Show only this"}]
+        .concat(i>0?[{v:"up",label:"Move up"}]:[],i<S.categories.length-1?[{v:"down",label:"Move down"}]:[],
+          S.categories.length>1?[{v:"del",label:"Delete…"}]:[]);
+      qaMenu(n,items,null,v=>{
+        if(v==="vis")toggleCat(id);
+        else if(v==="only"){S.prefs.hidden=S.categories.filter(x=>x.id!==id).map(x=>x.id);touched.prefs=true;save("prefs");render();catsModal();}
+        else if(v==="up"||v==="down")cmMove(id,v==="up"?-1:1);
+        else if(v==="del"){V.catEdit={del:id};catsModal();}});break;}
+    case "cm-del-no":V.catEdit={};catsModal();break;
+    case "cm-del-yes":V.catEdit={};delCat(id);break;
     case "new-note":{const nn={id:uid("n"),title:"",cat:S.categories[0].id,tags:[],pinned:false,html:"",actions:[],updated:Date.now()};
       S.notes.unshift(nn);V.view="notes";V.noteId=nn.id;V.q="";save("notes");render();const ti=el("noteTitle");if(ti)ti.focus();break;}
     case "note-open":V.noteId=id;renderView();break;
@@ -4062,6 +4087,9 @@ document.addEventListener("change",function(e){
     const f=document.querySelector('.cz [data-act="cz-where"][data-k="'+k+'"][data-w="'+w+'"]');if(f)f.focus({preventScroll:true});
     return;}
   if(V.qa&&(t.id==="qaDue"||t.id==="qaDl")){V.qa[t.id==="qaDue"?"due":"dl"]=t.value;renderView();qaFocus();return;}
+  if(t.dataset&&t.dataset.act==="cm-name"){const v=t.value.trim();if(!v){const c=cat(t.dataset.id);t.value=c?c.name:"";toast("A category needs a name");return;}
+    const c=cat(t.dataset.id);if(c&&c.name!==v){c.name=v;save("categories");renderRail();renderView();}return;}
+  if(t.dataset&&t.dataset.act==="cm-hex"){cmSet(t.dataset.id,{color:t.value});return;}
   if(t.dataset&&t.dataset.act==="sh-est"){const cur=sheetTask()||{},n=Math.max(0,parseFloat(t.value)||0);
     patchCurrent({est:Math.round(estUnit(cur)==="h"?n*60:n)});return;}
   if(t.dataset&&t.dataset.act==="sh-set"){
