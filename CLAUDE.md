@@ -310,6 +310,11 @@ one line, "All day" beneath, and "Add deadline" hidden until it is wanted
 (`V.sheet.dl`). A new start time keeps the length the task had; the end
 time's list starts after the start and says how long each choice makes it.
 
+A planner still on the ten categories it started with, untouched
+(`OLD_CATS`: id, name and colour), moves to the five (`baseCategories()`) in
+`fixCats()`, also run from `render()`; tasks, routines and notes follow
+`OLD_CAT_TO`. A set anyone has changed is left alone.
+
 The form once had a *start date* beside the due date. `fixTasks()`, run at
 the top of every `render()` and harmless to repeat, moves any that remain:
 the start date becomes the date, and a due date after it the deadline.

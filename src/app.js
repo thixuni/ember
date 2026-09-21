@@ -176,6 +176,23 @@ const fmtTaskTime=t=>{const sp=tSpan(t);return sp?fmtRange(t.dueTime,sp.end-sp.s
    the day you plan to do it, so a start date becomes the date, and a due
    date after it becomes the deadline. The time went with the start date
    already, so it stays with it. Safe to run any number of times. */
+/* The ten categories a planner started with before the five. One that
+   still has exactly those, untouched, moves to the five; what was filed
+   under one that went moves to the nearest that stayed. Categories anyone
+   has renamed, recoloured, added to or taken from are theirs, and stay.
+   Safe to run any number of times. */
+const OLD_CATS="office:Office:#4C6FE0|freelance:Freelance:#7C5CE0|home:Home:#E0854A|personal:Personal:#D95C93|goals:Goals:#2F9C86|hubby:Hubby:#D8544E|passion:Passion:#D99A16|pets:Pets:#A9713B|side:Side Hustle:#3F8F4F|other:Other:#7A8A80";
+const OLD_CAT_TO={office:"work",freelance:"side",home:"personal",hubby:"personal",passion:"goals",pets:"personal"};
+function fixCats(){
+  if((S.categories||[]).map(c=>c.id+":"+c.name+":"+c.color).join("|")!==OLD_CATS)return;
+  const to=id=>OLD_CAT_TO[id]||id;
+  S.tasks.forEach(t=>{t.cat=to(t.cat);});S.routines.forEach(r=>{r.cat=to(r.cat);});S.notes.forEach(x=>{x.cat=to(x.cat);});
+  S.categories=baseCategories();
+  const p=S.prefs;
+  if(Array.isArray(p.hidden))p.hidden=p.hidden.filter(id=>!OLD_CAT_TO[id]);
+  if(p.quickCat)p.quickCat=to(p.quickCat);
+  ["categories","tasks","routines","notes","prefs"].forEach(k=>save(k));
+}
 function fixTasks(){
   let n=0;
   (S.tasks||[]).forEach(t=>{
@@ -3175,7 +3192,7 @@ function renderView(){
 function render(){
   /* The lanes are settled before anything else: first thing on a new planner,
      before any task can arrive and make it look like an old one. */
-  ixDrop();board();fixTasks();
+  ixDrop();board();fixCats();fixTasks();
   renderRail();renderTopbar();renderView();
   /* The day popup lists what the page does; a tick in it redraws the page, so
      the popup is redrawn with it rather than left showing the old state. */
