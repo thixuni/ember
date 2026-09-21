@@ -2517,7 +2517,9 @@ function webNotifyHtml(){
   if(Notification.permission==="granted")
     return '<p class="notif-state ok">'+icon("i-check","ic-14")+'Notifications are on in this browser</p>';
   if(Notification.permission==="denied")
-    return '<p class="notif-state bad">'+icon("i-alert","ic-14")+'Notifications are blocked. Turn them on from the icon beside the address bar, then come back.</p>';
+    return '<div class="notif-state bad">'+icon("i-alert","ic-14")+'<div><b>Your browser is blocking reminders.</b> To let them through:'+
+      '<ol class="notif-steps"><li>Click the small icon just left of the web address, at the very top of this window.</li>'+
+      '<li>Find <b>Notifications</b> and change it to <b>Allow</b>.</li><li>Refresh this page.</li></ol></div></div>';
   return '<button class="btn btn-sm btn-primary" data-act="remind-allow">'+icon("i-bell","ic-14")+'Allow notifications</button>';
 }
 function obNotify(){

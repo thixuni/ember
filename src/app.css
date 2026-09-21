@@ -1133,6 +1133,8 @@ button.obx-rt-txt > *{pointer-events:none}
 .notif-state svg{flex:none;margin-top:2px}
 .notif-state.ok{color:var(--accent-ink)}
 .notif-state.bad{color:var(--amber-ink)}
+.notif-state b{font-weight:700}
+.notif-steps{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-weight:500;color:var(--ink-2)}
 
 @media (max-width:1000px){
   .obx-stage{grid-template-columns:minmax(0,1fr);padding:8px 28px}
