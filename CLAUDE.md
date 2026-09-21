@@ -279,7 +279,10 @@ goes with backups and Drive like any setting.
   `kidsOf(id)` finds a task's own. Deleting a task deletes its subtasks.
 - **Fields of their own** are `board().fields` (`CF_TYPES`: text, number,
   date, single- and multi-select with coloured options, checkbox, link,
-  rating, progress), their values in `t.cf` by field id. Each can show in
+  rating, progress), their values in `t.cf` by field id. A field is made and
+  changed in place, inside Your own fields (`czFieldEditor()` in the row's
+  place, `V.cz.edit`), not on a page of its own, and is not asked where to
+  show: it shows on tasks and in the list like every other field. Each can show in
   the panel, as a list column and on board cards; changes are in the task's
   history. Changing a field's type, or taking options away, clears values
   that no longer fit.

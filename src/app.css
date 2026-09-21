@@ -1959,6 +1959,8 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 /* Two switch columns, the same width in the heading and in every row. */
 .cz-row-edit{width:28px;height:28px;border-color:transparent;background:none;color:var(--muted)}
 .cz-row-edit:hover{background:var(--surface-3);color:var(--ink)}
+.cz-inline{margin:4px 2px 2px;padding:12px;border-radius:var(--r-m);background:var(--surface);border:1.5px solid var(--accent)}
+.cz-inline .cz-types{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
 .cz-newf{align-self:flex-start;margin:6px 6px 4px}
 .cz-empty{margin:2px 6px 0;font-size:12px;line-height:1.5;color:var(--muted)}
 .cz-sh{display:flex;align-items:center}
@@ -1998,7 +2000,6 @@ input.accent-custom.empty::-webkit-color-swatch{opacity:0}
 .czv-tabs{display:flex;gap:10px;padding-top:8px;border-top:1px solid var(--line);font-size:10.5px;font-weight:600;color:var(--muted)}
 .czv-tabs .on{color:var(--ink);box-shadow:0 2px 0 var(--accent)}
 @media (max-width:700px){.cz-split{grid-template-columns:minmax(0,1fr)}.czv{display:none}.cz-modes{grid-template-columns:minmax(0,1fr)}}
-.cz-back{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;font-size:12.5px}
 .cz-h{margin:0;font-family:var(--fd);font-size:18px}
 .cz-form{display:flex;flex-direction:column;gap:12px}
 .cz-l{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--ink-2)}

@@ -1582,12 +1582,13 @@ function colCell(k,t){
 /* ---- the window ---- */
 function customiseModal(){
   const c=V.cz=V.cz||{tab:"lanes"};
+  czReadDraft();  /* a field being written survives a redraw from a switch */
   const tabs=[["lanes","Board lanes","i-board"],["panel","Task details","i-panel"]];
   if(c.tab==="cols")c.tab="panel";
-  const body=c.edit?czFieldEditor():c.tab==="panel"?czPanel():czLanes();
+  const body=c.tab==="panel"?czPanel():czLanes();
   openModal('<div class="modal cz" role="dialog" aria-modal="true" aria-label="Customise tasks">'+
     '<div class="mhead2">'+icon("i-sliders","ic-18")+'<h2>Customise tasks</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="cz-tabs" role="tablist">'+tabs.map(x=>'<button role="tab" class="cz-tab" data-act="cz-tab" data-v="'+x[0]+'" aria-selected="'+(c.tab===x[0]&&!c.edit)+'">'+icon(x[2],"ic-14")+x[1]+'</button>').join("")+'</div>'+
+    '<div class="cz-tabs" role="tablist">'+tabs.map(x=>'<button role="tab" class="cz-tab" data-act="cz-tab" data-v="'+x[0]+'" aria-selected="'+(c.tab===x[0])+'">'+icon(x[2],"ic-14")+x[1]+'</button>').join("")+'</div>'+
     '<div class="mbody cz-body">'+body+'</div></div>');
 }
 function czLanes(){
@@ -1653,8 +1654,8 @@ function czPanel(){
           g[1].map(x=>row(x[1],x[2],x[3],x[0],FEAT_COL[x[0]]||"")).join("")+
           (LIST_ONLY[g[0]]||[]).map(x=>row(x[1],x[2],x[3],"",x[0])).join("")+'</div>').join("")+
         '<div class="cz-group"><div class="cz-gh"><span>Your own fields</span></div>'+
-          b.fields.map(f=>row(f.name,f.desc||cfType(f.type)[1],cfType(f.type)[2],f.id,"cf:"+f.id,true)).join("")+
-          '<button class="btn btn-sm cz-newf" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button></div>'+
+          b.fields.map(f=>V.cz.edit===f.id?czFieldEditor():row(f.name,f.desc||cfType(f.type)[1],cfType(f.type)[2],f.id,"cf:"+f.id,true)).join("")+
+          (V.cz.edit==="new"?czFieldEditor():'<button class="btn btn-sm cz-newf" data-act="cz-field-new">'+icon("i-plus","ic-14")+'New field</button>')+'</div>'+
       '</div>'+czPanelPreview()+'</div></div>'+
     '<div class="cz-sec"><h3 class="cz-sh">Subtasks</h3>'+
       '<div class="cz-modes" role="radiogroup" aria-label="How subtasks work">'+
@@ -1699,9 +1700,10 @@ function czPanelPreview(){
    select types, the options. Held in V.cz.draft until saved. */
 function czFieldEditor(){
   const d=V.cz.draft,sel=d.type==="single"||d.type==="multi";
-  return '<button class="linkish cz-back" data-act="cz-field-back">'+icon("i-chev-l","ic-14")+'Back to task details</button>'+
-    '<h3 class="cz-h">'+(d.isNew?"New field":"Edit field")+'</h3>'+
-    '<div class="cz-form">'+
+  /* In place, inside Your own fields: a field is made or changed where it
+     will sit, not on a page of its own. It shows on tasks and in the list
+     like every other field, so where to show it is not asked. */
+  return '<div class="cz-inline" id="czEditor"><div class="cz-form">'+
       '<label class="cz-l"><span>Field name<span class="req" aria-hidden="true">*</span></span><input class="inp" id="czFName" maxlength="40" value="'+esc(d.name)+'" placeholder="Related work, Effort in days, Client…" autocomplete="off"></label>'+
       (d.showDesc||d.desc?'<label class="cz-l">Description<input class="inp" id="czFDesc" maxlength="120" value="'+esc(d.desc||"")+'" placeholder="What goes in it"></label>'
         :'<button class="linkish" data-act="cz-desc-show">'+icon("i-plus","ic-14")+'Add a description</button>')+
@@ -1713,20 +1715,17 @@ function czFieldEditor(){
           '<input class="inp inp-sm" data-act="cz-opt-name" data-v="'+i+'" value="'+esc(o.name)+'" placeholder="Option '+(i+1)+'" maxlength="40">'+
           '<button class="icon-btn btn-sm" data-act="cz-opt-del" data-v="'+i+'" aria-label="Remove option">'+icon("i-x","ic-14")+'</button></div>').join("")+
         '<button class="btn btn-sm" data-act="cz-opt-add">'+icon("i-plus","ic-14")+'Add an option</button></div>':"")+
-      '<div class="cz-l">Show it</div>'+
-      '<div class="cz-where">'+[["panel","On tasks and in the list"],["card","On board cards too"]].map(x=>
-        '<label class="chk"><input type="checkbox" id="czW_'+x[0]+'"'+(d[x[0]]!==false?" checked":"")+'><span>'+x[1]+'</span></label>').join("")+'</div>'+
     '</div>'+
     '<div class="cz-foot">'+(d.isNew?"":'<button class="btn btn-ghost btn-danger" data-act="cz-field-del" data-id="'+d.id+'">'+icon("i-trash","ic-14")+'Delete field</button>')+
       '<div class="spacer" style="flex:1"></div><button class="btn" data-act="cz-field-back">Cancel</button>'+
-      '<button class="btn btn-primary" data-act="cz-field-save">'+icon("i-check")+(d.isNew?"Create field":"Save")+'</button></div>';
+      '<button class="btn btn-primary" data-act="cz-field-save">'+icon("i-check")+(d.isNew?"Create field":"Save")+'</button></div></div>';
 }
 /* Read what is typed in the editor into the draft before any redraw. */
 function czReadDraft(){
   const d=V.cz&&V.cz.draft;if(!d)return;
   const n=el("czFName");if(n)d.name=n.value;
   const ds=el("czFDesc");if(ds)d.desc=ds.value;
-  ["panel","card"].forEach(k=>{const c=el("czW_"+k);if(c)d[k]=c.checked;});d.list=d.panel;
+  d.list=d.panel;
   document.querySelectorAll('[data-act="cz-opt-name"]').forEach(i=>{const o=d.options[Number(i.dataset.v)];if(o)o.name=i.value;});
 }
 function czSaveField(){
@@ -3373,9 +3372,10 @@ document.addEventListener("click",function(e){
       save("prefs");customiseModal();render();
       const inp=document.querySelector('[data-act="cz-lane-name"][data-id="'+nid+'"]');if(inp){inp.focus();inp.select();}break;}
     case "cz-col-move":czMoveCol(n.dataset.k,Number(n.dataset.v));break;
-    case "cz-field-new":V.cz.edit="new";V.cz.draft={id:uid("f"),isNew:true,name:"",type:"text",desc:"",options:[],panel:true,list:true,card:false};customiseModal();
-      {const i=el("czFName");if(i)i.focus();}break;
-    case "cz-field-edit":{const fd=fieldById(id);if(!fd)break;V.cz.edit=id;V.cz.draft=JSON.parse(JSON.stringify(Object.assign({isNew:false},fd)));customiseModal();break;}
+    case "cz-field-new":czReadDraft();V.cz.edit="new";V.cz.draft={id:uid("f"),isNew:true,name:"",type:"text",desc:"",options:[],panel:true,list:true,card:false};customiseModal();
+      {const e=el("czEditor");if(e)e.scrollIntoView({block:"nearest"});const i=el("czFName");if(i)i.focus({preventScroll:true});}break;
+    case "cz-field-edit":{const fd=fieldById(id);if(!fd)break;V.cz.edit=id;V.cz.draft=JSON.parse(JSON.stringify(Object.assign({isNew:false},fd)));customiseModal();
+      const e=el("czEditor");if(e)e.scrollIntoView({block:"nearest"});const i=el("czFName");if(i)i.focus({preventScroll:true});break;}
     case "cz-field-back":V.cz.edit=null;V.cz.draft=null;V.cz.tab="panel";customiseModal();break;
     case "cz-field-save":czSaveField();break;
     case "cz-field-del":if(arm(n,"Delete field and its values?"))czDeleteField(id);break;
