@@ -63,7 +63,7 @@ const DEFAULT_LANES=[
 const LANE_COLORS=["#6B7CE0","#D99A16","#3F7D5C","#9AA298","#7C5CE0","#C25340","#2F9BA8","#D0588F","#8A6A3F","#5B8C3A"];
 /* The task panel's parts that can be switched off, in the panel's order. */
 const BOARD_FEATS=[
- ["Schedule",[["when","Start date","The day you plan to work on it","i-calendar"],["deadline","Deadline","The last day it can be done","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
+ ["Schedule",[["when","Start date","The day you plan to work on it","i-calendar"],["deadline","Due date","The last day it can be done","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
  ["Organise",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"],["status","Lane","Which board lane it’s in","i-board"]]],
  ["Effort",[["estimate","Estimate","How long you think it’ll take","i-clock"],["timer","Time tracker","Time how long it really takes","i-timer"]]],
  ["Attached",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
@@ -73,7 +73,7 @@ const BOARD_FEATS=[
 /* Which part of the task panel each list column belongs to. */
 const FEAT_COL_OF={date:"when",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",tracked:"timer",status:"status",created:"created"};
 const LIST_COLS=[["date","Start date"],["priority","Priority"],["category","Category"],["status","Status"],
- ["deadline","Deadline"],["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
+ ["deadline","Due date"],["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
 /* The board settings, filled in on the one object (as gcalPrefs() is): a sync
    or a save may be holding it. The first time, it is written down at once,
    so a new planner's three lanes do not become six once it has tasks. */
@@ -396,7 +396,7 @@ const lateText=t=>relDue(t.deadline&&t.deadline<TODAY()?t.deadline:t.due);
 function dlMark(t){
   if(!t.deadline)return "";
   const over=isOpen(t)&&t.deadline<TODAY();
-  return '<span class="m-dl'+(over?" over":"")+'" title="Deadline '+esc(fmtDate(t.deadline))+'">'+icon("i-deadline","ic-14")+esc(fmtDate(t.deadline))+'</span>';
+  return '<span class="m-dl'+(over?" over":"")+'" title="Due '+esc(fmtDate(t.deadline))+'">'+icon("i-deadline","ic-14")+esc(fmtDate(t.deadline))+'</span>';
 }
 function routineOn(r,d){
   if(!r.active)return false;
@@ -500,7 +500,7 @@ function es(kind,title,text,o){
 /* What each quadrant says when it has nothing. */
 const QUAD_EMPTY={
   do:["No fires today","Nothing is both urgent and important. Enjoy the calm."],
-  decide:["Room to think ahead","Important work without a deadline breathing down its neck belongs here."],
+  decide:["Room to think ahead","Important work without a due date breathing down its neck belongs here."],
   delegate:["Nothing to hand off","Urgent things someone else could do will gather here."],
   drop:["Nothing to let go of","Tasks that are neither urgent nor important can wait here, or go."]};
 /* What each board column says when it is empty. */
@@ -761,7 +761,7 @@ function weekGrid(){
       const done=isDoneT(t);
       return '<div class="tchip'+(done?" done":"")+(isOverdue(t)?" over":"")+'" style="--c:'+c.color+'">'+
         '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
-        '<button class="tchip-body" data-act="task" data-id="'+t.id+'"'+(t.due!==s?' title="Deadline"':"")+'>'+icon(t.due!==s?"i-deadline":c.icon,"ic-14")+'<span>'+esc(t.title)+'</span></button>'+
+        '<button class="tchip-body" data-act="task" data-id="'+t.id+'"'+(t.due!==s?' title="Due date"':"")+'>'+icon(t.due!==s?"i-deadline":c.icon,"ic-14")+'<span>'+esc(t.title)+'</span></button>'+
         '</div>';}).join("")+'</div>';}).join("")+'</div>';
   let hours="";for(let h=H0;h<H1;h++)hours+='<div class="hourlab num">'+fmtTime(pad(h)+":00")+'</div>';
   const cols=days.map(d=>{
@@ -1046,7 +1046,7 @@ function viewDashboard(){
   /* ---- to do: tasks due today ---- */
   const taskRow=t=>{const c=cat(t.cat),done=isDoneT(t),est=tEst(t);
     return dashRow({color:c.color,done:done,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
-      meta:esc(c.name)+(t.dueTime&&t.due===TODAY()?' · '+esc(fmtTaskTime(t)):"")+(t.deadline?' · deadline '+esc(t.deadline===TODAY()?"today":fmtDate(t.deadline)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
+      meta:esc(c.name)+(t.dueTime&&t.due===TODAY()?' · '+esc(fmtTaskTime(t)):"")+(t.deadline?' · due '+esc(t.deadline===TODAY()?"today":fmtDate(t.deadline)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
       end:done?"":timerBtn(t)});};
   const openT=d.tasks.filter(isOpen).length;
 
@@ -1461,7 +1461,7 @@ function viewBoard(){
   const list=filterTasks("board");
   return '<div class="task-main">'+filterBar()+'<div class="board-scroll"><div class="board">'+lanes().map(s=>{
     const items=list.filter(t=>t.status===s.id);
-    return '<div class="col" data-col="'+s.id+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
+    return '<div class="col" data-col="'+s.id+'" style="--s:'+s.color+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
       '<div class="col-list">'+(items.length?colCards(s.id,items):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
       (V.qa&&V.qa.lane===s.id?qaCard():'<button class="addcard" data-act="qa-open" data-status="'+s.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>';}).join("")+'</div></div></div>';
 }
@@ -1539,8 +1539,12 @@ function viewList(){
      match, so hidden columns take no room. */
   const cols=listCols().filter(c=>c.on);
   const grid='grid-template-columns:26px minmax(180px,1fr) '+cols.map(c=>colW(c.k)).join(" ")+' 30px';
+  /* Every row of a table is at least as wide as the columns need, the same
+     for all; sized each by its own content, a long name made its row wider
+     and pushed its columns out of line with the rest. */
+  const minW=26+180+30+cols.reduce((n,c)=>n+(parseInt(String(colW(c.k)).replace("minmax(",""),10)||110),0)+10*(cols.length+2)+24;
   const head='<div class="lrow head" style="'+grid+'"><span></span><span>Task</span>'+cols.map(c=>'<span>'+esc(colLabel(c.k))+'</span>').join("")+'<span></span></div>';
-  return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+order.map(k=>'<div class="lgroup"><h3>'+esc(k)+'<span class="n num">'+groups[k].length+'</span></h3><div class="ltable">'+head+
+  return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+order.map(k=>'<div class="lgroup"><h3>'+esc(k)+'<span class="n num">'+groups[k].length+'</span></h3><div class="ltable" style="--lmin:'+minW+'px">'+head+
     groups[k].map(t=>{const c=cat(t.cat),sp=subProgress(t);
       return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-act="task" data-id="'+t.id+'">'+
         tickBtn(t)+
@@ -1820,7 +1824,7 @@ function czPanelPreview(){
   const b=board(),on=k=>feat(k);
   const line=(ic,label,w)=>'<div class="czv-f">'+icon(ic,"ic-12")+'<span>'+esc(label)+'</span><i style="width:'+w+'%"></i></div>';
   let h=(on("status")?'<div class="czv-lane"><i></i>In progress</div>':"")+'<div class="czv-title"><i class="czv-tick"></i><b>Plan the team offsite</b></div>';
-  const sched=[on("when")&&line("i-calendar","Start","56"),on("deadline")&&line("i-deadline","Deadline","40"),on("reminder")&&line("i-bell","Reminder","34"),on("created")&&'<div class="czv-f">'+icon("i-plus","ic-12")+'<span>Created</span><b class="czv-val">19 Sep</b></div>'].filter(Boolean);
+  const sched=[on("when")&&line("i-calendar","Start","56"),on("deadline")&&line("i-deadline","Due date","40"),on("reminder")&&line("i-bell","Reminder","34"),on("created")&&'<div class="czv-f">'+icon("i-plus","ic-12")+'<span>Created</span><b class="czv-val">19 Sep</b></div>'].filter(Boolean);
   const org=[on("category")&&'<span class="czv-chip">Work</span>',on("priority")&&'<span class="czv-chip">Do first</span>',on("tags")&&'<span class="czv-chip">#planning</span>'].filter(Boolean);
   const eff=[on("estimate")&&line("i-clock","Estimate","30"),on("timer")&&'<div class="czv-timer">'+icon("i-play","ic-12")+'<span>Start</span><b class="num">0:00</b></div>'].filter(Boolean);
   if(sched.length)h+='<div class="czv-sec">'+sched.join("")+'</div>';
@@ -4094,7 +4098,7 @@ window.addEventListener("unhandledrejection",function(e){
 /* ============ activity log ============ */
 /* Everything that happens to a task lands here: comments and documents you
    write, plus an automatic entry for every field that changes. */
-const FIELD_LABEL={title:"Title",desc:"Description",due:"Date",start:"Start date",deadline:"Deadline",endTime:"End time",
+const FIELD_LABEL={title:"Title",desc:"Description",due:"Start date",start:"Start date",deadline:"Due date",endTime:"End time",
   status:"Status",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
   dueTime:"Start time",remind:"Reminder"};
@@ -4459,7 +4463,7 @@ function sheetDates(t){
   return '<div class="when">'+line+allday+'</div>';
 }
 function sheetDeadline(t){
-  return dateField('data-act="sh-set" data-k="deadline"',t.deadline,{sm:1,long:1,label:"Deadline",ph:"No deadline",cls:"when-date"});
+  return dateField('data-act="sh-set" data-k="deadline"',t.deadline,{sm:1,long:1,label:"Due date",ph:"No due date",cls:"when-date"});
 }
 
 /* ============ pickers ============
@@ -5072,7 +5076,7 @@ function renderSheet(){
              with its own switch: one row for both read as two deadlines, and
              turning either off alone changed nothing. */
           feat("when")?metaRow("Start",sheetDates(t),"i-calendar"):"",
-          feat("deadline")?metaRow("Deadline",sheetDeadline(t),"i-deadline"):"",
+          feat("deadline")?metaRow("Due date",sheetDeadline(t),"i-deadline"):"",
           feat("reminder")?metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell"):"",
           feat("created")&&!isNew&&t.created?metaRow("Created",'<span class="mnone">'+esc(fmtDate(t.created))+'</span>',"i-plus"):""])+
         group("Organise",[

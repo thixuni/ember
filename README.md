@@ -31,7 +31,7 @@ your day.
 - **Priority matrix**: sort work by urgent and important, and see at once
   what to do first, what to schedule, what to hand off and what to drop.
 
-Every task opens into a full detail panel: dates and times, deadlines,
+Every task opens into a full detail panel: dates and times, due dates,
 priority, tags, subtasks, linked tasks, files, time estimates, comments,
 documents and a complete history of every change.
 
