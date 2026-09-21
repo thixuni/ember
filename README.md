@@ -7,7 +7,7 @@ and time together, so you stop jumping between five apps to run one life. It
 works the way you think, it looks after your focus, and it keeps everything
 you put into it private: your planner lives with you, not on our servers.
 
-**[Download Everyday Orbit](https://thixuni.github.io/everyday-orbit/)** for Windows, macOS and Linux.
+Available for Windows, macOS and Linux.
 
 ---
 
@@ -80,7 +80,7 @@ Most apps keep your data on their servers. Everyday Orbit doesn't have any.
   saved on your own device. We don't collect them, store them or have any
   way to read them.
 - **Nothing of ours to breach.** There is no Everyday Orbit database of users
-  or their data, so a leak of our servers can't expose your planner.
+  or their data, so there is nothing of yours for anyone to steal from us.
 - **No tracking, no ads, no selling.** There are no analytics or trackers in
   the app, and your information is never used to advertise to you.
 - **Your Google account stays with Google.** Signing in happens on Google's
@@ -104,9 +104,8 @@ Most apps keep your data on their servers. Everyday Orbit doesn't have any.
 
 ---
 
-## Get Everyday Orbit
+## Get started in minutes
 
-**[Download for your computer](https://thixuni.github.io/everyday-orbit/)** and have your first
-day planned in minutes. A short setup gets you started: your name, the parts
-of life you plan for, the routines you already keep, and how you'd like to be
-reminded.
+A short setup gets you going: your name, the parts of life you plan for, the
+routines you already keep, and how you'd like to be reminded. Your first day
+can be planned before your coffee cools.
