@@ -131,7 +131,9 @@ listener there.
 **Guided tips** (`TIPS`, `tipCheck()`, the guided tips section): one-time
 pointers shown beside the thing they are about the first time it is on
 screen — Customize, the list's grouping and headings, adding in a lane,
-drawing on the week, right-click, the scratch pad, categories, Settings,
+drawing on the week, checking off a routine and right-click, the matrix's
+quadrants and its unsorted tray, notes and their action items, the scratch
+pad, categories, Settings,
 folding the sidebar. One at a time, never while setup, a window, the panel
 or a menu is open, and they never take the keyboard. Seen ones are
 `prefs.tips.seen`; Skip tips sets `prefs.tips.off`; Settings ▸ Appearance ▸
