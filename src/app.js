@@ -4009,9 +4009,9 @@ document.addEventListener("click",function(e){
     case "quick":V.f.quick=n.dataset.v;V.colMore={};renderView();break;
     case "col-more":V.colMore=V.colMore||{};V.colMore[n.dataset.v]=(V.colMore[n.dataset.v]||0)+100;renderView();break;
     case "rail-mini":S.prefs.railMini=!S.prefs.railMini;save("prefs");applyRail();tipHide();break;
-    case "tip-ok":tipDone(false);break;
-    case "tip-skip":tipDone(true);break;
-    case "tips-again":S.prefs.tips={seen:{},off:false};save("prefs");toast("The tips will show again as you go");break;
+    case "tip-ok":tipNext();break;
+    case "tip-skip":tipEnd();break;
+    case "tips-again":S.prefs.tips={done:{},at:{},off:false};save("prefs");toast("The tips will show again, a set for each screen");break;
     case "adv-toggle":V.adv=!V.adv;render();break;
     case "f-drop":{const k=n.dataset.k;V.f[k]=k==="sort"?"due":"";render();break;}
     case "filter-clear":V.f={quick:"all",status:"",cat:"",quad:"",from:"",to:"",sort:"due"};render();break;
@@ -5017,67 +5017,107 @@ function tmDo(v,id,n){
     if(sel){sel.focus();if(pkSelectable(sel))pkOpen(sel);}else toast("There are no other tasks to link yet");}
 }
 /* ---- guided tips ----
-   A few one-time pointers, each beside the thing it is about, shown the
-   first time that thing is on screen: how to make tasks your own, how the
-   list is grouped and sorted, drawing on the calendar, right-click menus,
-   categories and settings. One at a time; Got it moves to the next one on
-   the page, Skip tips stops them all (Settings ▸ Appearance brings them
-   back). They wait while setup, a window or the task panel is open, and
-   never take the keyboard. Seen ones are in prefs.tips. */
-const TIPS=[
-  {id:"customize",view:"tasks",sel:'[data-tip="customize"]',title:"Make tasks yours",
-    text:()=>"Choose your board lanes, the details every task has, and how the list is laid out."},
-  {id:"list-group",view:"tasks",mode:"list",sel:".lg-head",title:"How the list is grouped",
-    text:()=>{const x=lgChoices().find(c=>c[0]===lgBy());return "These tables are grouped by "+(x?x[1].toLowerCase():"start date")+". Pick another way in Customize ▸ List view.";}},
-  {id:"list-sort",view:"tasks",mode:"list",sel:'.lrow.head .lh[data-v="name"]',title:"Sort, move and resize",
-    text:()=>"Click a column heading to sort by it. Drag a heading to move its column, or drag its edge to change the width."},
-  {id:"board-add",view:"tasks",mode:"board",sel:'[data-act="qa-open"]',title:"Add right where it goes",
-    text:()=>"Add a task straight into a lane. Drag cards between lanes as work moves along."},
-  {id:"cal-drag",view:"calendar",calMode:"week",sel:".daycol.today",title:"Draw it in",
-    text:()=>"Drag down a day to add a task, a routine, or time you are unavailable."},
-  {id:"rt-days",view:"routines",sel:".rcard .week-dots",title:"Check off a day",
-    text:()=>"Click a day’s square to mark the routine done. Any day up to today counts toward your streak, even one that wasn’t scheduled."},
-  {id:"rclick",view:"routines",sel:".rcard",title:"More on a right-click",
-    text:()=>"Right-click a routine for its options: edit, pause, duplicate or delete. Tasks, notes and calendar items work the same way."},
-  {id:"scratch",view:"dashboard",sel:".dash-scratch [data-act=\"scratch-task\"]",title:"A scratch pad",
-    text:()=>"Jot anything down. Turn a line into a task, or save the lot as a note."},
-  {id:"mx-quad",view:"matrix",sel:".quad .quad-head",title:"Four boxes, one question each",
-    text:()=>"Tasks sort themselves by how urgent and how important they are. Do first, schedule, delegate or drop: start at the top left."},
-  {id:"mx-tray",view:"matrix",sel:".unsorted .uq-set",title:"Place it in one click",
-    text:()=>"Tasks without a priority wait here. Pick a box to give one, and the task moves into it."},
-  {id:"notes-new",view:"notes",sel:".nlist-head [data-act=\"new-note\"]",title:"Notes that turn into tasks",
-    text:()=>"Write anything here: meeting notes, ideas, plans. Give a note action items and they become tasks on your board and calendar."},
-  {id:"notes-ai",view:"notes",sel:".ai-add",title:"Action items",
-    text:()=>"Type a to-do and pick a date. It shows up in your tasks and on the calendar, and checking it off here checks it off there."},
-  {id:"cats",view:"*",sel:'#railHead [data-act="manage-cats"]',title:"Your categories",
-    text:()=>"Rename them, change their colors and icons, or add your own. Click a box to hide a category everywhere."},
-  {id:"settings",view:"*",sel:".me",title:"Settings",
-    text:()=>"Your account, backups, reminders and how the planner looks are all in here."},
-  {id:"rail-mini",view:"*",sel:"#railMini",title:"More room to work",
-    text:()=>"Fold the sidebar down to its icons with this button. Click it again to open it."}];
-const TIP={el:null,id:null,target:null};
-function tipPrefs(){const p=S.prefs.tips||(S.prefs.tips={});if(!p.seen)p.seen={};return p;}
+   One short tour a screen, played the first time that screen is opened and
+   never again: two to four pointers, each beside the thing it is about,
+   with Next and a count. Tips used to be one long queue across the whole
+   planner, so a pointer about the sidebar could land in the middle of
+   learning the calendar and the thread was lost. A tour is a section's
+   own: leaving half way keeps its place (`prefs.tips.at`), finishing or
+   skipping marks it done (`prefs.tips.done`), and Settings ▸ Appearance ▸
+   Show the tips again clears both. They wait while setup, a window, a menu
+   or the task panel is open, and never take the keyboard.
+   A step whose thing is not on the screen is passed over. */
+const TIP_TOURS=[
+  {id:"dashboard",where:()=>V.view==="dashboard",steps:[
+    {sel:".dash-scratch [data-act=\"scratch-task\"]",title:"A scratch pad",
+      text:()=>"Jot anything down here. Turn a line into a task, or save the lot as a note."},
+    {sel:"#railHead [data-act=\"manage-cats\"]",title:"Your categories",
+      text:()=>"Rename them, change their colors and icons, or add your own. Click a box to hide a category everywhere."},
+    {sel:".me",title:"Settings",
+      text:()=>"Your account, backups, reminders and how the planner looks are all in here."},
+    {sel:"#railMini",title:"More room to work",
+      text:()=>"Fold the sidebar down to its icons with this button. Click it again to open it."}]},
+  {id:"tasks-board",where:()=>V.view==="tasks"&&V.taskMode==="board",steps:[
+    {sel:'[data-act="qa-open"]',title:"Add right where it goes",
+      text:()=>"Add a task straight into a lane, and drag cards between lanes as work moves along."},
+    {sel:'[data-act="task"]',title:"More on a right-click",
+      text:()=>"Right-click a task for its options: subtasks, time tracking, duplicate, delete. Routines, notes and calendar items work the same way."},
+    {sel:'[data-tip="customize"]',title:"Make tasks yours",
+      text:()=>"Choose your board lanes, the details every task has, and how the list is laid out."}]},
+  {id:"tasks-list",where:()=>V.view==="tasks"&&V.taskMode==="list",steps:[
+    {sel:".lg-head",title:"How the list is grouped",
+      text:()=>{const x=lgChoices().find(c=>c[0]===lgBy());return "These tables are grouped by "+(x?x[1].toLowerCase():"start date")+". Pick another way in Customize ▸ List view.";}},
+    {sel:'.lrow.head .lh[data-v="name"]',title:"Sort, move and resize",
+      text:()=>"Click a column heading to sort by it. Drag a heading to move its column, or drag its edge to change the width."},
+    {sel:".lrow:not(.head) .lr-title",title:"Edit it where it is",
+      text:()=>"Click any cell to change it: the name, a date, the priority. Details opens the whole task."}]},
+  {id:"calendar",where:()=>V.view==="calendar"&&V.calMode==="week",steps:[
+    {sel:".daycol.today",title:"Draw it in",
+      text:()=>"Drag down a day to add a task, a routine, or time you are unavailable."},
+    {sel:".wk-sticky .ad-cell",title:"All day across the top",
+      text:()=>"Tasks with a date but no time sit in this band. Anything with a time goes in the grid below."}]},
+  {id:"matrix",where:()=>V.view==="matrix",steps:[
+    {sel:".quad .quad-head",title:"Four boxes, one question each",
+      text:()=>"Tasks sort themselves by how urgent and how important they are. Do first, schedule, delegate or drop: start at the top left."},
+    {sel:".unsorted .uq-set",title:"Place it in one click",
+      text:()=>"Tasks without a priority wait here. Pick a box to give one, and the task moves into it."}]},
+  {id:"routines",where:()=>V.view==="routines",steps:[
+    {sel:".rcard .week-dots",title:"Check off a day",
+      text:()=>"Click a day’s square to mark the routine done. Any day up to today counts toward your streak, even one that wasn’t scheduled."},
+    {sel:".rcard .streak,.rcard .rpaused,.rcard .rbell",title:"How it is going",
+      text:()=>"A flame counts the days in a row. The foot of the card shows its category and when it reminds you."},
+    {sel:'.rcard [data-act="rt-menu"]',title:"Edit, pause or delete",
+      text:()=>"This button, or a right-click anywhere on the card, opens everything you can do to a routine."}]},
+  {id:"notes",where:()=>V.view==="notes",steps:[
+    {sel:'.nlist-head [data-act="new-note"]',title:"Notes that turn into tasks",
+      text:()=>"Write anything here: meeting notes, ideas, plans. Give a note action items and they become real tasks."},
+    {sel:".ai-add",title:"Action items",
+      text:()=>"Type a to-do and pick a date. It shows up in your tasks and on the calendar, and checking it off here checks it off there."}]}];
+const TIP={el:null,tour:null,i:0,target:null,miss:0};
+function tipPrefs(){const p=S.prefs.tips||(S.prefs.tips={});if(!p.done)p.done={};if(!p.at)p.at={};return p;}
 function tipBlocked(){
   return document.hidden||!!el("modalRoot").innerHTML||!!V.sheet||!!QC.el||!!TMN.el||!!CM.el||!!PK.el||
     document.body.classList.contains("ob-open")||document.body.classList.contains("ob-wait")||(el("obRoot")&&el("obRoot").innerHTML);
 }
-function tipShown(x){if(!x)return false;const r=x.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;}
+/* On the page and laid out; it may still be scrolled out of sight, which
+   the tip fixes by scrolling to it. A hidden control (the sidebar button on
+   a narrow window) has no size and is passed over. */
+function tipShown(x){if(!x)return false;const r=x.getBoundingClientRect();return r.width>0&&r.height>0;}
+function tipStepAt(tour,i){for(let k=i;k<tour.steps.length;k++){const t=document.querySelector(tour.steps[k].sel);if(tipShown(t))return {i:k,target:t};}return null;}
 function tipCheck(){
   const p=tipPrefs();
-  if(p.off){tipHide();return;}
-  if(tipBlocked()){tipHide();return;}
-  if(TIP.el){if(TIP.target&&TIP.target.isConnected&&tipShown(TIP.target)){tipPlace();return;}tipHide();}
-  const t=TIPS.find(x=>!p.seen[x.id]&&(x.view==="*"||x.view===V.view)&&(!x.mode||x.mode===V.taskMode)&&(!x.calMode||x.calMode===V.calMode)&&tipShown(document.querySelector(x.sel)));
-  if(!t)return;
-  const target=document.querySelector(t.sel);
+  if(p.off||tipBlocked()){tipHide();return;}
+  if(TIP.tour&&!TIP.tour.where())tipHide();
+  if(!TIP.tour){
+    const tour=TIP_TOURS.find(t=>!p.done[t.id]&&t.where());
+    if(!tour)return;
+    TIP.tour=tour;TIP.i=Math.min(p.at[tour.id]||0,tour.steps.length-1);
+  }
+  const at=tipStepAt(TIP.tour,TIP.i);
+  /* Nothing left to point at: on this screen that step does not apply --
+     no tasks without a priority, no room for the sidebar button -- so the
+     tour is counted as given rather than waiting forever. A tour that has
+     not started yet waits for a screen with something on it. */
+  if(!at){tipHide2();if(TIP.i>0&&++TIP.miss>3)tipEnd();return;}
+  TIP.miss=0;
+  if(TIP.el&&TIP.i===at.i&&TIP.target===at.target){tipPlace();return;}
+  TIP.i=at.i;tipDraw(at.target);
+}
+function tipDraw(target){
+  const tour=TIP.tour,st=tour.steps[TIP.i],last=TIP.i>=tour.steps.length-1;
+  tipHide2();
   const d=document.createElement("div");d.className="tip";d.setAttribute("role","status");
-  const left=TIPS.filter(x=>!p.seen[x.id]).length;
-  d.innerHTML='<i class="tip-arrow"></i><b>'+esc(t.title)+'</b><p>'+esc(t.text())+'</p>'+
-    '<div class="tip-foot"><button type="button" class="linkish" data-act="tip-skip">Skip tips</button><span class="spacer" style="flex:1"></span>'+
-    (left>1?'<span class="tip-n num">'+left+' left</span>':"")+'<button type="button" class="btn btn-sm btn-primary" data-act="tip-ok">Got it</button></div>';
-  document.body.appendChild(d);TIP.el=d;TIP.id=t.id;TIP.target=target;
+  d.innerHTML='<i class="tip-arrow"></i><b>'+esc(st.title)+'</b><p>'+esc(st.text())+'</p>'+
+    '<div class="tip-foot"><button type="button" class="linkish" data-act="tip-skip">'+(last?"":"Skip")+'</button><span class="spacer" style="flex:1"></span>'+
+    (tour.steps.length>1?'<span class="tip-n num">'+(TIP.i+1)+' of '+tour.steps.length+'</span>':"")+
+    '<button type="button" class="btn btn-sm btn-primary" data-act="tip-ok">'+(last?"Got it":"Next")+'</button></div>';
+  document.body.appendChild(d);TIP.el=d;TIP.target=target;
+  /* Scrolled out of sight, the thing is brought into view first. */
+  const b=target.getBoundingClientRect();
+  if(b.bottom<40||b.top>innerHeight-40)try{target.scrollIntoView({block:"center",behavior:"smooth"});}catch(e){target.scrollIntoView();}
   /* A tall target (a whole day of the week) is pointed at, not outlined. */
-  if(target.getBoundingClientRect().height<300)target.classList.add("tip-on");tipPlace();
+  if(target.getBoundingClientRect().height<300)target.classList.add("tip-on");
+  tipPlace();
 }
 function tipPlace(){
   const d=TIP.el,t=TIP.target;if(!d||!t)return;
@@ -5094,9 +5134,16 @@ function tipPlace(){
   if(cls==="left")a.style.cssText="top:"+Math.round(tall?24:Math.min(Math.max(12,r.top+r.height/2-y),h-12))+"px";
   else a.style.cssText="left:"+Math.round(Math.min(Math.max(14,r.left+r.width/2-x),w-14))+"px";
 }
-function tipHide(){if(TIP.el){TIP.el.remove();TIP.el=null;}if(TIP.target)TIP.target.classList.remove("tip-on");TIP.target=null;TIP.id=null;}
-function tipDone(all){const p=tipPrefs();if(all)p.off=true;else if(TIP.id)p.seen[TIP.id]=1;save("prefs");tipHide();setTimeout(tipCheck,250);}
-setInterval(tipCheck,1200);
+/* Takes the card off the screen; the tour it belongs to carries on. */
+function tipHide2(){if(TIP.el){TIP.el.remove();TIP.el=null;}if(TIP.target)TIP.target.classList.remove("tip-on");TIP.target=null;}
+function tipHide(){tipHide2();TIP.tour=null;TIP.i=0;TIP.miss=0;}
+function tipEnd(){const p=tipPrefs();if(TIP.tour){p.done[TIP.tour.id]=1;delete p.at[TIP.tour.id];}save("prefs");tipHide();}
+function tipNext(){
+  const p=tipPrefs(),tour=TIP.tour;if(!tour)return;
+  if(TIP.i>=tour.steps.length-1){tipEnd();return;}
+  TIP.i++;p.at[tour.id]=TIP.i;save("prefs");tipHide2();setTimeout(tipCheck,60);
+}
+setInterval(tipCheck,1000);
 addEventListener("resize",()=>{if(TIP.el)tipPlace();});
 document.addEventListener("scroll",()=>{if(TIP.el)tipPlace();},true);
 

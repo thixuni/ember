@@ -128,17 +128,19 @@ twice. A routine card's ⋯ opens the same list. Text fields keep the
 browser's own menu. Add a new kind of thing to the one `contextmenu`
 listener there.
 
-**Guided tips** (`TIPS`, `tipCheck()`, the guided tips section): one-time
-pointers shown beside the thing they are about the first time it is on
-screen — Customize, the list's grouping and headings, adding in a lane,
-drawing on the week, checking off a routine and right-click, the matrix's
-quadrants and its unsorted tray, notes and their action items, the scratch
-pad, categories, Settings,
-folding the sidebar. One at a time, never while setup, a window, the panel
-or a menu is open, and they never take the keyboard. Seen ones are
-`prefs.tips.seen`; Skip tips sets `prefs.tips.off`; Settings ▸ Appearance ▸
-Show the tips again clears both. A new tip is an entry in `TIPS` with a
-selector for something that is on screen.
+**Guided tips** (`TIP_TOURS`, `tipCheck()`, the guided tips section): one
+short tour a screen — two to four pointers with Next and a count — played
+the first time that screen is opened and never again. One long queue across
+the whole planner was tried first, and a pointer about the sidebar landing
+in the middle of learning the calendar lost the thread. A tour is a
+section’s own: leaving half way keeps its place (`prefs.tips.at`),
+finishing or skipping marks it done (`prefs.tips.done`), and Settings ▸
+Appearance ▸ Show the tips again clears both. A step whose thing is not on
+the screen is passed over, and a tour with nothing left to point at counts
+as given rather than waiting for ever. They wait while setup, a window, a
+menu or the task panel is open, or the window is hidden, and never take the
+keyboard. A new tour is an entry in `TIP_TOURS` with a `where()` and its
+steps.
 
 **The sidebar folds** to its icons (`prefs.railMini`, `applyRail()`,
 `body.rail-mini`) from the round button on its edge, shown on hover; open is
