@@ -23,7 +23,7 @@ const MON=["January","February","March","April","May","June","July","August","Se
 const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DOWS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const icon=(n,c)=>'<svg class="ic '+(c||"")+'" aria-hidden="true"><use href="#'+n+'"/></svg>';
-const fmtDate=s=>{if(!s)return"";const d=parseD(s);return d.getDate()+" "+MONS[d.getMonth()]+(d.getFullYear()!==today().getFullYear()?" "+d.getFullYear():"");};
+const fmtDate=s=>{if(!s)return"";const d=parseD(s);return MONS[d.getMonth()]+" "+d.getDate()+(d.getFullYear()!==today().getFullYear()?", "+d.getFullYear():"");};
 const fmtTime=t=>{if(!t)return"";const[h,m]=t.split(":").map(Number);
   if(clock24())return pad(h)+":"+pad(m);
   const ap=h>=12?"pm":"am",hh=h%12===0?12:h%12;return hh+(m?":"+pad(m):"")+ap;};
@@ -64,7 +64,7 @@ const LANE_COLORS=["#6B7CE0","#D99A16","#3F7D5C","#9AA298","#7C5CE0","#C25340","
 /* The task panel's parts that can be switched off, in the panel's order. */
 const BOARD_FEATS=[
  ["Schedule",[["when","Start date","The day you plan to work on it","i-calendar"],["deadline","Due date","The last day it can be done","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
- ["Organise",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"],["status","Lane","Which board lane it’s in","i-board"]]],
+ ["Organize",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"],["status","Lane","Which board lane it’s in","i-board"]]],
  ["Effort",[["estimate","Estimate","How long you think it’ll take","i-clock"],["timer","Time tracker","Time how long it really takes","i-timer"]]],
  ["Attached",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
  ["Content",[["desc","Description","Notes about the task","i-note"],["subtasks","Subtasks","Smaller steps inside it","i-checklist"],["docs","Documents","Longer pages of writing","i-doc"],["comments","Comments","Updates and thoughts","i-chat"],["activity","Activity history","A record of every change","i-chart"]]]];
@@ -253,7 +253,7 @@ function sampleState(){
       "<h2>Calendar</h2><p>Week and month. Tasks with a time and routines sit in the time grid, and all-day tasks in the band across the top. Drag down a day to make a task for that time. The <b>Catch-up</b> panel on the right collects anything overdue so you can clear it in one place.</p>"+
       "<h2>Tasks</h2><p>A board you can drag cards across, or a list grouped by month. Quick filters sit on one row, and Advanced opens status, category, priority and date range.</p>"+
       "<h2>Matrix</h2><p>Every task lands in a quadrant based on whether it is urgent, important, both or neither. Closest due date comes first. Anything you have not judged yet waits in the tray at the bottom.</p>"+
-      "<h2>Routines</h2><p>Anything that repeats: daily, weekdays, chosen days, or every few days. Tick the day squares to keep a streak going: any day counts, and doing it on a day off makes up for a missed one.</p>"+
+      "<h2>Routines</h2><p>Anything that repeats: daily, weekdays, chosen days, or every few days. Check off the day squares to keep a streak going: any day counts, and doing it on a day off makes up for a missed one.</p>"+
       "<h2>Notes</h2><p>Write freely, tag by category, and turn any line into an action item. Action items become real tasks on your board and calendar.</p>"+
       "<p><b>Your data stays on this device</b>, in this browser. Use the download icon at the bottom of the sidebar to back it up, and the upload icon to restore it or move it to another computer.</p>",
     actions:[{id:uid("a"),t:"Add your own first task",done:false,taskId:null}]},
@@ -549,7 +549,14 @@ function renderMe(){
   if(n)n.textContent=name||"Your planner";
   if(av)av.textContent=(name||st.email||"?").charAt(0).toUpperCase();
 }
+/* The sidebar can be folded to its icons, and stays as it was left.
+   Open is the default. Below 1080px the width decides, not the button. */
+function applyRail(){
+  const mini=!!S.prefs.railMini;document.body.classList.toggle("rail-mini",mini);
+  const b=el("railMini");if(b){const l=mini?"Expand the sidebar":"Collapse the sidebar";b.setAttribute("aria-label",l);b.title=l;b.setAttribute("aria-expanded",String(!mini));}
+}
 function renderRail(){
+  applyRail();
   const bs=el("brandSub");if(bs)bs.textContent="Personal planner";
   renderMe();
   el("nav").innerHTML=NAV.map(n=>{const a=navAlert(n.id);
@@ -582,8 +589,11 @@ function renderTopbar(){
     right=topSearch("Search tasks and routines")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="tasks"){
     title="Tasks";sub=tops().length?open.length+" open"+(over.length?" · "+over.length+" overdue":"")+" · "+tops().length+" total":"Nothing on your list yet";
+    const fn=activeFilterCount();
     right='<div class="seg"><button data-act="task-mode" data-mode="board" aria-pressed="'+(V.taskMode==="board")+'">'+icon("i-board")+'Board</button>'+
       '<button data-act="task-mode" data-mode="list" aria-pressed="'+(V.taskMode==="list")+'">'+icon("i-list")+'List</button></div>'+
+      '<button class="tb-btn'+(V.adv||fn?" on":"")+'" data-act="adv-toggle" aria-expanded="'+!!V.adv+'" title="Filter tasks">'+icon("i-filter")+'<span>Filter</span>'+(fn?'<b class="num">'+fn+'</b>':"")+'</button>'+
+      '<button class="tb-btn" data-act="customise" data-tip="customize" title="Customize tasks">'+icon("i-sliders")+'<span>Customize</span></button>'+
       topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="matrix"){
     title="Eisenhower Matrix";sub="Open tasks by urgency and importance, closest due date first";
@@ -933,7 +943,7 @@ function qcDraw(){
   const v=QC.v,p=QC.el;if(!v||!p)return;
   const kinds=[["task","Task","i-check"],["routine","Routine","i-repeat"],["away","Unavailable","i-moon"]];
   const d=parseD(v.date),dow=(d.getDay()+6)%7,len=Math.max(15,hm2m(v.end)-hm2m(v.start));
-  const dayName=d.toLocaleDateString(undefined,{weekday:"long"});
+  const dayName=d.toLocaleDateString("en-US",{weekday:"long"});
   const when='<div class="qc-row">'+icon("i-clock","ic-16 qc-ic")+'<div class="qc-when">'+
       (v.kind==="routine"
         ?timeField('id="qcStart"',v.start,{sm:1,label:"Starts at",req:1})+'<span class="qc-for">for</span>'+
@@ -1315,7 +1325,7 @@ function dashHero(d){
 
   return '<section class="dhero">'+
     '<div class="dhero-top"><div class="dhero-text">'+
-      '<div class="dhero-eyebrow">'+esc(today().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}))+'</div>'+
+      '<div class="dhero-eyebrow">'+esc(today().toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long"}))+'</div>'+
       '<h2 class="dhero-hi">'+esc(dashGreeting()+(S.prefs.name?", "+S.prefs.name:""))+'</h2>'+
       '<p class="dhero-line">'+esc(line)+'</p>'+
       '<div class="dnext-list" id="dashNext">'+upNextHtml()+'</div>'+
@@ -1530,25 +1540,34 @@ function filterTasks(mode){
   return list;
 }
 function activeFilterCount(){const f=V.f;return (f.status?1:0)+(f.cat?1:0)+(f.quad?1:0)+(f.from?1:0)+(f.to?1:0)+(f.sort!=="due"?1:0);}
+/* The filters open under the top bar from its Filter button; while any is
+   set and the panel is shut, they show as a line of chips with a way to
+   clear each. A row of quick filters (All, Today, This week...) once sat
+   here over every board and list, and read as noise. */
 function filterBar(){
-  const n=activeFilterCount();
-  let h='<div class="toolbar">'+QUICKS.map(q=>'<button class="filter-pill'+(V.f.quick===q.id?" on":"")+'" data-act="quick" data-v="'+q.id+'">'+esc(q.name)+'</button>').join("");
-  h+='<div class="spacer"></div>';
-  h+='<button class="filter-pill'+(V.adv||n?" on":"")+'" data-act="adv-toggle">'+icon("i-filter")+'Advanced'+(n?' · '+n:"")+'</button>';
-  h+='<button class="filter-pill" data-act="customise">'+icon("i-sliders")+'Customise</button>';
-  if(n)h+='<button class="filter-pill" data-act="filter-clear">'+icon("i-x")+'Clear</button>';
-  h+='</div>';
-  if(V.adv){
-    h+='<div class="adv">'+
-      field("Status",'<select class="inp" data-act="f" data-k="status"><option value="">Any status</option>'+lanes().map(s=>'<option value="'+s.id+'"'+(V.f.status===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select>')+
-      field("Category",catSelect('class="inp" data-act="f" data-k="cat"',V.f.cat,{any:"All categories"}))+
-      field("Matrix quadrant",'<select class="inp" data-act="f" data-k="quad"><option value="">Any priority</option>'+QUADS.map(q=>'<option value="'+q.id+'"'+(V.f.quad===q.id?" selected":"")+'>'+esc(q.name)+'</option>').join("")+'<option value="none"'+(V.f.quad==="none"?" selected":"")+'>Not prioritised</option></select>')+
-      field("Date from",dateField('data-act="f" data-k="from"',V.f.from,{label:"Date from",ph:"Any date"}))+
-      field("Date until",dateField('data-act="f" data-k="to"',V.f.to,{label:"Date until",ph:"Any date"}))+
-      field("Sort by",'<select class="inp" data-act="f" data-k="sort"><option value="due"'+(V.f.sort==="due"?" selected":"")+'>Due date</option><option value="priority"'+(V.f.sort==="priority"?" selected":"")+'>Matrix priority</option><option value="title"'+(V.f.sort==="title"?" selected":"")+'>Title A–Z</option><option value="created"'+(V.f.sort==="created"?" selected":"")+'>Recently added</option></select>')+
-      '</div>';
+  const n=activeFilterCount(),f=V.f;
+  if(!V.adv){
+    if(!n)return "";
+    const chip=(k,label)=>'<span class="fchip">'+esc(label)+'<button type="button" data-act="f-drop" data-k="'+k+'" aria-label="Remove this filter">'+icon("i-x","ic-12")+'</button></span>';
+    return '<div class="fchips">'+
+      (f.status?chip("status","Status: "+((lane(f.status)||{}).name||"")):"")+
+      (f.cat?chip("cat","Category: "+cat(f.cat).name):"")+
+      (f.quad?chip("quad","Priority: "+(f.quad==="none"?"Not prioritized":(QUADS.find(q=>q.id===f.quad)||{}).name||"")):"")+
+      (f.from?chip("from","From "+fmtDate(f.from)):"")+
+      (f.to?chip("to","Until "+fmtDate(f.to)):"")+
+      (f.sort!=="due"?chip("sort","Sorted by "+({priority:"priority",title:"name",created:"newest"}[f.sort]||f.sort)):"")+
+      '<button class="linkish" data-act="filter-clear">Clear all</button></div>';
   }
-  return h;
+  return '<div class="adv">'+
+      field("Status",'<select class="inp" data-act="f" data-k="status"><option value="">Any status</option>'+lanes().map(s=>'<option value="'+s.id+'"'+(f.status===s.id?" selected":"")+'>'+esc(s.name)+'</option>').join("")+'</select>')+
+      field("Category",catSelect('class="inp" data-act="f" data-k="cat"',f.cat,{any:"All categories"}))+
+      field("Priority",'<select class="inp" data-act="f" data-k="quad"><option value="">Any priority</option>'+QUADS.map(q=>'<option value="'+q.id+'"'+(f.quad===q.id?" selected":"")+'>'+esc(q.name)+'</option>').join("")+'<option value="none"'+(f.quad==="none"?" selected":"")+'>Not prioritized</option></select>')+
+      field("Date from",dateField('data-act="f" data-k="from"',f.from,{label:"Date from",ph:"Any date"}))+
+      field("Date until",dateField('data-act="f" data-k="to"',f.to,{label:"Date until",ph:"Any date"}))+
+      field("Sort by",'<select class="inp" data-act="f" data-k="sort"><option value="due"'+(f.sort==="due"?" selected":"")+'>Date</option><option value="priority"'+(f.sort==="priority"?" selected":"")+'>Priority</option><option value="title"'+(f.sort==="title"?" selected":"")+'>Name A–Z</option><option value="created"'+(f.sort==="created"?" selected":"")+'>Recently added</option></select>')+
+      '<div class="adv-foot">'+(n?'<button class="btn btn-sm btn-ghost" data-act="filter-clear">'+icon("i-x","ic-14")+'Clear all</button>':"")+
+        '<button class="btn btn-sm" data-act="adv-toggle">Done</button></div>'+
+    '</div>';
 }
 const field=(l,inner)=>'<div class="field"><label>'+esc(l)+'</label>'+inner+'</div>';
 
@@ -1701,7 +1720,7 @@ function viewList(){
   if(!list.length){
     const any=tops().some(t=>visibleCat(t.cat)),n=activeFilterCount();
     const acts=any?(n?'<button class="btn btn-sm" data-act="filter-clear">'+icon("i-x","ic-14")+'Clear filters</button>':"")+
-        (V.f.quick!=="all"?'<button class="btn btn-sm" data-act="quick" data-v="all">Show all</button>':"")
+""
       :'<button class="btn btn-sm btn-primary" data-act="new-task">'+icon("i-plus","ic-14")+'New task</button>';
     return '<div class="task-main">'+filterBar()+'<div class="list-scroll">'+(any
       ?es("filter","Nothing matches",V.q?"Nothing fits “"+esc(V.q)+"” with these filters.":"No task fits this view. Try another filter.",{hue:"var(--apricot)",actions:acts})
@@ -1725,17 +1744,18 @@ function viewList(){
       '<span class="lh-t">'+esc(label)+'</span>'+icon(on&&dir==="desc"?"i-arr-d":"i-arr-u","ic-12 lh-ar")+
       '<i class="lh-rs" data-rs="'+esc(k)+'" title="Drag to resize"></i></span>';};
   const head='<div class="lrow head" style="'+grid+'"><span class="lr-lead"></span>'+hd("name","Task",false)+cols.map(c=>hd(c.k,colLabel(c.k),true)).join("")+'<span></span></div>';
-  const groups={},order=[];
-  list.forEach(t=>{const k=t.due?t.due.slice(0,7):"none";if(!groups[k]){groups[k]=[];order.push(k);}groups[k].push(t);});
-  order.sort((a,b)=>a==="none"?1:b==="none"?-1:a<b?-1:a>b?1:0);
+  const g=lgBy(),groups={},meta={},order=[];
+  list.forEach(t=>{const x=lgOf(t,g),k=x.k;if(!groups[k]){groups[k]=[];meta[k]=x;order.push(k);}groups[k].push(t);});
+  order.sort((a,b)=>meta[a].o<meta[b].o?-1:meta[a].o>meta[b].o?1:0);
+  const month=g==="date"||g==="deadline"||(g.indexOf("cf:")===0&&(fieldById(g.slice(3))||{}).type==="date");
   const body=order.map(k=>{
     const items=srt?lrSorted(groups[k],srt):groups[k],shut=!!(V.lshut&&V.lshut[k]);
-    const name=k==="none"?"No date":MONS[Number(k.slice(5))-1]+" "+k.slice(0,4);
+    const name=meta[k].name;
     return '<section class="lgroup">'+
       '<h3 class="lg-h"><button class="lg-head" data-act="lg-toggle" data-v="'+k+'" aria-expanded="'+!shut+'" title="'+(shut?"Show":"Hide")+' '+esc(name)+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+esc(name)+'<span class="n num">'+items.length+'</span></button></h3>'+
       (shut?"":'<div class="ltable">'+head+items.map(t=>lrRow(t,cols,grid)).join("")+
         (V.lqa===k?'<div class="lrow lr-add" style="'+grid+'"><span class="lr-lead"></span><span class="name"><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(name)+'">'+
-            (k!=="none"?'<span class="lr-when">'+esc(pkDateText(lqaDate(k)))+'</span>':"")+'</span></div>'
+            (month&&k!=="none"?'<span class="lr-when">'+esc(pkDateText(lqaDate(k)))+'</span>':"")+'</span></div>'
           :'<div class="lrow lr-add" style="'+grid+'"><span class="lr-lead"></span><button class="lr-addbtn" data-act="lqa-open" data-v="'+k+'">'+icon("i-plus","ic-14")+'Add task</button></div>')+
       '</div>')+
       '</section>';}).join("");
@@ -1744,6 +1764,51 @@ function viewList(){
 /* A task added under a month is dated in it, or it would vanish from where it
    was typed: today in this month, otherwise the month's first day. */
 const lqaDate=k=>TODAY().slice(0,7)===k?TODAY():k+"-01";
+/* What the list can be grouped by: the fields switched on that sort tasks
+   into a few clear piles. [value, name, hint, icon]. */
+function lgChoices(){
+  const out=[];
+  if(feat("when"))out.push(["date","Start date","A table for each month",("i-calendar")]);
+  if(feat("deadline"))out.push(["deadline","Due date","A table for each month","i-deadline"]);
+  out.push(["status","Status","A table for each lane","i-board"]);
+  if(feat("category"))out.push(["category","Category","A table for each category","i-folder"]);
+  if(feat("priority"))out.push(["priority","Priority","Do first, Schedule, Delegate, Eliminate","i-flag"]);
+  board().fields.filter(f=>f.panel!==false&&(f.type==="single"||f.type==="checkbox"||f.type==="date")).forEach(f=>
+    out.push(["cf:"+f.id,f.name,f.type==="date"?"A table for each month":f.type==="checkbox"?"Yes and No":"A table for each option",cfType(f.type)[2]]));
+  out.push(["none","No grouping","One table with every task","i-list"]);
+  return out;
+}
+/* The grouping in force: the person's pick while its field is on, else the
+   start date, the due date, or the lanes, whichever is there first. */
+function lgBy(){const ok=lgChoices().map(x=>x[0]),g=board().lgroup;
+  return g&&ok.indexOf(g)>-1?g:ok[0];}
+const monName=k=>MON[Number(k.slice(5))-1]+" "+k.slice(0,4);
+/* A task's table under grouping g: {k, name, o} (o orders the tables). */
+function lgOf(t,g){
+  const month=(v,none)=>v?{k:v.slice(0,7),name:monName(v.slice(0,7)),o:v.slice(0,7)}:{k:"none",name:none,o:"~"};
+  if(g==="date")return month(t.due,"No start date");
+  if(g==="deadline")return month(t.deadline,"No due date");
+  if(g==="status"){const L=lanes(),i=L.findIndex(l=>l.id===t.status);return {k:t.status,name:i<0?"No status":L[i].name,o:String(1000+(i<0?999:i))};}
+  if(g==="category"){const i=S.categories.findIndex(c=>c.id===t.cat);return {k:t.cat,name:i<0?"No category":S.categories[i].name,o:String(1000+(i<0?999:i))};}
+  if(g==="priority"){const q=quadOf(t),i=QUADS.findIndex(x=>x.id===q);return q?{k:q,name:QUADS[i].name,o:String(1000+i)}:{k:"none",name:"No priority",o:"~"};}
+  if(g&&g.indexOf("cf:")===0){const f=fieldById(g.slice(3));if(!f)return {k:"all",name:"All tasks",o:"0"};const v=cfVal(t,f);
+    if(f.type==="date")return month(v,"No "+f.name.toLowerCase());
+    if(f.type==="checkbox")return v?{k:"yes",name:f.name+": Yes",o:"0"}:{k:"no",name:f.name+": No",o:"1"};
+    const i=(f.options||[]).findIndex(o=>o.id===v);return i<0?{k:"none",name:"No "+f.name.toLowerCase(),o:"~"}:{k:v,name:f.options[i].name,o:String(1000+i)};}
+  return {k:"all",name:"All tasks",o:"0"};
+}
+/* What a task added under a table gets, so it lands in that table. */
+function lgPreset(g,k){
+  if(k==="none"||k==="all")return {};
+  if(g==="date")return {due:lqaDate(k)};
+  if(g==="deadline")return {deadline:lqaDate(k)};
+  if(g==="status")return {status:k};
+  if(g==="category")return {cat:k};
+  if(g==="priority"){const f={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[k];return f?{urgent:f[0],important:f[1]}:{};}
+  if(g.indexOf("cf:")===0){const f=fieldById(g.slice(3));if(!f)return {};
+    return {cf:{[f.id]:f.type==="date"?lqaDate(k):f.type==="checkbox"?k==="yes":k}};}
+  return {};
+}
 /* Sorting the list. Empty cells go last either way, so a sort never opens
    with a page of blanks; equal values keep the order they had. */
 function lrSort(){const x=board().lsort;if(!x||!x.k)return null;
@@ -1876,7 +1941,7 @@ function cfControl(t,f,tid){
       '<option value="'+o.id+'"'+(v===o.id?" selected":"")+'>'+esc(o.name)+'</option>').join("")+'</select>';
     case "multi":return '<div class="cf-pills">'+(f.options||[]).map(o=>
       '<button class="cf-pill'+(v.indexOf(o.id)>-1?" on":"")+'" style="--c:'+o.color+'" data-act="sh-cf-multi" data-k="'+f.id+'"'+to+' data-v="'+o.id+'" aria-pressed="'+(v.indexOf(o.id)>-1)+'">'+esc(o.name)+'</button>').join("")+
-      (!(f.options||[]).length?'<span class="mnone">No options yet. Add some in Customise.</span>':"")+'</div>';
+      (!(f.options||[]).length?'<span class="mnone">No options yet. Add some in Customize.</span>':"")+'</div>';
     case "checkbox":return '<label class="switch"><input type="checkbox" '+a+(v?" checked":"")+'><span></span><i>'+(v?"Yes":"No")+'</i></label>';
     case "link":return '<div class="cf-linkrow"><input class="inp inp-sm" type="url" '+a+' value="'+esc(v)+'" placeholder="https://…">'+
       (v?'<a class="icon-btn btn-sm" href="'+esc(/^https?:\/\//i.test(v)?v:"https://"+v)+'" target="_blank" rel="noopener noreferrer" aria-label="Open link">'+icon("i-pop","ic-14")+'</a>':"")+'</div>';
@@ -1936,7 +2001,7 @@ function kidRow(k){
 function subtasksSection(t,isNew){
   const light=t.subtasks||[],k=t.id?kidsOf(t.id):NONE,full=!!board().fullSubs,p=subProgress(t);
   let h='<div class="sh-sec"><label class="sec-label">Subtasks'+(p.n?' <span class="num">'+p.d+'/'+p.n+'</span>':"")+'</label>';
-  const none=!light.length&&!k.length?es("subs","No subtasks yet","Break it into smaller steps you can tick off one by one.",{mini:1,hue:"var(--accent)"}):"";
+  const none=!light.length&&!k.length?es("subs","No subtasks yet","Break it into smaller steps you can check off one by one.",{mini:1,hue:"var(--accent)"}):"";
   if(full&&!isNew){
     h+=none+(k.length?'<div class="kids">'+k.map(kidRow).join("")+'</div>':"")+
       (light.length?'<div id="shSubs">'+light.map(subRow).join("")+'</div>':"")+
@@ -1993,11 +2058,11 @@ function colCell(k,t){
 function customiseModal(){
   const c=V.cz=V.cz||{tab:"lanes"};
   czReadDraft();  /* a field being written survives a redraw from a switch */
-  const tabs=[["lanes","Board lanes","i-board"],["panel","Task details","i-panel"]];
-  if(c.tab==="cols")c.tab="panel";
-  const body=c.tab==="panel"?czPanel():czLanes();
-  openModal('<div class="modal cz" role="dialog" aria-modal="true" aria-label="Customise tasks">'+
-    '<div class="mhead2">'+icon("i-sliders","ic-18")+'<h2>Customise tasks</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+  const tabs=[["lanes","Board lanes","i-board"],["panel","Task details","i-panel"],["list","List view","i-list"]];
+  if(c.tab==="cols")c.tab="list";
+  const body=c.tab==="panel"?czPanel():c.tab==="list"?czList():czLanes();
+  openModal('<div class="modal cz" role="dialog" aria-modal="true" aria-label="Customize tasks">'+
+    '<div class="mhead2">'+icon("i-sliders","ic-18")+'<h2>Customize tasks</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="cz-tabs" role="tablist">'+tabs.map(x=>'<button role="tab" class="cz-tab" data-act="cz-tab" data-v="'+x[0]+'" aria-selected="'+(c.tab===x[0])+'">'+icon(x[2],"ic-14")+x[1]+'</button>').join("")+'</div>'+
     '<div class="mbody cz-body">'+body+'</div></div>');
 }
@@ -2008,17 +2073,17 @@ function czLanes(){
     '<div class="cz-lanes" id="czLanes">'+L.map((l,i)=>{const n=count(l.id),pal=V.cz.pal===l.id;
       return '<div class="cz-lane" draggable="true" data-lane="'+l.id+'" style="--s:'+l.color+'">'+
         '<button type="button" class="cz-grip" data-grip="lane" data-id="'+l.id+'" title="Drag to reorder" aria-label="Move '+esc(l.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
-        '<button class="cz-swatch" data-act="cz-lane-pal" data-id="'+l.id+'" aria-label="Colour of '+esc(l.name)+'" aria-expanded="'+pal+'"></button>'+
+        '<button class="cz-swatch" data-act="cz-lane-pal" data-id="'+l.id+'" aria-label="Color of '+esc(l.name)+'" aria-expanded="'+pal+'"></button>'+
         '<input class="cz-name" data-act="cz-lane-name" data-id="'+l.id+'" value="'+esc(l.name)+'" maxlength="40" aria-label="Lane name">'+
         '<span class="cz-n num" title="Tasks in this lane">'+n+'</span>'+
         '<label class="switch cz-done" title="Ticking a task moves it here, and it counts as finished"><input type="checkbox" data-act="cz-lane-done" data-id="'+l.id+'"'+(l.done?" checked":"")+'><span></span><i>Done</i></label>'+
         '<button class="icon-btn btn-sm cz-del" data-act="cz-lane-del" data-id="'+l.id+'" aria-label="Remove '+esc(l.name)+'"'+(L.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
         (pal?'<div class="cz-pal">'+LANE_COLORS.map(x=>'<button class="'+(x===l.color?"on":"")+'" style="--c:'+x+'" data-act="cz-lane-color" data-id="'+l.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
-          cpSwatch('data-act="cp-open" data-cp="lane" data-id="'+l.id+'"',l.color,LANE_COLORS.indexOf(l.color)<0,"Any colour you like")+'</div>':"")+
+          cpSwatch('data-act="cp-open" data-cp="lane" data-id="'+l.id+'"',l.color,LANE_COLORS.indexOf(l.color)<0,"Any color you like")+'</div>':"")+
         (del&&del.id===l.id?czDelRow(l,n):"")+
         '</div>';}).join("")+'</div>'+
     '<button class="btn btn-sm" data-act="cz-lane-add">'+icon("i-plus","ic-14")+'Add a lane</button>'+
-    (!doneN?'<p class="cz-warn">'+icon("i-alert","ic-14")+'No lane counts as done, so ticking a task moves it to the last lane.</p>':"");
+    (!doneN?'<p class="cz-warn">'+icon("i-alert","ic-14")+'No lane counts as done, so checking off a task moves it to the last lane.</p>':"");
 }
 function czDelRow(l,n){
   const others=lanes().filter(x=>x.id!==l.id);
@@ -2065,20 +2130,31 @@ function czPanel(){
       '</div>'+czPanelPreview()+'</div></div>'+
     '<div class="cz-sec"><h3 class="cz-sh">Subtasks</h3>'+
       '<div class="cz-modes" role="radiogroup" aria-label="How subtasks work">'+
-        mode("check","Checklist","Steps you tick off",checkPic)+
-        mode("full","Full tasks","Steps with their own date and timer",fullPic)+'</div></div>'+
-    /* The list's columns, said to be the List view's and drawn as its
-       heading, since "Column order" alone did not say which list it meant. */
-    '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">'+icon("i-list","ic-16")+'Columns in the List view</h3>'+
+        mode("check","Checklist","Steps you check off",checkPic)+
+        mode("full","Full tasks","Steps with their own date and timer",fullPic)+'</div></div>';
+}
+/* ---- the List view's own settings ----
+   How its tables are grouped, and the order of its columns. Grouping by
+   the start date alone left a planner with the Start row switched off with
+   one table called No date, so the grouping is the person's to pick, from
+   the fields they have switched on. */
+function czList(){
+  const b=board(),g=lgBy(),shown=listCols().filter(c=>c.on);
+  const opt=(v,name,hint,ic)=>'<button type="button" class="cz-gopt'+(g===v?" on":"")+'" role="radio" aria-checked="'+(g===v)+'" data-act="cz-lgroup" data-v="'+esc(v)+'">'+
+    '<i class="cz-radio"></i><span class="cz-row-ic">'+icon(ic,"ic-14")+'</span><span class="cz-row-t"><b>'+esc(name)+'</b><small>'+esc(hint)+'</small></span></button>';
+  return '<p class="cz-lead">How Tasks ▸ List is laid out.</p>'+
+    '<div class="cz-sec"><h3 class="cz-sh">Group the tables by</h3>'+
+      '<div class="cz-gopts" role="radiogroup" aria-label="Group the tables by">'+lgChoices().map(x=>opt(x[0],x[1],x[2],x[3])).join("")+'</div></div>'+
+    '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">Column order</h3>'+
         '<button class="linkish" data-act="cz-open-list">Open the List view</button></div>'+
-      '<p class="cz-lead">Tasks ▸ List shows each lane as a table: the task’s name, then these columns, left to right. Drag to change the order here, or drag a heading in the list itself; drag a heading’s edge there to change its width.</p>'+
+      '<p class="cz-lead">After the task’s name, left to right. Drag to change the order, here or by a heading in the list; drag a heading’s edge there to change its width. A column shows when its field is on in Task details.</p>'+
       (shown.length?'<div class="czl-head" aria-hidden="true"><span>Task</span>'+shown.map(c=>'<span>'+esc(colLabel(c.k))+'</span>').join("")+'</div>'+
         '<div class="cz-cols" id="czCols">'+shown.map(c=>
         '<div class="cz-col" draggable="true" data-col="'+esc(c.k)+'">'+
           '<button type="button" class="cz-grip" data-grip="col" data-id="'+esc(c.k)+'" title="Drag to reorder" aria-label="Move '+esc(colLabel(c.k))+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
           '<span class="cz-col-n">'+esc(colLabel(c.k))+'</span>'+
           '</div>').join("")+'</div>'
-        :'<p class="cz-empty">No columns: the list shows just each task’s name. Switch on a field above to add one.</p>')+
+        :'<p class="cz-empty">No columns: the list shows just each task’s name. Switch on a field in Task details to add one.</p>')+
     '</div>';
 }
 /* A task panel in miniature, drawn from the switches. */
@@ -2121,7 +2197,7 @@ function czFieldEditor(){
         :'<button class="linkish" data-act="cz-desc-show">'+icon("i-plus","ic-14")+'Add a description</button>')+
 
       (sel?'<div class="cz-l">Options</div><div class="cz-opts">'+(d.options||[]).map((o,i)=>
-          '<div class="cz-opt"><button type="button" class="cz-dot" style="--c:'+o.color+'" data-act="cp-open" data-cp="opt" data-v="'+i+'" aria-label="Colour of this option" aria-haspopup="dialog"></button>'+
+          '<div class="cz-opt"><button type="button" class="cz-dot" style="--c:'+o.color+'" data-act="cp-open" data-cp="opt" data-v="'+i+'" aria-label="Color of this option" aria-haspopup="dialog"></button>'+
           '<input class="inp inp-sm" data-act="cz-opt-name" data-v="'+i+'" value="'+esc(o.name)+'" placeholder="Option '+(i+1)+'" maxlength="40">'+
           '<button class="icon-btn btn-sm" data-act="cz-opt-del" data-v="'+i+'" aria-label="Remove option">'+icon("i-x","ic-14")+'</button></div>').join("")+
         '<button class="btn btn-sm" data-act="cz-opt-add">'+icon("i-plus","ic-14")+'Add an option</button></div>':"")+
@@ -2183,7 +2259,7 @@ function czMoveCol(k,step){
 function czRemoveLane(id){
   const L=lanes();if(L.length<2)return;
   const l=lane(id);if(!l)return;
-  if(l.done&&L.filter(x=>x.done).length===1&&L.length>1)toast("No lane counts as done now. Mark another one in Customise.");
+  if(l.done&&L.filter(x=>x.done).length===1&&L.length>1)toast("No lane counts as done now. Mark another one in Customize.");
   const to=(el("czMoveTo")||{}).value||(L.find(x=>x.id!==id)||{}).id;
   S.tasks.forEach(t=>{if(t.status===id){t.status=to;t.completedAt=isDoneT(t)?(t.completedAt||TODAY()):null;}});
   board().lanes=L.filter(x=>x.id!==id);
@@ -2227,11 +2303,11 @@ function viewMatrix(){
         '<span class="chip chip-due '+(isOverdue(t)?"over":(t.due&&dayDiff(t.due,TODAY())<=1?"soon":""))+'">'+esc(t.due?fmtDate(t.due):"No date")+'</span></div>').join("")
         :es("",QUAD_EMPTY[Q.id][0],QUAD_EMPTY[Q.id][1],{icon:Q.icon,hue:"var(--q)",cls:"es-quad"}))+'</div></section>';}).join("")+'</div>';
   const un=base.filter(t=>!quadOf(t));
-  /* Not prioritised yet: each task offers the four quadrants themselves, so
+  /* Not prioritized yet: each task offers the four quadrants themselves, so
      one click places it. Two toggles for urgent and important left the other
      two quadrants to be guessed at. */
   const TRAY_SHOWN=12;
-  const tray=un.length?'<div class="unsorted"><div class="un-head"><h3>Not prioritised yet <span class="num">'+un.length+'</span></h3>'+
+  const tray=un.length?'<div class="unsorted"><div class="un-head"><h3>Not prioritized yet <span class="num">'+un.length+'</span></h3>'+
       '<p>Choose where each one belongs.</p></div>'+
     un.slice(0,TRAY_SHOWN).map(t=>'<div class="urow"><span class="t" data-act="task" data-id="'+t.id+'">'+esc(t.title)+'</span>'+
       '<span class="chip chip-due">'+esc(t.due?fmtDate(t.due):"No date")+'</span>'+
@@ -2247,8 +2323,8 @@ function viewRoutines(){
   const q=V.q.toLowerCase();
   const list=S.routines.filter(r=>visibleCat(r.cat)&&(!q||r.title.toLowerCase().indexOf(q)>-1||cat(r.cat).name.toLowerCase().indexOf(q)>-1));
   if(!list.length)return '<div class="card es-card">'+(S.routines.length
-    ?es("filter","No routines match",q?"Nothing fits “"+esc(V.q)+"”. Try another word.":"Their categories are hidden. Tick them in the sidebar to see them.",{hue:"var(--apricot)"})
-    :es("routine","Build a rhythm","Stand-ups, workouts, a weekly review: pick the days, tick them off, and watch your streak grow.",
+    ?es("filter","No routines match",q?"Nothing fits “"+esc(V.q)+"”. Try another word.":"Their categories are hidden. Check them in the sidebar to see them.",{hue:"var(--apricot)"})
+    :es("routine","Build a rhythm","Stand-ups, workouts, a weekly review: pick the days, check them off, and watch your streak grow.",
       {actions:'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>'}))+'</div>';
   const wkStart=startOfWeek(today());
   return '<div class="rgrid">'+list.map(r=>{
@@ -2260,15 +2336,22 @@ function viewRoutines(){
       return '<div class="wd"><small>'+DOWS[(d.getDay()+6)%7][0]+'</small><button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
         ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
         ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
-        ' title="'+(done?(later?"Ticked ahead of time. Click to take it off":"Done"):later?"Not yet: this day is still to come":sched?"Mark done":"Not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
-    return '<article class="rcard'+(r.active?"":" paused")+'" style="--c:'+c.color+'">'+
+        ' title="'+(done?(later?"Checked off ahead of time. Click to undo":"Done"):later?"Not yet: this day is still to come":sched?"Mark done":"Not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
+    /* Every card is the same four rows, each one line high: the name and
+       its streak, when (time, length, how often), the week, and a foot with
+       the category and the reminder. A reminder once sat in the second line
+       and pushed that card's week lower than its neighbours'. */
+    const rm=remindMins(r);
+    return '<article class="rcard'+(r.active?"":" paused")+'" style="--c:'+c.color+'" data-rid="'+r.id+'">'+
       '<div class="rtop"><span class="ravatar">'+icon(c.icon,"ic-18")+'</span>'+
-      '<div style="flex:1;min-width:0"><h3>'+esc(r.title)+'</h3><div class="rsub">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+r.dur+' min</span><span>·</span><span>'+esc(freqLabel(r))+'</span>'+
-      '<span class="rbell'+(remindMins(r)===null?" off":"")+'" title="Reminder">'+icon("i-bell","ic-14")+esc(remindLabel(r))+'</span></div></div>'+
-      (st?'<span class="streak" title="'+st+(st===1?" day":" days")+' in a row">'+icon("i-flame","ic-14")+st+'</span>':"")+'</div>'+
+      '<div class="rhead"><h3 title="'+esc(r.title)+'">'+esc(r.title)+'</h3>'+
+        '<div class="rsub" title="'+esc(fmtTime(r.time)+" · "+fmtMins(r.dur)+" · "+freqLabel(r))+'">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+esc(fmtMins(r.dur))+'</span><span class="rdot">·</span><span class="rfreq">'+esc(freqLabel(r))+'</span></div></div>'+
+      (!r.active?'<span class="rpaused">'+icon("i-pause","ic-12")+'Paused</span>':st?'<span class="streak" title="'+st+(st===1?" day":" days")+' in a row">'+icon("i-flame","ic-14")+st+'</span>':"")+'</div>'+
       days+
-      '<div style="display:flex;gap:6px;align-items:center">'+catChip(r.cat,"routine",r.id)+'<div class="spacer" style="flex:1"></div>'+
-      '<button class="btn btn-sm btn-ghost" data-act="routine-edit" data-id="'+r.id+'">'+icon("i-edit","ic-14")+'Edit</button></div>'+
+      '<div class="rfoot">'+catChip(r.cat,"routine",r.id)+
+        '<span class="rbell'+(rm===null?" off":"")+'" title="Reminder">'+icon(rm===null?"i-bell-off":"i-bell","ic-14")+esc(rm===null?"No reminder":remindLabel(r).replace(" (default)",""))+'</span>'+
+        '<div class="spacer" style="flex:1"></div>'+
+        '<button class="icon-btn btn-sm" data-act="rt-menu" data-id="'+r.id+'" title="More" aria-label="More for '+esc(r.title)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button></div>'+
       '</article>';}).join("")+'</div>';
 }
 function freqLabel(r){
@@ -2299,7 +2382,7 @@ function viewNotes(){
       return '<button class="nitem'+(n.id===V.noteId?" on":"")+'" data-act="note-open" data-id="'+n.id+'">'+
         '<b>'+(n.pinned?"📌 ":"")+esc(n.title||"Untitled note")+'</b>'+
         '<p>'+esc(stripHtml(n.html).slice(0,110)||"Empty note")+'</p>'+
-        '<span class="nm">'+catChip(n.cat)+'<span class="date">'+esc(new Date(n.updated||Date.now()).toLocaleDateString(undefined,{day:"numeric",month:"short"}))+'</span></span></button>';}).join("")
+        '<span class="nm">'+catChip(n.cat)+'<span class="date">'+esc(new Date(n.updated||Date.now()).toLocaleDateString("en-US",{day:"numeric",month:"short"}))+'</span></span></button>';}).join("")
       :(S.notes.length
         ?es("filter","No notes match",V.noteTag?"Nothing tagged #"+esc(V.noteTag)+" fits.":"Try another word or tag.",{hue:"var(--apricot)",cls:"es-side"})
         :es("notes","No notes yet","Meeting notes, ideas, a parking lot for later.",{hue:"var(--amber)",cls:"es-side"})))+
@@ -2626,7 +2709,7 @@ async function googleAsk(part){
   try{r=await o.gcalConnect({want:[part]});}catch(e){r={ok:false,error:"Could not start the sign-in."};}
   try{GC.status=await o.gcalStatus();}catch(e){}
   if(r&&r.ok&&acctParts()[part])return true;
-  if(r&&r.ok)throw new Error("Access wasn’t given. Tick the "+(part==="drive"?"Google Drive":"Google Calendar")+" box in Google’s window and try again.");
+  if(r&&r.ok)throw new Error("Access wasn’t given. Check the "+(part==="drive"?"Google Drive":"Google Calendar")+" box in Google’s window and try again.");
   if(r&&r.error==="Cancelled.")return false;
   throw new Error((r&&r.error)||"We couldn’t reach Google. Check your connection and try again.");
 }
@@ -2664,7 +2747,7 @@ function obCard(act,v,ic,title,body,on,tag){
 }
 function obShowData(){
   if(OB.found){
-    const f=OB.found,c=f.counts,when=f.at?new Date(f.at).toLocaleString(undefined,{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"";
+    const f=OB.found,c=f.counts,when=f.at?new Date(f.at).toLocaleString("en-US",{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"";
     return '<div class="obx-panel obx-found"><div class="obx-found-h">'+icon("i-cloud")+'<span><b>Everyday Orbit backup</b><small>'+esc(when)+'</small></span></div>'+
       '<div class="obx-stats">'+[[c.tasks,"tasks"],[c.routines,"routines"],[c.notes,"notes"]].map(x=>'<div><b class="num">'+x[0]+'</b><span>'+x[1]+'</span></div>').join("")+'</div></div>';
   }
@@ -2706,7 +2789,7 @@ function obName(){
 }
 function obShowName(){
   const n=S.prefs.name||"",d=today();
-  const date=d.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"});
+  const date=d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long"});
   return '<div class="obx-panel obx-hi">'+
     '<p class="obx-hi-date">'+esc(date)+'</p>'+
     '<h2 id="obxHi">'+esc(dashGreeting()+(n?", "+n:""))+'</h2>'+
@@ -2718,14 +2801,14 @@ function obShowName(){
 
 /* ---- categories ---- */
 function obCats(){
-  return obHead("Categories","Colour-code <em>your life</em>",
-      "Rename, recolour or remove any of these to suit how you plan.")+
+  return obHead("Categories","Color-code <em>your life</em>",
+      "Rename, recolor or remove any of these to suit how you plan.")+
     '<div class="obx-cats">'+S.categories.map(c=>{const open=OB.pal===c.id;
       return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+'">'+
-        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Colour of '+esc(c.name)+'"></button>'+
+        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Color of '+esc(c.name)+'"></button>'+
         '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" size="'+Math.max(4,c.name.length)+'" maxlength="30" aria-label="Category name">'+
         (S.categories.length>1?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
-        (open?'<div class="obx-pal" role="group" aria-label="Colours">'+CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>':"")+
+        (open?'<div class="obx-pal" role="group" aria-label="Colors">'+CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>':"")+
         '</div>';}).join("")+
       '<button class="obx-cat obx-cat-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add category</button></div>';
 }
@@ -2873,9 +2956,9 @@ function obLook(){
   const card=(v,label)=>'<button class="obx-theme'+(cur===v?" on":"")+'" data-act="set-theme" data-v="'+v+'" aria-pressed="'+(cur===v)+'">'+
     '<span class="obx-thumb">'+(v==="system"?mini("light")+mini("dark half"):mini(v))+'</span><b>'+label+'</b></button>';
   return obHead("Appearance","Make it feel like <em>yours</em>",
-      "Pick a theme and an accent colour. Change them whenever you like.")+
+      "Pick a theme and an accent color. Change them whenever you like.")+
     '<div class="obx-themes">'+card("light","Light")+card("dark","Dark")+card("system","Match system")+'</div>'+
-    '<div class="obx-set"><div class="obx-flabel">Accent colour</div>'+accentPickHtml(true)+'</div>';
+    '<div class="obx-set"><div class="obx-flabel">Accent color</div>'+accentPickHtml(true)+'</div>';
 }
 /* The app in miniature, drawn from the real tokens, so it changes the moment
    the theme or accent does. */
@@ -3117,7 +3200,7 @@ function accentLive(hex){
   setCustomAccent(hex);
   const note=document.querySelector(".accent-note");
   if(note){const b=note.querySelector("b");if(b)b.textContent=S.prefs.accentHex;
-    const lab=note.querySelector("span");if(lab)lab.textContent="Your own colour";}
+    const lab=note.querySelector("span");if(lab)lab.textContent="Your own color";}
   const tri=accentTrio(S.prefs.accentHex);
   document.querySelectorAll('.cp-swatch[data-cp="accent"]').forEach(x=>{x.classList.add("on");x.style.setProperty("--dot",isDark()?tri.lift:tri.base);});
   document.querySelectorAll('[data-act="set-accent"]').forEach(x=>{x.classList.remove("on");x.setAttribute("aria-pressed","false");});
@@ -3186,8 +3269,8 @@ function accentPickHtml(plain){
     ' data-act="set-accent" data-v="'+a.id+'" title="'+esc(a.name)+'" aria-label="'+esc(a.name)+'"'+
     ' aria-pressed="'+(cur===a.id)+'"></button>';
   return '<div class="accents">'+ACCENTS.map(swatch).join("")+
-    cpSwatch('data-act="cp-open" data-cp="accent"',shade(curHex),cur==="custom","Any colour you like")+'</div>'+
-    '<div class="accent-note"><span>'+(cur==="custom"?"Your own colour":
+    cpSwatch('data-act="cp-open" data-cp="accent"',shade(curHex),cur==="custom","Any color you like")+'</div>'+
+    '<div class="accent-note"><span>'+(cur==="custom"?"Your own color":
       esc((ACCENTS.filter(a=>a.id===cur)[0]||ACCENTS[0]).name))+'</span>'+(plain?'':'<b>'+esc(curHex)+'</b>')+'</div>';
 }
 /* ---- the colour picker ----
@@ -3215,11 +3298,11 @@ function cpOpen(btn,hex,onLive,onDone){
   if(CPK.el&&CPK.btn===btn){cpClose(true);return;}
   cpClose(true);pkClose();catMenuClose();
   CPK.hsv=hexToHsv(hex);CPK.start=hsvToHex(CPK.hsv);CPK.live=onLive;CPK.done=onDone;CPK.btn=btn;
-  const p=document.createElement("div");p.className="cpk";p.setAttribute("role","dialog");p.setAttribute("aria-label","Pick a colour");
+  const p=document.createElement("div");p.className="cpk";p.setAttribute("role","dialog");p.setAttribute("aria-label","Pick a color");
   p.innerHTML='<div class="cpk-sv" data-cp="sv"><i class="cpk-knob"></i></div>'+
-    '<div class="cpk-row">'+(window.EyeDropper?'<button type="button" class="cpk-drop" data-act="cp-drop" title="Pick a colour from the screen" aria-label="Pick a colour from the screen">'+icon("i-dropper","ic-14")+'</button>':"")+
+    '<div class="cpk-row">'+(window.EyeDropper?'<button type="button" class="cpk-drop" data-act="cp-drop" title="Pick a color from the screen" aria-label="Pick a color from the screen">'+icon("i-dropper","ic-14")+'</button>':"")+
       '<span class="cpk-prev"></span><div class="cpk-hue" data-cp="hue" role="slider" aria-label="Hue" aria-valuemin="0" aria-valuemax="360" tabindex="0"><i class="cpk-knob"></i></div></div>'+
-    '<div class="cpk-row"><label class="cpk-hex"><span>Colour code</span><input id="cpkHex" class="inp inp-sm num" maxlength="7" autocomplete="off" spellcheck="false"></label>'+
+    '<div class="cpk-row"><label class="cpk-hex"><span>Color code</span><input id="cpkHex" class="inp inp-sm num" maxlength="7" autocomplete="off" spellcheck="false"></label>'+
       '<button type="button" class="btn btn-sm btn-primary" data-act="cp-done">Done</button></div>';
   document.body.appendChild(p);CPK.el=p;cpDraw();
   const r=btn.getBoundingClientRect(),w=p.offsetWidth,h=p.offsetHeight;
@@ -3284,8 +3367,10 @@ function settingsModal(){
     const themePick=themePickHtml(),accentPick=accentPickHtml();
 
     pane=sec("Theme",field("",themePick,"System follows Windows, and switches when it does."))+
-      sec("Accent colour",field("",accentPick,
-        "The last circle takes any colour you like. Whatever you pick is adjusted just enough to keep the text on it readable."));
+      sec("Accent color",field("",accentPick,
+        "The last circle takes any color you like. Whatever you pick is adjusted just enough to keep the text on it readable."))+
+      sec("Tips",field("",'<button class="btn btn-sm" data-act="tips-again">'+icon("i-info","ic-14")+'Show the tips again</button>',
+        "The short pointers that show the first time you reach a part of the planner."));
   }
   else if(tab==="dates"){
     const days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -3546,7 +3631,7 @@ function importPicked(file){
       '<div class="mhead2">'+icon("i-upload","ic-18")+'<h2>Restore this backup?</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
       '<div class="mbody"><p style="margin:0;color:var(--ink-2)">The file holds '+
         '<b>'+d.tasks.length+'</b> tasks, <b>'+((d.routines||[]).length)+'</b> routines, <b>'+((d.notes||[]).length)+'</b> notes and <b>'+d.categories.length+'</b> categories'+
-        (o&&o.exported?', backed up on '+esc(new Date(o.exported).toLocaleDateString(undefined,{day:"numeric",month:"long",year:"numeric"})):"")+'.</p>'+
+        (o&&o.exported?', backed up on '+esc(new Date(o.exported).toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"})):"")+'.</p>'+
       '<p style="margin:0;color:var(--danger);font-weight:600">This replaces everything currently in the planner.</p></div>'+
       '<div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Cancel</button>'+
       '<button class="btn btn-primary" data-act="import-apply">'+icon("i-check")+'Restore</button></div></div>');
@@ -3584,7 +3669,7 @@ function quadFromFlags(u,i){
   return "drop";
 }
 
-function quadName(t){const q=quadOf(t);return q?QUADS.find(x=>x.id===q).name:"Not prioritised";}
+function quadName(t){const q=quadOf(t);return q?QUADS.find(x=>x.id===q).name:"Not prioritized";}
 function subRow(s){return '<div class="sub-row'+(s.d?" done":"")+'" data-sid="'+(s.id||uid("s"))+'">'+
   '<button class="tick'+(s.d?" on":"")+'" data-act="sub-toggle" aria-label="Toggle subtask">'+icon("i-check")+'</button>'+
   '<span class="t"><input value="'+esc(s.t)+'" placeholder="Subtask"></span>'+
@@ -3658,12 +3743,12 @@ function catsModal(){
     return '<div class="cm-row'+(off?" off":"")+(open?" open":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
       '<button type="button" class="cz-grip" data-grip="cat" data-id="'+c.id+'" title="Drag to reorder" aria-label="Move '+esc(c.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
       '<button type="button" class="cm-ic'+(open==="icon"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="icon" aria-label="Icon for '+esc(c.name)+'" aria-expanded="'+(open==="icon")+'">'+icon(c.icon,"ic-16")+'</button>'+
-      '<button type="button" class="cm-sw'+(open==="color"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="color" aria-label="Colour of '+esc(c.name)+'" aria-expanded="'+(open==="color")+'"></button>'+
+      '<button type="button" class="cm-sw'+(open==="color"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="color" aria-label="Color of '+esc(c.name)+'" aria-expanded="'+(open==="color")+'"></button>'+
       '<input class="cm-name" data-act="cm-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="40" aria-label="Category name" autocomplete="off">'+
       (off?'<span class="cm-hid" title="Hidden from your views">'+icon("i-eye-off","ic-14")+'</span>':"")+
       '<button type="button" class="icon-btn btn-sm cm-more" data-act="cm-more" data-id="'+c.id+'" aria-label="More for '+esc(c.name)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button>'+
       (open==="color"?'<div class="cm-pick">'+CAT_COLORS.map(x=>'<button type="button" class="cm-dot'+(x.toLowerCase()===c.color.toLowerCase()?" on":"")+'" style="--c:'+x+'" data-act="cm-color" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
-        cpSwatch('data-act="cp-open" data-cp="cat" data-id="'+c.id+'"',c.color,!CAT_COLORS.some(x=>x.toLowerCase()===c.color.toLowerCase()),"Any colour you like")+'</div>':"")+
+        cpSwatch('data-act="cp-open" data-cp="cat" data-id="'+c.id+'"',c.color,!CAT_COLORS.some(x=>x.toLowerCase()===c.color.toLowerCase()),"Any color you like")+'</div>':"")+
       (open==="icon"?'<div class="cm-pick cm-icons">'+CAT_ICONS.map(i=>'<button type="button" class="cm-icon'+(i===c.icon?" on":"")+'" data-act="cm-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+i.replace("i-","")+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>':"")+
       (del&&del.id===c.id?'<div class="cz-delrow"><span>'+(n?'Delete “'+esc(c.name)+'”? '+(n===1?"Its one item moves":"Its "+n+" items move")+' to '+esc(to?to.name:"")+'.':'Delete “'+esc(c.name)+'”?')+'</span>'+
         '<span class="spacer" style="flex:1"></span><button type="button" class="btn btn-sm" data-act="cm-del-no">Keep it</button>'+
@@ -3671,7 +3756,7 @@ function catsModal(){
       '</div>';};
   openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Categories">'+
     '<div class="mhead2"><h2>Categories</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody"><p class="cz-lead">Rename, recolour or reorder them. Drag the handle to move one.</p>'+
+    '<div class="mbody"><p class="cz-lead">Rename, recolor or reorder them. Drag the handle to move one.</p>'+
       '<div class="cat-manage" id="cmList">'+S.categories.map(row).join("")+'</div>'+
       '<button type="button" class="btn btn-sm cm-new" data-act="cm-new">'+icon("i-plus","ic-14")+'New category</button></div>'+
     '<div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
@@ -3695,7 +3780,7 @@ function peekModal(date){
   const routines=evs.filter(e=>e.kind!=="session"),tracked=evs.filter(e=>e.kind==="session");
   const gd=gcalFor(parseD(date)),gev=gd.allDay.concat(gd.timed.map(x=>x.g));
   openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Day" data-peek="1">'+
-    '<div class="mhead2"><h2>'+esc(parseD(date).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"}))+'</h2>'+
+    '<div class="mhead2"><h2>'+esc(parseD(date).toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long"}))+'</h2>'+
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div><div class="mbody">'+
     (gev.length?'<div><div class="sec-label" style="margin-bottom:6px">Events</div>'+gev.map(e=>'<div class="qrow" data-act="gcal-ev" data-id="'+esc(e.id)+'"><span class="gdot" style="--c:'+e.color+'"></span><div class="t"><b>'+esc(e.title)+'</b></div><span class="chip num">'+esc(e.allDay?"All day":fmtTime(pad(new Date(e.st).getHours())+":"+pad(new Date(e.st).getMinutes())))+'</span></div>').join("")+'</div>':"")+
     (ts.length?'<div><div class="sec-label" style="margin-bottom:6px">Tasks</div>'+ts.map(t=>'<div class="qrow" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+'<div class="t"><b>'+esc(t.title)+'</b></div>'+catChip(t.cat)+'</div>').join("")+'</div>':"")+
@@ -3923,8 +4008,13 @@ document.addEventListener("click",function(e){
     case "task-mode":V.taskMode=n.dataset.mode;renderTopbar();renderView();break;
     case "quick":V.f.quick=n.dataset.v;V.colMore={};renderView();break;
     case "col-more":V.colMore=V.colMore||{};V.colMore[n.dataset.v]=(V.colMore[n.dataset.v]||0)+100;renderView();break;
-    case "adv-toggle":V.adv=!V.adv;renderView();break;
-    case "filter-clear":V.f={quick:V.f.quick,status:"",cat:"",quad:"",from:"",to:"",sort:"due"};renderView();break;
+    case "rail-mini":S.prefs.railMini=!S.prefs.railMini;save("prefs");applyRail();tipHide();break;
+    case "tip-ok":tipDone(false);break;
+    case "tip-skip":tipDone(true);break;
+    case "tips-again":S.prefs.tips={seen:{},off:false};save("prefs");toast("The tips will show again as you go");break;
+    case "adv-toggle":V.adv=!V.adv;render();break;
+    case "f-drop":{const k=n.dataset.k;V.f[k]=k==="sort"?"due":"";render();break;}
+    case "filter-clear":V.f={quick:"all",status:"",cat:"",quad:"",from:"",to:"",sort:"due"};render();break;
     case "task":if(id)openSheet(id);break;
     case "sh-open":if(id)openSheet(id);break;
     case "task-done":toggleTaskDone(id);break;
@@ -3940,6 +4030,7 @@ document.addEventListener("click",function(e){
     case "sh-deadline":{if(!V.sheet)break;V.sheet.dl=true;renderSheet();
       const b=document.querySelector('.when-dl .pk-btn');if(b)pkOpen(b);break;}
     case "sh-tab":V.sheet.tab=n.dataset.v;renderSheet();break;
+    case "sh-remind-rel":patchCurrent({remindAt:""});break;
     case "sh-est-u":if(V.sheet){V.sheet.estU=n.dataset.v;renderSheet();const b=document.querySelector('#sheetRoot [data-act="sh-est-u"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});}break;
     case "sh-done":{const t=sheetTask();if(t&&V.sheet.id)toggleTaskDone(t.id),renderSheet();break;}
     case "sh-delete":if(arm(n,"Delete for good?"))deleteTask(V.sheet.id);break;
@@ -3975,6 +4066,7 @@ document.addEventListener("click",function(e){
       if(!e.detail){const h=document.querySelector('.lh[data-act="lr-sort"][data-v="'+CSS.escape(k)+'"]');if(h)h.focus({preventScroll:true});}break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
     case "cz-open-list":closeModal();V.view="tasks";V.taskMode="list";render();break;
+    case "cz-lgroup":board().lgroup=n.dataset.v;V.lshut={};save("prefs");customiseModal();render();break;
     case "cp-done":cpClose(false);break;
     case "cp-drop":if(window.EyeDropper){new EyeDropper().open().then(r=>{if(r&&r.sRGBHex&&CPK.el)cpSet(hexToHsv(r.sRGBHex));}).catch(()=>{});}break;
     case "cp-open":{const k=n.dataset.cp,id=n.dataset.id;
@@ -4089,14 +4181,15 @@ document.addEventListener("click",function(e){
     case "away-open":awayOpen(id,n);break;
     case "routine":case "routine-edit":routineModal(id);break;
     case "routine-save":saveRoutine(id||null);break;
-    case "routine-delete":if(arm(n,"Delete for good?")){S.routines=S.routines.filter(r=>r.id!==id);save("routines");
-      /* Its ticks go with it; left behind they were dead weight in every save. */
-      Object.keys(S.completions).forEach(k=>{if(k.indexOf(id+"|")===0)delete S.completions[k];});save("completions");closeModal();render();toast("Routine deleted");}break;
+    case "routine-delete":if(arm(n,"Delete for good?"))deleteRoutine(id);break;
+    case "rt-menu":ctxMenu(routineItems(id,TODAY()),null,n);break;
+    case "cx-do":{const x=TMN.items&&TMN.items[Number(n.dataset.i)];if(!x)break;
+      if(x.arm&&!arm(n,x.arm))break;taskMenuClose();x.run();break;}
     case "routine-done":{const k=id+"|"+n.dataset.date;
       /* A day that has not come yet cannot be done yet; a tick already on
          one can still be taken off. */
       if(S.completions[k])delete S.completions[k];
-      else if(n.dataset.date>TODAY()){toast("You can tick this on "+fmtDate(n.dataset.date));break;}
+      else if(n.dataset.date>TODAY()){toast("You can check this off on "+fmtDate(n.dataset.date));break;}
       else S.completions[k]=true;
       save("completions");render();break;}
     case "r-day":{n.classList.toggle("on");n.setAttribute("aria-pressed",String(n.classList.contains("on")));
@@ -4353,7 +4446,7 @@ document.addEventListener("input",function(e){
     const note=document.querySelector(".accent-note");
     if(note){
       const b=note.querySelector("b");if(b)b.textContent=S.prefs.accentHex;
-      const lab=note.querySelector("span");if(lab)lab.textContent="Your own colour";
+      const lab=note.querySelector("span");if(lab)lab.textContent="Your own color";
     }
     const tri=accentTrio(S.prefs.accentHex);
     e.target.classList.remove("empty");
@@ -4492,6 +4585,10 @@ document.addEventListener("change",function(e){
   if(t.dataset&&t.dataset.act==="sh-set"){
     const k=t.dataset.k;let v=t.value;
     if(k==="est")v=Math.max(0,parseInt(v,10)||0);
+    if(k==="remind"&&v==="at"){const cur=sheetTask()||{};
+      const m=Math.max(0,hm2m(cur.dueTime||"09:30")-30);patchCurrent({remindAt:(tTimeDay(cur)||TODAY())+" "+m2hm(m)});return;}
+    if(k==="remindDate"){const cur=sheetTask()||{};patchCurrent({remindAt:v?v+" "+((cur.remindAt||"").slice(11)||"09:00"):""});return;}
+    if(k==="remindTime"){const cur=sheetTask()||{};if(cur.remindAt)patchCurrent({remindAt:cur.remindAt.slice(0,10)+" "+v});return;}
     if(k==="remind")v=v==="d"?null:v==="off"?false:Number(v);
     /* No date, no times. */
     if(k==="due"&&!v){patchCurrent({due:"",dueTime:"",endTime:""});return;}
@@ -4557,7 +4654,7 @@ window.addEventListener("unhandledrejection",function(e){
 const FIELD_LABEL={title:"Title",desc:"Description",due:"Start date",start:"Start date",deadline:"Due date",endTime:"End time",
   status:"Status",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
-  dueTime:"Start time",remind:"Reminder"};
+  dueTime:"Start time",remind:"Reminder",remindAt:"Reminder"};
 
 const actFor=id=>(ixAct().get(id)||NONE).slice().sort((a,b)=>a.at-b.at);
 
@@ -4875,7 +4972,7 @@ function deleteDoc(id){
    The same list from the ⋯ in the side panel and from a right-click on a
    task anywhere: adding to the task first (a subtask, time, files, a link),
    then copying it, and deleting last, apart from the rest. Parts switched off
-   in Customise are left out. From a card, the task opens first, since each
+   in Customize are left out. From a card, the task opens first, since each
    of these lands in its panel. */
 const TMN={el:null,btn:null};
 function taskMenuClose(){if(TMN.el){TMN.el.remove();TMN.el=null;}if(TMN.btn){TMN.btn.setAttribute("aria-expanded","false");TMN.btn=null;}}
@@ -4891,6 +4988,7 @@ function taskMenu(id,at,btn,fromCard){
   if(feat("files"))items.push(["files","i-clip","Attach files"]);
   if(feat("links"))items.push(["link","i-link","Link task"]);
   items.push(["dup","i-copy","Duplicate task"]);
+  if(feat("activity")){const on=V.sheet&&V.sheet.id===id&&V.sheet.tab==="activity";items.push(["activity",on?"i-panel":"i-chart",on?"Back to details":"Activity history"]);}
   const m=document.createElement("div");m.className="catmenu tmenu";m.setAttribute("role","menu");
   m.innerHTML=items.map(x=>'<button type="button" role="menuitem" class="cm-opt" data-act="tm-do" data-v="'+x[0]+'" data-id="'+id+'">'+icon(x[1],"ic-14")+'<span>'+x[2]+'</span></button>').join("")+
     '<div class="tm-sep" role="separator"></div><button type="button" role="menuitem" class="cm-opt tm-danger" data-act="tm-do" data-v="del" data-id="'+id+'">'+icon("i-trash","ic-14")+'<span>Delete task</span></button>';
@@ -4907,6 +5005,8 @@ function tmDo(v,id,n){
   if(v==="dup"){duplicateTask(id);return;}
   if(v==="time"){toggleTimer(id);renderSheet();return;}
   if(!V.sheet||V.sheet.id!==id)openSheet(id);
+  if(v==="activity"){V.sheet.tab=V.sheet.tab==="activity"?"details":"activity";renderSheet();const b=document.querySelector("#sheetRoot .sh-body");if(b)b.scrollTop=0;return;}
+  if(V.sheet.tab==="activity"){V.sheet.tab="details";renderSheet();}
   const find=sel=>document.querySelector("#sheetRoot "+sel);
   const show=node=>{if(node)node.scrollIntoView({block:"center"});};
   if(v==="sub"){
@@ -4916,6 +5016,174 @@ function tmDo(v,id,n){
   else if(v==="link"){const sel=find('[data-act="sh-link-add"]');show(sel||find(".linkbox"));
     if(sel){sel.focus();if(pkSelectable(sel))pkOpen(sel);}else toast("There are no other tasks to link yet");}
 }
+/* ---- guided tips ----
+   A few one-time pointers, each beside the thing it is about, shown the
+   first time that thing is on screen: how to make tasks your own, how the
+   list is grouped and sorted, drawing on the calendar, right-click menus,
+   categories and settings. One at a time; Got it moves to the next one on
+   the page, Skip tips stops them all (Settings ▸ Appearance brings them
+   back). They wait while setup, a window or the task panel is open, and
+   never take the keyboard. Seen ones are in prefs.tips. */
+const TIPS=[
+  {id:"customize",view:"tasks",sel:'[data-tip="customize"]',title:"Make tasks yours",
+    text:()=>"Choose your board lanes, the details every task has, and how the list is laid out."},
+  {id:"list-group",view:"tasks",mode:"list",sel:".lg-head",title:"How the list is grouped",
+    text:()=>{const x=lgChoices().find(c=>c[0]===lgBy());return "These tables are grouped by "+(x?x[1].toLowerCase():"start date")+". Pick another way in Customize ▸ List view.";}},
+  {id:"list-sort",view:"tasks",mode:"list",sel:'.lrow.head .lh[data-v="name"]',title:"Sort, move and resize",
+    text:()=>"Click a column heading to sort by it. Drag a heading to move its column, or drag its edge to change the width."},
+  {id:"board-add",view:"tasks",mode:"board",sel:'[data-act="qa-open"]',title:"Add right where it goes",
+    text:()=>"Add a task straight into a lane. Drag cards between lanes as work moves along."},
+  {id:"cal-drag",view:"calendar",calMode:"week",sel:".daycol.today",title:"Draw it in",
+    text:()=>"Drag down a day to add a task, a routine, or time you are unavailable."},
+  {id:"rclick",view:"routines",sel:".rcard",title:"More on a right-click",
+    text:()=>"Right-click a routine for its options: edit, pause, duplicate or delete. Tasks, notes and calendar items work the same way."},
+  {id:"scratch",view:"dashboard",sel:".dash-scratch [data-act=\"scratch-task\"]",title:"A scratch pad",
+    text:()=>"Jot anything down. Turn a line into a task, or save the lot as a note."},
+  {id:"cats",view:"*",sel:'#railHead [data-act="manage-cats"]',title:"Your categories",
+    text:()=>"Rename them, change their colors and icons, or add your own. Click a box to hide a category everywhere."},
+  {id:"settings",view:"*",sel:".me",title:"Settings",
+    text:()=>"Your account, backups, reminders and how the planner looks are all in here."},
+  {id:"rail-mini",view:"*",sel:"#railMini",title:"More room to work",
+    text:()=>"Fold the sidebar down to its icons with this button. Click it again to open it."}];
+const TIP={el:null,id:null,target:null};
+function tipPrefs(){const p=S.prefs.tips||(S.prefs.tips={});if(!p.seen)p.seen={};return p;}
+function tipBlocked(){
+  return document.hidden||!!el("modalRoot").innerHTML||!!V.sheet||!!QC.el||!!TMN.el||!!CM.el||!!PK.el||
+    document.body.classList.contains("ob-open")||document.body.classList.contains("ob-wait")||(el("obRoot")&&el("obRoot").innerHTML);
+}
+function tipShown(x){if(!x)return false;const r=x.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;}
+function tipCheck(){
+  const p=tipPrefs();
+  if(p.off){tipHide();return;}
+  if(tipBlocked()){tipHide();return;}
+  if(TIP.el){if(TIP.target&&TIP.target.isConnected&&tipShown(TIP.target)){tipPlace();return;}tipHide();}
+  const t=TIPS.find(x=>!p.seen[x.id]&&(x.view==="*"||x.view===V.view)&&(!x.mode||x.mode===V.taskMode)&&(!x.calMode||x.calMode===V.calMode)&&tipShown(document.querySelector(x.sel)));
+  if(!t)return;
+  const target=document.querySelector(t.sel);
+  const d=document.createElement("div");d.className="tip";d.setAttribute("role","status");
+  const left=TIPS.filter(x=>!p.seen[x.id]).length;
+  d.innerHTML='<i class="tip-arrow"></i><b>'+esc(t.title)+'</b><p>'+esc(t.text())+'</p>'+
+    '<div class="tip-foot"><button type="button" class="linkish" data-act="tip-skip">Skip tips</button><span class="spacer" style="flex:1"></span>'+
+    (left>1?'<span class="tip-n num">'+left+' left</span>':"")+'<button type="button" class="btn btn-sm btn-primary" data-act="tip-ok">Got it</button></div>';
+  document.body.appendChild(d);TIP.el=d;TIP.id=t.id;TIP.target=target;
+  /* A tall target (a whole day of the week) is pointed at, not outlined. */
+  if(target.getBoundingClientRect().height<300)target.classList.add("tip-on");tipPlace();
+}
+function tipPlace(){
+  const d=TIP.el,t=TIP.target;if(!d||!t)return;
+  const r=t.getBoundingClientRect(),w=d.offsetWidth,h=d.offsetHeight;
+  const tall=r.height>=300,below=r.bottom+12+h<innerHeight-8,side=r.right+12+w<innerWidth-8&&(tall||(r.width<260&&r.left<260));
+  let x,y,cls;
+  if(side&&tall){x=r.right+12;y=Math.min(Math.max(8,Math.max(r.top,0)+120),innerHeight-h-8);cls="left";}
+  else if(side){x=r.right+12;y=Math.min(Math.max(8,r.top+r.height/2-h/2),innerHeight-h-8);cls="left";}
+  else if(below){x=r.left+r.width/2-w/2;y=r.bottom+12;cls="up";}
+  else{x=r.left+r.width/2-w/2;y=Math.max(8,r.top-12-h);cls="down";}
+  x=Math.min(Math.max(8,x),innerWidth-w-8);
+  d.style.left=Math.round(x)+"px";d.style.top=Math.round(y)+"px";d.dataset.side=cls;
+  const a=d.querySelector(".tip-arrow");
+  if(cls==="left")a.style.cssText="top:"+Math.round(tall?24:Math.min(Math.max(12,r.top+r.height/2-y),h-12))+"px";
+  else a.style.cssText="left:"+Math.round(Math.min(Math.max(14,r.left+r.width/2-x),w-14))+"px";
+}
+function tipHide(){if(TIP.el){TIP.el.remove();TIP.el=null;}if(TIP.target)TIP.target.classList.remove("tip-on");TIP.target=null;TIP.id=null;}
+function tipDone(all){const p=tipPrefs();if(all)p.off=true;else if(TIP.id)p.seen[TIP.id]=1;save("prefs");tipHide();setTimeout(tipCheck,250);}
+setInterval(tipCheck,1200);
+addEventListener("resize",()=>{if(TIP.el)tipPlace();});
+document.addEventListener("scroll",()=>{if(TIP.el)tipPlace();},true);
+
+/* ---- right-click menus everywhere ----
+   A task has its own (`taskMenu()`). Everything else that can be changed
+   -- a routine wherever it shows, a note, time marked unavailable, a
+   Google event, a category, a lane -- gets the same kind of list on a
+   right-click, and routines on their card's ⋯ as well: the thing's own
+   actions first, deleting last and apart, asking twice. A text field keeps
+   the browser's menu, which has copy and paste. */
+function ctxMenu(items,at,btn){
+  items=items.filter(Boolean);if(!items.length)return;
+  if(btn&&TMN.btn===btn){taskMenuClose();return;}
+  taskMenuClose();catMenuClose();pkClose();
+  while(items[items.length-1]==="sep")items.pop();
+  const m=document.createElement("div");m.className="catmenu tmenu";m.setAttribute("role","menu");
+  m.innerHTML=items.map((x,i)=>x==="sep"?'<div class="tm-sep" role="separator"></div>':
+    '<button type="button" role="menuitem" class="cm-opt'+(x.danger?" tm-danger":"")+'" data-act="cx-do" data-i="'+i+'">'+icon(x.icon,"ic-14")+'<span>'+esc(x.label)+'</span></button>').join("");
+  document.body.appendChild(m);TMN.el=m;TMN.btn=btn||null;TMN.items=items;if(btn)btn.setAttribute("aria-expanded","true");
+  const w=m.offsetWidth,h=m.offsetHeight;let x,y;
+  if(btn){const b=btn.getBoundingClientRect();x=b.right-w;y=b.bottom+6;if(y+h>innerHeight-8)y=Math.max(8,b.top-6-h);}
+  else{x=at.x;y=at.y;if(y+h>innerHeight-8)y=Math.max(8,innerHeight-8-h);}
+  m.style.left=Math.round(Math.min(Math.max(8,x),innerWidth-w-8))+"px";m.style.top=Math.round(y)+"px";
+  const f=m.querySelector(".cm-opt");if(f)f.focus({preventScroll:true});
+}
+function deleteRoutine(id){
+  const r=routineById(id);if(!r)return;
+  S.routines=S.routines.filter(x=>x.id!==id);save("routines");
+  /* Its ticks go with it; left behind they were dead weight in every save. */
+  Object.keys(S.completions).forEach(k=>{if(k.indexOf(id+"|")===0)delete S.completions[k];});save("completions");
+  closeModal();render();toast("Routine deleted");
+}
+function routineItems(id,date){
+  const r=routineById(id);if(!r)return [];
+  const k=id+"|"+date,done=!!S.completions[k],later=date>TODAY();
+  const day=date===TODAY()?"today":fmtDate(date);
+  return [
+    later&&!done?null:{icon:done?"i-x":"i-check",label:done?"Mark not done "+(date===TODAY()?"today":"on "+day):"Mark done "+(date===TODAY()?"today":"on "+day),
+      run:()=>{if(done)delete S.completions[k];else S.completions[k]=true;save("completions");render();}},
+    {icon:"i-edit",label:"Edit routine",run:()=>routineModal(id)},
+    {icon:r.active?"i-pause":"i-play",label:r.active?"Pause routine":"Resume routine",
+      run:()=>{r.active=!r.active;save("routines");render();toast(r.active?"Routine resumed":"Routine paused");}},
+    {icon:"i-copy",label:"Duplicate routine",run:()=>{const c=JSON.parse(JSON.stringify(r));c.id=uid("r");c.title=r.title+" (copy)";
+      S.routines.splice(S.routines.indexOf(r)+1,0,c);save("routines");render();toast("Routine duplicated");}},
+    "sep",
+    {icon:"i-trash",label:"Delete routine",danger:true,arm:"Delete for good?",run:()=>deleteRoutine(id)}];
+}
+function noteItems(id){
+  const x=noteById(id);if(!x)return [];
+  return [
+    {icon:"i-note",label:"Open note",run:()=>{V.view="notes";V.noteId=id;render();}},
+    {icon:"i-pin",label:x.pinned?"Unpin":"Pin to the top",run:()=>{x.pinned=!x.pinned;x.updated=Date.now();save("notes");render();}},
+    {icon:"i-copy",label:"Duplicate note",run:()=>{const c=JSON.parse(JSON.stringify(x));c.id=uid("n");c.title=(x.title||"Untitled note")+" (copy)";c.updated=Date.now();c.pinned=false;
+      S.notes.unshift(c);V.noteId=c.id;save("notes");render();toast("Note duplicated");}},
+    "sep",
+    {icon:"i-trash",label:"Delete note",danger:true,arm:"Delete note?",run:()=>{S.notes=S.notes.filter(n=>n.id!==id);if(V.noteId===id)V.noteId=null;save("notes");render();toast("Note deleted. Tasks it created stay.");}}];
+}
+function awayItems(id,anchor){
+  const a=awayList().find(x=>x.id===id);if(!a)return [];
+  return [
+    {icon:"i-edit",label:"Edit",run:()=>awayOpen(id,anchor)},
+    {icon:"i-copy",label:"Duplicate to the next day",run:()=>{awayList().push(Object.assign({},a,{id:uid("a"),date:ymd(addDays(parseD(a.date),1))}));save("prefs");render();toast("Copied to "+fmtDate(ymd(addDays(parseD(a.date),1))));}},
+    "sep",
+    {icon:"i-trash",label:"Delete",danger:true,arm:"Delete?",run:()=>{S.prefs.away=awayList().filter(x=>x.id!==id);save("prefs");render();toast("Deleted");}}];
+}
+function catItems(id){
+  const c=cat(id);if(!c||c.id!==id)return [];
+  const off=!visibleCat(id);
+  return [
+    {icon:off?"i-eye":"i-eye-off",label:off?"Show "+c.name:"Hide "+c.name,run:()=>toggleCat(id)},
+    {icon:"i-target",label:"Show only "+c.name,run:()=>{S.prefs.hidden=S.categories.filter(x=>x.id!==id).map(x=>x.id);touched.prefs=true;save("prefs");render();refreshCatsModal();}},
+    hiddenCats().length?{icon:"i-eye",label:"Show every category",run:()=>{S.prefs.hidden=[];touched.prefs=true;save("prefs");render();refreshCatsModal();}}:null,
+    "sep",
+    {icon:"i-edit",label:"Edit categories",run:()=>{V.catEdit={};catsModal();}}];
+}
+function laneItems(id){
+  const l=lane(id);if(!l)return [];
+  return [
+    {icon:"i-plus",label:"Add a task here",run:()=>{const b=document.querySelector('[data-act="qa-open"][data-status="'+id+'"]');if(b)b.click();}},
+    {icon:"i-sliders",label:"Edit lanes",run:()=>{V.cz={tab:"lanes"};customiseModal();}}];
+}
+document.addEventListener("contextmenu",function(e){
+  const t=e.target;if(!t||!t.closest||e.defaultPrevented)return;
+  if(t.closest("input,textarea,[contenteditable='true'],select"))return;
+  let items=null;
+  const rt=t.closest('[data-act="routine"][data-id],[data-act="routine-done"][data-id]'),rc=t.closest(".rcard[data-rid]");
+  const nt=t.closest('[data-act="note-open"][data-id]'),aw=t.closest('[data-act="away-open"][data-id]');
+  const cr=t.closest('.cat-row[data-id]'),ln=t.closest('.col[data-col]');
+  if(rt)items=routineItems(rt.dataset.id,rt.dataset.date||TODAY());
+  else if(rc)items=routineItems(rc.dataset.rid,TODAY());
+  else if(nt)items=noteItems(nt.dataset.id);
+  else if(aw)items=awayItems(aw.dataset.id,aw);
+  else if(cr)items=catItems(cr.dataset.id);
+  else if(ln&&!t.closest('[data-act="task"]'))items=laneItems(ln.dataset.col);
+  if(!items||!items.length)return;
+  e.preventDefault();ctxMenu(items,{x:e.clientX,y:e.clientY},null);
+});
 /* A copy with its details, checklist and fields, in the same lane; not its
    history, its tracked time or its comments, which belong to the original. */
 function duplicateTask(id){
@@ -4946,7 +5214,7 @@ function lrCommit(i,keep){
   else if(i.id==="lrTag"){const v=i.value.trim().replace(/^#/,""),t=taskById(i.dataset.id);V.ltag=null;
     if(keep&&v&&t&&(t.tags||[]).indexOf(v)<0)patchTask(t.id,{tags:(t.tags||[]).concat([v])});else renderView();}
   else if(i.id==="lqaTitle"){const v=i.value.trim(),k=V.lqa;
-    if(keep&&v){const x=newTask({title:v,status:firstOpen(),due:k&&k!=="none"?lqaDate(k):"",cat:(S.categories.find(c=>c.id==="other")||S.categories[0]).id});if(isDoneT(x))x.completedAt=TODAY();
+    if(keep&&v){const x=newTask(Object.assign({title:v,status:firstOpen(),cat:(S.categories.find(c=>c.id==="other")||S.categories[0]).id},lgPreset(lgBy(),k)));if(isDoneT(x))x.completedAt=TODAY();
       S.tasks.push(x);logAct(x.id,"created","Created this task");save("tasks");render();const n=el("lqaTitle");if(n)n.focus();}
     else{V.lqa=null;renderView();}}
 }
@@ -5096,10 +5364,10 @@ function sheetDeadline(t){
    follows it when the page scrolls. */
 const PK={el:null,src:null,btn:null,kind:"",month:null,focus:""};
 const TP_PARTS=[["Night",0,6],["Morning",6,12],["Afternoon",12,17],["Evening",17,24]];
-const pkDateText=v=>{const d=parseD(v);return DOWS[(d.getDay()+6)%7]+" "+fmtDate(v);};
+const pkDateText=v=>{const d=parseD(v);return DOWS[(d.getDay()+6)%7]+", "+fmtDate(v);};
 /* "Wednesday, 9 September", as Google writes the date of an event. */
 const pkLongDate=v=>{const d=parseD(v);
-  return d.toLocaleDateString(undefined,Object.assign({weekday:"long",day:"numeric",month:"long"},d.getFullYear()===today().getFullYear()?{}:{year:"numeric"}));};
+  return d.toLocaleDateString("en-US",Object.assign({weekday:"long",day:"numeric",month:"long"},d.getFullYear()===today().getFullYear()?{}:{year:"numeric"}));};
 const pkText=(kind,v,fmt)=>kind==="date"?(fmt==="long"?pkLongDate(v):pkDateText(v)):fmtTime(v);
 /* How long an end time makes it: 30 mins, 1 hr, 1.5 hrs. */
 const durLabel=m=>m<60?m+" mins":(Math.round(m/60*100)/100)+(m===60?" hr":" hrs");
@@ -5220,7 +5488,7 @@ function pkDateHtml(){
   let days="";
   for(let i=0;i<42;i++){const d=addDays(start,i),s=ymd(d);
     days+='<button type="button" class="pk-day'+(d.getMonth()!==mo?" out":"")+(s===t?" today":"")+(s===v?" on":"")+'"'+
-      ' data-act="pk-day" data-v="'+s+'" tabindex="'+(s===PK.focus?0:-1)+'" aria-label="'+esc(d.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"}))+'"'+
+      ' data-act="pk-day" data-v="'+s+'" tabindex="'+(s===PK.focus?0:-1)+'" aria-label="'+esc(d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"}))+'"'+
       (s===t?' aria-current="date"':"")+' aria-pressed="'+(s===v)+'">'+d.getDate()+'</button>';}
   return '<div class="pk-top">'+quick.map(q=>'<button type="button" class="pk-chip'+(q[1]===v?" on":"")+'" data-act="pk-day" data-v="'+q[1]+'" title="'+esc(pkDateText(q[1]))+'">'+q[0]+'</button>').join("")+'</div>'+
     '<div class="pk-mh"><b>'+MON[mo]+' '+y+'</b>'+
@@ -5228,7 +5496,7 @@ function pkDateHtml(){
       '<button type="button" class="pk-nav" data-act="pk-month" data-v="1" aria-label="Next month">'+icon("i-chev-r","ic-14")+'</button></div>'+
     '<div class="pk-cal"><div class="pk-dow">'+dowLabels().map(x=>'<span>'+x.slice(0,2)+'</span>').join("")+'</div>'+
       '<div class="pk-days">'+days+'</div></div>'+
-    pkFoot(v?esc(parseD(v).toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long"})):"Pick a day, or use the arrow keys",
+    pkFoot(v?esc(parseD(v).toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long"})):"Pick a day, or use the arrow keys",
       pkClearable()?"Clear date":"");
 }
 function pkMonth(n){PK.month=new Date(PK.month.getFullYear(),PK.month.getMonth()+n,1);
@@ -5473,7 +5741,7 @@ function timeBreakdown(t,total,live){
   const pos=ms=>{const d=new Date(ms);return Math.max(0,Math.min(100,(d.getHours()*60+d.getMinutes()-from)/span*100));};
   const hm=ms=>{const d=new Date(ms);return fmtTime(pad(d.getHours())+":"+pad(d.getMinutes()));};
   const dayName=k=>k===TODAY()?"Today":k===ymd(addDays(today(),-1))?"Yesterday":
-    parseD(k).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
+    parseD(k).toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short"});
   const plural=(n,w)=>n+" "+w+(n===1?"":"s");
 
   let meter="";
@@ -5640,7 +5908,7 @@ function renderSheet(){
   const isNew=!s.id,c=cat(t.cat),done=isDoneT(t);
   if(s.tab==="activity"&&!feat("activity"))s.tab="details";
   const parent=t.parent?taskById(t.parent):null;
-  /* The panel has the parts switched on in Customise; a group with none
+  /* The panel has the parts switched on in Customize; a group with none
      left is not drawn at all. */
   const group=(title,rows)=>{const r=rows.filter(Boolean).join("");return r?'<div class="sh-group"><div class="sh-gh">'+title+'</div>'+r+'</div>':"";};
   const cfRows=board().fields.filter(f=>f.panel!==false).map(f=>metaRow(f.name,cfControl(t,f),cfType(f.type)[2]));
@@ -5672,10 +5940,11 @@ function renderSheet(){
       (parent?'<button class="sh-crumb" data-act="task" data-id="'+parent.id+'">'+icon("i-chev-l","ic-14")+'<span>Subtask of</span><b>'+esc(parent.title)+'</b></button>':"")+
       '<input class="sh-title" id="shTitle" value="'+esc(t.title)+'" placeholder="What needs doing?" data-act="sh-set" data-k="title">'+
 
-      (isNew||!feat("activity")?"":'<div class="sh-tabs" role="tablist">'+
-        '<button class="sh-tab" data-act="sh-tab" data-v="details" role="tab" aria-selected="'+(s.tab!=="activity")+'">Details</button>'+
-        '<button class="sh-tab" data-act="sh-tab" data-v="activity" role="tab" aria-selected="'+(s.tab==="activity")+'">Activity'+
-          (histCount(t)?'<span class="num">'+histCount(t)+'</span>':"")+'</button></div>')+
+      /* One page of details. The task's history opens from the ⋯ menu in
+         its place, with a way back; a Details and Activity tab pair sat
+         over every task for something looked at now and then. */
+      (s.tab==="activity"?'<div class="sh-histhead"><button class="linkish sh-back" data-act="sh-tab" data-v="details">'+icon("i-chev-l","ic-14")+'Back to details</button>'+
+        '<h3>Activity history'+(histCount(t)?'<span class="num">'+histCount(t)+'</span>':"")+'</h3></div>':"")+
 
       /* Grouped under four small headings rather than one long list, so the
          form reads as when, what, how long, and what it is tied to. */
@@ -5688,7 +5957,7 @@ function renderSheet(){
           feat("deadline")?metaRow("Due date",sheetDeadline(t),"i-deadline"):"",
           feat("reminder")?metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell"):"",
           feat("created")&&!isNew&&t.created?metaRow("Created",'<span class="mnone">'+esc(fmtDate(t.created))+'</span>',"i-plus"):""])+
-        group("Organise",[
+        group("Organize",[
           feat("category")?metaRow("Category",sheetCats(t),c.icon):"",
           feat("priority")?metaRow("Priority",sheetPrio(t),"i-flag"):"",
           feat("tags")?metaRow("Tags",sheetTags(t),"i-tag"):""])+
@@ -6487,10 +6756,17 @@ function remindOptions(x){
     REMIND_OPTS.map(o=>'<option value="'+o[0]+'"'+(v===String(o[0])?" selected":"")+'>'+o[1]+'</option>').join("")+
     '<option value="off"'+(v==="off"?" selected":"")+'>No reminder</option>';
 }
+/* A task with a start time is reminded a while before it starts. One
+   without -- no start, all day, or the Start row switched off in Customize
+   -- is reminded on a day and at a time of its own (`remindAt`, "YYYY-MM-DD
+   HH:MM"), which a timed task can choose too. */
 function taskRemindHtml(t){
-  if(!tTimeDay(t))return '<span class="mnone">Give it a date and a time to get a reminder</span>';
-  if(!t.dueTime)return '<span class="mnone">Untick All day and set a time to get a reminder</span>';
-  return '<select class="inp inp-sm" data-act="sh-set" data-k="remind" aria-label="Reminder">'+remindOptions(t)+'</select>';
+  const rel=!!(tTimeDay(t)&&t.dueTime),at=t.remindAt||"",d=at.slice(0,10),tm=at.slice(11)||"09:00";
+  if(rel&&!at)return '<select class="inp inp-sm" data-act="sh-set" data-k="remind" aria-label="Reminder">'+remindOptions(t)+
+    '<option value="at">On a day and time I choose…</option></select>';
+  return '<div class="rm-at">'+dateField('data-act="sh-set" data-k="remindDate"',d,{sm:1,label:"Reminder day",ph:"Pick a day",cls:"when-date"})+
+    (d?timeField('data-act="sh-set" data-k="remindTime"',tm,{sm:1,label:"Reminder time",req:1,cls:"when-time"}):"")+
+    (rel?'<button type="button" class="linkish" data-act="sh-remind-rel">Before it starts instead</button>':"")+'</div>';
 }
 /* Defaults filled in on the one object, as with gcalPrefs, since the nested
    settings handler writes into it in place. No quiet hours by default. */
@@ -6537,6 +6813,13 @@ function buildReminders(){
     });
   }
   S.tasks.forEach(t=>{
+    if(isOpen(t)&&t.remindAt){
+      const fire=at(t.remindAt.slice(0,10),t.remindAt.slice(11)||"09:00");if(!keep(fire))return;
+      out.push({id:"ta:"+t.id+":"+t.remindAt,at:fire,title:t.title,
+        body:(t.deadline?"Due "+(t.deadline===TODAY()?"today":fmtDate(t.deadline))+" · ":"")+cat(t.cat).name,
+        open:{kind:"task",id:t.id}});
+      return;
+    }
     const day=tTimeDay(t);
     if(!isOpen(t)||!day||!t.dueTime)return;
     const m=remindMins(t);if(m===null)return;

@@ -114,8 +114,33 @@ open (`V.peek`), because the ticks in it change the page underneath.
 
 A task has one menu (`taskMenu()`), from the ⋯ in the panel's header and from a
 right-click on the task anywhere on the page: Add subtask, Track time, Attach
-files, Link task, Duplicate task, then Delete task apart from the rest (it
-asks twice). Parts switched off in Customise are left out; from a card it
+files, Link task, Duplicate task, Activity history, then Delete task apart
+from the rest (it asks twice). The panel has no tabs: Activity history takes
+the details' place with a Back to details link (`V.sheet.tab`).
+
+**Everything else has a right-click menu too** (`ctxMenu(items, at, btn)`,
+the right-click menus section): a routine wherever it shows — its card,
+the calendar, the dashboard (`routineItems()`), a note (`noteItems()`),
+unavailable time (`awayItems()`), a category in the sidebar (`catItems()`)
+and a board lane (`laneItems()`). Items are `{icon, label, run, danger,
+arm}` or `"sep"`; the thing's own actions first, deleting last, asking
+twice. A routine card's ⋯ opens the same list. Text fields keep the
+browser's own menu. Add a new kind of thing to the one `contextmenu`
+listener there.
+
+**Guided tips** (`TIPS`, `tipCheck()`, the guided tips section): one-time
+pointers shown beside the thing they are about the first time it is on
+screen — Customize, the list's grouping and headings, adding in a lane,
+drawing on the week, right-click, the scratch pad, categories, Settings,
+folding the sidebar. One at a time, never while setup, a window, the panel
+or a menu is open, and they never take the keyboard. Seen ones are
+`prefs.tips.seen`; Skip tips sets `prefs.tips.off`; Settings ▸ Appearance ▸
+Show the tips again clears both. A new tip is an entry in `TIPS` with a
+selector for something that is on screen.
+
+**The sidebar folds** to its icons (`prefs.railMini`, `applyRail()`,
+`body.rail-mini`) from the round button on its edge, shown on hover; open is
+the default, and below 1080px the width decides instead. Parts switched off in Customise are left out; from a card it
 starts with Open task, and each action opens the task's panel where it
 lands. A new task is created from the header's top right, or by Enter in its
 name.
@@ -276,8 +301,13 @@ listed as missed either.
 
 ### Customising tasks
 
+Tasks has no row of quick filters (All, Today, This week…): they read as
+noise over every board and list. **Filter** and **Customize** sit in the top
+bar beside Board and List; Filter opens the panel (`filterBar()`, `V.adv`)
+and, once shut, any filter still set shows as a chip with its own ×.
+
 How tasks work is the person's to set, in one window opened from
-**Customise** beside Advanced (`customiseModal()`, the customise section).
+**Customize** beside Filter in the top bar (`customiseModal()`, the customise section).
 All of it is `prefs.board`, filled in by `board()` on the one object, so it
 goes with backups and Drive like any setting.
 
@@ -334,12 +364,18 @@ goes with backups and Drive like any setting.
 - **A category pill is a button** where it belongs to a task or routine
   (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
   list of categories (`catMenu()`) and changes it in place.
-- **The list view** (`viewList()`) is a table per month of the task's
-  date, in order, with No date last, each a card with its own headings, and
-  each with its own + Add task (`V.lqa` is the month; a task added there is
-  dated in it, today in this month, by `lqaDate()`, or it would vanish from
-  where it was typed). A single heading over lane sections was tried and
-  taken back: a month reads on its own. Every cell is edited in place
+- **The list view** (`viewList()`) is a table per group, each a card with
+  its own headings and its own + Add task. What it groups by is the
+  person's, in Customize ▸ List view (`board().lgroup`, `lgChoices()`):
+  start date or due date (a table a month, the empty ones last), status,
+  category, priority, a field of their own that is a date, a single choice
+  or a checkbox, or nothing. Only fields switched on are offered; with none
+  picked, or the pick switched off, it is the start date, then the due
+  date, then status (`lgBy()`). `lgOf(t, g)` says a task's table and
+  `lgPreset(g, k)` what a task added under it gets, so it lands there
+  (`V.lqa` is the table). A single heading over lane sections was tried and
+  taken back: a group reads on its own. Customize ▸ List view also holds
+  the column order, moved out of Task details. Every cell is edited in place
   (`lrCell()`): the name by clicking it (`V.lrename`), dates from the
   picker, priority, lane and estimate from a short list, tags added
   (`V.ltag`) and removed, fields in their own controls. **An empty cell is
@@ -377,6 +413,11 @@ when its date *or* its deadline has gone (`isOverdue()`); a task with a
 deadline and no date sits on its deadline's day. `tSpan()` gives the start
 and end in minutes — a start with no end, from before tasks had one, is half
 an hour.
+
+A reminder counts back from the start time when a task has one; without
+one — no start, all day, or the Start row switched off — it is set for a day
+and a time of its own (`remindAt`, "YYYY-MM-DD HH:MM", which a timed task
+can choose too), and `buildReminders()` fires it then.
 
 In the panel the date is the **Start** row: the start date, then start – end
 on one line, "All day" beneath, as Google's event form has it. The deadline
@@ -840,6 +881,13 @@ show everything). The matrix quadrants (`QUAD_EMPTY`) and board columns
 (`COL_EMPTY`) have a line each of their own.
 
 ## Conventions that exist for a reason
+
+- **US English** in everything a person reads: color, customize,
+  organize, prioritized, check off (not tick). Dates are written the
+  American way, `fmtDate()` giving Sep 25 (Sep 25, 2027 in another year)
+  and `pkDateText()` Fri, Sep 25; `toLocale*String` is always `"en-US"`.
+  Code names older than this (`customiseModal`, `data-act="customise"`)
+  are left alone.
 
 - **Rows are reordered by their handle only** (`.cz-grip[data-grip]`: lanes,
   the list's columns, categories): dragged, or moved with the arrow keys
