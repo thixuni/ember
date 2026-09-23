@@ -114,10 +114,10 @@ module.exports = function makeGcal(readSettings, writeSettings, opts){
         if(!code && !err){ res.writeHead(404); res.end(); return; }     // a favicon, say
         const good = code && u.searchParams.get('state') === state;
         res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
-        res.end('<!doctype html><meta charset="utf-8"><title>Everyday Orbit</title>' +
+        res.end('<!doctype html><meta charset="utf-8"><title>Ember</title>' +
           '<body style="font:15px system-ui;padding:48px;color:#222">' +
-          (good ? '<h2>You are signed in.</h2><p>You can close this tab and go back to Everyday Orbit.</p>'
-                : '<h2>That did not work.</h2><p>Go back to Everyday Orbit and try connecting again.</p>') +
+          (good ? '<h2>You are signed in.</h2><p>You can close this tab and go back to Ember.</p>'
+                : '<h2>That did not work.</h2><p>Go back to Ember and try connecting again.</p>') +
           '</body>');
         finish(good ? null : new Error(err === 'access_denied' ? 'You declined access in Google.' :
           err ? 'Google said: ' + err : 'The sign-in did not match. Try again.'), code);
@@ -177,7 +177,7 @@ module.exports = function makeGcal(readSettings, writeSettings, opts){
     if(!tok.ok || !tok.data.access_token)
       return {ok: false, error: 'Google refused the sign-in: ' + (tok.data.error_description || tok.data.error || tok.status)};
     if(!tok.data.refresh_token)
-      return {ok: false, error: 'Google did not hand back a long-lived key. Remove Everyday Orbit from your Google account\'s third-party access and connect again.'};
+      return {ok: false, error: 'Google did not hand back a long-lived key. Remove Ember from your Google account\'s third-party access and connect again.'};
 
     access = {token: tok.data.access_token, exp: Date.now() + (tok.data.expires_in || 3600) * 1000};
     /* Only a pasted client is written down; the shipped one is read afresh

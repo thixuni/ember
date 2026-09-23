@@ -1,8 +1,8 @@
-# Everyday Orbit
+# Ember
 
 **Your whole day, in one calm place, and nobody else's business.**
 
-Everyday Orbit is a planner that brings your tasks, calendar, habits, notes
+Ember is a planner that brings your tasks, calendar, habits, notes
 and time together, so you stop jumping between five apps to run one life. It
 works the way you think, it looks after your focus, and it keeps everything
 you put into it private: your planner lives with you, not on our servers.
@@ -74,12 +74,12 @@ reminders arrive even when the planner's window is closed.
 
 ## Private by design
 
-Most apps keep your data on their servers. Everyday Orbit doesn't have any.
+Most apps keep your data on their servers. Ember doesn't have any.
 
 - **We never see your planner.** Your tasks, notes, documents and habits are
   saved on your own device. We don't collect them, store them or have any
   way to read them.
-- **Nothing of ours to breach.** There is no Everyday Orbit database of users
+- **Nothing of ours to breach.** There is no Ember database of users
   or their data, so there is nothing of yours for anyone to steal from us.
 - **No tracking, no ads, no selling.** There are no analytics or trackers in
   the app, and your information is never used to advertise to you.

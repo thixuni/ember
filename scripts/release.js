@@ -103,14 +103,14 @@ step('version set to ' + to);
 run('git', ['add', 'package.json', 'package-lock.json']);
 // With `same` the version did not move, so there may be nothing to commit.
 if (run('git', ['status', '--porcelain'])) run('git', ['commit', '-m', 'Release ' + tag]);
-run('git', ['tag', '-a', tag, '-m', 'Everyday Orbit ' + to]);
+run('git', ['tag', '-a', tag, '-m', 'Ember ' + to]);
 step('committed and tagged');
 
 run('git', ['push', 'origin', 'main']);
 run('git', ['push', 'origin', tag]);
 step('pushed');
 
-let repo = 'thixuni/everyday-orbit';
+let repo = 'thixuni/ember';
 try {
   const url = run('git', ['remote', 'get-url', 'origin']);
   const m = url.match(/github\.com[:/](.+?)(?:\.git)?$/);

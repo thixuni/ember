@@ -1,4 +1,4 @@
-# Everyday Orbit
+# Ember
 
 A personal planner desktop app. Electron shell around a single-page web app.
 
@@ -21,7 +21,7 @@ package.json       Dependencies plus the electron-builder config
 
 **There is no bundler and no compile step.** Electron loads `src/index.html`
 directly. `npm run build:html` inlines the three sources into
-`dist/everyday-orbit.html`, a single file that runs from a double-click. Keep it
+`dist/ember.html`, a single file that runs from a double-click. Keep it
 that way unless there is a strong reason not to.
 
 ## Running it
@@ -205,7 +205,7 @@ toolbar writing Markdown there (`srcTool()`).
   spaces.
 
 On the desktop each document is mirrored into
-`<vault>/Everyday Orbit/<title> <id>.md` with YAML front matter carrying
+`<vault>/Ember/<title> <id>.md` with YAML front matter carrying
 `orbit-id`, which is how an edit made in Obsidian finds its way back to the
 right document. The loop is broken on both sides: the main process ignores
 file events for two seconds after its own write, and `applyVaultChange()`

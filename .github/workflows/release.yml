@@ -31,8 +31,8 @@ jobs:
       - name: Keep the single-file build
         uses: actions/upload-artifact@v4
         with:
-          name: everyday-orbit-html
-          path: dist/everyday-orbit.html
+          name: ember-html
+          path: dist/ember.html
           retention-days: 30
 
   build:
@@ -122,9 +122,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: everyday-orbit-html
+          name: ember-html
           path: html
       - name: Add it to the release
         uses: softprops/action-gh-release@v2
         with:
-          files: html/everyday-orbit.html
+          files: html/ember.html

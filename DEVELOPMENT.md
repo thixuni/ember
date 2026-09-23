@@ -1,4 +1,4 @@
-# Everyday Orbit: development notes
+# Ember: development notes
 
 How to run, build and release the planner. The product itself is described
 in [README.md](README.md); the conventions behind the code are in
@@ -28,7 +28,7 @@ Then visit <http://localhost:4173>.
 | --- | --- |
 | `npm start` | Run the desktop app |
 | `npm test` | Run the checks in `test/` |
-| `npm run build:html` | Inline `src/` into `dist/everyday-orbit.html` |
+| `npm run build:html` | Inline `src/` into `dist/ember.html` |
 | `npm run check` | Build the single file, then test |
 | `npm run build` | Build installers into `release/` (for testing only — never hand these out) |
 | `npm run release patch` | Cut a release: check, bump, tag, push |
@@ -56,7 +56,7 @@ build/           App icons and macOS entitlements
 **The desktop app** is what most people should use. It installs properly, gets a
 Start menu entry, and updates itself from GitHub Releases.
 
-**The single file** — `dist/everyday-orbit.html` — is the whole planner inlined
+**The single file** — `dist/ember.html` — is the whole planner inlined
 into one HTML file that runs by double-clicking it, with no install. It is
 attached to every release. `scripts/build-standalone.js` produces it, and
 `npm test` checks that it stays genuinely self-contained.
@@ -134,7 +134,7 @@ above anything else.
 Any task can hold documents, written in an editor that looks like the finished
 page and saved as markdown. Connect a
 vault in **Settings ▸ Obsidian vault** and each one is mirrored to
-`<vault>/Everyday Orbit/` as a `.md` file with YAML front matter. Edits you make
+`<vault>/Ember/` as a `.md` file with YAML front matter. Edits you make
 in Obsidian flow back into the planner, and edits made here are written out —
 the planner never writes back in response to a change it just read, so the two
 sides cannot loop.
@@ -151,7 +151,7 @@ a browser alike. The first launch is a setup of its own:
    browser; a browser copy opens it in a Google window. Either way it asks
    only who you are.
 2. **Your data.** Back up to your own Google Drive — a copy goes into one file
-   there, *Everyday Orbit backup.json*, after every change, and signing in on
+   there, *Ember backup.json*, after every change, and signing in on
    another computer offers to bring it back — or keep it on this device only.
    The app can see only the file it makes, not the rest of your Drive.
 3. **About you, categories, starter routines** — your name for the greeting,
@@ -241,7 +241,7 @@ Needed only when the app has no Google client of its own (see above). It takes
 about five minutes, once:
 
 1. Open [console.cloud.google.com](https://console.cloud.google.com) and
-   create a project — call it Everyday Orbit.
+   create a project — call it Ember.
 2. **APIs & Services ▸ Library**: enable the **Google Calendar API** and the
    **Google Drive API**.
 3. **Google Auth Platform**: set up the consent screen. Choose **External**

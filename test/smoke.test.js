@@ -249,7 +249,7 @@ test('everything reaching the shell goes through the preload bridge', () => {
 
 test('build:html produces one self-contained file', () => {
   execFileSync(process.execPath, [path.join(root, 'scripts', 'build-standalone.js')], { cwd: root });
-  const out = read('dist/everyday-orbit.html');
+  const out = read('dist/ember.html');
 
   assert.ok(out.indexOf('href="app.css"') === -1, 'app.css was not inlined');
   assert.ok(out.indexOf('src="app.js"') === -1, 'app.js was not inlined');
@@ -266,7 +266,7 @@ test('build:html produces one self-contained file', () => {
 });
 
 test('the built file has no local asset references left', () => {
-  const out = read('dist/everyday-orbit.html');
+  const out = read('dist/ember.html');
   // Look at the markup only: the inline script legitimately contains strings
   // like href="$2" that are not asset references.
   const markup = out.replace(/<script[\s\S]*?<\/script>/g, '');

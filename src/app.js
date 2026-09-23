@@ -266,8 +266,11 @@ function sampleState(){
 const KEYS=["categories","tasks","routines","notes","completions","prefs","activity","docs","sessions"];
 let S=blankState();
 let db=null,dirty={},timers={},suppress={},touched={};
-const LS="everyday-orbit-v1";
-function loadLocal(){try{const raw=localStorage.getItem(LS);if(!raw)return false;const o=JSON.parse(raw);KEYS.forEach(k=>{if(o[k])S[k]=o[k];});return true;}catch(e){return false;}}
+const LS="ember-v1",LS_OLD="everyday-orbit-v1";   // the name before the planner was called Ember
+/* A planner saved under the old name is read once and written back under
+   the new one; the old key is left where it is, so an older copy of the app
+   still opens the planner it knew. */
+function loadLocal(){try{const raw=localStorage.getItem(LS)||localStorage.getItem(LS_OLD);if(!raw)return false;const o=JSON.parse(raw);KEYS.forEach(k=>{if(o[k])S[k]=o[k];});return true;}catch(e){return false;}}
 let storageOK=true;
 /* Writing the planner to storage turns all of it into one string, which on a
    planner a year in is a few megabytes -- too much to do on every tick, and a
@@ -2588,7 +2591,7 @@ function obRender(){
   if(OB.step==="signin"){root.innerHTML=obSignin(fresh);putScroll(root,marks);return;}
   const steps=obSteps().filter(s=>s!=="signin"),i=steps.indexOf(OB.step),last=Math.max(1,steps.length-1);
   const top='<header class="obx-top">'+
-    '<div class="obx-brand"><span class="brand-mark">'+icon("i-orbit","ic-18")+'</span><span>Everyday Orbit</span></div>'+
+    '<div class="obx-brand"><span class="brand-mark">'+icon("i-orbit","ic-18")+'</span><span>Ember</span></div>'+
     '<nav class="obx-track" aria-label="Setup steps"><div class="obx-rail"><i style="width:'+(i/last*100).toFixed(1)+'%"></i></div>'+
       steps.map((s,j)=>'<button class="obx-dot'+(j<i?" done":j===i?" now":"")+'" style="left:'+(j/last*100).toFixed(1)+'%"'+
         (j<i?' data-act="ob-jump" data-v="'+s+'" title="Back to '+esc(OB_LABEL[s])+'"':' tabindex="-1"')+
@@ -2743,7 +2746,7 @@ function obCard(act,v,ic,title,body,on,tag){
 function obShowData(){
   if(OB.found){
     const f=OB.found,c=f.counts,when=f.at?new Date(f.at).toLocaleString("en-US",{day:"numeric",month:"long",hour:"numeric",minute:"2-digit"}):"";
-    return '<div class="obx-panel obx-found"><div class="obx-found-h">'+icon("i-cloud")+'<span><b>Everyday Orbit backup</b><small>'+esc(when)+'</small></span></div>'+
+    return '<div class="obx-panel obx-found"><div class="obx-found-h">'+icon("i-cloud")+'<span><b>Ember backup</b><small>'+esc(when)+'</small></span></div>'+
       '<div class="obx-stats">'+[[c.tasks,"tasks"],[c.routines,"routines"],[c.notes,"notes"]].map(x=>'<div><b class="num">'+x[0]+'</b><span>'+x[1]+'</span></div>').join("")+'</div></div>';
   }
   const drive=OB.store==="drive";
@@ -2926,7 +2929,7 @@ function obObsidian(){
   const v=vaultPath();
   return obHead("Obsidian","Write in <em>Obsidian</em>, too",
       "Your task documents stay in step with your vault, whichever side you edit.")+
-    (v?'<p class="obx-ok">'+icon("i-check","ic-14")+'Syncing with <b>'+esc(v)+'/Everyday Orbit</b></p>'+
+    (v?'<p class="obx-ok">'+icon("i-check","ic-14")+'Syncing with <b>'+esc(v)+'/Ember</b></p>'+
       '<button class="btn btn-sm" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose another vault</button>'
     :'<button class="btn btn-primary obx-connect" data-act="vault-pick">'+icon("i-folder","ic-14")+'Choose your vault</button>')+
     '<p class="obx-fine">Don’t use Obsidian? Skip this. Your documents are safe in the planner.</p>';
@@ -2935,7 +2938,7 @@ function obShowVault(){
   const v=vaultPath(),docs=["Project brief","Meeting notes","Reading list"];
   return '<div class="obx-panel obx-vault'+(v?" on":"")+'">'+
     '<div class="obx-docs">'+docs.map((d,k)=>'<div class="obx-doc" style="--k:'+k+'"><b># '+esc(d)+'</b><i></i><i></i><i class="short"></i><small>'+esc(d.toLowerCase().replace(/ /g,"-"))+'.md</small></div>').join("")+'</div>'+
-    '<div class="obx-folder">'+icon("i-folder")+'<span><b>'+(v?esc(v.split(/[\\/]/).pop()):"Your vault")+'</b><small>/ Everyday Orbit</small></span></div>'+
+    '<div class="obx-folder">'+icon("i-folder")+'<span><b>'+(v?esc(v.split(/[\\/]/).pop()):"Your vault")+'</b><small>/ Ember</small></span></div>'+
     '</div>';
 }
 
@@ -3062,7 +3065,7 @@ function obBackupCard(){
     '<button class="btn btn-sm'+(dir?"":" btn-primary")+'" data-act="backup-dir">'+icon("i-folder","ic-14")+(dir?"Change":"Choose folder")+'</button></div>';
 }
 /* In a browser, the one thing setup cannot do for you: the desktop app. */
-const DOWNLOAD_URL="https://thixuni.github.io/everyday-orbit/";
+const DOWNLOAD_URL="https://thixuni.github.io/ember/";
 function obGetApp(){
   return '<a class="obx-getapp" href="'+DOWNLOAD_URL+'" target="_blank" rel="noopener">'+
     '<span class="obx-getapp-ic">'+icon("i-laptop")+'</span>'+
@@ -3414,7 +3417,7 @@ function settingsModal(){
               '<button class="btn btn-sm" data-act="vault-pick">'+icon("i-folder","ic-14")+(vault?"Change vault":"Connect a vault")+'</button>'+
               (vault?'<button class="btn btn-sm" data-act="vault-open">'+icon("i-pop","ic-14")+'Open</button>'+
                 '<button class="btn btn-sm btn-danger" data-act="vault-forget">Disconnect</button>':"")+'</div>',
-              vault?'Syncing with <b>'+esc(vault)+'/Everyday Orbit</b>.':about)
+              vault?'Syncing with <b>'+esc(vault)+'/Ember</b>.':about)
           : field("",'<span class="mnone">Vault sync needs the desktop app.</span>',about))+
       sec("Google Calendar",gcalSettings(toggle));
   }
@@ -3451,7 +3454,7 @@ function settingsModal(){
     /* Sign out sits at the foot of the sidebar, reachable from every tab,
        and only when there is an account to leave. */
     (signedIn()?'<button class="set-tab set-out" data-act="acct-signout">'+icon("i-logout")+'<span>Sign out</span></button>':"")+
-    '<div class="set-nav-foot">Everyday Orbit</div></nav>';
+    '<div class="set-nav-foot">Ember</div></nav>';
   const inner=nav+'<section class="set-pane" role="tabpanel" data-tab="'+tab+'">'+
     '<button class="icon-btn set-close" data-act="close" aria-label="Close settings">'+icon("i-x")+'</button>'+
     pane+'</section>';
@@ -3490,7 +3493,7 @@ function gcalSettings(toggle){
   }
   if(!st.connected){
     const steps='<details class="set-steps"><summary>How to get these — about five minutes, once</summary><ol>'+
-      '<li>Open <b>console.cloud.google.com</b> and create a project. Call it Everyday Orbit.</li>'+
+      '<li>Open <b>console.cloud.google.com</b> and create a project. Call it Ember.</li>'+
       '<li>In <b>APIs &amp; Services ▸ Library</b>, find <b>Google Calendar API</b> and enable it.</li>'+
       '<li>In <b>Google Auth Platform</b>, set up the consent screen: choose <b>External</b>, give it a name and your email.</li>'+
       '<li>Under <b>Audience</b>, press <b>Publish app</b>. Left in Testing, Google signs you out every seven days.</li>'+
@@ -3540,13 +3543,24 @@ const BF={handle:null,loaded:null};
 const bfCan=()=>!hasDesktop()&&!window.claude&&typeof window.showDirectoryPicker==="function"&&typeof indexedDB!=="undefined";
 const canPickFolder=()=>!!(desktop()&&desktop().chooseBackupDir)||bfCan();
 function bfKv(k,v){
-  return new Promise((ok,no)=>{const r=indexedDB.open("everyday-orbit",1);
+  return new Promise((ok,no)=>{const r=indexedDB.open("ember",1);
     r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onerror=()=>no(r.error);
     r.onsuccess=()=>{const tx=r.result.transaction("kv",v===undefined?"readonly":"readwrite"),st=tx.objectStore("kv");
       const q=v===undefined?st.get(k):st.put(v,k);q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error);};});
 }
+/* The folder picked before the rename lives in a store of the old name; it
+   is copied across the first time it is wanted. */
+function bfOldKv(k){
+  return new Promise(ok=>{let r;try{r=indexedDB.open("everyday-orbit",1);}catch(e){return ok(null);}
+    r.onupgradeneeded=()=>{try{r.result.createObjectStore("kv");}catch(e){}};r.onerror=()=>ok(null);
+    r.onsuccess=()=>{try{const tx=r.result.transaction("kv","readonly"),q=tx.objectStore("kv").get(k);
+      q.onsuccess=()=>ok(q.result||null);q.onerror=()=>ok(null);}catch(e){ok(null);}};});
+}
 function bfLoad(){
-  if(!BF.loaded)BF.loaded=bfCan()?bfKv("backupDir").then(h=>BF.handle=h||null,()=>null):Promise.resolve(null);
+  if(!BF.loaded)BF.loaded=bfCan()
+    ?bfKv("backupDir").then(h=>h||bfOldKv("backupDir").then(old=>{if(old)bfKv("backupDir",old).catch(()=>{});return old;}),()=>null)
+      .then(h=>BF.handle=h||null,()=>null)
+    :Promise.resolve(null);
   return BF.loaded;
 }
 /* Write one file into the chosen folder. Asking again for permission needs
@@ -3574,7 +3588,7 @@ function maybeAutoBackup(){
   if(!b||!b.on||!b.dir)return;
   const gap=BACKUP_EVERY[b.every||"week"]||BACKUP_EVERY.week;
   if(b.last&&Date.now()-b.last<gap)return;
-  const name="everyday-orbit-"+TODAY()+".json",text=JSON.stringify(backupPayload(),null,2);
+  const name="ember-"+TODAY()+".json",text=JSON.stringify(backupPayload(),null,2);
   const done=()=>{S.prefs.autoBackup=Object.assign({},S.prefs.autoBackup,{last:Date.now()});save("prefs");};
   if(o&&o.writeBackup){try{o.writeBackup({dir:b.dir,name:name,text:text});done();}catch(e){}return;}
   if(bfCan())bfWrite(name,text,false).then(ok=>{if(ok)done();}).catch(()=>{});
@@ -3583,7 +3597,7 @@ function maybeAutoBackup(){
 function exportData(){
   const payload=backupPayload();
   const text=JSON.stringify(payload,null,2);
-  const name="everyday-orbit-"+TODAY()+".json";
+  const name="ember-"+TODAY()+".json";
   /* Into the backup folder, choosing one first if there is none yet. */
   const bk=S.prefs.autoBackup||{},o=desktop();
   if(o&&o.writeBackup){
@@ -3618,9 +3632,9 @@ function importPicked(file){
   r.onerror=function(){toast("Couldn't read that file");};
   r.onload=function(){
     let o=null;
-    try{o=JSON.parse(String(r.result));}catch(e){toast("That doesn't look like an Everyday Orbit backup");return;}
+    try{o=JSON.parse(String(r.result));}catch(e){toast("That doesn't look like an Ember backup");return;}
     const d=o&&o.data?o.data:o;
-    if(!d||!Array.isArray(d.tasks)||!Array.isArray(d.categories)){toast("That doesn't look like an Everyday Orbit backup");return;}
+    if(!d||!Array.isArray(d.tasks)||!Array.isArray(d.categories)){toast("That doesn't look like an Ember backup");return;}
     pendingImport=d;
     openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Restore backup">'+
       '<div class="mhead2">'+icon("i-upload","ic-18")+'<h2>Restore this backup?</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
@@ -4227,7 +4241,7 @@ document.addEventListener("click",function(e){
     case "remind-test":remindTest();break;
     case "remind-allow":if(typeof Notification!=="undefined")
       Promise.resolve(Notification.requestPermission()).then(p=>{panels();remindSoon();
-        if(p==="granted"){try{new Notification("Everyday Orbit",{body:"This is how your reminders will look."});}catch(e){toast("Notifications are on");}}
+        if(p==="granted"){try{new Notification("Ember",{body:"This is how your reminders will look."});}catch(e){toast("Notifications are on");}}
         else if(p==="denied")toast("Notifications are blocked in this browser");
       });break;
     case "tm-break":if(V.tmBreak===id)closeTimeBreakdown();else{V.tmBreak=id;renderSheet();}break;
@@ -7110,9 +7124,9 @@ function googleReady(){
   return !!(st.builtIn||st.clientId);
 }
 function noGoogleWhy(){
-  if(hasGoogle()||(wgOrigin()&&!desktop()))return "Signing in with Google isn’t switched on for this copy of Everyday Orbit yet.";
-  if(window.claude)return "This copy of Everyday Orbit can’t sign in with Google.";
-  return "Opened straight from a file, Everyday Orbit can’t sign in with Google.";
+  if(hasGoogle()||(wgOrigin()&&!desktop()))return "Signing in with Google isn’t switched on for this copy of Ember yet.";
+  if(window.claude)return "This copy of Ember can’t sign in with Google.";
+  return "Opened straight from a file, Ember can’t sign in with Google.";
 }
 
 /* The hour is up: one click on Reconnect gets the next key -- Google's
@@ -7513,11 +7527,11 @@ async function gcalBoot(){
 
    Writing down when it last backed up is itself a save of prefs, which would
    schedule another backup, and so on forever: DB.quiet holds that off. */
-const DRIVE_FILE="Everyday Orbit backup.json";
+const DRIVE_FILE="Ember backup.json",DRIVE_FILE_OLD="Everyday Orbit backup.json";
 const DB={soon:null,busy:false,err:"",quiet:false};
 const driveOn=()=>!!(hasGoogle()&&S.prefs&&S.prefs.storage==="drive"&&acctParts().drive);
 function backupPayload(){
-  const p={app:"everyday-orbit",version:1,exported:new Date().toISOString(),data:{}};
+  const p={app:"ember",version:1,exported:new Date().toISOString(),data:{}};
   KEYS.forEach(k=>{p.data[k]=S[k];});
   return p;
 }
@@ -7527,8 +7541,19 @@ function driveSoon(){
 }
 async function driveFind(){
   const o=gAcct();
-  const r=await o.gcalRequest({api:"drive",method:"GET",path:"/files",
-    query:{q:"name = '"+DRIVE_FILE+"' and trashed = false",fields:"files(id,modifiedTime)",orderBy:"modifiedTime desc",pageSize:"5",spaces:"drive"}});
+  const find=name=>o.gcalRequest({api:"drive",method:"GET",path:"/files",
+    query:{q:"name = '"+name+"' and trashed = false",fields:"files(id,modifiedTime)",orderBy:"modifiedTime desc",pageSize:"5",spaces:"drive"}});
+  let r=await find(DRIVE_FILE);
+  /* Nothing under the new name: the backup made before the planner was
+     called Ember is taken over, and renamed as it is. */
+  if(r.ok&&!(r.data&&r.data.files&&r.data.files.length)){
+    const old=await find(DRIVE_FILE_OLD);
+    if(old.ok&&old.data&&old.data.files&&old.data.files[0]){
+      const f=old.data.files[0];
+      try{await o.gcalRequest({api:"drive",method:"PATCH",path:"/files/"+f.id,body:{name:DRIVE_FILE}});}catch(e){}
+      return f;
+    }
+  }
   if(!r.ok)throw new Error(r.error==="renew"?"Reconnect Google to reach your Drive.":r.error==="reconnect"?"Sign in again to reach Google Drive.":r.error==="offline"?"You are offline.":"Google Drive said: "+r.error);
   return (r.data&&r.data.files&&r.data.files[0])||null;
 }
@@ -7547,7 +7572,7 @@ async function driveBackup(){
     if(!r||!r.ok){
       const f=await driveFind();id=f&&f.id;
       r=id?await up("PATCH","/files/"+id,{}):await up("POST","/files",{name:DRIVE_FILE,mimeType:"application/json",
-        description:"Everyday Orbit keeps a copy of your planner here. Sign in on another computer to bring it back."});
+        description:"Ember keeps a copy of your planner here. Sign in on another computer to bring it back."});
     }
     if(!r.ok)throw new Error(r.error==="renew"?"Reconnect Google to carry on backing up.":r.error==="reconnect"?"Sign in again to back up to Google Drive.":r.error==="offline"?"Offline; it will back up when you are back.":"Google Drive said: "+r.error);
     DB.err="";DB.quiet=true;

@@ -1,7 +1,8 @@
 const {app, BrowserWindow, Menu, Tray, shell, dialog, ipcMain, screen, nativeTheme, Notification} = require('electron');
 const path = require('path');
 const fs = require('fs');
-const KEY = 'everyday-orbit-v1';
+const KEY = 'ember-v1';
+const KEY_OLD = 'everyday-orbit-v1';    // what the planner was saved under before the rename
 
 let win = null;              // the planner
 let timerWin = null;
@@ -35,7 +36,7 @@ function iconPath(){
 function createWindow(){
   win = new BrowserWindow({
     width: 1360, height: 880, minWidth: 940, minHeight: 600,
-    title: 'Everyday Orbit',
+    title: 'Ember',
     /* Only to avoid a white flash before the app paints; the app itself
        decides the theme. Follows the system, which is the usual case. */
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1B1B1D' : '#F5F5F6',
@@ -78,11 +79,11 @@ function showPlanner(){
 function buildTray(){
   if(tray) return tray;
   try{ tray = new Tray(iconPath()); }catch(e){ tray = null; return null; }
-  tray.setToolTip("Everyday Orbit");
+  tray.setToolTip("Ember");
   const refresh = () => {
     const live = lastTimerState && lastTimerState.state !== "idle";
     tray.setContextMenu(Menu.buildFromTemplate([
-      {label: "Open Everyday Orbit", click: showPlanner},
+      {label: "Open Ember", click: showPlanner},
       {label: live ? "Show the timer" : "Show the timer (nothing running)",
        enabled: !!live, click: () => { const w = createTimerWindow(); if(!w.isDestroyed() && !w.isVisible()) w.showInactive(); }},
       {type: "separator"},
@@ -188,13 +189,21 @@ ipcMain.on('backup:write', (e, job) => {
 
 /* ------------------------------------------------------------ vault sync */
 
-const VAULT_DIR = 'Everyday Orbit';
+const VAULT_DIR = 'Ember';
+const VAULT_DIR_OLD = 'Everyday Orbit';   // the folder documents were in before the rename
 let watcher = null;
 let watchedDir = '';
 const justWritten = new Map();          // file -> ms, so our own writes do not echo back
 let debounce = null;
 
-function vaultDir(vault){ return vault ? path.join(vault, VAULT_DIR) : ''; }
+function vaultDir(vault){
+  if(!vault) return '';
+  const dir = path.join(vault, VAULT_DIR), old = path.join(vault, VAULT_DIR_OLD);
+  /* Documents written before the rename are moved once, so Obsidian keeps
+     them in one folder rather than two. */
+  try{ if(!fs.existsSync(dir) && fs.existsSync(old)) fs.renameSync(old, dir); }catch(err){}
+  return dir;
+}
 
 function startWatching(vault){
   stopWatching();
@@ -237,7 +246,7 @@ ipcMain.handle('vault:choose', async () => {
   if(!win) return null;
   const res = await dialog.showOpenDialog(win, {
     title: 'Choose your Obsidian vault',
-    message: 'Documents are written into an “Everyday Orbit” folder inside it.',
+    message: 'Documents are written into an “Ember” folder inside it.',
     properties: ['openDirectory', 'createDirectory']
   });
   if(res.canceled || !res.filePaths[0]) return null;
@@ -336,7 +345,7 @@ ipcMain.on('remind:schedule', (e, list) => {
     }, Math.max(0, wait)));
   });
 });
-ipcMain.on('remind:test', (e, r) => showReminder(Object.assign({title: 'Everyday Orbit', body: ''}, r || {}, {open: null})));
+ipcMain.on('remind:test', (e, r) => showReminder(Object.assign({title: 'Ember', body: ''}, r || {}, {open: null})));
 
 /* ------------------------------------------------------------ attachments */
 
@@ -359,7 +368,8 @@ async function backup(){
   if(!win) return;
   let raw = null;
   try{
-    raw = await win.webContents.executeJavaScript('localStorage.getItem(' + JSON.stringify(KEY) + ')');
+    raw = await win.webContents.executeJavaScript(
+      'localStorage.getItem(' + JSON.stringify(KEY) + ') || localStorage.getItem(' + JSON.stringify(KEY_OLD) + ')');
   }catch(e){ raw = null; }
   if(!raw){
     dialog.showMessageBox(win, {type: 'info', message: 'Nothing to back up yet', detail: 'Add a task or two first.'});
@@ -368,13 +378,13 @@ async function backup(){
   const stamp = new Date().toISOString().slice(0, 10);
   const res = await dialog.showSaveDialog(win, {
     title: 'Back up your planner',
-    defaultPath: 'everyday-orbit-' + stamp + '.json',
+    defaultPath: 'ember-' + stamp + '.json',
     filters: [{name: 'Planner backup', extensions: ['json']}]
   });
   if(res.canceled || !res.filePath) return;
   let data = null;
   try{ data = JSON.parse(raw); }catch(e){ data = null; }
-  const payload = {app: 'everyday-orbit', version: 1, exported: new Date().toISOString(), data: data};
+  const payload = {app: 'ember', version: 1, exported: new Date().toISOString(), data: data};
   try{
     fs.writeFileSync(res.filePath, JSON.stringify(payload, null, 2), 'utf8');
     dialog.showMessageBox(win, {type: 'info', message: 'Backup saved', detail: res.filePath});
@@ -448,7 +458,7 @@ function initUpdater(){
       buttons: ['Restart now', 'Later'],
       defaultId: 0,
       cancelId: 1,
-      message: 'Everyday Orbit ' + info.version + ' is ready',
+      message: 'Ember ' + info.version + ' is ready',
       detail: 'Your planner data is not touched by an update. Restart to finish installing, or it will be applied next time you quit.'
     }).then(r => { if(r.response === 0) updater.quitAndInstall(); });
   });
@@ -458,7 +468,7 @@ function initUpdater(){
       dialog.showMessageBox(win, {
         type: 'info',
         message: 'You are up to date',
-        detail: 'Everyday Orbit ' + app.getVersion() + ' is the latest version.'
+        detail: 'Ember ' + app.getVersion() + ' is the latest version.'
       });
     }
     updateCheckIsManual = false;
@@ -469,7 +479,7 @@ function initUpdater(){
       dialog.showMessageBox(win, {
         type: 'warning',
         message: 'Could not check for updates',
-        detail: String(err && err.message || err) + '\n\nYou can always download the latest version from the Everyday Orbit releases page.'
+        detail: String(err && err.message || err) + '\n\nYou can always download the latest version from the Ember releases page.'
       });
     }
     updateCheckIsManual = false;
@@ -502,7 +512,7 @@ function checkManually(){
 function about(){
   dialog.showMessageBox(win, {
     type: 'info',
-    message: 'Everyday Orbit ' + app.getVersion(),
+    message: 'Ember ' + app.getVersion(),
     detail: 'A personal planner: calendar, task board, Eisenhower matrix, routines and notes.\n\n' +
             'Your data is stored on this computer only, and never leaves it. ' +
             'Use File then Back up planner to save a copy or move it to another machine.'
@@ -527,7 +537,7 @@ function buildMenu(){
       {type: 'separator'},
       {label: isMac ? 'Close window' : 'Hide to the tray', accelerator: 'CmdOrCtrl+W',
        click: () => { if(win && !win.isDestroyed()) win.hide(); }},
-      {label: 'Quit Everyday Orbit', accelerator: 'CmdOrCtrl+Q',
+      {label: 'Quit Ember', accelerator: 'CmdOrCtrl+Q',
        click: () => { quitting = true; app.quit(); }}
     ]},
     {label: 'Edit', submenu: [
@@ -547,7 +557,7 @@ function buildMenu(){
     {label: 'Help', submenu: [
       {label: 'Check for updates…', click: checkManually},
       {type: 'separator'},
-      {label: 'About Everyday Orbit', click: about}
+      {label: 'About Ember', click: about}
     ]}
   );
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -562,7 +572,7 @@ if(!app.requestSingleInstanceLock()){
   app.on('before-quit', () => { quitting = true; });
   /* Windows files notifications under the app's id; the installer uses the
      same one, so a development run and an installed copy look the same. */
-  if(process.platform === 'win32') app.setAppUserModelId('com.thisuni.everydayorbit');
+  if(process.platform === 'win32') app.setAppUserModelId('com.thisuni.ember');
 
   app.whenReady().then(() => {
     buildMenu();

@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "everyday-orbit",
+      "name": "ember",
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/serve.js", "4173"],
       "port": 4173

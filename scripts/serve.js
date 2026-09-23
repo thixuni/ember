@@ -55,5 +55,5 @@ http.createServer((req, res) => {
     }).end(buf);
   });
 }).listen(port, () => {
-  console.log('Everyday Orbit dev server on http://localhost:' + port);
+  console.log('Ember dev server on http://localhost:' + port);
 });

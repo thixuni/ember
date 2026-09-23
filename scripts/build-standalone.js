@@ -7,7 +7,7 @@
  * Electron loads src/index.html directly, so this build exists purely to
  * produce the shareable single file:
  *
- *   dist/everyday-orbit.html
+ *   dist/ember.html
  */
 const fs = require('fs');
 const path = require('path');
@@ -15,7 +15,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const src = path.join(root, 'src');
 const outDir = path.join(root, 'dist');
-const outFile = path.join(outDir, 'everyday-orbit.html');
+const outFile = path.join(outDir, 'ember.html');
 
 const read = f => fs.readFileSync(path.join(src, f), 'utf8');
 
@@ -39,7 +39,7 @@ function build() {
   html = html.replace(cssTag, () => '<style>\n' + css.trim() + '\n</style>');
   html = html.replace(jsTag, () => '<script>\n' + js.trim() + '\n</script>');
 
-  const banner = '<!-- Everyday Orbit ' + pkg.version + ' — built ' +
+  const banner = '<!-- Ember ' + pkg.version + ' — built ' +
     new Date().toISOString().slice(0, 10) + ' from src/. Edit the files in src/, not this one. -->\n';
   html = html.replace(/^<!doctype html>\s*/i, '<!doctype html>\n' + banner);
 
@@ -47,7 +47,7 @@ function build() {
   fs.writeFileSync(outFile, html, 'utf8');
 
   const kb = (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
-  console.log('Built dist/everyday-orbit.html  (' + kb + ' KB, version ' + pkg.version + ')');
+  console.log('Built dist/ember.html  (' + kb + ' KB, version ' + pkg.version + ')');
 }
 
 build();
