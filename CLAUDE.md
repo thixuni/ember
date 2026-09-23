@@ -390,7 +390,9 @@ goes with backups and Drive like any setting.
   sat above it and read as a second thing to set. Every cell is edited in place
   (`lrCell()`): the name by clicking it, which puts the caret where the click
   landed rather than selecting the lot (`V.lrename`, `lrCaretAt()`) and
-  leaves the panel shut; dates from the
+  leaves the panel shut; **the row opens nothing at all** (it carries
+  `data-task`, not `data-act="task"`): the panel is Details’ job, at the end
+  of the task column, or the right-click menu’s; dates from the
   picker, priority, lane and estimate from a short list, tags added
   (`V.ltag`) and removed, fields in their own controls. **An empty cell is
   empty** — no dash, no "Pick a date" (`dateField(..., {ph:""})`) — and

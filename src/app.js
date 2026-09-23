@@ -1841,7 +1841,11 @@ function lrWidths(cols){
 }
 function lrRow(t,cols,grid){
   const c=cat(t.cat),sp=subProgress(t),edit=V.lrename===t.id;
-  return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-act="task" data-id="'+t.id+'">'+
+  /* The row itself opens nothing. Every cell is edited where it is, and a
+     click that missed a control -- or a second click on the name while it is
+     being typed in -- used to throw the panel open over the list. Details,
+     at the end of the task column, is the way in. */
+  return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-task="'+t.id+'">'+
     '<span class="lr-lead">'+tickBtn(t)+'</span>'+
     '<span class="name">'+icon(c.icon,"ic-14")+
       (edit?'<input class="lr-in lr-rename" id="lrRename" data-id="'+t.id+'" value="'+esc(t.title)+'" maxlength="200" aria-label="Task name">'
@@ -5318,9 +5322,11 @@ document.addEventListener("keydown",function(e){const t=e.target;
   e.preventDefault();patchDraft({title:t.value});createFromDraft();});
 /* Right-click on a task anywhere on the page opens the same menu there. */
 document.addEventListener("contextmenu",function(e){
-  const t=e.target&&e.target.closest&&e.target.closest('[data-act="task"][data-id]');
-  if(!t||t.closest("#sheetRoot")||!taskById(t.dataset.id))return;
-  e.preventDefault();taskMenu(t.dataset.id,{x:e.clientX,y:e.clientY},null,true);
+  const t=e.target&&e.target.closest&&e.target.closest('[data-act="task"][data-id],.lrow[data-task]');
+  if(!t)return;
+  const id=t.dataset.id||t.dataset.task;
+  if(t.closest("#sheetRoot")||!taskById(id))return;
+  e.preventDefault();taskMenu(id,{x:e.clientX,y:e.clientY},null,true);
 });
 function openSheet(id,preset){
   if(id&&!taskById(id))return;
