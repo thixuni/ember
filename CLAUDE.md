@@ -750,6 +750,13 @@ grey the operating system chose and matched nothing on the page.
   (`onDone`), Escape puts back what was there. Its code sits after the
   accent section on purpose: `test/contrast.test.js` lifts the colour maths
   out by position, and code that touches the page cannot sit in that stretch.
+- **One width for every short value in the task panel** (240px): the date
+  boxes, the category and reminder drop-downs and the estimate. The width
+  goes on the box round a field (`.pkf`), never on the button inside it,
+  which shrinks to its words; and `min(240px, 100%)` only where the parent
+  has a width of its own — inside the Start row the parent is
+  shrink-to-fit, so the percentage resolved to the words and the row came
+  out short.
 - The pop-over is appended to `<body>`, so a modal's or the panel's
   overflow cannot clip it, and is placed against its field. A redraw under an
   open one is common — a sync lands, the panel refreshes — so it finds its

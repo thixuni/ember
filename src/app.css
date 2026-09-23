@@ -1469,7 +1469,18 @@ button.obx-rt-txt > *{pointer-events:none}
 .when{display:flex;flex-direction:column;gap:9px;align-items:flex-start}
 .when-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}
 .when-line .pkf{display:inline-flex}
-.when-date{min-width:200px}
+/* Every date box in the panel is the same width, wherever it sits: the
+   Start row lays its own out inline, the Due date and Reminder rows are the
+   only thing in theirs and would otherwise stretch the whole way across. */
+.when-date{min-width:0}
+/* The width belongs to the box round the field (.pkf), not to the button
+   inside it, or the box shrinks to its words and the rows come out ragged. */
+.when-line > .pkf:has(.when-date){width:240px;flex:none}
+.when-line > .pkf:has(.when-time){width:104px;flex:none}
+/* And every short value in the panel is that same width, so the rows read
+   as one form rather than a stack of boxes of different lengths. */
+.mval > .pkf,.mval > .catsel,.mval > select,#shRemind > select,#shRemind > .rm-at > .pkf:first-child{width:min(240px,100%)}
+.mval > .catsel > select{width:100%}
 .when-time{width:104px}
 .when-dash{color:var(--muted);padding:0 1px}
 .when-all{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);cursor:pointer}
@@ -1582,7 +1593,8 @@ button.obx-rt-txt > *{pointer-events:none}
 .prio-clear:hover{background:var(--surface-3);color:var(--ink)}
 
 .est-wrap{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
-.est-wrap .est-in{width:88px}
+.mval > .est-wrap{width:min(240px,100%)}
+.est-wrap .est-in{flex:1;min-width:0}
 .est-wrap .seg{padding:2px}
 .est-wrap .seg button{padding-top:4px;padding-bottom:4px}
 .mrow{display:grid;grid-template-columns:132px minmax(0,1fr);gap:16px;align-items:start;padding:8px 0}
@@ -2649,7 +2661,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .sh-histhead h3 .num{font-size:11px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--surface-3);color:var(--muted)}
 .sh-back{display:inline-flex;align-items:center;gap:4px}
 .rm-at{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
-.rm-at .pkf{width:auto}
+.rm-at .when-time{width:104px}
 
 /* ---------- Filter and Customize in the top bar ---------- */
 .tb-btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 11px;border-radius:var(--r-s);border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink-2);flex:none}
