@@ -2678,7 +2678,7 @@ function obSignin(fresh){
   return '<div class="obx-first'+(fresh?" enter":"")+'">'+obSky()+
     '<div class="obx-hero">'+
       '<span class="brand-mark obx-mark">'+icon("i-orbit","ic-18")+'</span>'+
-      '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one orbit</em>.")+'</h1>'+
+      '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one place</em>.")+'</h1>'+
       '<p class="obx-lead">'+(again?"Sign in to pick up where you left off."
         :"Tasks, routines, your calendar and your notes, together in one calm place.")+'</p>'+
       act+obErr()+
