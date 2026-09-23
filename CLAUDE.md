@@ -582,9 +582,14 @@ has got to is in `prefs.onboard` (`{done, step, mode, made}`), so closing half
 way picks up at the same step; `made` is the ids of the routines setup
 created, replaced rather than added to when someone goes back and forth.
 
-- **How it looks.** The sign-in is a sky of turning orbits (`obSky()`: rings
-  with planets in the category colours, the planner's parts drifting between)
-  around the welcome. Every later step is a question on the left and, on the
+- **How it looks.** The sign-in is a hearth (`obSky()`, kept by that name):
+  warmth banked at the foot of the page and embers rising off it in the
+  accent and the category colours, with the planner's parts drifting among
+  them. Each ember carries its own size, drift, pace and a negative delay,
+  so they are already in the air when the page opens; turning orbits stood
+  here while the planner was called Everyday Orbit. The categories step and
+  All set take the same warmth (`.obx-orbit.hearth`): the middle glows, and
+  on All set the sparks carry upward rather than out. Every later step is a question on the left and, on the
   right, a live picture of the answer (`obShow()`): the greeting with the
   name being typed, the categories as planets round you, the week filling in
   as routines are ticked, the app in miniature in the theme being chosen, a
