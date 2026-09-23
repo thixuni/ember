@@ -3100,7 +3100,9 @@ function accountPane(sec,field,toggle){
   const nameIn='<input class="inp" data-act="set-pref" data-k="name" maxlength="40" value="'+esc(p.name||"")+'" placeholder="Your first name">';
   if(!googleReady())return sec("You",field("Your name",nameIn,"Used in the greeting on your dashboard."))+
     sec("Google account",field("",'<span class="mnone">'+esc(noGoogleWhy())+'</span>',
-      "Your planner is kept in this "+here()+". Back it up from Your data."));
+      "Your planner is kept in this "+here()+". Back it up from Your data."))+
+    sec("Setup",field("",'<button class="btn btn-sm" data-act="setup-again">'+icon("i-repeat","ic-14")+'Run setup again</button>',
+      "Steps through the first run with your planner as it is: your name, categories, routines, Google Calendar, Obsidian, appearance and reminders. Nothing is deleted, and you can leave it at any point."));
   const st=GC.status||{},drive=p.storage==="drive"&&acctParts().drive;
   const last=p.drive&&p.drive.last?"Last backed up "+relTime(p.drive.last):"Not backed up yet";
   return sec("Google account",field("",
@@ -3113,7 +3115,9 @@ function accountPane(sec,field,toggle){
       (drive?'<div class="set-actions" style="margin-top:12px"><button class="btn btn-sm" data-act="drive-now"'+(DB.busy?" disabled":"")+'>'+icon("i-upload","ic-14")+(DB.busy?"Backing up…":"Back up now")+'</button>'+
         '<button class="btn btn-sm" data-act="drive-restore">'+icon("i-download","ic-14")+'Restore from Drive</button></div>':""),
       (drive?esc(last)+". A copy goes into “"+esc(DRIVE_FILE)+"” in your Drive after every change.":"Your planner is kept in this "+here()+" only.")+
-      (DB.err?'<br><span class="set-err-inline">'+esc(DB.err)+'</span>':"")));
+      (DB.err?'<br><span class="set-err-inline">'+esc(DB.err)+'</span>':"")))+
+    sec("Setup",field("",'<button class="btn btn-sm" data-act="setup-again">'+icon("i-repeat","ic-14")+'Run setup again</button>',
+      "Steps through the first run with your planner as it is: your name, categories, routines, Google Calendar, Obsidian, appearance and reminders. Nothing is deleted, and you can leave it at any point."));
 }
 
 /* ============ appearance ============ */
@@ -4023,6 +4027,11 @@ document.addEventListener("click",function(e){
     case "rail-mini":S.prefs.railMini=!S.prefs.railMini;save("prefs");applyRail();tipHide();break;
     case "tip-ok":tipNext();break;
     case "tip-skip":tipEnd();break;
+    /* Setup again: the whole flow, not the short one a returning planner
+       gets, and nothing is thrown away -- it ends by saving what was
+       chosen, as it does on a first run. */
+    case "setup-again":S.prefs.onboard={done:false,step:"signin",mode:"new",made:[]};save("prefs");
+      closeModal();obStart();break;
     case "tips-again":S.prefs.tips={done:{},at:{},off:false};save("prefs");toast("The tips will show again, a set for each screen");break;
     case "adv-toggle":V.adv=!V.adv;render();break;
     case "f-drop":{const k=n.dataset.k;V.f[k]=k==="sort"?"due":"";render();break;}

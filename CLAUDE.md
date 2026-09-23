@@ -621,6 +621,14 @@ created, replaced rather than added to when someone goes back and forth.
   `"restored"` — a planner brought back from Drive or a file, which skips
   everything that came back with it; `"again"` — signed out after setup,
   which shows the sign-in and nothing else.
+- **Settings ▸ Account ▸ Run setup again** (`setup-again`) replays the whole
+  flow on a planner that already has one: it writes `onboard` as
+  `{done:false, step:"signin", mode:"new", made:[]}` and calls `obStart()`,
+  so every step shows rather than the short `returning` one. Nothing is
+  thrown away — categories keep their names, routines setup did not create
+  are left alone (`made` is empty, so it replaces nothing), and tasks are
+  untouched. Restoring a backup marks setup done, which is why someone who
+  restored never sees it otherwise.
 - `obNeeded()` is the gate: where Google can be reached (`hasGoogle()`),
   setup not done or not signed in; in a copy that cannot sign in, only a
   brand-new one. Obsidian is the one step that needs the desktop itself. At
