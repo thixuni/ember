@@ -964,14 +964,24 @@ body.ob-open{overflow:hidden}
 .obx-stack{display:flex;flex-direction:column;gap:12px}
 
 /* sign in: the sky */
+/* The page sits over warmth: a glow at its foot, as if the fire were just
+   below the fold, and embers drifting up through it. */
 .obx-first{position:relative;min-height:100%;display:grid;place-items:center;padding:40px 16px;overflow:hidden;
-  background:radial-gradient(50% 50% at 50% 50%,color-mix(in srgb,var(--ink) 4%,transparent),transparent 75%),var(--ground)}
+  background:
+    radial-gradient(78% 52% at 50% 112%,color-mix(in srgb,var(--accent) 30%,transparent),transparent 72%),
+    radial-gradient(46% 38% at 50% 104%,color-mix(in srgb,var(--accent) 26%,transparent),transparent 68%),
+    radial-gradient(50% 50% at 50% 46%,color-mix(in srgb,var(--ink) 4%,transparent),transparent 75%),var(--ground)}
 .obx-sky{position:absolute;inset:0;pointer-events:none}
-.obx-ring{position:absolute;left:50%;top:50%;width:var(--s);height:var(--s);margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
-  border:1px solid var(--line);border-radius:50%;animation:obspin var(--d) linear infinite}
-.obx-ring.rev{animation-direction:reverse}
-.obx-planet{position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--c);
-  transform:rotate(var(--a)) translateX(calc(var(--s) / 2));box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 20%,transparent)}
+.obx-embers{position:absolute;inset:0;overflow:hidden}
+.obx-ember{position:absolute;bottom:-20px;left:var(--x);width:var(--s);height:var(--s);border-radius:50%;background:var(--c);
+  opacity:0;box-shadow:0 0 calc(var(--s) * 3) color-mix(in srgb,var(--c) 85%,transparent),
+    0 0 calc(var(--s) * 7) color-mix(in srgb,var(--c) 35%,transparent);
+  animation:obrise var(--d) var(--dl) linear infinite}
+@keyframes obrise{
+  0%{transform:translate3d(0,0,0) scale(.5);opacity:0}
+  10%{opacity:.95}
+  55%{transform:translate3d(var(--dx),-55vh,0) scale(1)}
+  100%{transform:translate3d(calc(var(--dx) * 1.8),-104vh,0) scale(.3);opacity:0}}
 .obx-float{position:absolute;display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:22px;
   background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-2);font-size:12.5px;font-weight:600;color:var(--ink-2);
   animation:obbob 6s var(--dl) ease-in-out infinite}
@@ -1080,6 +1090,13 @@ body.ob-open{overflow:hidden}
 .obx-cat.obx-cat-add:hover{color:var(--ink);border-color:var(--muted)}
 .obx-orbit{position:relative;width:min(440px,100%);aspect-ratio:1}
 .obx-orbit-ring{position:absolute;border:1px dashed var(--line-2);border-radius:50%}
+/* The same ring of things, warmed: the middle glows and the rings take a
+   trace of the accent, so the picture reads as a fire rather than a sky. */
+.obx-orbit.hearth::before{content:"";position:absolute;inset:14%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 20%,transparent),transparent 62%)}
+.obx-orbit.hearth .obx-orbit-ring{border-color:color-mix(in srgb,var(--accent) 30%,var(--line-2))}
+.obx-orbit.hearth .obx-core{box-shadow:0 0 0 9px color-mix(in srgb,var(--accent) 9%,transparent),
+  0 16px 44px -14px color-mix(in srgb,var(--accent) 55%,transparent)}
 .obx-orbit-ring.r1{inset:17%}
 .obx-orbit-ring.r2{inset:4%}
 .obx-orbit-ring.turn{animation:obspin 80s linear infinite}
@@ -2738,3 +2755,6 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .tip-on{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent);outline-offset:3px;border-radius:8px}
 .rail-mini-btn.tip-on{opacity:1;outline-offset:2px;border-radius:50%}
 .wordmark{font-family:var(--fw);font-weight:700;letter-spacing:-.02em;text-transform:lowercase}
+
+.obx-ember.soft{filter:blur(1.5px);opacity:0}
+@media (prefers-reduced-motion:reduce){.obx-ember{animation:none;opacity:.5}}

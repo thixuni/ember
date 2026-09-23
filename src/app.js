@@ -140,7 +140,7 @@ function blankState(){
   return {categories:baseCategories(),tasks:[],routines:[],notes:[],completions:{},
     activity:[],docs:[],sessions:[],
     prefs:{hidden:[],scratch:"",setup:false,vault:"",
-      theme:"system",accent:"green",weekStart:1,clock24:false,launch:"dashboard",
+      theme:"system",accent:"ember",weekStart:1,clock24:false,launch:"dashboard",
       autoBackup:{on:false,dir:"",every:"week",last:0},
       running:null}};
 }
@@ -2652,16 +2652,23 @@ function obShow(){
   }
 }
 
-/* ---- sign in: the sky ----
-   Three rings turning at their own pace, planets on them in the category
-   colours, and the things the planner holds drifting between them. */
+/* ---- sign in: the hearth ----
+   Warmth at the foot of the page and embers rising off it, in the accent
+   and the category colours, with the things the planner holds drifting
+   among them. Three turning orbits stood here while the planner was called
+   Everyday Orbit; the name is Ember now and the page says so. Each ember
+   is given its own size, drift, pace and a head start (a negative delay),
+   so they are already in the air when the page opens rather than setting
+   off together. */
 function obSky(){
-  const cols=S.categories.map(c=>c.color).concat(CAT_COLORS);
-  const ring=(n,size,dur,count,off,rev)=>{let p="";
-    for(let k=0;k<count;k++)p+='<i class="obx-planet" style="--a:'+(off+k*360/count)+'deg;--c:'+cols[(n*4+k)%cols.length]+'"></i>';
-    return '<div class="obx-ring'+(rev?" rev":"")+'" style="--s:'+size+'px;--d:'+dur+'s">'+p+'</div>';};
+  const cols=[accentHex(),ACCENTS[0].hex].concat(S.categories.map(c=>c.color),CAT_COLORS);
+  let em="";
+  for(let k=0;k<30;k++){
+    const x=(k*37+7)%100, s=3+(k%5), dx=((k%5)-2)*34, d=10+(k%7)*2.2, dl=-((k*1.7)%18), soft=k%4===0;
+    em+='<i class="obx-ember'+(soft?" soft":"")+'" style="--x:'+x+'%;--s:'+s+'px;--dx:'+dx+'px;--d:'+d.toFixed(1)+'s;--dl:'+dl.toFixed(1)+'s;--c:'+cols[k%cols.length]+'"></i>';
+  }
   const chip=(ic,label,x,y,d)=>'<span class="obx-float" style="left:'+x+'%;top:'+y+'%;--dl:'+d+'s">'+icon(ic,"ic-14")+label+'</span>';
-  return '<div class="obx-sky" aria-hidden="true">'+ring(0,440,70,3,20)+ring(1,700,110,4,65,true)+ring(2,980,160,5,10)+
+  return '<div class="obx-sky" aria-hidden="true"><div class="obx-embers">'+em+'</div>'+
     chip("i-check","Tasks",12,24,0)+chip("i-repeat","Routines",78,18,1.2)+chip("i-calendar","Calendar",8,70,2.1)+
     chip("i-note","Notes",82,72,.6)+chip("i-timer","Focus timer",64,88,1.7)+chip("i-target","Priorities",26,90,2.6)+'</div>';
 }
@@ -2813,7 +2820,9 @@ function obCats(){
 /* Your categories as planets round you: the page's name, made literal. */
 function obShowCats(){
   const cs=S.categories,n=cs.length;
-  return '<div class="obx-orbit">'+
+  /* The parts of a life as embers round the fire in the middle, rather
+     than as planets round a sun. */
+  return '<div class="obx-orbit hearth">'+
     '<div class="obx-orbit-ring r1"></div><div class="obx-orbit-ring r2"></div>'+
     '<div class="obx-core">'+obAvatar()+'<span>'+esc(S.prefs.name||"You")+'</span></div>'+
     cs.map((c,k)=>{const outer=n>6&&k%2===1,r=outer?46:33,a=(k/n)*Math.PI*2-Math.PI/2;
@@ -3081,10 +3090,11 @@ function obShowDone(){
   if(g){sats.push([driveOn(),"i-cloud","Drive"]);sats.push([gcalOn(),"i-calendar","Calendar"]);}
   if(d)sats.push([!!vaultPath(),"i-folder","Obsidian"]);
   sats.push([true,"i-bell","Reminders"]);
-  const cols=S.categories.map(c=>c.color);
-  let burst="";for(let k=0;k<18;k++){const a=k/18*Math.PI*2;
-    burst+='<i style="--c:'+cols[k%cols.length]+';--x:'+(Math.cos(a)*(120+(k%3)*40)).toFixed(0)+'px;--y:'+(Math.sin(a)*(120+(k%3)*40)).toFixed(0)+'px;--dl:'+(k%5)*40+'ms"></i>';}
-  return '<div class="obx-orbit done">'+
+  const cols=[accentHex(),ACCENTS[0].hex].concat(S.categories.map(c=>c.color));
+  /* Sparks off a fire: they spread, but they all carry upward. */
+  let burst="";for(let k=0;k<20;k++){const a=k/20*Math.PI*2,r=120+(k%3)*40;
+    burst+='<i style="--c:'+cols[k%cols.length]+';--x:'+(Math.cos(a)*r*.8).toFixed(0)+'px;--y:'+(Math.sin(a)*r-70).toFixed(0)+'px;--dl:'+(k%5)*40+'ms"></i>';}
+  return '<div class="obx-orbit done hearth">'+
     '<div class="obx-burst">'+burst+'</div>'+
     '<div class="obx-orbit-ring r1 turn"></div><div class="obx-orbit-ring r2 turn rev"></div>'+
     '<div class="obx-core big">'+obAvatar()+'<span>'+esc(S.prefs.name||"You")+'</span></div>'+
@@ -3233,7 +3243,7 @@ function applyAppearance(){
   const theme=p.theme||"system";
   if(theme==="system")r.removeAttribute("data-theme");
   else r.setAttribute("data-theme",theme);
-  r.setAttribute("data-accent",p.accent||"green");
+  r.setAttribute("data-accent",p.accent||"ember");
   /* The three shades are written onto the root, where every rule in the
      stylesheet reads them. The CSS holds only a default for the moment
      before this first runs. */
@@ -3268,7 +3278,7 @@ function themePickHtml(){
    you press is what you get rather than the light-mode version of it. */
 /* plain: just the name of the colour, for setup; Settings shows its code too. */
 function accentPickHtml(plain){
-  const p=S.prefs||{},dark=isDark(),cur=p.accent||"green",curHex=accentHex();
+  const p=S.prefs||{},dark=isDark(),cur=p.accent||"ember",curHex=accentHex();
   const shade=h=>{const t=accentTrio(h);return dark?t.lift:t.base;};
   const swatch=a=>'<button class="accent-dot'+(cur===a.id?" on":"")+'" style="--dot:'+shade(a.hex)+'"'+
     ' data-act="set-accent" data-v="'+a.id+'" title="'+esc(a.name)+'" aria-label="'+esc(a.name)+'"'+
