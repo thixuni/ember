@@ -368,6 +368,11 @@ goes with backups and Drive like any setting.
 - **A category pill is a button** where it belongs to a task or routine
   (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
   list of categories (`catMenu()`) and changes it in place.
+- **A lane scrolls its own cards.** The board scrolls sideways only; each
+  lane is full height and its card list scrolls inside it (`.col-list`),
+  so every lane's heading and its Add task stay where they are however
+  long one lane gets. Its scrollbar is drawn only while the pointer is on
+  the lane.
 - **The list view** (`viewList()`) is a table per group, each a card with
   its own headings and its own + Add task. What it groups by is the
   person's, in Customize ▸ List view (`board().lgroup`, `lgChoices()`):
@@ -379,8 +384,12 @@ goes with backups and Drive like any setting.
   `lgPreset(g, k)` what a task added under it gets, so it lands there
   (`V.lqa` is the table). A single heading over lane sections was tried and
   taken back: a group reads on its own. Customize ▸ List view also holds
-  the column order, moved out of Task details. Every cell is edited in place
-  (`lrCell()`): the name by clicking it (`V.lrename`), dates from the
+  the column order, moved out of Task details, as a plain list of the
+  columns with a handle each — a strip drawn like the list's own heading
+  sat above it and read as a second thing to set. Every cell is edited in place
+  (`lrCell()`): the name by clicking it, which puts the caret where the click
+  landed rather than selecting the lot (`V.lrename`, `lrCaretAt()`) and
+  leaves the panel shut; dates from the
   picker, priority, lane and estimate from a short list, tags added
   (`V.ltag`) and removed, fields in their own controls. **An empty cell is
   empty** — no dash, no "Pick a date" (`dateField(..., {ph:""})`) — and
@@ -411,24 +420,22 @@ Put the way Google Calendar puts it. A task has a **date** — stored as
 `due`, a name older than the idea, and what places it on the calendar, on
 the dashboard's today and in overdue — and on that date it is either **all
 day** (no `dueTime`) or runs from a **start** to an **end time** (`dueTime`,
-`endTime`). Apart from both, an optional **deadline** (`deadline`): the day it
-must be done by, which is not the day you plan to do it. A task is overdue
-when its date *or* its deadline has gone (`isOverdue()`); a task with a
-deadline and no date sits on its deadline's day. `tSpan()` gives the start
-and end in minutes — a start with no end, from before tasks had one, is half
-an hour.
+`endTime`). **That is the only date a task has.** A second one, the day it
+was due by (`deadline`), sat under it with a switch of its own and was taken
+out: people read the two as two deadlines, and the wrong one was always the
+one being looked at. A task is overdue when its date has gone
+(`isOverdue()`). `tSpan()` gives the start and end in minutes — a start with
+no end, from before tasks had one, is half an hour. Old planners keep
+whatever is in `deadline`; nothing reads it.
 
 A reminder counts back from the start time when a task has one; without
-one — no start, all day, or the Start row switched off — it is set for a day
+one — no date, all day, or the Date row switched off — it is set for a day
 and a time of its own (`remindAt`, "YYYY-MM-DD HH:MM", which a timed task
 can choose too), and `buildReminders()` fires it then.
 
-In the panel the date is the **Start** row: the start date, then start – end
-on one line, "All day" beneath, as Google's event form has it. The deadline
-is a row of its own, **Deadline**. Each row has its own switch in Customise
-(`when`, `deadline`). One "When" row holding both, with "Add deadline"
-tucked under it, read as two deadlines, and switching either off alone
-changed nothing. A new start time keeps the length the task had; the end
+In the panel it is the **Date** row: the date, then start – end on one line,
+"All day" beneath, as Google's event form has it, behind the `when` switch
+in Customize. A new start time keeps the length the task had; the end
 time's list starts after the start and says how long each choice makes it.
 
 A planner still on the ten categories it started with, untouched
@@ -438,7 +445,7 @@ A planner still on the ten categories it started with, untouched
 
 The form once had a *start date* beside the due date. `fixTasks()`, run at
 the top of every `render()` and harmless to repeat, moves any that remain:
-the start date becomes the date, and a due date after it the deadline.
+the start date becomes the date.
 
 On the calendar, a task with a time is a block in the week grid with its
 tick box in the corner (kind `"task"`, added in `weekGrid()` beside Google's
@@ -462,7 +469,7 @@ month; clicking it opens the same card to change or delete it. It is the
 planner's own and is not synced to Google. The once-a-minute redraw of
 the week waits while a drag or a placeholder is on it. Google Calendar sync
 writes a timed task as a timed event and reads times back from it; the
-deadline is the planner's own and is never synced.
+date and its times are all there is to sync.
 
 ### Dashboard
 

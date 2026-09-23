@@ -63,17 +63,17 @@ const DEFAULT_LANES=[
 const LANE_COLORS=["#6B7CE0","#D99A16","#3F7D5C","#9AA298","#7C5CE0","#C25340","#2F9BA8","#D0588F","#8A6A3F","#5B8C3A"];
 /* The task panel's parts that can be switched off, in the panel's order. */
 const BOARD_FEATS=[
- ["Schedule",[["when","Start date","The day you plan to work on it","i-calendar"],["deadline","Due date","The last day it can be done","i-deadline"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
+ ["Schedule",[["when","Date","The day and time you plan to do it","i-calendar"],["reminder","Reminder","A nudge before it starts","i-bell"],["created","Created","When it was added","i-plus"]]],
  ["Organize",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"],["status","Lane","Which board lane it’s in","i-board"]]],
  ["Effort",[["estimate","Estimate","How long you think it’ll take","i-clock"],["timer","Time tracker","Time how long it really takes","i-timer"]]],
- ["Attached",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
+ ["Links and files",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
  ["Content",[["desc","Description","Notes about the task","i-note"],["subtasks","Subtasks","Smaller steps inside it","i-checklist"],["docs","Documents","Longer pages of writing","i-doc"],["comments","Comments","Updates and thoughts","i-chat"],["activity","Activity history","A record of every change","i-chart"]]]];
 /* The list view's columns besides the task itself; the first four are on
    to begin with. Custom fields join these as "cf:<id>". */
 /* Which part of the task panel each list column belongs to. */
-const FEAT_COL_OF={date:"when",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",tracked:"timer",status:"status",created:"created"};
-const LIST_COLS=[["date","Start date"],["priority","Priority"],["category","Category"],["status","Status"],
- ["deadline","Due date"],["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
+const FEAT_COL_OF={date:"when",category:"category",priority:"priority",tags:"tags",estimate:"estimate",tracked:"timer",status:"status",created:"created"};
+const LIST_COLS=[["date","Date"],["priority","Priority"],["category","Category"],["status","Status"],
+ ["estimate","Estimate"],["tracked","Time tracked"],["tags","Tags"],["created","Created"]];
 /* The board settings, filled in on the one object (as gcalPrefs() is): a sync
    or a save may be holding it. The first time, it is written down at once,
    so a new planner's three lanes do not become six once it has tasks. */
@@ -214,7 +214,6 @@ function fixTasks(){
   (S.tasks||[]).forEach(t=>{
     if(!lane(t.status)){t.status=laneFor(t.status);n++;}
     if(!t.start)return;
-    if(t.due&&t.due>t.start&&!t.deadline)t.deadline=t.due;
     t.due=t.start;t.start="";n++;
   });
   if(n)save("tasks");
@@ -227,7 +226,7 @@ function sampleState(){
    T("Reply to the emails still sitting in the inbox",o(-1),"work","planned",true,true),
    T("Send the invoice for last month",o(0),"side","in_progress",true,true,{dueTime:"15:00",endTime:"15:30"}),
    T("Draft the project brief",o(2),"work","planned",false,true,
-     {dueTime:"14:00",endTime:"15:30",deadline:o(4),desc:"One page: the problem, who it is for, and how we will know it worked.",
+     {dueTime:"14:00",endTime:"15:30",desc:"One page: the problem, who it is for, and how we will know it worked.",
       subtasks:[{id:uid("s"),t:"Collect the background notes",d:true},{id:uid("s"),t:"Write the first pass",d:false},{id:uid("s"),t:"Send it round for comments",d:false}]}),
    T("Book the dentist",o(1),"personal","backlog",true,false),
    T("Tidy the desk",o(3),"personal","backlog",false,false),
@@ -379,25 +378,20 @@ const ixAct=()=>ix("act",()=>groupBy(S.activity,a=>a.task));
 const ixDocs=()=>ix("docs",()=>groupBy(S.docs,d=>d.task));
 const ixSess=()=>ix("sess",()=>groupBy(S.sessions,x=>x.task));
 const ixSessDay=()=>ix("sessDay",()=>groupBy(S.sessions,x=>ymd(new Date(x.start))));
-/* A task belongs to its date, or with no date to its deadline. */
+/* A task belongs to its date. */
 const ixBack=()=>ix("back",()=>{const m=new Map();S.tasks.forEach(x=>(Array.isArray(x.links)?x.links:[]).forEach(id=>{const a=m.get(id);if(a)a.push(x.id);else m.set(id,[x.id]);}));return m;});
-const ixDay=()=>ix("day",()=>groupBy(tops(),t=>t.due||t.deadline||""));
+const ixDay=()=>ix("day",()=>groupBy(tops(),t=>t.due||""));
 const NONE=[];
 const taskById=id=>ixTasks().get(id)||S.tasks.find(t=>t.id===id);
 const routineById=id=>S.routines.find(r=>r.id===id);
 const noteById=id=>S.notes.find(n=>n.id===id);
 const isOpen=t=>!isDoneT(t);
-/* Late if the day you planned it has gone, or the deadline has. */
-const isOverdue=t=>isOpen(t)&&((!!t.due&&t.due<TODAY())||(!!t.deadline&&t.deadline<TODAY()));
-/* What "late" says: how far past the deadline when that has gone, otherwise
-   how far past the date. */
-const lateText=t=>relDue(t.deadline&&t.deadline<TODAY()?t.deadline:t.due);
-/* A deadline, as a small mark beside the date. */
-function dlMark(t){
-  if(!t.deadline)return "";
-  const over=isOpen(t)&&t.deadline<TODAY();
-  return '<span class="m-dl'+(over?" over":"")+'" title="Due '+esc(fmtDate(t.deadline))+'">'+icon("i-deadline","ic-14")+esc(fmtDate(t.deadline))+'</span>';
-}
+/* Late if the day you planned it has gone. A separate due date was tried
+   and taken out: two dates on a task read as two deadlines, and one of them
+   was always the wrong one to look at. */
+const isOverdue=t=>isOpen(t)&&!!t.due&&t.due<TODAY();
+/* What "late" says: how far past the date. */
+const lateText=t=>relDue(t.due);
 function routineOn(r,d){
   if(!r.active)return false;
   const s=ymd(d);
@@ -441,7 +435,7 @@ function streak(r){
    worked out once per change. */
 const overdueItems=()=>ix("overdue",overdueNow);
 function overdueNow(){
-  const tasks=tops().filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>(a.due||a.deadline)<(b.due||b.deadline)?-1:1);
+  const tasks=tops().filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>a.due<b.due?-1:1);
   const miss=[];
   S.routines.filter(r=>visibleCat(r.cat)).forEach(r=>{
     for(let i=1;i<=7;i++){const d=addDays(today(),-i),s=ymd(d);
@@ -746,7 +740,7 @@ function layoutEvents(evs){
   }
   return out;
 }
-/* A task belongs to its date, or, with no date, to its deadline. */
+/* A task belongs to its date. */
 function tasksFor(s){
   return (ixDay().get(s)||NONE).filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped");
 }
@@ -770,7 +764,7 @@ function weekGrid(){
       const done=isDoneT(t);
       return '<div class="tchip'+(done?" done":"")+(isOverdue(t)?" over":"")+'" style="--c:'+c.color+'">'+
         '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
-        '<button class="tchip-body" data-act="task" data-id="'+t.id+'"'+(t.due!==s?' title="Due date"':"")+'>'+icon(t.due!==s?"i-deadline":c.icon,"ic-14")+'<span>'+esc(t.title)+'</span></button>'+
+        '<button class="tchip-body" data-act="task" data-id="'+t.id+'">'+icon(c.icon,"ic-14")+'<span>'+esc(t.title)+'</span></button>'+
         '</div>';}).join("")+'</div>';}).join("")+'</div>';
   let hours="";for(let h=H0;h<H1;h++)hours+='<div class="hourlab num">'+fmtTime(pad(h)+":00")+'</div>';
   const cols=days.map(d=>{
@@ -1208,7 +1202,7 @@ function viewDashboard(){
   /* ---- to do: tasks due today ---- */
   const taskRow=t=>{const c=cat(t.cat),done=isDoneT(t),est=tEst(t);
     return dashRow({color:c.color,done:done,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
-      meta:esc(c.name)+(t.dueTime&&t.due===TODAY()?' · '+esc(fmtTaskTime(t)):"")+(t.deadline?' · due '+esc(t.deadline===TODAY()?"today":fmtDate(t.deadline)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
+      meta:esc(c.name)+(t.dueTime&&t.due===TODAY()?' · '+esc(fmtTaskTime(t)):"")+(est?' · '+esc(fmtMins(est))+' estimate':""),
       end:done?"":timerBtn(t)});};
   const openT=d.tasks.filter(isOpen).length;
 
@@ -1590,7 +1584,7 @@ function taskCard(t){
   const head='<div class="tc-head">'+
     '<button type="button" class="tc-cat chip-pick" data-act="cat-pick" data-kind="task" data-id="'+t.id+'" title="Change category" aria-haspopup="menu">'+icon(c.icon,"ic-14")+esc(c.name)+'</button>'+
     '<span class="tc-right">'+(state?state:
-      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+dlMark(t)+
+      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+
       (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':""))+
     '</span></div>';
 
@@ -1653,8 +1647,7 @@ function qaCard(){
   const dateIc=(id,ic,label,v)=>'<span class="pkf qa-icf"><button type="button" class="pk-btn qa-ic'+(v?" on":"")+'" data-act="pk-open" data-pk="date" data-ph="" data-label="'+label+'" title="'+label+'" aria-label="'+label+(v?": "+esc(pkDateText(v)):"")+'">'+
     icon(ic,"ic-14")+'<span class="pk-val">'+(v?esc(pkDateText(v)):"")+'</span></button><input type="hidden" id="'+id+'" value="'+esc(v||"")+'"></span>';
   const icons=[
-    feat("when")?dateIc("qaDue","i-calendar","Start date",q.due):"",
-    feat("deadline")?dateIc("qaDl","i-deadline","Due date",q.dl):"",
+    feat("when")?dateIc("qaDue","i-calendar","Date",q.due):"",
     feat("estimate")?'<button type="button" class="qa-ic'+(q.est?" on":"")+'" data-act="qa-est" title="Estimate" aria-label="Estimate'+(q.est?": "+esc(fmtMins(q.est)):"")+'" aria-haspopup="menu">'+icon("i-timer","ic-14")+(q.est?'<span>'+esc(fmtMins(q.est))+'</span>':"")+'</button>':"",
     feat("files")&&hasDesktop()?'<button type="button" class="qa-ic" data-act="qa-files" title="Create it and attach files" aria-label="Create it and attach files">'+icon("i-clip","ic-14")+'</button>':""].join("");
   return '<div class="qa" data-lane="'+q.lane+'">'+
@@ -1708,7 +1701,7 @@ function qaSave(){
   const flags={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[q.prio]||[null,null];
   /* No category picked: Other, where there is one. */
   const fallback=(S.categories.find(c=>c.id==="other")||S.categories[0]).id;
-  const t=newTask({title:title,status:q.lane,cat:q.cat||fallback,due:q.due||"",deadline:q.dl||"",est:q.est||0,urgent:flags[0],important:flags[1]});
+  const t=newTask({title:title,status:q.lane,cat:q.cat||fallback,due:q.due||"",est:q.est||0,urgent:flags[0],important:flags[1]});
   if(isDoneT(t))t.completedAt=TODAY();
   S.tasks.push(t);logAct(t.id,"created","Created this task");save("tasks");
   V.qa=Object.assign({},q,{title:"",prio:"",dl:"",est:0});
@@ -1747,7 +1740,7 @@ function viewList(){
   const g=lgBy(),groups={},meta={},order=[];
   list.forEach(t=>{const x=lgOf(t,g),k=x.k;if(!groups[k]){groups[k]=[];meta[k]=x;order.push(k);}groups[k].push(t);});
   order.sort((a,b)=>meta[a].o<meta[b].o?-1:meta[a].o>meta[b].o?1:0);
-  const month=g==="date"||g==="deadline"||(g.indexOf("cf:")===0&&(fieldById(g.slice(3))||{}).type==="date");
+  const month=g==="date"||(g.indexOf("cf:")===0&&(fieldById(g.slice(3))||{}).type==="date");
   const body=order.map(k=>{
     const items=srt?lrSorted(groups[k],srt):groups[k],shut=!!(V.lshut&&V.lshut[k]);
     const name=meta[k].name;
@@ -1768,8 +1761,7 @@ const lqaDate=k=>TODAY().slice(0,7)===k?TODAY():k+"-01";
    into a few clear piles. [value, name, hint, icon]. */
 function lgChoices(){
   const out=[];
-  if(feat("when"))out.push(["date","Start date","A table for each month",("i-calendar")]);
-  if(feat("deadline"))out.push(["deadline","Due date","A table for each month","i-deadline"]);
+  if(feat("when"))out.push(["date","Date","A table for each month",("i-calendar")]);
   out.push(["status","Status","A table for each lane","i-board"]);
   if(feat("category"))out.push(["category","Category","A table for each category","i-folder"]);
   if(feat("priority"))out.push(["priority","Priority","Do first, Schedule, Delegate, Eliminate","i-flag"]);
@@ -1786,8 +1778,7 @@ const monName=k=>MON[Number(k.slice(5))-1]+" "+k.slice(0,4);
 /* A task's table under grouping g: {k, name, o} (o orders the tables). */
 function lgOf(t,g){
   const month=(v,none)=>v?{k:v.slice(0,7),name:monName(v.slice(0,7)),o:v.slice(0,7)}:{k:"none",name:none,o:"~"};
-  if(g==="date")return month(t.due,"No start date");
-  if(g==="deadline")return month(t.deadline,"No due date");
+  if(g==="date")return month(t.due,"No date");
   if(g==="status"){const L=lanes(),i=L.findIndex(l=>l.id===t.status);return {k:t.status,name:i<0?"No status":L[i].name,o:String(1000+(i<0?999:i))};}
   if(g==="category"){const i=S.categories.findIndex(c=>c.id===t.cat);return {k:t.cat,name:i<0?"No category":S.categories[i].name,o:String(1000+(i<0?999:i))};}
   if(g==="priority"){const q=quadOf(t),i=QUADS.findIndex(x=>x.id===q);return q?{k:q,name:QUADS[i].name,o:String(1000+i)}:{k:"none",name:"No priority",o:"~"};}
@@ -1801,7 +1792,6 @@ function lgOf(t,g){
 function lgPreset(g,k){
   if(k==="none"||k==="all")return {};
   if(g==="date")return {due:lqaDate(k)};
-  if(g==="deadline")return {deadline:lqaDate(k)};
   if(g==="status")return {status:k};
   if(g==="category")return {cat:k};
   if(g==="priority"){const f={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[k];return f?{urgent:f[0],important:f[1]}:{};}
@@ -1817,7 +1807,6 @@ function lrSortVal(k,t){
   switch(k){
     case "name":return (t.title||"").toLowerCase();
     case "date":return t.due?t.due+" "+(t.dueTime||""):null;
-    case "deadline":return t.deadline||null;
     case "priority":{const q=quadOf(t);return q?["do","decide","delegate","drop"].indexOf(q):null;}
     case "category":{const i=S.categories.findIndex(c=>c.id===t.cat);return i<0?null:i;}
     case "status":{const i=lanes().findIndex(l=>l.id===t.status);return i<0?null:i;}
@@ -1866,7 +1855,6 @@ function lrCell(k,t){
   const a=v=>'data-act="'+v+'" data-id="'+t.id+'"';
   switch(k){
     case "date":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="due"',t.due||"",{sm:1,ph:"",label:"Start date",cls:"lr-f"+(isOverdue(t)&&t.due&&t.due<TODAY()?" over":"")});
-    case "deadline":return dateField('data-act="lr-set" data-id="'+t.id+'" data-k="deadline"',t.deadline||"",{sm:1,ph:"",label:"Due date",cls:"lr-f"+(isOpen(t)&&t.deadline&&t.deadline<TODAY()?" over":"")});
     case "priority":return '<button type="button" class="lr-pick'+(quadChip(t)?"":" empty")+'" '+a("lr-prio")+' aria-haspopup="menu" title="Priority" aria-label="Priority">'+(quadChip(t)||icon("i-chev-d","ic-12 lr-hint"))+'</button>';
     case "category":return catChip(t.cat,"task",t.id,1);
     case "status":{const st=ST(t.status);return '<button type="button" class="lr-pick" '+a("lr-move")+' aria-haspopup="menu" title="Change status"><span class="chip chip-cat chip-lane" style="--c:'+st.color+'">'+esc(st.name)+'</span></button>';}
@@ -2035,16 +2023,15 @@ function colLabel(k){
   if(k.indexOf("cf:")===0){const f=fieldById(k.slice(3));return f?f.name:"Field";}
   return (LIST_COLS.find(x=>x[0]===k)||[k,k])[1];
 }
-const COL_W={date:"118px",priority:"96px",category:"112px",status:"124px",deadline:"104px",estimate:"84px",tracked:"96px",tags:"minmax(90px,150px)",created:"96px"};
+const COL_W={date:"118px",priority:"96px",category:"112px",status:"124px",estimate:"84px",tracked:"96px",tags:"minmax(90px,150px)",created:"96px"};
 const colW=k=>{if(k.indexOf("cf:")!==0)return COL_W[k]||"110px";
   const f=fieldById(k.slice(3))||{};return {rating:"96px",progress:"120px",checkbox:"90px",number:"90px",date:"104px",multi:"minmax(110px,180px)",text:"minmax(110px,180px)"}[f.type]||"124px";};
 function colCell(k,t){
   switch(k){
-    case "date":return '<span class="sub num lr-when" style="color:'+(isOverdue(t)?"var(--danger)":"var(--muted)")+'">'+esc(t.due?fmtDate(t.due):"—")+dlMark(t)+'</span>';
+    case "date":return '<span class="sub num lr-when" style="color:'+(isOverdue(t)?"var(--danger)":"var(--muted)")+'">'+esc(t.due?fmtDate(t.due):"—")+'</span>';
     case "priority":return '<span>'+(quadChip(t)||'<span class="sub">—</span>')+'</span>';
     case "category":return '<span>'+catChip(t.cat,"task",t.id)+'</span>';
     case "status":{const s=ST(t.status);return '<span class="status-dot" style="--s:'+s.color+'"><span class="sw"></span>'+esc(s.name)+'</span>';}
-    case "deadline":return '<span class="sub num">'+esc(t.deadline?fmtDate(t.deadline):"—")+'</span>';
     case "estimate":return '<span class="sub num">'+(tEst(t)?esc(fmtMins(tEst(t))):"—")+'</span>';
     case "tracked":{const s=trackedSecs(t.id);return '<span class="sub num">'+(s?esc(fmtTracked(s)):"—")+'</span>';}
     case "tags":return '<span class="lr-tags">'+((t.tags||[]).map(x=>'<span class="chip">#'+esc(x)+'</span>').join("")||'<span class="sub">—</span>')+'</span>';
@@ -2099,7 +2086,7 @@ function czDelRow(l,n){
    columns. Each row carries a short line on what it is for. */
 /* The list column that goes with a part of the task panel, and the columns
    that have no part in the panel of their own. */
-const FEAT_COL={when:"date",deadline:"deadline",category:"category",priority:"priority",tags:"tags",estimate:"estimate",timer:"tracked",status:"status",created:"created"};
+const FEAT_COL={when:"date",category:"category",priority:"priority",tags:"tags",estimate:"estimate",timer:"tracked",status:"status",created:"created"};
 function czPanel(){
   const b=board(),full=!!b.fullSubs,cols=listCols();
   const colOn=k=>{const c=cols.find(x=>x.k===k);return !!(c&&c.on);};
@@ -2147,9 +2134,8 @@ function czList(){
       '<div class="cz-gopts" role="radiogroup" aria-label="Group the tables by">'+lgChoices().map(x=>opt(x[0],x[1],x[2],x[3])).join("")+'</div></div>'+
     '<div class="cz-sec"><div class="cz-sh-row"><h3 class="cz-sh">Column order</h3>'+
         '<button class="linkish" data-act="cz-open-list">Open the List view</button></div>'+
-      '<p class="cz-lead">After the task’s name, left to right. Drag to change the order, here or by a heading in the list; drag a heading’s edge there to change its width. A column shows when its field is on in Task details.</p>'+
-      (shown.length?'<div class="czl-head" aria-hidden="true"><span>Task</span>'+shown.map(c=>'<span>'+esc(colLabel(c.k))+'</span>').join("")+'</div>'+
-        '<div class="cz-cols" id="czCols">'+shown.map(c=>
+      '<p class="cz-lead">After the task’s name, top to bottom here is left to right in the list. Drag a handle to change the order, or drag a heading in the list itself; drag a heading’s edge there to change its width. A column shows when its field is on in Task details.</p>'+
+      (shown.length?'<div class="cz-cols" id="czCols">'+shown.map(c=>
         '<div class="cz-col" draggable="true" data-col="'+esc(c.k)+'">'+
           '<button type="button" class="cz-grip" data-grip="col" data-id="'+esc(c.k)+'" title="Drag to reorder" aria-label="Move '+esc(colLabel(c.k))+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
           '<span class="cz-col-n">'+esc(colLabel(c.k))+'</span>'+
@@ -2162,7 +2148,7 @@ function czPanelPreview(){
   const b=board(),on=k=>feat(k);
   const line=(ic,label,w)=>'<div class="czv-f">'+icon(ic,"ic-12")+'<span>'+esc(label)+'</span><i style="width:'+w+'%"></i></div>';
   let h=(on("status")?'<div class="czv-lane"><i></i>In progress</div>':"")+'<div class="czv-title"><i class="czv-tick"></i><b>Plan the team offsite</b></div>';
-  const sched=[on("when")&&line("i-calendar","Start","56"),on("deadline")&&line("i-deadline","Due date","40"),on("reminder")&&line("i-bell","Reminder","34"),on("created")&&'<div class="czv-f">'+icon("i-plus","ic-12")+'<span>Created</span><b class="czv-val">19 Sep</b></div>'].filter(Boolean);
+  const sched=[on("when")&&line("i-calendar","Date","56"),on("reminder")&&line("i-bell","Reminder","34"),on("created")&&'<div class="czv-f">'+icon("i-plus","ic-12")+'<span>Created</span><b class="czv-val">19 Sep</b></div>'].filter(Boolean);
   const org=[on("category")&&'<span class="czv-chip">Work</span>',on("priority")&&'<span class="czv-chip">Do first</span>',on("tags")&&'<span class="czv-chip">#planning</span>'].filter(Boolean);
   const eff=[on("estimate")&&line("i-clock","Estimate","30"),on("timer")&&'<div class="czv-timer">'+icon("i-play","ic-12")+'<span>Start</span><b class="num">0:00</b></div>'].filter(Boolean);
   if(sched.length)h+='<div class="czv-sec">'+sched.join("")+'</div>';
@@ -4027,8 +4013,6 @@ document.addEventListener("click",function(e){
     /* ---- task detail sheet ---- */
     case "sheet-close":closeSheet();break;
     case "sh-create":createFromDraft();break;
-    case "sh-deadline":{if(!V.sheet)break;V.sheet.dl=true;renderSheet();
-      const b=document.querySelector('.when-dl .pk-btn');if(b)pkOpen(b);break;}
     case "sh-tab":V.sheet.tab=n.dataset.v;renderSheet();break;
     case "sh-remind-rel":patchCurrent({remindAt:""});break;
     case "sh-est-u":if(V.sheet){V.sheet.estU=n.dataset.v;renderSheet();const b=document.querySelector('#sheetRoot [data-act="sh-est-u"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});}break;
@@ -4049,7 +4033,12 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const tid=n.dataset.tid,t=tid?taskById(tid):sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v,tid);break;}
     case "lg-toggle":V.lshut=V.lshut||{};V.lshut[n.dataset.v]=!V.lshut[n.dataset.v];renderView();break;
-    case "lr-rename":V.lrename=id;renderView();{const i=el("lrRename");if(i){i.focus();i.select();}}break;
+    /* The name is edited where it is: the caret lands where the click did,
+       nothing is selected, and the panel stays shut. */
+    case "lr-rename":{const b=n.getBoundingClientRect(),x=e.clientX-b.left;
+      V.lrename=id;renderView();
+      const i=el("lrRename");
+      if(i){i.focus();const at=lrCaretAt(i,x);i.setSelectionRange(at,at);}break;}
     case "lr-tag-add":V.ltag=id;renderView();{const i=el("lrTag");if(i)i.focus();}break;
     case "lr-tag-del":{const t=taskById(id);if(t)patchTask(id,{tags:(t.tags||[]).filter(x=>x!==n.dataset.v)});break;}
     case "lr-move":{const t=taskById(id);if(!t)break;
@@ -4576,7 +4565,7 @@ document.addEventListener("change",function(e){
     save("prefs");renderSheet();render();customiseModal();
     const f=document.querySelector('.cz [data-act="cz-where"][data-k="'+k+'"][data-w="'+w+'"]');if(f)f.focus({preventScroll:true});
     return;}
-  if(V.qa&&(t.id==="qaDue"||t.id==="qaDl")){V.qa[t.id==="qaDue"?"due":"dl"]=t.value;renderView();qaFocus();return;}
+  if(V.qa&&t.id==="qaDue"){V.qa.due=t.value;renderView();qaFocus();return;}
   if(t.dataset&&t.dataset.act==="cm-name"){const v=t.value.trim();if(!v){const c=cat(t.dataset.id);t.value=c?c.name:"";toast("A category needs a name");return;}
     const c=cat(t.dataset.id);if(c&&c.name!==v){c.name=v;save("categories");renderRail();renderView();}return;}
   if(t.dataset&&t.dataset.act==="cm-hex"){cmSet(t.dataset.id,{color:t.value});return;}
@@ -4600,7 +4589,6 @@ document.addEventListener("change",function(e){
       patchCurrent({dueTime:v,endTime:m2hm(Math.min(hm2m(v)+len,24*60-1))});return;}
     if(k==="endTime"){const cur=sheetTask()||{};
       if(v&&cur.dueTime&&hm2m(v)<=hm2m(cur.dueTime)){toast("The end time has to be after the start");renderSheet();return;}}
-    if(k==="deadline"&&!v&&V.sheet)V.sheet.dl=false;
     if(k==="title"){v=v.trim();if(!v){const cur=sheetTask();t.value=cur?cur.title:"";return;}}
     // Re-rendering while the caret is in a text field would throw it away.
     patchCurrent({[k]:v},k!=="title"&&k!=="desc");
@@ -4651,7 +4639,7 @@ window.addEventListener("unhandledrejection",function(e){
 /* ============ activity log ============ */
 /* Everything that happens to a task lands here: comments and documents you
    write, plus an automatic entry for every field that changes. */
-const FIELD_LABEL={title:"Title",desc:"Description",due:"Start date",start:"Start date",deadline:"Due date",endTime:"End time",
+const FIELD_LABEL={title:"Title",desc:"Description",due:"Date",start:"Date",endTime:"End time",
   status:"Status",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
   dueTime:"Start time",remind:"Reminder",remindAt:"Reminder"};
@@ -4673,7 +4661,7 @@ function fieldText(k,v){
   if(v==null||v===""||(Array.isArray(v)&&!v.length))return "empty";
   if(k==="status")return ST(v).name;
   if(k==="cat")return cat(v).name;
-  if(k==="due"||k==="start"||k==="deadline")return fmtDate(v);
+  if(k==="due"||k==="start")return fmtDate(v);
   if(k==="est")return fmtMins(Number(v)||0);
   if(k==="urgent"||k==="important")return v?"yes":"no";
   if(k==="tags")return v.join(", ");
@@ -5265,6 +5253,18 @@ document.addEventListener("keydown",function(e){
 /* The list's in-place boxes: Enter keeps what is typed, Esc leaves it,
    and leaving the box keeps it too. A new task in a lane stays open for the
    next, as the board's does. */
+/* Where in the name a click at x pixels landed, measured in a copy of the
+   box's own type rather than guessed from the average letter. */
+function lrCaretAt(i,x){
+  const v=i.value;if(x==null||x<=0)return 0;
+  const cs=getComputedStyle(i),pad=parseFloat(cs.paddingLeft)||0;
+  const c=document.createElement("canvas").getContext("2d");
+  c.font=cs.fontStyle+" "+cs.fontWeight+" "+cs.fontSize+" "+cs.fontFamily;
+  const want=x-pad;let last=0;
+  for(let k=1;k<=v.length;k++){const w=c.measureText(v.slice(0,k)).width;
+    if(w>=want)return (want-last)<(w-want)?k-1:k;last=w;}
+  return v.length;
+}
 function lrCommit(i,keep){
   if(i.id==="lrRename"){const v=i.value.trim();V.lrename=null;
     if(keep&&v&&taskById(i.dataset.id)&&v!==taskById(i.dataset.id).title)patchTask(i.dataset.id,{title:v});else renderView();}
@@ -5379,22 +5379,19 @@ function createFromDraft(){
 const metaRow=(label,inner,ic)=>'<div class="mrow"><div class="mlab">'+(ic?icon(ic,"ic-14"):"")+esc(label)+'</div><div class="mval">'+inner+'</div></div>';
 
 /* When, the way Google Calendar asks it: a date, then a start and an end
-   time on the same line -- or, ticked, all day -- and apart from both, a
-   deadline, which stays out of the way behind "Add deadline" until a task
-   needs one. The times wait for a date to hang on. */
+   time on the same line -- or, ticked, all day. The times wait for a date
+   to hang on. A second date, the day it was due by, sat under this one and
+   was taken out: people read the two as two deadlines. */
 function sheetDates(t){
   const day=t.due||"",all=!t.dueTime;
   const line='<div class="when-line">'+
-    dateField('data-act="sh-set" data-k="due"',day,{sm:1,long:1,label:"Start date",ph:"Add a start date",cls:"when-date"})+
+    dateField('data-act="sh-set" data-k="due"',day,{sm:1,long:1,label:"Date",ph:"Add a date",cls:"when-date"})+
     (day&&!all?timeField('data-act="sh-set" data-k="dueTime"',t.dueTime,{sm:1,label:"Start time",req:1,cls:"when-time"})+
       '<span class="when-dash" aria-hidden="true">–</span>'+
       timeField('data-act="sh-set" data-k="endTime"',t.endTime||m2hm(tSpan(t).end),{sm:1,label:"End time",req:1,after:t.dueTime,cls:"when-time"}):"")+
     '</div>';
   const allday=day?'<label class="when-all"><input type="checkbox" data-act="sh-allday"'+(all?" checked":"")+'><span>All day</span></label>':"";
   return '<div class="when">'+line+allday+'</div>';
-}
-function sheetDeadline(t){
-  return dateField('data-act="sh-set" data-k="deadline"',t.deadline,{sm:1,long:1,label:"Due date",ph:"No due date",cls:"when-date"});
 }
 
 /* ============ pickers ============
@@ -6007,11 +6004,7 @@ function renderSheet(){
          form reads as when, what, how long, and what it is tied to. */
       (s.tab==="activity"?historyPane(t):'<div class="sh-meta">'+
         group("Schedule",[
-          /* The day it is planned for and the day it is due are two rows, each
-             with its own switch: one row for both read as two deadlines, and
-             turning either off alone changed nothing. */
-          feat("when")?metaRow("Start",sheetDates(t),"i-calendar"):"",
-          feat("deadline")?metaRow("Due date",sheetDeadline(t),"i-deadline"):"",
+          feat("when")?metaRow("Date",sheetDates(t),"i-calendar"):"",
           feat("reminder")?metaRow("Reminder",'<div id="shRemind">'+taskRemindHtml(t)+'</div>',"i-bell"):"",
           feat("created")&&!isNew&&t.created?metaRow("Created",'<span class="mnone">'+esc(fmtDate(t.created))+'</span>',"i-plus"):""])+
         group("Organize",[
@@ -6022,7 +6015,7 @@ function renderSheet(){
           feat("estimate")?metaRow("Estimate",estField(t),"i-timer"):"",
           feat("timer")?metaRow("Time",sheetTime(t,isNew),"i-clock"):""])+
         group("Fields",cfRows)+
-        group("Attached",[
+        group("Links and files",[
           feat("links")?metaRow("Linked",sheetLinks(t,isNew),"i-link"):"",
           feat("files")?metaRow("Files",sheetFiles(t,isNew),"i-clip"):""])+
       '</div>'+
@@ -6873,7 +6866,7 @@ function buildReminders(){
     if(isOpen(t)&&t.remindAt){
       const fire=at(t.remindAt.slice(0,10),t.remindAt.slice(11)||"09:00");if(!keep(fire))return;
       out.push({id:"ta:"+t.id+":"+t.remindAt,at:fire,title:t.title,
-        body:(t.deadline?"Due "+(t.deadline===TODAY()?"today":fmtDate(t.deadline))+" · ":"")+cat(t.cat).name,
+        body:cat(t.cat).name,
         open:{kind:"task",id:t.id}});
       return;
     }
