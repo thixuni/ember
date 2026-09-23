@@ -9,12 +9,12 @@
 :root{
   --surface:#FFFFFF; --surface-2:#F4F4F6; --line:#E6E6E9; --line-2:#D6D6DA;
   --ink:#232428; --ink-2:#3E3F44; --muted:#54555B; --faint:#606167;
-  --accent:#3F7D5C; --danger:#C25340; --danger-soft:#FAE8E4; --danger-ink:#7A4133;
+  --accent:#C94B16; --danger:#C25340; --danger-soft:#FAE8E4; --danger-ink:#7A4133;
   --on-accent:#FFFFFF; --tint-base:#FFFFFF;
   --shadow:0 12px 30px -14px rgba(20,20,24,.45);
   --ff:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --fd:"Gabarito","Plus Jakarta Sans",system-ui,sans-serif;
-  --c:#3F7D5C;
+  --c:#C94B16;
 }
 /* The planner sends the theme it resolved to, which lands as data-theme below.
    The media query is only what shows before that first message arrives. */
@@ -23,7 +23,7 @@
     color-scheme: dark;
     --surface:#232326; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
     --ink:#EDEDEF; --ink-2:#D2D2D6; --muted:#B6B6BB; --faint:#A4A4AA;
-    --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#EC9A8A;
+    --accent:#ED8458; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#EC9A8A;
     --on-accent:#0E1113; --tint-base:#232326;
     --shadow:0 14px 32px -12px rgba(0,0,0,.8);
   }
@@ -32,7 +32,7 @@
   color-scheme: dark;
   --surface:#232326; --surface-2:#323236; --line:#39393E; --line-2:#4C4C52;
   --ink:#EDEDEF; --ink-2:#D2D2D6; --muted:#B6B6BB; --faint:#A4A4AA;
-  --accent:#5FA37C; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#EC9A8A;
+  --accent:#ED8458; --danger:#E58270; --danger-soft:#3A2724; --danger-ink:#EC9A8A;
   --on-accent:#0E1113; --tint-base:#232326;
   --shadow:0 14px 32px -12px rgba(0,0,0,.8);
 }
@@ -158,7 +158,7 @@ body{margin:0;font-family:var(--ff);color:var(--ink);background:transparent;
     if(typeof state.dark === "boolean") root.setAttribute("data-theme", state.dark ? "dark" : "light");
     if(state.accent) root.style.setProperty("--accent", state.accent);
     var live = state.state === "running" || state.state === "paused", cap = el("cap");
-    root.style.setProperty("--c", live && state.colour ? state.colour : "#3F7D5C");
+    root.style.setProperty("--c", live && state.colour ? state.colour : "#C94B16");
     cap.classList.toggle("paused", state.state === "paused");
     cap.classList.toggle("over", live && !!state.over);
     if(!live){

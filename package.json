@@ -23,7 +23,8 @@
     "build:win": "npm run build:html && electron-builder --win",
     "build:mac": "npm run build:html && electron-builder --mac",
     "build:linux": "npm run build:html && electron-builder --linux",
-    "release": "node scripts/release.js"
+    "release": "node scripts/release.js",
+    "icon": "electron scripts/make-icon.js"
   },
   "dependencies": {
     "electron-updater": "6.3.9"

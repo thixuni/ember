@@ -2591,7 +2591,7 @@ function obRender(){
   if(OB.step==="signin"){root.innerHTML=obSignin(fresh);putScroll(root,marks);return;}
   const steps=obSteps().filter(s=>s!=="signin"),i=steps.indexOf(OB.step),last=Math.max(1,steps.length-1);
   const top='<header class="obx-top">'+
-    '<div class="obx-brand"><span class="brand-mark">'+icon("i-orbit","ic-18")+'</span><span>Ember</span></div>'+
+    '<div class="obx-brand"><span class="brand-mark">'+icon("i-ember","ic-18")+'</span><span class="wordmark">ember</span></div>'+
     '<nav class="obx-track" aria-label="Setup steps"><div class="obx-rail"><i style="width:'+(i/last*100).toFixed(1)+'%"></i></div>'+
       steps.map((s,j)=>'<button class="obx-dot'+(j<i?" done":j===i?" now":"")+'" style="left:'+(j/last*100).toFixed(1)+'%"'+
         (j<i?' data-act="ob-jump" data-v="'+s+'" title="Back to '+esc(OB_LABEL[s])+'"':' tabindex="-1"')+
@@ -2677,7 +2677,7 @@ function obSignin(fresh){
   else act='<button class="obx-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
   return '<div class="obx-first'+(fresh?" enter":"")+'">'+obSky()+
     '<div class="obx-hero">'+
-      '<span class="brand-mark obx-mark">'+icon("i-orbit","ic-18")+'</span>'+
+      '<span class="brand-mark obx-mark">'+icon("i-ember","ic-18")+'</span>'+
       '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one place</em>.")+'</h1>'+
       '<p class="obx-lead">'+(again?"Sign in to pick up where you left off."
         :"Tasks, routines, your calendar and your notes, together in one calm place.")+'</p>'+
@@ -2914,7 +2914,7 @@ function obShowCalendar(){
   const on=gcalOn(),c=S.categories;
   const row=(dir,title,when,col,from)=>'<div class="obx-flow '+dir+'" style="--c:'+col+'"><i></i><b>'+esc(title)+'</b><small class="num">'+esc(when)+'</small><em>'+icon(from?"i-chev-l":"i-chev-r","ic-14")+'</em></div>';
   return '<div class="obx-panel obx-cal'+(on?" on":"")+'">'+
-    '<div class="obx-pair"><span class="obx-tile brand-mark">'+icon("i-orbit","ic-18")+'</span>'+
+    '<div class="obx-pair"><span class="obx-tile brand-mark">'+icon("i-ember","ic-18")+'</span>'+
       '<span class="obx-beam"><i></i><i></i></span>'+
       '<span class="obx-tile gcal"><b class="num">'+today().getDate()+'</b><small>'+esc(MONS[today().getMonth()])+'</small></span></div>'+
     '<div class="obx-flows">'+
@@ -2965,7 +2965,7 @@ function obShowApp(){
   const card=(cc,title,done)=>'<div class="obx-mcard'+(done?" done":"")+'" style="--c:'+cc.color+'"><span class="obx-mpill">'+esc(cc.name)+'</span>'+
     '<span class="obx-mline"><i class="obx-mtick">'+(done?icon("i-check"):"")+'</i>'+esc(title)+'</span></div>';
   return '<div class="obx-app">'+
-    '<div class="obx-app-rail"><span class="brand-mark">'+icon("i-orbit","ic-14")+'</span>'+
+    '<div class="obx-app-rail"><span class="brand-mark">'+icon("i-ember","ic-14")+'</span>'+
       ["Dashboard","Calendar","Tasks","Routines"].map((x,k)=>'<i class="'+(k===0?"on":"")+'"><em></em>'+x+'</i>').join("")+'</div>'+
     '<div class="obx-app-main"><div class="obx-app-top"><b>'+esc(dashGreeting()+(n?", "+n:""))+'</b><span class="obx-app-btn">'+icon("i-plus","ic-14")+'New task</span></div>'+
       card(c[0]||{color:CAT_COLORS[0],name:"Office"},"Draft the project brief",false)+
@@ -3025,7 +3025,7 @@ function obShowNotify(){
   let ticks="";for(let h=0;h<24;h++){const t=h/24*Math.PI*2-Math.PI/2,r1=h%6?R-5:R-9;
     ticks+='<line x1="'+(100+r1*Math.cos(t)).toFixed(1)+'" y1="'+(100+r1*Math.sin(t)).toFixed(1)+'" x2="'+(100+(R-1)*Math.cos(t)).toFixed(1)+'" y2="'+(100+(R-1)*Math.sin(t)).toFixed(1)+'"/>';}
   const n=new Date(),nowA=(n.getHours()*60+n.getMinutes())/1440*Math.PI*2-Math.PI/2;
-  return '<div class="obx-toast'+(rp.on?"":" off")+'"><span class="brand-mark">'+icon("i-orbit","ic-14")+'</span>'+
+  return '<div class="obx-toast'+(rp.on?"":" off")+'"><span class="brand-mark">'+icon("i-ember","ic-14")+'</span>'+
       '<div><b>'+esc(first.title)+'</b><small>'+(rp.on?"Starts in 30 minutes · "+esc(fmtTime(first.time)):"Reminders are off")+'</small></div></div>'+
     '<div class="obx-clock"><svg viewBox="0 0 200 200">'+
       '<circle class="rim" cx="100" cy="100" r="'+R+'"/>'+arc+'<g class="ticks">'+ticks+'</g>'+
@@ -3125,6 +3125,9 @@ function accountPane(sec,field,toggle){
    of a fixed six -- a stylesheet cannot hold a rule for a colour nobody has
    picked yet. The presets are just colours that happen to have names. */
 const ACCENTS=[
+  /* Ember orange first: the planner opens with it, and anyone who has
+     chosen another keeps theirs. */
+  {id:"ember",   name:"Ember",    hex:"#E8622A"},
   {id:"green",   name:"Green",    hex:"#3F7D5C"},
   {id:"teal",    name:"Teal",     hex:"#2F7D7A"},
   {id:"blue",    name:"Blue",     hex:"#3A6DA6"},
@@ -3454,7 +3457,7 @@ function settingsModal(){
     /* Sign out sits at the foot of the sidebar, reachable from every tab,
        and only when there is an account to leave. */
     (signedIn()?'<button class="set-tab set-out" data-act="acct-signout">'+icon("i-logout")+'<span>Sign out</span></button>':"")+
-    '<div class="set-nav-foot">Ember</div></nav>';
+    '<div class="set-nav-foot"><span class="wordmark">ember</span></div></nav>';
   const inner=nav+'<section class="set-pane" role="tabpanel" data-tab="'+tab+'">'+
     '<button class="icon-btn set-close" data-act="close" aria-label="Close settings">'+icon("i-x")+'</button>'+
     pane+'</section>';

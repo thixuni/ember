@@ -7,20 +7,23 @@
 <meta name="description" content="A personal planner: a dashboard for today, calendar, task board, Eisenhower matrix, routines and notes. Runs on your own computer, stores nothing anywhere else.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Gabarito:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
 <style>
 :root{
-  --ground:#F3F5F1; --surface:#FFFFFF; --surface-2:#FAFBF8; --surface-3:#EFF2EC;
-  --line:#E5E9E1; --line-2:#D5DCCE;
-  --ink:#222A24; --ink-2:#495247; --muted:#7D867C; --faint:#9AA298;
-  --accent:#3F7D5C; --accent-2:#2E6047; --accent-soft:#E6F1EA; --accent-lift:#5FA37C;
+  /* Ember’s own palette: Ash Rose behind, Ink for the words, Ember orange
+     for anything that acts, with Ember Deep where text has to clear AA. */
+  --ground:#F6F2F2; --surface:#FFFFFF; --surface-2:#FCFAFA; --surface-3:#F1EBEB;
+  --line:#E9E1E1; --line-2:#D9CFCF;
+  --ink:#24151A; --ink-2:#4A3C40; --muted:#7A6B6E; --faint:#9A8E90;
+  --accent:#E8622A; --accent-2:#A03B11; --accent-soft:#FBEADF; --accent-lift:#ED8458;
   --on-accent:#FFFFFF;
-  --apricot:#E0854A; --apricot-soft:#FBEBDD; --accent-line:#CFE4D8;
+  --apricot:#E8622A; --apricot-soft:#FBEADF; --accent-line:#F3D8C8;
   --r-s:9px; --r-m:13px; --r-l:20px;
-  --sh-1:0 1px 2px rgba(34,42,36,.06);
-  --sh-2:0 8px 24px -12px rgba(34,42,36,.22);
+  --sh-1:0 1px 2px rgba(36,21,26,.06);
+  --sh-2:0 8px 24px -12px rgba(36,21,26,.22);
   --ff:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --fd:"Gabarito","Plus Jakarta Sans",system-ui,sans-serif;
+  --fw:"Bricolage Grotesque","Gabarito",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--ff);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
@@ -32,8 +35,8 @@ header{padding:26px 0}
 .brand{display:flex;align-items:center;gap:11px}
 .brand-mark{width:34px;height:34px;border-radius:11px;background:linear-gradient(150deg,var(--accent),var(--accent-lift));
   display:grid;place-items:center;box-shadow:var(--sh-1)}
-.brand-mark svg{width:19px;height:19px;stroke:var(--on-accent);fill:none;stroke-width:2}
-.brand-name{font-family:var(--fd);font-size:17px;font-weight:600}
+.brand-mark svg{width:19px;height:19px;fill:var(--on-accent)}
+.brand-name{font-family:var(--fw);font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1;text-transform:lowercase}
 .brand-sub{font-size:10.5px;color:var(--faint);letter-spacing:.05em;text-transform:uppercase;font-weight:700}
 
 .hero{padding:20px 0 40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:44px;align-items:center}
@@ -106,10 +109,10 @@ footer a{color:var(--muted)}
   <header>
     <div class="brand">
       <div class="brand-mark">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.4"/><ellipse cx="12" cy="12" rx="9.2" ry="4.6" transform="rotate(-28 12 12)"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M17.6 13.8V4.3Q17.6 3.2 16.63 3.71L8.22 8.14A6.4 6.4 0 1 0 17.6 13.8ZM11.2 10.85a2.95 2.95 0 1 1 0 5.9 2.95 2.95 0 0 1 0-5.9z"/><circle cx="6" cy="4.2" r="1.6"/></svg>
       </div>
       <div>
-        <div class="brand-name">Ember</div>
+        <div class="brand-name">ember</div>
         <div class="brand-sub">Personal planner</div>
       </div>
     </div>
@@ -147,7 +150,7 @@ footer a{color:var(--muted)}
 
   <section>
     <h2>Six views, one set of tasks</h2>
-    <p class="sub">Categories work like calendar layers — tick one off and it disappears everywhere at once.</p>
+    <p class="sub">Categories work like calendar layers — uncheck one and it disappears everywhere at once.</p>
     <div class="views">
       <div class="view">
         <h3><svg viewBox="0 0 24 24"><rect x="3.4" y="3.4" width="7.4" height="9.4" rx="1.8"/><rect x="13.2" y="3.4" width="7.4" height="5.6" rx="1.8"/><rect x="13.2" y="11.4" width="7.4" height="9.2" rx="1.8"/><rect x="3.4" y="15.2" width="7.4" height="5.4" rx="1.8"/></svg>Dashboard</h3>
@@ -167,7 +170,7 @@ footer a{color:var(--muted)}
       </div>
       <div class="view">
         <h3><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8.6"/></svg>Routines</h3>
-        <p>Anything that repeats: every day, weekdays, chosen days, or every few days. Tick the day squares to keep a streak going: any day counts, and doing it on a day off makes up for a missed one.</p>
+        <p>Anything that repeats: every day, weekdays, chosen days, or every few days. Check off the day squares to keep a streak going: any day counts, and doing it on a day off makes up for a missed one.</p>
       </div>
       <div class="view">
         <h3><svg viewBox="0 0 24 24"><path d="M5 4.6h11.4L19 7.2V19.4A1.6 1.6 0 0 1 17.4 21H5a1.6 1.6 0 0 1-1.6-1.6V6.2A1.6 1.6 0 0 1 5 4.6z"/><path d="M7.4 10h9M7.4 14h6"/></svg>Notes</h3>

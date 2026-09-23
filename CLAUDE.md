@@ -786,6 +786,21 @@ height so switching tabs does not make it jump.
 
 ### Theme and accent
 
+**The brand.** Ember opens on Ember orange (`#E8622A`, first in `ACCENTS`),
+which `accentTrio()` pulls to `#C94B16` — the brand’s Ember Deep — so white
+text on a filled button clears AA; the CSS holds that trio as its default
+(`--a-base`, `--a-dark`, `--a-lift`). Anyone who has picked another accent
+keeps it. The neutrals stay the plain greys they were: the brand’s warm Ash
+Rose and Char belong to the download page and anything outward-facing, not
+to a planner whose accent may be any colour. The mark is the ember spark
+(`i-ember` in the sprite: a coal with a tongue of flame and a loose spark,
+the core punched out with `fill-rule="evenodd"` so the tile shows through),
+and `npm run icon` redraws `build/icon.png` and `build/icon.ico` from the
+same shape. The wordmark is “ember”, lower case, in **Bricolage Grotesque**
+(`--fw`, the `.wordmark` class and `.brand-name`) — the third face, used
+for the wordmark and nothing else; headings stay Gabarito and text stays
+Plus Jakarta Sans.
+
 Two things vary independently: the neutral ramp (light or dark) and the accent
 hue. Both live as attributes on the root element — `data-theme` and
 `data-accent` — set by `applyAppearance()` from `prefs`. Theme "system"
