@@ -2029,7 +2029,10 @@ function colLabel(k){
   if(k.indexOf("cf:")===0){const f=fieldById(k.slice(3));return f?f.name:"Field";}
   return (LIST_COLS.find(x=>x[0]===k)||[k,k])[1];
 }
-const COL_W={date:"118px",priority:"96px",category:"112px",status:"124px",estimate:"84px",tracked:"96px",tags:"minmax(90px,150px)",created:"96px"};
+/* Wide enough that the list's own heading fits whole: a column that opens
+   with "TIME TRACK…" in it reads as broken. Status went the other way: a
+   lane's name is short and it was taking room the rest needed. */
+const COL_W={date:"118px",priority:"96px",category:"112px",status:"116px",estimate:"84px",tracked:"124px",tags:"minmax(90px,150px)",created:"96px"};
 const colW=k=>{if(k.indexOf("cf:")!==0)return COL_W[k]||"110px";
   const f=fieldById(k.slice(3))||{};return {rating:"96px",progress:"120px",checkbox:"90px",number:"90px",date:"104px",multi:"minmax(110px,180px)",text:"minmax(110px,180px)"}[f.type]||"124px";};
 function colCell(k,t){

@@ -738,6 +738,8 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .lr-pick:has(> .chip):hover{background:none}
 .lr-pick:hover > .chip{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c,var(--qt)) 45%,transparent)}
 .chip-lane{padding:0 9px}
+/* A lane with a long name is cut with an ellipsis rather than in half. */
+.lr-cell .chip-lane{max-width:100%;overflow:hidden;text-overflow:ellipsis;display:block;line-height:21px}
 .lr-pick.empty{flex:1;height:28px;margin-left:0;padding:0;justify-content:center}
 .lr-pick > *{pointer-events:none}
 .lr-pick:hover{background:var(--surface-3)}
