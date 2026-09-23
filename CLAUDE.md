@@ -582,25 +582,35 @@ has got to is in `prefs.onboard` (`{done, step, mode, made}`), so closing half
 way picks up at the same step; `made` is the ids of the routines setup
 created, replaced rather than added to when someone goes back and forth.
 
-- **How it looks.** The sign-in is a hearth (`obSky()`, kept by that name):
-  warmth banked at the foot of the page and embers rising off it in the
-  accent and the category colours, with the planner's parts drifting among
-  them. Each ember carries its own size, drift, pace and a negative delay,
-  so they are already in the air when the page opens; turning orbits stood
-  here while the planner was called Everyday Orbit. The categories step and
-  All set take the same warmth (`.obx-orbit.hearth`): the middle glows, and
-  on All set the sparks carry upward rather than out. Every later step is a question on the left and, on the
+- **How it looks. Setup is lit by one fire.** `obFlame(cls, color)` draws it
+  wherever it shows: three layers -- body, middle, core -- each flickering at
+  its own pace from `20px 52px`, taking its colour from `--c` and the two
+  warm tokens `--flame-mid` and `--flame-core`. The sign-in is a hearth
+  (`obSky()`, kept by that name): a living flame with the wordmark under it,
+  warmth banked at the foot of the page, embers rising off it in the accent
+  and the category colours, and the planner's parts drifting among them. Each
+  ember carries its own size, drift, pace and a negative delay, so they are
+  already in the air when the page opens. Every later step stands over the
+  same fire more faintly (`.obx-warm`, twelve embers, behind everything and
+  taking no clicks), and its step on the track is a small flame rather than a
+  dot. Turning orbits stood here while the planner was called Everyday Orbit;
+  the rings, planets, core and burst they needed are gone. Every later step
+  is a question on the left and, on the
   right, a live picture of the answer (`obShow()`): the greeting with the
-  name being typed, the categories as planets round you, the week filling in
-  as routines are ticked, the app in miniature in the theme being chosen, a
+  name being typed, the categories as coloured flames on one glowing log
+  (`obShowCats()`: a grid of flames, the log across it, the names under),
+  the week filling in as routines are ticked -- a day kept is a lit square
+  with its own little fire, not a block of colour -- the app in miniature in
+  the theme being chosen, a
   reminder arriving and the day as a 24-hour clock with quiet hours shaded,
-  and a final orbit with what was set up lit. The steps run along a track at
+  and a bonfire at the end (`obShowDone()`: sparks off a blaze, the name on
+  the hearthstone, what was set up as logs beside it). The steps run along a track at
   the top that can be clicked back along; Enter moves on; the footer sticks to
   the bottom. A step's entrance plays only when the step changes
   (`OB.drawn`), and `OB.pop` animates only the routine just ticked — a redraw
   replaying every animation made each click look like a new page. All of it
   stops under `prefers-reduced-motion`. Live bits that must not cost the caret
-  (the greeting, a category's planet label) are written into the DOM by the
+  (the greeting, a category's name under its flame) are written into the DOM by the
   `input` listener rather than redrawn.
 - **How it reads.** Short and about the person: a heading that says what they
   get, one line under it, labels a person would say out loud. It does not

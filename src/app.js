@@ -2596,11 +2596,12 @@ function obRender(){
       steps.map((s,j)=>'<button class="obx-dot'+(j<i?" done":j===i?" now":"")+'" style="left:'+(j/last*100).toFixed(1)+'%"'+
         (j<i?' data-act="ob-jump" data-v="'+s+'" title="Back to '+esc(OB_LABEL[s])+'"':' tabindex="-1"')+
         ' aria-label="'+esc(OB_LABEL[s]+(j<i?", done":j===i?", this step":""))+'"'+(j===i?' aria-current="step"':"")+'>'+
-        (j<i?icon("i-check"):"")+'<span class="obx-tip">'+esc(OB_LABEL[s])+'</span></button>').join("")+
+        (j<=i?obFlame(j===i?"dot now":"dot"):"")+'<span class="obx-tip">'+esc(OB_LABEL[s])+'</span></button>').join("")+
     '</nav>'+
     '<div class="obx-count"><b>'+esc(OB_LABEL[OB.step])+'</b><span class="num">'+(i+1)+' of '+steps.length+'</span></div>'+
     '</header>';
-  root.innerHTML='<div class="obx'+(fresh?" enter":"")+'" data-step="'+OB.step+'">'+top+
+  root.innerHTML='<div class="obx'+(fresh?" enter":"")+'" data-step="'+OB.step+'">'+
+    '<div class="obx-warm" aria-hidden="true">'+obEmbers(12)+'</div>'+top+
     '<main class="obx-stage"><section class="obx-q" aria-label="'+esc(OB_LABEL[OB.step])+'">'+obStepHtml()+'</section>'+
     '<aside class="obx-show" aria-hidden="true">'+obShow()+'</aside></main>'+obFoot()+'</div>';
   putScroll(root,marks);
@@ -2652,6 +2653,20 @@ function obShow(){
   }
 }
 
+/* ---- the flame ----
+   Setup is lit by one shape, drawn three times over: an outer tongue, a
+   brighter middle and a pale core, each flickering at its own pace so the
+   whole thing never repeats. It takes its colour from whatever is around
+   it (`--c`, the accent unless a category says otherwise), which is what
+   lets the categories step be five flames of five colours. */
+function obFlame(cls,c){
+  return '<span class="fl'+(cls?" "+cls:"")+'"'+(c?' style="--c:'+c+'"':"")+' aria-hidden="true">'+
+    '<svg viewBox="0 0 40 58">'+
+      '<path class="fl-out" d="M20 2c6.4 12 14 18.6 14 30.4A14 14 0 0 1 6 32.4C6 25 10.4 20.4 13.6 13.6c1.4 5 3.6 8.4 6 10.6C21.2 17 21 8.6 20 2Z"/>'+
+      '<path class="fl-mid" d="M20 17c4.2 8 8 11.6 8 18.2a8 8 0 0 1-16 0c0-4.2 2.4-7.4 4.6-11.4 1 3.2 2 5 3.2 6.2.6-4.6.6-9.2.2-13Z"/>'+
+      '<path class="fl-core" d="M20 32c2.6 4.4 4.2 6.4 4.2 9.4a4.2 4.2 0 0 1-8.4 0c0-2.6 2-5.4 4.2-9.4Z"/>'+
+    '</svg></span>';
+}
 /* ---- sign in: the hearth ----
    Warmth at the foot of the page and embers rising off it, in the accent
    and the category colours, with the things the planner holds drifting
@@ -2660,15 +2675,18 @@ function obShow(){
    is given its own size, drift, pace and a head start (a negative delay),
    so they are already in the air when the page opens rather than setting
    off together. */
-function obSky(){
+function obEmbers(n){
   const cols=[accentHex(),ACCENTS[0].hex].concat(S.categories.map(c=>c.color),CAT_COLORS);
   let em="";
-  for(let k=0;k<30;k++){
+  for(let k=0;k<n;k++){
     const x=(k*37+7)%100, s=3+(k%5), dx=((k%5)-2)*34, d=10+(k%7)*2.2, dl=-((k*1.7)%18), soft=k%4===0;
     em+='<i class="obx-ember'+(soft?" soft":"")+'" style="--x:'+x+'%;--s:'+s+'px;--dx:'+dx+'px;--d:'+d.toFixed(1)+'s;--dl:'+dl.toFixed(1)+'s;--c:'+cols[k%cols.length]+'"></i>';
   }
+  return '<div class="obx-embers">'+em+'</div>';
+}
+function obSky(){
   const chip=(ic,label,x,y,d)=>'<span class="obx-float" style="left:'+x+'%;top:'+y+'%;--dl:'+d+'s">'+icon(ic,"ic-14")+label+'</span>';
-  return '<div class="obx-sky" aria-hidden="true"><div class="obx-embers">'+em+'</div>'+
+  return '<div class="obx-sky" aria-hidden="true">'+obEmbers(30)+
     chip("i-check","Tasks",12,24,0)+chip("i-repeat","Routines",78,18,1.2)+chip("i-calendar","Calendar",8,70,2.1)+
     chip("i-note","Notes",82,72,.6)+chip("i-timer","Focus timer",64,88,1.7)+chip("i-target","Priorities",26,90,2.6)+'</div>';
 }
@@ -2684,7 +2702,8 @@ function obSignin(fresh){
   else act='<button class="obx-google" data-act="ob-google">'+G_LOGO+'<span>Continue with Google</span></button>';
   return '<div class="obx-first'+(fresh?" enter":"")+'">'+obSky()+
     '<div class="obx-hero">'+
-      '<span class="brand-mark obx-mark">'+icon("i-ember","ic-18")+'</span>'+
+      '<span class="obx-fire">'+obFlame("big")+'</span>'+
+      '<span class="obx-wm wordmark">ember</span>'+
       '<h1>'+(again?"Welcome back"+(S.prefs.name?", <em>"+esc(S.prefs.name)+"</em>":""):"Everything you plan,<br>in <em>one place</em>.")+'</h1>'+
       '<p class="obx-lead">'+(again?"Sign in to pick up where you left off."
         :"Tasks, routines, your calendar and your notes, together in one calm place.")+'</p>'+
@@ -2818,16 +2837,19 @@ function obCats(){
       '<button class="obx-cat obx-cat-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add category</button></div>';
 }
 /* Your categories as planets round you: the page's name, made literal. */
+/* The parts of a life as flames on one bed of coals, each burning in its
+   own colour: the step says colour-code your life, so the picture is
+   exactly that. A ring of planets round an avatar was here before. */
+/* The parts of a life as fires on one log: a flame a category, in its own
+   colour, with its name under the log rather than between the flame and
+   it -- a label in the middle read as a gap in the fire. */
 function obShowCats(){
-  const cs=S.categories,n=cs.length;
-  /* The parts of a life as embers round the fire in the middle, rather
-     than as planets round a sun. */
-  return '<div class="obx-orbit hearth">'+
-    '<div class="obx-orbit-ring r1"></div><div class="obx-orbit-ring r2"></div>'+
-    '<div class="obx-core">'+obAvatar()+'<span>'+esc(S.prefs.name||"You")+'</span></div>'+
-    cs.map((c,k)=>{const outer=n>6&&k%2===1,r=outer?46:33,a=(k/n)*Math.PI*2-Math.PI/2;
-      return '<div class="obx-moon" data-planet="'+c.id+'" style="--c:'+c.color+';left:'+(50+r*Math.cos(a)).toFixed(1)+'%;top:'+(50+r*Math.sin(a)).toFixed(1)+'%;--dl:'+(k*60)+'ms">'+
-        '<i>'+icon(c.icon,"ic-14")+'</i><span>'+esc(c.name)+'</span></div>';}).join("")+
+  const cs=S.categories;
+  return '<div class="obx-bed" style="--n:'+cs.length+'">'+
+    cs.map((c,k)=>'<span class="obx-flick" style="--c:'+c.color+';--dl:'+(k*180)+'ms">'+obFlame("cat",c.color)+'</span>').join("")+
+    '<div class="obx-coals"></div>'+
+    cs.map((c,k)=>'<span class="obx-catname" style="--c:'+c.color+';--dl:'+(k*180+140)+'ms"><i>'+icon(c.icon,"ic-14")+
+      '</i><b>'+esc(c.name)+'</b></span>').join("")+
     '</div>';
 }
 
@@ -2886,7 +2908,7 @@ function obShowWeek(){
       (on.length?on.map(x=>{const c=cat(obRtCat(x)),open=OB.rtOpen===x.k,name=x.title||"Your own routine";
         return '<span class="obx-wk-name" style="--c:'+c.color+'"><i></i><b data-rt-name="'+x.k+'">'+esc(name)+'</b></span>'+
           order.map((d,j)=>{const is=x.days.indexOf(d)>-1;
-            return '<button class="obx-cell'+(is?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+is+'" aria-label="'+esc(name)+" on "+DOWS[j]+'"></button>';}).join("")+
+            return '<button class="obx-cell'+(is?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+is+'" aria-label="'+esc(name)+" on "+DOWS[j]+'">'+(is?obFlame("wk",c.color):"")+'</button>';}).join("")+
           '<button class="obx-len'+(open?" open":"")+'" data-act="ob-rt-open" data-k="'+x.k+'" aria-expanded="'+open+'" aria-label="How long: '+esc(fmtMins(x.dur))+'">'+esc(fmtMins(x.dur))+icon("i-chev-d","ic-12")+'</button>'+
           (open?'<div class="obx-lens" role="group" aria-label="How long '+esc(name)+' takes">'+OB_DURS.map(m=>
             '<button class="obx-chip'+(x.dur===m?" on":"")+'" data-act="ob-rt-dur" data-k="'+x.k+'" data-v="'+m+'" aria-pressed="'+(x.dur===m)+'">'+esc(fmtMins(m))+'</button>').join("")+'</div>':"");}).join("")+
@@ -3083,24 +3105,25 @@ function obGetApp(){
 }
 /* The finish: you at the centre, what you set up in orbit round you, lit
    when it is on, and a burst of your colours as it opens. */
+/* All set is the fire itself, burning at last, with what setup lit sitting
+   in the coals under it and sparks going up. Two turning rings and a ring
+   of moons stood here, which said orbit rather than ember. */
 function obShowDone(){
   const g=googleReady(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
-  const sats=[[true,"i-tag",S.categories.length+" categories"]];
-  if(rts)sats.push([true,"i-repeat",rts+" routine"+(rts===1?"":"s")]);
-  if(g){sats.push([driveOn(),"i-cloud","Drive"]);sats.push([gcalOn(),"i-calendar","Calendar"]);}
-  if(d)sats.push([!!vaultPath(),"i-folder","Obsidian"]);
-  sats.push([true,"i-bell","Reminders"]);
+  const logs=[[true,"i-tag",S.categories.length+" categories"]];
+  if(rts)logs.push([true,"i-repeat",rts+" routine"+(rts===1?"":"s")]);
+  if(g){logs.push([driveOn(),"i-cloud","Drive"]);logs.push([gcalOn(),"i-calendar","Calendar"]);}
+  if(d)logs.push([!!vaultPath(),"i-folder","Obsidian"]);
+  logs.push([true,"i-bell","Reminders"]);
   const cols=[accentHex(),ACCENTS[0].hex].concat(S.categories.map(c=>c.color));
-  /* Sparks off a fire: they spread, but they all carry upward. */
-  let burst="";for(let k=0;k<20;k++){const a=k/20*Math.PI*2,r=120+(k%3)*40;
-    burst+='<i style="--c:'+cols[k%cols.length]+';--x:'+(Math.cos(a)*r*.8).toFixed(0)+'px;--y:'+(Math.sin(a)*r-70).toFixed(0)+'px;--dl:'+(k%5)*40+'ms"></i>';}
-  return '<div class="obx-orbit done hearth">'+
-    '<div class="obx-burst">'+burst+'</div>'+
-    '<div class="obx-orbit-ring r1 turn"></div><div class="obx-orbit-ring r2 turn rev"></div>'+
-    '<div class="obx-core big">'+obAvatar()+'<span>'+esc(S.prefs.name||"You")+'</span></div>'+
-    sats.map((s,k)=>{const a=(k/sats.length)*Math.PI*2-Math.PI/2,r=k%2?44:36;
-      return '<div class="obx-moon sat'+(s[0]?" lit":"")+'" style="left:'+(50+r*Math.cos(a)).toFixed(1)+'%;top:'+(50+r*Math.sin(a)).toFixed(1)+'%;--dl:'+(200+k*90)+'ms">'+
-        '<i>'+icon(s[1],"ic-14")+'</i><span>'+esc(s[2])+'</span></div>';}).join("")+
+  let sparks="";
+  for(let k=0;k<26;k++)sparks+='<i style="--c:'+cols[k%cols.length]+';--x:'+(((k*31)%110)-55)+'px;--s:'+(3+k%5)+'px;--d:'+(2.6+(k%5)*.7).toFixed(1)+'s;--dl:'+((k*310)%3400)+'ms"></i>';
+  return '<div class="obx-bonfire">'+
+    '<div class="obx-sparks">'+sparks+'</div>'+
+    '<div class="obx-blaze">'+obFlame("huge")+'</div>'+
+    '<div class="obx-hearthstone"><b>'+esc(S.prefs.name||"You")+'</b><small>ready to go</small></div>'+
+    '<div class="obx-logs">'+logs.map((l,k)=>'<span class="obx-log'+(l[0]?" lit":"")+'" style="--dl:'+(k*110)+'ms">'+
+      icon(l[1],"ic-14")+esc(l[2])+'</span>').join("")+'</div>'+
     '</div>';
 }
 
