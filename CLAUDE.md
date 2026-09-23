@@ -1013,6 +1013,12 @@ Then it raises the version, commits, tags, and pushes. The workflow takes over
 from the tag and publishes the installers, the single-file build, and the
 `latest.yml` metadata that installed copies read.
 
+Renumbering a release is the one exception, and it has happened once: the
+batch published as 1.2.0 on 21 September was rebuilt as 1.1.1 the next day
+and the 1.2.0 release deleted, to keep 1.2.0 for the rebrand to Ember. It
+was safe only because the single installed copy was rebuilt by hand
+afterwards. Do not do this once anyone else has the app.
+
 ### Why the version only moves here
 
 The number moves during a release and at no other time. Commits and pushes in
