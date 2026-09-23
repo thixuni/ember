@@ -2600,10 +2600,11 @@ function obRender(){
     '</nav>'+
     '<div class="obx-count"><b>'+esc(OB_LABEL[OB.step])+'</b><span class="num">'+(i+1)+' of '+steps.length+'</span></div>'+
     '</header>';
+  const show=obShow();
   root.innerHTML='<div class="obx'+(fresh?" enter":"")+'" data-step="'+OB.step+'">'+
     '<div class="obx-warm" aria-hidden="true">'+obEmbers(12)+'</div>'+top+
-    '<main class="obx-stage"><section class="obx-q" aria-label="'+esc(OB_LABEL[OB.step])+'">'+obStepHtml()+'</section>'+
-    '<aside class="obx-show" aria-hidden="true">'+obShow()+'</aside></main>'+obFoot()+'</div>';
+    '<main class="obx-stage'+(show?"":" one")+'"><section class="obx-q" aria-label="'+esc(OB_LABEL[OB.step])+'">'+obStepHtml()+'</section>'+
+    (show?'<aside class="obx-show" aria-hidden="true">'+show+'</aside>':"")+'</main>'+obFoot()+'</div>';
   putScroll(root,marks);
 }
 function obFoot(){
@@ -2643,7 +2644,8 @@ function obShow(){
   switch(OB.step){
     case "data":return obShowData();
     case "name":return obShowName();
-    case "cats":return obShowCats();
+    /* categories has no picture: the cards are the answer (obCats) */
+    case "cats":return "";
     case "routines":return obShowWeek();
     case "calendar":return obShowCalendar();
     case "obsidian":return obShowVault();
@@ -2824,34 +2826,34 @@ function obShowName(){
 }
 
 /* ---- categories ---- */
+/* Categories are the one step whose answer *is* the thing being edited, so
+   there is no picture of it beside the question: the whole width is one
+   board of cards, each a category -- its colour and icon as a tile you
+   press to recolor it, its name typed into, and a cross to drop it. Chips
+   on the left with a row of flames on the right broke the moment anyone
+   had more than six: the flames ran past the log they stood on and the
+   names underneath collided. Cards wrap, so any number of them is fine.
+   The colours open inside the card, which grows to hold them -- a pop-over
+   would be clipped by the foot of the page on the last row. */
 function obCats(){
+  const many=S.categories.length>1;
   return obHead("Categories","Color-code <em>your life</em>",
-      "Rename, recolor or remove any of these to suit how you plan.")+
-    '<div class="obx-cats">'+S.categories.map(c=>{const open=OB.pal===c.id;
-      return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+'">'+
-        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Color of '+esc(c.name)+'"></button>'+
-        '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" size="'+Math.max(4,c.name.length)+'" maxlength="30" aria-label="Category name">'+
-        (S.categories.length>1?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
+      "Rename, recolor or remove any of these. Add as many as you need.")+
+    '<div class="obx-cats">'+S.categories.map((c,k)=>{const open=OB.pal===c.id;
+      return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+';--dl:'+(k*45)+'ms">'+
+        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Color of '+esc(c.name)+'">'+icon(c.icon,"ic-20")+'</button>'+
+        '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="30" aria-label="Category name">'+
+        (many?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
         (open?'<div class="obx-pal" role="group" aria-label="Colors">'+CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>':"")+
         '</div>';}).join("")+
-      '<button class="obx-cat obx-cat-add" data-act="ob-cat-add">'+icon("i-plus","ic-14")+'Add category</button></div>';
+      '<button class="obx-cat obx-cat-add" data-act="ob-cat-add" style="--dl:'+(S.categories.length*45)+'ms">'+
+        '<span class="obx-swatch">'+icon("i-plus","ic-20")+'</span><b>Add category</b></button>'+
+    '</div>';
 }
 /* Your categories as planets round you: the page's name, made literal. */
 /* The parts of a life as flames on one bed of coals, each burning in its
    own colour: the step says colour-code your life, so the picture is
    exactly that. A ring of planets round an avatar was here before. */
-/* The parts of a life as fires on one log: a flame a category, in its own
-   colour, with its name under the log rather than between the flame and
-   it -- a label in the middle read as a gap in the fire. */
-function obShowCats(){
-  const cs=S.categories;
-  return '<div class="obx-bed" style="--n:'+cs.length+'">'+
-    cs.map((c,k)=>'<span class="obx-flick" style="--c:'+c.color+';--dl:'+(k*180)+'ms">'+obFlame("cat",c.color)+'</span>').join("")+
-    '<div class="obx-coals"></div>'+
-    cs.map((c,k)=>'<span class="obx-catname" style="--c:'+c.color+';--dl:'+(k*180+140)+'ms"><i>'+icon(c.icon,"ic-14")+
-      '</i><b>'+esc(c.name)+'</b></span>').join("")+
-    '</div>';
-}
 
 /* ---- starter routines ---- */
 const OB_RT=[
@@ -4484,8 +4486,6 @@ document.addEventListener("input",function(e){
     if(OB.err&&v){OB.err="";const e=document.querySelector("#obRoot .obx-err");if(e)e.remove();}return;}
   if(t.dataset&&t.dataset.act==="ob-rt-name"){const x=obRtFind(t.dataset.k);if(x){x.title=t.value;
     const b=document.querySelector('#obRoot [data-rt-name="'+x.k+'"]');if(b)b.textContent=t.value||"Your own routine";}return;}
-  if(t.dataset&&t.dataset.act==="ob-cat-name"){t.size=Math.max(4,t.value.length);
-    const p=document.querySelector('[data-planet="'+t.dataset.id+'"] span');if(p)p.textContent=t.value||"…";return;}
   if(t.id==="gcId"){GC.draft.id=t.value;return;}
   if(t.id==="gcSecret"){GC.draft.secret=t.value;return;}
   if(t.id==="noteTitle"){const x=noteById(V.noteId);if(x){x.title=t.value;x.updated=Date.now();save("notes");

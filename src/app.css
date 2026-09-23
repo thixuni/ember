@@ -941,6 +941,9 @@ body.ob-open{overflow:hidden}
 .obx-stage{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:64px;align-items:center;
   width:100%;max-width:1320px;margin:0 auto;padding:10px 48px 10px 80px}
 .obx-q{display:flex;flex-direction:column;align-items:flex-start;gap:18px;min-width:0;padding:24px 0}
+/* A step whose answer is the thing being edited has no picture beside it,
+   so it takes the whole stage rather than leaving half of it empty. */
+.obx-stage.one{grid-template-columns:minmax(0,1fr);max-width:1160px}
 .obx-eyebrow{margin:0;font-size:11.5px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--accent-ink)}
 .obx-q h1{margin:-6px 0 0;max-width:17ch;font-size:clamp(30px,3.4vw,44px);line-height:1.08;letter-spacing:-.028em;font-weight:600;color:var(--ink);outline:0}
 .obx-q h1 em,.obx-hero h1 em{font-style:normal;padding:0 .06em;border-radius:4px;background:linear-gradient(transparent 58%,var(--accent-soft) 58%)}
@@ -1080,25 +1083,46 @@ body.ob-open{overflow:hidden}
 .obx-strip em{position:absolute;top:-5px;bottom:-5px;width:2px;border-radius:2px;background:var(--accent)}
 
 /* categories: chips, and the same as planets round you */
-.obx-cats{display:flex;flex-wrap:wrap;gap:9px;width:100%;max-width:620px}
-.obx-cat{position:relative;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 7px 0 9px;border-radius:22px;
-  border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));background:color-mix(in srgb,var(--c) 10%,var(--tint-base));transition:transform .12s,box-shadow .12s}
-.obx-cat:hover{transform:translateY(-1px);box-shadow:var(--sh-1)}
-.obx-cat.open{z-index:6}
-.obx-swatch{width:24px;height:24px;flex:none;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 25%,transparent);transition:transform .12s}
-.obx-swatch:hover,.obx-cat.open .obx-swatch{transform:scale(1.14)}
-.obx-cat-name{min-width:3ch;padding:0 2px;border:0;outline:0;background:none;font:inherit;font-size:13.5px;font-weight:600;color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
-.obx-cat-name:focus{text-decoration:underline;text-underline-offset:4px}
-.obx-x{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+/* One card a category, wrapping as far as it needs to: the tile is its
+   colour and icon and opens the colours inside the card, the name is typed
+   straight into the card, and the cross drops it. A row of chips beside a
+   row of flames fell apart past six categories. */
+.obx-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:12px;align-items:start;
+  width:100%;max-width:1040px}
+.obx-cat{position:relative;display:flex;flex-direction:column;align-items:center;gap:11px;padding:18px 12px 15px;
+  border-radius:20px;border:1px solid color-mix(in srgb,var(--c) 26%,var(--line));background:var(--surface);
+  box-shadow:0 14px 34px -28px color-mix(in srgb,var(--c) 95%,transparent);
+  transition:transform .14s,box-shadow .14s,border-color .14s}
+.obx-cat:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--c) 52%,var(--line));box-shadow:var(--sh-2)}
+.obx.enter .obx-cats .obx-cat{animation:obgrow .45s var(--dl,0ms) cubic-bezier(.3,1.4,.5,1) both}
+.obx-swatch{width:48px;height:48px;flex:none;border-radius:16px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--c) 20%,var(--tint-base));
+  border:1px solid color-mix(in srgb,var(--c) 42%,transparent);
+  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));
+  box-shadow:0 10px 24px -14px color-mix(in srgb,var(--c) 95%,transparent);
+  transition:transform .14s,background .14s}
+.obx-swatch > *{pointer-events:none}
+.obx-cat:hover .obx-swatch,.obx-cat.open .obx-swatch{transform:scale(1.07);background:color-mix(in srgb,var(--c) 30%,var(--tint-base))}
+.obx-cat-name{width:100%;padding:2px 0;border:0;outline:0;background:none;text-align:center;
+  font:inherit;font-size:14px;font-weight:600;color:var(--ink);text-overflow:ellipsis}
+.obx-cat-name:focus{text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--c)}
+.obx-x{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  color:var(--muted);opacity:.45;transition:opacity .14s,background .14s,color .14s}
+.obx-cat:hover .obx-x,.obx-x:focus-visible{opacity:1}
 .obx-x:hover{background:var(--surface-3);color:var(--ink)}
 .obx-x > *{pointer-events:none}
-.obx-pal{position:absolute;top:calc(100% + 8px);left:0;display:grid;grid-template-columns:repeat(6,24px);gap:9px;padding:11px;
-  border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:obpop .18s ease both}
-.obx-pal button{width:24px;height:24px;border-radius:50%;background:var(--c);transition:transform .12s}
-.obx-pal button:hover{transform:scale(1.15)}
+/* The colours open inside the card and the card grows; the grid starts its
+   cards at the top, so only this one gets taller. */
+.obx-pal{width:100%;margin-top:3px;padding-top:12px;border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(6,1fr);gap:8px;justify-items:center;animation:obpop .18s ease both}
+.obx-pal button{width:22px;height:22px;border-radius:50%;background:var(--c);transition:transform .12s}
+.obx-pal button:hover{transform:scale(1.18)}
 .obx-pal button.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
-.obx-cat.obx-cat-add{border:1px dashed var(--line-2);background:none;padding:0 15px 0 12px;font-size:13px;font-weight:600;color:var(--muted)}
-.obx-cat.obx-cat-add:hover{color:var(--ink);border-color:var(--muted)}
+.obx-cat.obx-cat-add{border-style:dashed;border-color:var(--line-2);background:none;box-shadow:none;color:var(--muted)}
+.obx-cat.obx-cat-add:hover{color:var(--ink);border-color:var(--muted);box-shadow:none}
+.obx-cat-add .obx-swatch{background:var(--surface-3);border-color:transparent;color:inherit;box-shadow:none}
+.obx-cat-add:hover .obx-swatch{background:var(--surface-3)}
+.obx-cat-add b{font-size:14px;font-weight:600}
 /* The setup previews were a sky of orbits until the planner became Ember;
    what stood here -- rings, planets, a core and a burst -- is gone, and the
    fire below took its place. */
@@ -2779,26 +2803,10 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .obx-dot.now .fl{width:17px;height:20px}
 .obx-dot:not(.done):not(.now){background:var(--surface);border:2px solid var(--line-2)}
 
-/* categories: a bed of coals with a flame for each */
-.obx-bed{width:min(440px,100%);display:grid;grid-template-columns:repeat(var(--n),auto);
-  justify-content:center;align-items:end;column-gap:clamp(4px,1.8vw,16px)}
-.obx-flick{display:grid;place-items:end center;min-height:180px;animation:obgrow .5s var(--dl,0ms) cubic-bezier(.3,1.5,.5,1) both}
+/* The categories step showed a flame a category on a glowing log until
+   anyone had more than six of them; it is a board of cards now, up with
+   the rest of that step. */
 @keyframes obgrow{from{opacity:0;transform:translateY(16px) scale(.7)}to{opacity:1;transform:none}}
-.obx-flick .fl{width:clamp(38px,9vw,56px);height:clamp(54px,12vw,78px)}
-.obx-catname{display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:14px;
-  animation:obgrow .5s var(--dl,0ms) cubic-bezier(.3,1.5,.5,1) both}
-.obx-catname i{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
-  border:2px solid var(--c);background:color-mix(in srgb,var(--c) 16%,var(--tint-base));color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
-.obx-catname b{font-size:11.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
-/* What the fires stand on: a shallow glowing log, hottest along its top.
-   A tall slab was tried first and read as a card the flames were sitting
-   on rather than as the fire they come out of. */
-.obx-coals{position:relative;grid-column:1/-1;justify-self:center;width:min(360px,88%);height:20px;margin-top:14px;border-radius:999px;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 96%,var(--surface)),color-mix(in srgb,var(--accent) 52%,var(--surface)) 58%,color-mix(in srgb,var(--accent) 26%,var(--surface)));
-  box-shadow:0 -20px 46px -14px color-mix(in srgb,var(--accent) 85%,transparent),
-    0 8px 20px -10px color-mix(in srgb,var(--ink) 38%,transparent)}
-.obx-coals::before{content:"";position:absolute;left:6%;right:6%;top:-4px;height:8px;border-radius:8px;
-  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--accent) 85%,transparent),transparent);filter:blur(4px)}
 
 /* all set: the bonfire */
 .obx-bonfire{position:relative;width:min(440px,100%);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;

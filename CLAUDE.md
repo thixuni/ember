@@ -597,8 +597,7 @@ created, replaced rather than added to when someone goes back and forth.
   the rings, planets, core and burst they needed are gone. Every later step
   is a question on the left and, on the
   right, a live picture of the answer (`obShow()`): the greeting with the
-  name being typed, the categories as coloured flames on one glowing log
-  (`obShowCats()`: a grid of flames, the log across it, the names under),
+  name being typed,
   the week filling in as routines are ticked -- a day kept is a lit square
   with its own little fire, not a block of colour -- the app in miniature in
   the theme being chosen, a
@@ -612,6 +611,18 @@ created, replaced rather than added to when someone goes back and forth.
   stops under `prefers-reduced-motion`. Live bits that must not cost the caret
   (the greeting, a category's name under its flame) are written into the DOM by the
   `input` listener rather than redrawn.
+- **Categories is the one step with no picture beside it**, because its
+  answer *is* the thing being edited: `obShow()` returns nothing for it,
+  `obRender()` leaves the `<aside>` out and the stage takes the whole width
+  (`.obx-stage.one`). `obCats()` draws one card a category in a wrapping
+  grid -- the colour and icon as a tile that opens the colours *inside* the
+  card (the card grows; a pop-over was clipped by the foot of the page on
+  the last row), the name typed straight in, a cross to drop it, and an Add
+  category card at the end. Chips on the left with a row of flames on the
+  right was the design before, and it fell apart the moment anyone had more
+  than six categories: the flames ran past the log they stood on and the
+  names underneath collided. Any step that has nothing worth showing can do
+  the same by returning "" from `obShow()`.
 - **How it reads.** Short and about the person: a heading that says what they
   get, one line under it, labels a person would say out loud. It does not
   explain where things appear or how they work, and it never shows a code, a
