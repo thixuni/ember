@@ -1865,7 +1865,9 @@ function lrCell(k,t){
     case "estimate":return '<button type="button" class="lr-pick'+(tEst(t)?"":" empty")+'" '+a("lr-est")+' aria-haspopup="menu" title="Estimate" aria-label="Estimate">'+(tEst(t)?'<span class="num lr-v">'+esc(fmtMins(tEst(t)))+'</span>':icon("i-chev-d","ic-12 lr-hint"))+'</button>';
     case "tags":return '<span class="lr-tags">'+(t.tags||[]).map(x=>'<span class="chip lr-tag">#'+esc(x)+'<button type="button" data-act="lr-tag-del" data-id="'+t.id+'" data-v="'+esc(x)+'" aria-label="Remove '+esc(x)+'">'+icon("i-x","ic-12")+'</button></span>').join("")+
       (V.ltag===t.id?'<input class="lr-in lr-tagin" id="lrTag" data-id="'+t.id+'" placeholder="Tag" maxlength="40" autocomplete="off" aria-label="New tag">'
-        :'<button type="button" class="lr-tagadd" '+a("lr-tag-add")+' aria-label="Add a tag">'+icon("i-plus","ic-12")+'</button>')+'</span>';
+        /* No plus sitting in the middle of an empty cell: pointing at the
+           cell offers the box itself, worded as what it makes. */
+        :'<button type="button" class="lr-tagadd" '+a("lr-tag-add")+' aria-label="Add a tag">'+((t.tags||[]).length?"Add":"Add a tag")+'</button>')+'</span>';
   }
   if(k.indexOf("cf:")===0){const f=fieldById(k.slice(3));return f?'<span class="lr-cf">'+cfControl(t,f,t.id)+'</span>':"";}
   if(k==="tracked"){const x=trackedSecs(t.id);return x?'<span class="num lr-v">'+esc(fmtTracked(x))+'</span>':"";}

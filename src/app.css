@@ -744,13 +744,14 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .lr-hint{opacity:0;color:var(--muted)}
 .lr-cell:hover .lr-hint,.lr-pick:focus .lr-hint{opacity:1}
 .lr-tags{display:flex;align-items:center;gap:4px;min-width:0;width:100%;overflow:hidden}
-.lr-tags:not(:has(.lr-tag)){justify-content:center}
 .lr-tag{flex:none;padding-right:3px}
 .lr-tag button{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;color:var(--muted);opacity:0}
 .lr-tag button > *{pointer-events:none}
 .lr-tag:hover button{opacity:1}
 .lr-tag button:hover{background:var(--surface-3);color:var(--ink)}
-.lr-tagadd{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:6px;color:var(--muted);opacity:0}
+.lr-tagadd{flex:none;display:inline-flex;align-items:center;height:26px;padding:0 8px;margin-left:-6px;border-radius:7px;
+  font-size:12px;font-weight:500;color:var(--muted);white-space:nowrap;opacity:0}
+.lr-tags:not(:has(.lr-tag)) .lr-tagadd{flex:1;margin-left:-6px}
 .lr-tagadd > *{pointer-events:none}
 .lr-cell:hover .lr-tagadd,.lr-tagadd:focus-visible{opacity:1}
 .lr-tagadd:hover{background:var(--surface-3);color:var(--ink)}

@@ -393,8 +393,10 @@ goes with backups and Drive like any setting.
   leaves the panel shut; **the row opens nothing at all** (it carries
   `data-task`, not `data-act="task"`): the panel is Details’ job, at the end
   of the task column, or the right-click menu’s; dates from the
-  picker, priority, lane and estimate from a short list, tags added
-  (`V.ltag`) and removed, fields in their own controls. **An empty cell is
+  picker, priority, lane and estimate from a short list, tags added by the box
+  the Tags cell offers on hover — “Add a tag” where there are none, “Add”
+  after the ones there are, never a plus stranded in the middle of the
+  cell (`V.ltag`) — and removed, fields in their own controls. **An empty cell is
   empty** — no dash, no "Pick a date" (`dateField(..., {ph:""})`) — and
   hovering one shows only its control, centred in it. The task column ends
   in a set place for Details, shown on the row's hover: the name
