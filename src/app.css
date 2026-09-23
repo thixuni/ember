@@ -562,6 +562,9 @@ textarea.inp{height:auto;padding:8px 10px;resize:vertical;line-height:1.55}
 .inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237D867C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px}
 .board{display:flex;gap:12px;align-items:stretch;height:100%;min-height:0}
+/* The scrollbar rides the lane's own edge and the cards keep well clear of
+   it: the card list reaches into the lane's right padding (the negative
+   margin) and then pads its cards 16px back off the bar. */
 .col{width:274px;flex:none;max-height:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:10px;display:flex;flex-direction:column;gap:9px}
 /* A lane a card is dragged over lights up in its own colour. */
 .col.over{background:color-mix(in srgb,var(--s,var(--accent)) 12%,var(--panel));outline:2px dashed var(--s,var(--accent));outline-offset:-2px}
@@ -569,7 +572,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .col-head .sw{width:7px;height:7px;border-radius:50%;background:var(--s)}
 .col-head h3{font-size:12.5px;font-weight:700;flex:1}
 .col-head .n{font-size:11px;font-weight:700;color:var(--faint)}
-.col-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;overflow-x:hidden;min-height:26px;flex:1;
+.col-list{display:flex;flex-direction:column;gap:7px;overflow-y:auto;overflow-x:hidden;min-height:26px;flex:1;margin-right:-10px;padding-right:12px;
   scrollbar-width:thin;scrollbar-gutter:stable}
 .col-list::-webkit-scrollbar{width:6px}
 .col-list::-webkit-scrollbar-thumb{background:transparent;border:0;border-radius:6px}
