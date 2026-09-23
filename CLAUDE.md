@@ -371,8 +371,9 @@ goes with backups and Drive like any setting.
 - **A lane scrolls its own cards.** The board scrolls sideways only; each
   lane is full height and its card list scrolls inside it (`.col-list`),
   so every lane's heading and its Add task stay where they are however
-  long one lane gets. Its scrollbar rides the lane’s own edge, 12px clear
-  of the cards, and is drawn only while the pointer is on the lane.
+  long one lane gets. Its scrollbar sits inside the lane, level with the
+  heading’s own edge, with the cards stopping 10px short of it, and is
+  drawn only while the pointer is on the lane.
 - **The list view** (`viewList()`) is a table per group, each a card with
   its own headings and its own + Add task. What it groups by is the
   person's, in Customize ▸ List view (`board().lgroup`, `lgChoices()`):
