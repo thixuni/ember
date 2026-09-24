@@ -614,28 +614,29 @@ created, replaced rather than added to when someone goes back and forth.
   (`OB.drawn`), and `OB.pop` animates only the routine just ticked — a redraw
   replaying every animation made each click look like a new page. All of it
   stops under `prefers-reduced-motion`. Live bits that must not cost the caret
-  (the greeting, a category's name under its flame) are written into the DOM by the
+  (the greeting, the chip's own width and a category's label out in the
+  hearth, `data-planet`) are written into the DOM by the
   `input` listener rather than redrawn.
-- **Categories is the one step with no picture beside it**, because its
-  answer *is* the thing being edited: `obShow()` returns nothing for it,
-  `obRender()` leaves the `<aside>` out and the stage takes the whole width
-  (`.obx-stage.one`). `obCats()` draws **a list, a row a category**
-  (`.obx-crow`), each washed from the left in its own colour -- the
-  gradient, the border and the name (through the calendar's `--ev-label`
-  recipe, so any colour reads in either theme). **Every colour is on the
-  row**: twelve dots, the one in force ringed, one click to change
-  (`ob-cat-swatch`) with nothing to open and nothing to remember. Only the
-  icons need the room of a grid, so the tile opens those under the row, ten
-  to a line (`ob-cat-icon`, `.obx-ico`; a pop-over was clipped by the foot
-  of the page, and "as many as fit" left the twentieth stranded). The same
-  `CAT_COLORS` and `CAT_ICONS` the planner's own category window offers.
-  The name is typed straight in, a cross drops it, and an Add category row
-  sits at the end; under 700px the colours take a line of their own
-  (`grid-template-areas`). Two shapes came before: chips beside a row of
-  flames, which fell apart the moment anyone had more than six categories,
-  and a grid of tiles, which read as loose boxes with a lot of air and one
-  stranded Add card. Rows stack, so any number is fine. Any step that has
-  nothing worth showing can do the same by returning "" from `obShow()`.
+- **Categories are chips, and the picture beside them is a hearth.**
+  `obCats()` draws a chip a category -- its tile (the icon on its colour),
+  its name typed straight into a self-sizing input, and a cross -- small
+  enough that a dozen read as one answer, and they never change shape as
+  you work because the colours and icons open *over* the page
+  (`.obx-pick`, absolute, under the chip) rather than inside the chip. One
+  panel holds both, Color then Icon (`ob-cat-swatch`, `ob-cat-icon`, the
+  same `CAT_COLORS` and `CAT_ICONS` the planner's own category window
+  offers), six colours and five icons to a row so neither ends in a ragged
+  line. `obShowCats()` is the picture: a hearth in the middle carrying the
+  flame and your name, two rings of warmth where Everyday Orbit had dashed
+  orbits, and a category at each point of the circle in its own colour,
+  taking two radii past six so a dozen still sit clear of each other.
+  Between the two, a grid of tiles and a list of full-width rows were
+  tried: the tiles read as loose boxes with a lot of air and a stranded Add
+  card, and the rows put twelve colour dots on every line, which was a lot
+  of page for one question. The gradient on the chip is what those two
+  were worth keeping. A step that genuinely has nothing to show can still
+  return "" from `obShow()`: `obRender()` then leaves the `<aside>` out
+  and the stage takes the whole width (`.obx-stage.one`).
 - **How it reads.** Short and about the person: a heading that says what they
   get, one line under it, labels a person would say out loud. It does not
   explain where things appear or how they work, and it never shows a code, a

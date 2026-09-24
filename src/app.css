@@ -1083,76 +1083,88 @@ body.ob-open{overflow:hidden}
 .obx-strip em{position:absolute;top:-5px;bottom:-5px;width:2px;border-radius:2px;background:var(--accent)}
 
 /* categories: chips, and the same as planets round you */
-/* A row a category, washed from the left in its own colour: the tile, the
-   name, every colour there is, and a cross. Rows stack, so any number of
-   categories is fine -- a grid of tiles read as loose boxes with a lot of
-   air, and chips beside a row of flames fell apart past six. */
-.obx-cats{display:flex;flex-direction:column;gap:9px;width:100%;max-width:780px}
-.obx-cat{position:relative;border-radius:16px;border:1px solid color-mix(in srgb,var(--c) 26%,var(--line));
-  background:linear-gradient(100deg,color-mix(in srgb,var(--c) 22%,var(--surface)),color-mix(in srgb,var(--c) 6%,var(--surface)) 52%,var(--surface) 88%);
-  box-shadow:0 10px 26px -24px color-mix(in srgb,var(--c) 95%,transparent);
-  transition:box-shadow .14s,border-color .14s,background .14s}
-.obx-cat:hover,.obx-cat:focus-within{border-color:color-mix(in srgb,var(--c) 52%,var(--line));
-  background:linear-gradient(100deg,color-mix(in srgb,var(--c) 32%,var(--surface)),color-mix(in srgb,var(--c) 10%,var(--surface)) 54%,var(--surface) 90%);
-  box-shadow:0 14px 30px -20px color-mix(in srgb,var(--c) 70%,transparent)}
-.obx-cat.open{border-color:color-mix(in srgb,var(--c) 58%,var(--line))}
-.obx.enter .obx-cats .obx-cat{animation:obup .45s var(--dl,0ms) cubic-bezier(.2,.7,.3,1) both}
-.obx-crow{display:grid;grid-template-columns:auto minmax(80px,1fr) auto auto;align-items:center;gap:14px;padding:9px 10px 9px 9px}
-.obx-swatch{width:44px;height:44px;flex:none;border-radius:14px;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--c) 28%,var(--tint-base));
-  border:1px solid color-mix(in srgb,var(--c) 45%,transparent);
+/* A chip a category: its tile, its name typed into, a cross. Small enough
+   that a dozen read as one answer, and they never change shape as you work
+   because the colours and icons open over the page rather than inside the
+   chip. The gradient is the one thing kept from the shapes tried in
+   between. */
+.obx-cats{display:flex;flex-wrap:wrap;gap:9px;width:100%;max-width:620px}
+.obx-cat{position:relative;display:inline-flex;align-items:center;gap:7px;height:42px;padding:0 7px 0 6px;border-radius:24px;
+  border:1px solid color-mix(in srgb,var(--c) 34%,var(--line));
+  background:linear-gradient(110deg,color-mix(in srgb,var(--c) 24%,var(--surface)),color-mix(in srgb,var(--c) 7%,var(--surface)) 70%,var(--surface));
+  box-shadow:0 8px 20px -18px color-mix(in srgb,var(--c) 95%,transparent);
+  transition:transform .12s,box-shadow .12s,border-color .12s,background .12s}
+.obx-cat:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--c) 55%,var(--line));
+  background:linear-gradient(110deg,color-mix(in srgb,var(--c) 34%,var(--surface)),color-mix(in srgb,var(--c) 11%,var(--surface)) 72%,var(--surface));
+  box-shadow:0 12px 24px -16px color-mix(in srgb,var(--c) 70%,transparent)}
+.obx-cat.open{z-index:6;border-color:color-mix(in srgb,var(--c) 62%,var(--line))}
+.obx-swatch{width:30px;height:30px;flex:none;border-radius:11px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--c) 32%,var(--tint-base));
+  border:1px solid color-mix(in srgb,var(--c) 48%,transparent);
   color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));
-  transition:transform .14s,background .14s}
+  transition:transform .12s,background .12s}
 .obx-swatch > *{pointer-events:none}
-.obx-cat:hover .obx-swatch,.obx-cat.open .obx-swatch{transform:scale(1.06);background:color-mix(in srgb,var(--c) 40%,var(--tint-base))}
+.obx-cat:hover .obx-swatch,.obx-cat.open .obx-swatch{transform:scale(1.08);background:color-mix(in srgb,var(--c) 44%,var(--tint-base))}
 /* The name is written in its own colour, the calendar’s recipe, so it reads
    in both themes whatever colour is picked. */
-.obx-cat-name{min-width:0;padding:3px 2px;border:0;outline:0;background:none;
-  font:inherit;font-size:15px;font-weight:600;color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));text-overflow:ellipsis}
+.obx-cat-name{min-width:3ch;padding:0 2px;border:0;outline:0;background:none;font:inherit;font-size:13.5px;font-weight:600;
+  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
 .obx-cat-name:focus{text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--c)}
-/* Every colour is on the row. Nothing to open, and the one in force is the
-   only ringed dot, so the row says what it is as well as what it could be. */
-.obx-pal{display:flex;align-items:center;gap:7px}
-.obx-pal button{width:18px;height:18px;border-radius:50%;background:var(--c);transition:transform .12s,box-shadow .12s}
-.obx-pal button:hover{transform:scale(1.25)}
-.obx-pal button.on{transform:scale(1.15);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
-.obx-x{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
-  color:var(--muted);opacity:.5;transition:opacity .14s,background .14s,color .14s}
-.obx-cat:hover .obx-x,.obx-x:focus-visible{opacity:1}
+.obx-x{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:var(--muted);
+  transition:background .12s,color .12s}
 .obx-x:hover{background:var(--surface-3);color:var(--ink)}
 .obx-x > *{pointer-events:none}
-.obx-x-gap{width:28px}
-/* Only the icons need a grid, so they are the one thing that opens, under
-   the row and lined up with the name. */
-/* Ten to a row, not as many as fit: twenty icons across the row left one
-   stranded underneath. */
-.obx-ico{display:grid;grid-template-columns:repeat(10,32px);justify-content:start;gap:6px;
-  margin:0 10px 12px 67px;padding-top:11px;border-top:1px solid color-mix(in srgb,var(--c) 20%,var(--line));
+/* Colour and icon open together, over the page: a panel under the chip, so
+   the chips behind it stay exactly where they were. */
+.obx-pick{position:absolute;top:calc(100% + 8px);left:0;z-index:7;width:268px;padding:13px;
+  border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);
   animation:obpop .18s ease both}
+.obx-pick-h{margin:0 0 9px;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.obx-pick-h:not(:first-child){margin-top:14px}
+.obx-pal{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;justify-items:center}
+.obx-pal button{width:24px;height:24px;border-radius:50%;background:var(--c);transition:transform .12s}
+.obx-pal button:hover{transform:scale(1.18)}
+.obx-pal button.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+/* Five to a row: twenty icons over six left a row of two. */
+.obx-ico{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;justify-items:center}
 .obx-ico button{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:var(--muted);
   transition:background .12s,color .12s,transform .12s}
 .obx-ico button > *{pointer-events:none}
 .obx-ico button:hover{background:var(--surface-3);color:var(--ink);transform:scale(1.08)}
 .obx-ico button.on{background:color-mix(in srgb,var(--c) 28%,var(--tint-base));
   color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 50%,transparent)}
-.obx-cat.obx-cat-add{display:flex;align-items:center;gap:14px;padding:9px 10px 9px 9px;
-  border-style:dashed;border-color:var(--line-2);background:none;box-shadow:none;color:var(--muted);text-align:left}
-.obx-cat.obx-cat-add:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 55%,var(--line));
-  background:linear-gradient(100deg,var(--accent-soft),transparent 60%);box-shadow:none}
-.obx-cat-add .obx-swatch{background:var(--surface-3);border-color:transparent;color:inherit}
-.obx-cat-add:hover .obx-swatch{background:color-mix(in srgb,var(--accent) 22%,var(--tint-base));transform:scale(1.06)}
-.obx-cat-add b{font-size:15px;font-weight:600}
-/* Narrow: the colours take a line of their own rather than squeezing the
-   name down to nothing. */
-@media (max-width:700px){
-  .obx-crow{grid-template-columns:auto minmax(0,1fr) auto;
-    grid-template-areas:"tile name x" "tile pal pal";row-gap:7px;column-gap:12px}
-  .obx-crow > .obx-swatch{grid-area:tile}
-  .obx-crow > .obx-cat-name{grid-area:name}
-  .obx-crow > .obx-pal{grid-area:pal;flex-wrap:wrap}
-  .obx-crow > .obx-x,.obx-crow > .obx-x-gap{grid-area:x}
-  .obx-ico{grid-template-columns:repeat(7,32px);margin-left:10px}
-}
+.obx-cat.obx-cat-add{border-style:dashed;border-color:var(--line-2);background:none;box-shadow:none;
+  padding:0 15px 0 12px;gap:6px;font-size:13px;font-weight:600;color:var(--muted)}
+.obx-cat.obx-cat-add:hover{transform:translateY(-1px);color:var(--accent-ink);
+  border-color:color-mix(in srgb,var(--accent) 55%,var(--line));
+  background:linear-gradient(110deg,var(--accent-soft),transparent 75%);box-shadow:none}
+
+/* ---- the picture beside it: the parts of a life round the fire ---- */
+.obx-orbit{position:relative;width:min(440px,100%);aspect-ratio:1}
+/* Two rings of warmth rather than the dashed orbits that stood here, and a
+   glow behind the middle: the circle is a hearth now, not a sky. */
+.obx-orbit::before{content:"";position:absolute;inset:14%;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 18%,transparent),transparent 64%)}
+.obx-orbit-ring{position:absolute;border:1px solid color-mix(in srgb,var(--accent) 26%,var(--line-2));border-radius:50%}
+.obx-orbit-ring.r1{inset:17%}
+.obx-orbit-ring.r2{inset:4%;border-style:dashed;border-color:color-mix(in srgb,var(--accent) 16%,var(--line-2))}
+.obx-core{position:absolute;left:50%;top:50%;width:116px;height:116px;transform:translate(-50%,-50%);border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:var(--surface);border:1px solid var(--line);
+  box-shadow:0 0 0 9px color-mix(in srgb,var(--accent) 9%,transparent),
+    0 16px 44px -14px color-mix(in srgb,var(--accent) 55%,transparent);
+  font-size:13px;font-weight:600;color:var(--ink)}
+.obx-core .fl{width:38px;height:46px}
+.obx-core span{max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.obx-moon{position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;transform:translate(-50%,-50%)}
+.obx.enter .obx-moon{animation:obmoon .55s var(--dl,0ms) cubic-bezier(.3,1.5,.5,1) both}
+@keyframes obmoon{from{opacity:0;transform:translate(-50%,-50%) scale(.3)}to{opacity:1;transform:translate(-50%,-50%)}}
+.obx-moon i{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid color-mix(in srgb,var(--c) 48%,transparent);
+  background:linear-gradient(150deg,color-mix(in srgb,var(--c) 34%,var(--surface)),color-mix(in srgb,var(--c) 12%,var(--surface)));
+  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));
+  box-shadow:0 10px 22px -14px color-mix(in srgb,var(--c) 95%,transparent)}
+.obx-moon span{padding:1px 7px;border-radius:7px;background:var(--ground);font-size:11.5px;font-weight:600;white-space:nowrap;color:var(--ink-2)}
 /* The setup previews were a sky of orbits until the planner became Ember;
    what stood here -- rings, planets, a core and a burst -- is gone, and the
    fire below took its place. */
