@@ -2856,6 +2856,18 @@ function obCats(){
    Orbit; the rings are a glow now and the middle is the flame. Past six
    categories they take two radii, so a dozen still sit clear of each
    other. */
+/* Taking the panel out without a redraw: a click somewhere else may well
+   be a click into another chip's name, and redrawing would replace the
+   input under the caret. The state is cleared either way, so the next
+   render draws it shut. */
+function obPickClose(){
+  if(!OB.pal)return false;
+  OB.pal=null;
+  const p=document.querySelector("#obRoot .obx-pick");if(p)p.remove();
+  const c=document.querySelector("#obRoot .obx-cat.open");
+  if(c){c.classList.remove("open");const b=c.querySelector('[data-act="ob-cat-pal"]');if(b)b.setAttribute("aria-expanded","false");}
+  return true;
+}
 function obShowCats(){
   const cs=S.categories,n=cs.length;
   return '<div class="obx-orbit">'+
@@ -4362,8 +4374,10 @@ document.addEventListener("click",function(e){
       obRt().push({k:k,custom:true,on:true,title:"",cat:S.categories[0].id,days:[1,2,3,4,5],time:"09:00",dur:30,ic:"i-repeat"});
       OB.rtOpen=null;OB.pop=k;obRtRedraw('[data-act="ob-rt-name"][data-k="'+k+'"]');break;}
     case "ob-rt-del":OB.rt=obRt().filter(r=>r.k!==n.dataset.k);OB.rtOpen=null;obRender();break;
-    case "ob-cat-del":if(S.categories.length>1){S.categories=S.categories.filter(x=>x.id!==id);save("categories");obRender();}break;
-    case "ob-cat-add":{const used=S.categories.map(x=>x.color),col=CAT_COLORS.find(x=>used.indexOf(x)<0)||CAT_COLORS[0],nid=uid("c");
+    case "ob-cat-del":if(S.categories.length>1){if(OB.pal===id)OB.pal=null;
+      S.categories=S.categories.filter(x=>x.id!==id);save("categories");obRender();}break;
+    case "ob-cat-add":{OB.pal=null;
+      const used=S.categories.map(x=>x.color),col=CAT_COLORS.find(x=>used.indexOf(x)<0)||CAT_COLORS[0],nid=uid("c");
       S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});save("categories");obRender();
       const f=document.querySelector('[data-act="ob-cat-name"][data-id="'+nid+'"]');if(f){f.focus();f.select();}break;}
     /* ---- the Google account, in Settings ---- */
@@ -4548,6 +4562,7 @@ document.addEventListener("input",function(e){
 document.addEventListener("paste",function(e){if(docOpen()&&!DE.src&&(e.target.id==="dcRich"||richIn(e.target)))richPaste(e);});
 document.addEventListener("keydown",function(e){
   if(docOpen()&&docKeys(e))return;
+  if(e.key==="Escape"&&OB.open&&OB.pal){e.preventDefault();obPickClose();return;}
   if(e.key==="Escape"&&el("modalRoot").innerHTML){if(docMayClose())closeModal();return;}
   if(e.key==="Escape"&&V.tmBreak){closeTimeBreakdown();return;}
   if(e.key==="Escape"&&V.sheet&&!el("modalRoot").innerHTML){closeSheet();return;}
@@ -5934,6 +5949,14 @@ function closeTimeBreakdown(){
   const p=document.querySelector(".tmb");if(p)p.remove();
   const b=document.querySelector('[data-act="tm-break"]');if(b)b.setAttribute("aria-expanded","false");
 }
+/* The panel is a pop-over and closes like one. Capturing, so it runs
+   before the click switch: a press on another chip's tile shuts this one
+   and the switch then opens that one. */
+document.addEventListener("click",function(e){
+  if(!OB.pal||!e.target||!e.target.closest)return;
+  if(e.target.closest('.obx-cat.open,[data-act="ob-cat-pal"]'))return;
+  obPickClose();
+},true);
 document.addEventListener("click",function(e){
   if(!V.tmBreak||!e.target.closest)return;
   if(e.target.closest('.tmb,[data-act="tm-break"]'))return;

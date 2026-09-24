@@ -626,7 +626,14 @@ created, replaced rather than added to when someone goes back and forth.
   panel holds both, Color then Icon (`ob-cat-swatch`, `ob-cat-icon`, the
   same `CAT_COLORS` and `CAT_ICONS` the planner's own category window
   offers), six colours and five icons to a row so neither ends in a ragged
-  line. `obShowCats()` is the picture: a hearth in the middle carrying the
+  line. It **closes like a pop-over**: a click anywhere but its own chip
+  or another chip's tile, Escape, adding a category or deleting the chip
+  it belongs to. `obPickClose()` takes it out of the DOM rather than
+  redrawing, because the click that closed it is often a click into
+  another chip's name and a redraw would replace the input under the
+  caret; `OB.pal` is cleared either way, so the next render draws it shut.
+  The outside-click listener captures, so a press on another chip's tile
+  shuts this one before the click switch opens that one. `obShowCats()` is the picture: a hearth in the middle carrying the
   flame and your name, two rings of warmth where Everyday Orbit had dashed
   orbits, and a category at each point of the circle in its own colour,
   taking two radii past six so a dozen still sit clear of each other.
