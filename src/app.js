@@ -140,7 +140,7 @@ function blankState(){
   return {categories:baseCategories(),tasks:[],routines:[],notes:[],completions:{},
     activity:[],docs:[],sessions:[],
     prefs:{hidden:[],scratch:"",setup:false,vault:"",
-      theme:"system",accent:"ember",weekStart:1,clock24:false,launch:"dashboard",
+      theme:"light",accent:"ember",weekStart:1,clock24:false,launch:"dashboard",
       autoBackup:{on:false,dir:"",every:"week",last:0},
       running:null}};
 }
@@ -2977,7 +2977,7 @@ function obShowVault(){
 
 /* ---- appearance ---- */
 function obLook(){
-  const cur=S.prefs.theme||"system";
+  const cur=S.prefs.theme||"light";
   /* Each theme as the app in miniature: a sidebar, a header with the accent
      button, and two task cards in the person's own category colours. */
   const cc=S.categories;
@@ -3260,12 +3260,12 @@ const THEMES=[{id:"light",name:"Light",icon:"i-sun"},{id:"dark",name:"Dark",icon
 
 /* What the ramp resolved to, which "system" only knows by asking. The timer
    is a second window with its own stylesheet, so it has to be told. */
-const isDark=()=>{const t=(S.prefs&&S.prefs.theme)||"system";
+const isDark=()=>{const t=(S.prefs&&S.prefs.theme)||"light";
   return t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme:dark)").matches);};
 
 function applyAppearance(){
   const r=document.documentElement,p=S.prefs||{};
-  const theme=p.theme||"system";
+  const theme=p.theme||"light";
   if(theme==="system")r.removeAttribute("data-theme");
   else r.setAttribute("data-theme",theme);
   r.setAttribute("data-accent",p.accent||"ember");
@@ -3296,7 +3296,7 @@ const SET_TABS=[
 function themePickHtml(){
   const p=S.prefs||{};
   return '<div class="seg">'+THEMES.map(t=>
-    '<button data-act="set-theme" data-v="'+t.id+'" aria-pressed="'+((p.theme||"system")===t.id)+'">'+
+    '<button data-act="set-theme" data-v="'+t.id+'" aria-pressed="'+((p.theme||"light")===t.id)+'">'+
     icon(t.icon,"ic-14")+esc(t.name)+'</button>').join("")+'</div>';
 }
 /* A swatch shows the shade the theme in force would actually use, so what
@@ -4360,7 +4360,10 @@ document.addEventListener("click",function(e){
         applyBackup(data);closeModal();toast("Restored from Google Drive");}).catch(e=>toast(e.message));}break;
     case "settings":V.setTab="account";settingsModal();break;
     case "set-tab":V.setTab=n.dataset.v;settingsModal();break;
-    case "set-theme":S.prefs.theme=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();panels();break;
+    /* Picking one -- including "Match system" -- is a choice, and themeSet
+       records that it was made, so the one-time move to light at start-up
+       never touches it again. */
+    case "set-theme":S.prefs.theme=n.dataset.v;S.prefs.themeSet=true;save("prefs");applyAppearance();syncTimerWindow();panels();break;
     case "set-accent":S.prefs.accent=n.dataset.v;save("prefs");applyAppearance();syncTimerWindow();panels();break;
     case "backup-dir":pickBackupFolder();break;
     case "load-sample":{const keep=S.prefs;S=sampleState();S.prefs=Object.assign(S.prefs,keep,{setup:true});KEYS.forEach(function(k){touched[k]=true;save(k);});closeModal();applyAppearance();render();toast("Sample week loaded");break;}
@@ -7705,6 +7708,13 @@ async function accountBoot(){
 if(hasDesktop()||wgOrigin())document.body.classList.add("ob-wait");
 if(window.claude&&window.claude.use)connect().then(accountBoot,accountBoot);
 else{connect();accountBoot();}
+/* The planner is light unless someone says otherwise. It followed the
+   computer before, which is not a choice anyone made, so a planner still on
+   "system" with no theme picked is moved across once -- the same one-time
+   move the dashboard got when it became the page the planner opens on.
+   This runs before applyAppearance(), or the page would paint the old theme
+   first. */
+if(S.prefs&&!S.prefs.themeSet&&(!S.prefs.theme||S.prefs.theme==="system")){S.prefs.theme="light";save("prefs");}
 /* The theme is applied before anything draws, so there is no flash of the
    wrong one on a dark setup. */
 applyAppearance();

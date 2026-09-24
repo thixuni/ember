@@ -857,6 +857,18 @@ hue. Both live as attributes on the root element — `data-theme` and
 sets no attribute at all, which is the only way the media query can keep
 tracking the OS.
 
+**Light is the planner's own default, and only the person changes it.** A
+new planner is `theme:"light"` and every fallback reads `|| "light"`, not
+`|| "system"`. `src/index.html` and `src/timer.html` carry
+`data-theme="light"` on `<html>` so the page is light before a line of
+script runs — without it the dark media query paints a dark page on a dark
+computer for the moment before `applyAppearance()`. The planner followed
+the computer before, which is nobody's choice, so a planner still on
+"system" with no theme picked is moved to light once at start-up, before
+`applyAppearance()`; `prefs.themeSet`, written by `set-theme` whenever
+anyone picks a theme — **including "Match system"** — is what tells the two
+apart, exactly as `launchSet` does for the page the planner opens on.
+
 **The accent never touches the neutrals.** The page, panels, cards and lines
 are fixed, plain greys in both themes; changing the accent changes only the
 places that *are* the accent — primary buttons, the current page in the

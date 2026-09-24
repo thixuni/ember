@@ -1,5 +1,10 @@
 <!doctype html>
-<html lang="en">
+<!-- Light is the planner's default, so the document says so before app.js
+     runs: with no attribute here the dark media query would paint a dark
+     page on a dark computer for the moment before applyAppearance() sets
+     the theme. Someone who has chosen dark or "match system" has it set
+     from their prefs a moment later. -->
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
