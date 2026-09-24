@@ -179,12 +179,20 @@ ipcMain.handle('backup:dir', async () => {
   return (r.canceled || !r.filePaths[0]) ? "" : r.filePaths[0];
 });
 /* Fire and forget: a backup that fails must never interrupt the planner. */
-ipcMain.on('backup:write', (e, job) => {
-  if(!job || !job.dir || !job.name) return;
+/* Answers whether the file was written. It used to swallow every error and
+   tell the page nothing, so "Backed up" was said whether or not anything
+   reached the disk -- a folder that had been moved, renamed or was on a
+   drive that was not plugged in failed in silence. */
+ipcMain.handle('backup:write', (e, job) => {
+  if(!job || !job.dir || !job.name) return {ok: false, error: 'No folder chosen'};
+  const file = path.join(job.dir, job.name);
   try{
     fs.mkdirSync(job.dir, {recursive: true});
-    fs.writeFileSync(path.join(job.dir, job.name), String(job.text || ''), 'utf8');
-  }catch(err){}
+    fs.writeFileSync(file, String(job.text || ''), 'utf8');
+    return {ok: true, path: file};
+  }catch(err){
+    return {ok: false, error: (err && err.message) || 'The folder could not be written to'};
+  }
 });
 
 /* ------------------------------------------------------------ vault sync */

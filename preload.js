@@ -32,7 +32,7 @@ contextBridge.exposeInMainWorld('orbit', {
 
   /* ---- automatic backups ---- */
   chooseBackupDir: () => ipcRenderer.invoke("backup:dir"),
-  writeBackup: job => ipcRenderer.send("backup:write", job),
+  writeBackup: job => ipcRenderer.invoke("backup:write", job),
 
   /* ---- Google Calendar ----
      The page never sees a token: it asks, and the main process signs the

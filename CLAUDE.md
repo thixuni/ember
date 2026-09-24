@@ -1029,6 +1029,17 @@ show everything). The matrix quadrants (`QUAD_EMPTY`) and board columns
   the folder (`obBackupCard()`), which turns on a weekly copy. Only where no
   folder can be chosen (Firefox, Safari, the artifact) does it fall back to
   the artifact `downloads` capability, then a blob link; keep both working.
+  **A backup says whether it worked.** `backup:write` in main.js is an
+  `ipcMain.handle` answering `{ok}` or `{ok:false, error}`, and the page
+  waits for it: it used to swallow every error and the page said "Backed
+  up" either way, so a folder that had been moved, renamed or was on a
+  drive that was not plugged in failed in silence. Every write that lands,
+  by hand or on the schedule, goes through `backupDone()` -- it stamps
+  `autoBackup.last` and calls `panels()`, so the line under the button
+  changes where Settings is open. One line carries the time for both, since
+  it is the same backup; a backup by hand quite rightly puts the next
+  automatic one off, because `maybeAutoBackup()` counts its interval from
+  that stamp.
 - **Dates** are `YYYY-MM-DD` strings in local time throughout. Use the helpers
   `ymd`, `parseD`, `addDays`, `startOfWeek`. Weeks start on Monday.
 - **Eisenhower quadrant** is derived, never stored. `urgent` and `important` are

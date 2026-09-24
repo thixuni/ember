@@ -3501,8 +3501,8 @@ function settingsModal(){
               '<option value="'+x[0]+'"'+((bk.every||"week")===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select>'+
             '<button class="btn btn-sm" data-act="backup-dir">'+icon("i-folder","ic-14")+(bk.dir?"Change folder":"Choose folder")+'</button>'+
             '</div>':""),
-          bk.on?(bk.dir?"Into <b>"+esc(bk.dir)+"</b> · "+(bk.last?"last ran "+esc(relTime(bk.last)):"not run yet")+
-              (hasDesktop()?"":". After your browser restarts, it asks once before saving there again."):"Choose a folder to keep them in.")
+          bk.on?(bk.dir?"Into <b>"+esc(bk.dir)+"</b>."+
+              (hasDesktop()?"":" After your browser restarts, it asks once before saving there again."):"Choose a folder to keep them in.")
             :"A copy is saved to a folder of your choosing, on a schedule.")
       : field("",'<span class="mnone">This browser can only save backups as downloads. Chrome, Edge or the desktop app can save them to a folder you choose.</span>');
 
@@ -3511,7 +3511,11 @@ function settingsModal(){
           '<button class="btn btn-sm" data-act="export">'+icon("i-download","ic-14")+'Back up now</button>'+
           '<button class="btn btn-sm" data-act="import">'+icon("i-upload","ic-14")+'Restore</button>'+
           (n===0?'<button class="btn btn-sm" data-act="load-sample">'+icon("i-sparkle","ic-14")+'Load the sample week</button>':"")+
-          '</div>',n+" item"+(n===1?"":"s")+" saved on this device."+(canPickFolder()?(bk.dir?" Back up now saves a copy into <b>"+esc(bk.dir)+"</b>.":" Back up now asks where to keep your backups."):""))+auto)+
+          '</div>',n+" item"+(n===1?"":"s")+" saved on this device."+
+            (canPickFolder()?(bk.dir?" Back up now saves a copy into <b>"+esc(bk.dir)+"</b>.":" Back up now asks where to keep your backups."):"")+
+            /* One place says when: by hand or on the schedule, it is the
+               same backup and the same line. */
+            (bk.last?" Last backed up "+esc(relTime(bk.last))+".":""))+auto)+
       sec("Start over",field("",
         '<button class="btn btn-sm btn-danger" data-act="reset-all">'+icon("i-trash","ic-14")+'Clear everything</button>',
         "Removes every task, routine, note, document and tracked hour. Your settings stay as they are."));
@@ -3652,6 +3656,15 @@ function pickBackupFolder(then){
   if(bfCan())window.showDirectoryPicker({id:"orbit-backups",mode:"readwrite"})
     .then(h=>{BF.handle=h;BF.loaded=Promise.resolve(h);return bfKv("backupDir",h).then(()=>set(h.name));}).catch(()=>{});
 }
+/* When the last backup actually landed. Written only after a write that
+   worked, by hand or on the schedule, and it is what Settings shows and
+   what maybeAutoBackup() counts the interval from -- so backing up by hand
+   quite rightly puts the next automatic one off. panels() redraws Settings
+   where it is open, so the line changes under the button that was pressed. */
+function backupDone(){
+  S.prefs.autoBackup=Object.assign({on:false,every:"week",dir:""},S.prefs.autoBackup||{},{last:Date.now()});
+  save("prefs");panels();
+}
 /* Runs at most once a launch, and only when the interval has actually passed. */
 function maybeAutoBackup(){
   const o=desktop(),b=S.prefs&&S.prefs.autoBackup;
@@ -3659,9 +3672,12 @@ function maybeAutoBackup(){
   const gap=BACKUP_EVERY[b.every||"week"]||BACKUP_EVERY.week;
   if(b.last&&Date.now()-b.last<gap)return;
   const name="ember-"+TODAY()+".json",text=JSON.stringify(backupPayload(),null,2);
-  const done=()=>{S.prefs.autoBackup=Object.assign({},S.prefs.autoBackup,{last:Date.now()});save("prefs");};
-  if(o&&o.writeBackup){try{o.writeBackup({dir:b.dir,name:name,text:text});done();}catch(e){}return;}
-  if(bfCan())bfWrite(name,text,false).then(ok=>{if(ok)done();}).catch(()=>{});
+  if(o&&o.writeBackup){
+    Promise.resolve(o.writeBackup({dir:b.dir,name:name,text:text}))
+      .then(r=>{if(r&&r.ok)backupDone();},()=>{});
+    return;
+  }
+  if(bfCan())bfWrite(name,text,false).then(ok=>{if(ok)backupDone();}).catch(()=>{});
 }
 
 function exportData(){
@@ -3672,10 +3688,16 @@ function exportData(){
   const bk=S.prefs.autoBackup||{},o=desktop();
   if(o&&o.writeBackup){
     if(!bk.dir){pickBackupFolder(exportData);return;}
-    o.writeBackup({dir:bk.dir,name:name,text:text});toast("Backed up to "+bk.dir);return;
+    /* Wait to be told it landed. Saying "Backed up" and moving on was a
+       guess: a folder that had been moved or renamed failed in silence. */
+    Promise.resolve(o.writeBackup({dir:bk.dir,name:name,text:text})).then(r=>{
+      if(!r||!r.ok){toast("Couldn’t save there — "+((r&&r.error)||"choose the folder again in Settings"));return;}
+      backupDone();toast("Backed up to "+bk.dir);
+    },()=>toast("Couldn’t save there — choose the folder again in Settings."));
+    return;
   }
   if(bfCan()){
-    bfWrite(name,text,true).then(ok=>{if(ok)toast("Backed up to "+BF.handle.name);else pickBackupFolder(exportData);},
+    bfWrite(name,text,true).then(ok=>{if(ok){backupDone();toast("Backed up to "+BF.handle.name);}else pickBackupFolder(exportData);},
       ()=>toast("Couldn’t write to that folder. Choose it again in Settings."));
     return;
   }
@@ -3685,7 +3707,7 @@ function exportData(){
       const a=document.createElement("a");a.href=url;a.download=name;a.style.display="none";
       document.body.appendChild(a);a.click();
       setTimeout(function(){a.remove();URL.revokeObjectURL(url);},1500);
-      toast("Backup saved to your downloads");
+      backupDone();toast("Backup saved to your downloads");
     }catch(e){toast("Couldn't save the file here — try the local copy");}
   }
   let p=null;
@@ -3693,7 +3715,7 @@ function exportData(){
   if(!p){viaBlob();return;}
   Promise.resolve(p).then(function(d){
     if(!d||!d.save)return viaBlob();
-    return d.save({filename:name,data:text}).then(function(){toast("Backup saved");},function(){viaBlob();});
+    return d.save({filename:name,data:text}).then(function(){backupDone();toast("Backup saved");},function(){viaBlob();});
   },function(){viaBlob();});
 }
 function importPicked(file){
