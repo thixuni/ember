@@ -619,22 +619,23 @@ created, replaced rather than added to when someone goes back and forth.
 - **Categories is the one step with no picture beside it**, because its
   answer *is* the thing being edited: `obShow()` returns nothing for it,
   `obRender()` leaves the `<aside>` out and the stage takes the whole width
-  (`.obx-stage.one`). `obCats()` draws one card a category in a wrapping
-  grid, and **each card is washed in its own colour** -- the gradient, the
-  border, the glow and the name (through the calendar's `--ev-label`
-  recipe, so any colour reads in either theme). Plain white cards on a
-  near-white page said nothing about what the step is for. Pressing the
-  tile opens **Color and Icon together** inside the card, which grows to
-  hold them (`.obx-pick`; a pop-over was clipped by the foot of the page on
-  the last row) and stays open so the two can be set one after the other --
-  `ob-cat-swatch` and `ob-cat-icon`, the same `CAT_COLORS` and
-  `CAT_ICONS` the planner's own category window offers. The name is typed
-  straight in, a cross drops it, and an Add category card sits at the end.
-  Chips on the left with a row of flames on the right was the design
-  before, and it fell apart the moment anyone had more than six categories:
-  the flames ran past the log they stood on and the names underneath
-  collided. Any step that has nothing worth showing can do the same by
-  returning "" from `obShow()`.
+  (`.obx-stage.one`). `obCats()` draws **a list, a row a category**
+  (`.obx-crow`), each washed from the left in its own colour -- the
+  gradient, the border and the name (through the calendar's `--ev-label`
+  recipe, so any colour reads in either theme). **Every colour is on the
+  row**: twelve dots, the one in force ringed, one click to change
+  (`ob-cat-swatch`) with nothing to open and nothing to remember. Only the
+  icons need the room of a grid, so the tile opens those under the row, ten
+  to a line (`ob-cat-icon`, `.obx-ico`; a pop-over was clipped by the foot
+  of the page, and "as many as fit" left the twentieth stranded). The same
+  `CAT_COLORS` and `CAT_ICONS` the planner's own category window offers.
+  The name is typed straight in, a cross drops it, and an Add category row
+  sits at the end; under 700px the colours take a line of their own
+  (`grid-template-areas`). Two shapes came before: chips beside a row of
+  flames, which fell apart the moment anyone had more than six categories,
+  and a grid of tiles, which read as loose boxes with a lot of air and one
+  stranded Add card. Rows stack, so any number is fine. Any step that has
+  nothing worth showing can do the same by returning "" from `obShow()`.
 - **How it reads.** Short and about the person: a heading that says what they
   get, one line under it, labels a person would say out loud. It does not
   explain where things appear or how they work, and it never shows a code, a

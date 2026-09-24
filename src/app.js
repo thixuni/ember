@@ -2828,31 +2828,33 @@ function obShowName(){
 /* ---- categories ---- */
 /* Categories are the one step whose answer *is* the thing being edited, so
    there is no picture of it beside the question: the whole width is one
-   board of cards, each a category -- its colour and icon as a tile you
-   press to recolor it, its name typed into, and a cross to drop it. Chips
-   on the left with a row of flames on the right broke the moment anyone
-   had more than six: the flames ran past the log they stood on and the
-   names underneath collided. Cards wrap, so any number of them is fine.
-   The colours open inside the card, which grows to hold them -- a pop-over
-   would be clipped by the foot of the page on the last row. */
+   list, a row a category, washed from the left in its own colour.
+
+   Every colour is ON the row rather than behind a press: twelve dots, one
+   click to change, nothing to open and nothing to remember. Only the icons
+   need the room of a grid, so the tile opens those under the row. Two
+   earlier shapes are worth knowing about: chips beside a row of flames,
+   which fell apart past six categories, and a grid of tiles, which read as
+   loose boxes with a lot of air and one stranded Add card. A list stacks,
+   so any number of them is fine. */
 function obCats(){
   const many=S.categories.length>1;
   return obHead("Categories","Color-code <em>your life</em>",
-      "Press a tile to change its color and its icon. Add as many as you need.")+
+      "Tap a color to change one. Press its tile for a different icon.")+
     '<div class="obx-cats">'+S.categories.map((c,k)=>{const open=OB.pal===c.id;
       return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+';--dl:'+(k*45)+'ms">'+
-        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Color and icon of '+esc(c.name)+'">'+icon(c.icon,"ic-22")+'</button>'+
-        '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="30" aria-label="Category name">'+
-        (many?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
-        (open?'<div class="obx-pick">'+
-          '<p class="obx-pick-h">Color</p><div class="obx-pal" role="group" aria-label="Colors">'+
+        '<div class="obx-crow">'+
+          '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Icon of '+esc(c.name)+'">'+icon(c.icon,"ic-20")+'</button>'+
+          '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="30" aria-label="Category name">'+
+          '<div class="obx-pal" role="group" aria-label="Color of '+esc(c.name)+'">'+
             CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>'+
-          '<p class="obx-pick-h">Icon</p><div class="obx-ico" role="group" aria-label="Icons">'+
-            CAT_ICONS.map(i=>'<button class="'+(i===c.icon?"on":"")+'" data-act="ob-cat-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+esc(i.replace("i-",""))+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>'+
-        '</div>':"")+
+          (many?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':'<span class="obx-x-gap"></span>')+
+        '</div>'+
+        (open?'<div class="obx-ico" role="group" aria-label="Icon of '+esc(c.name)+'">'+
+          CAT_ICONS.map(i=>'<button class="'+(i===c.icon?"on":"")+'" data-act="ob-cat-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+esc(i.replace("i-",""))+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>':"")+
         '</div>';}).join("")+
       '<button class="obx-cat obx-cat-add" data-act="ob-cat-add" style="--dl:'+(S.categories.length*45)+'ms">'+
-        '<span class="obx-swatch">'+icon("i-plus","ic-22")+'</span><b>Add category</b></button>'+
+        '<span class="obx-swatch">'+icon("i-plus","ic-20")+'</span><b>Add category</b></button>'+
     '</div>';
 }
 /* Your categories as planets round you: the page's name, made literal. */
