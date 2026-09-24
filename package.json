@@ -1,7 +1,7 @@
 {
   "name": "ember",
   "productName": "Ember",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A personal planner: calendar, task board, Eisenhower matrix, routines and notes.",
   "author": {
     "name": "Thisuni Gunawardena"
