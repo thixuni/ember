@@ -1089,39 +1089,60 @@ body.ob-open{overflow:hidden}
    row of flames fell apart past six categories. */
 .obx-cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:12px;align-items:start;
   width:100%;max-width:1040px}
+/* The page is about colour, so the cards are in colour: each one washed in
+   its own, deepening toward the top where the tile sits. Plain white cards
+   on a near-white page said nothing about what the step is for. */
 .obx-cat{position:relative;display:flex;flex-direction:column;align-items:center;gap:11px;padding:18px 12px 15px;
-  border-radius:20px;border:1px solid color-mix(in srgb,var(--c) 26%,var(--line));background:var(--surface);
-  box-shadow:0 14px 34px -28px color-mix(in srgb,var(--c) 95%,transparent);
-  transition:transform .14s,box-shadow .14s,border-color .14s}
-.obx-cat:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--c) 52%,var(--line));box-shadow:var(--sh-2)}
+  border-radius:20px;border:1px solid color-mix(in srgb,var(--c) 30%,var(--line));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--c) 14%,var(--surface)),var(--surface) 72%);
+  box-shadow:0 16px 36px -28px color-mix(in srgb,var(--c) 95%,transparent);
+  transition:transform .14s,box-shadow .14s,border-color .14s,background .14s}
+.obx-cat:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--c) 58%,var(--line));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--c) 22%,var(--surface)),var(--surface) 76%);
+  box-shadow:0 18px 40px -22px color-mix(in srgb,var(--c) 75%,transparent)}
+.obx-cat.open{border-color:color-mix(in srgb,var(--c) 62%,var(--line));box-shadow:0 18px 40px -22px color-mix(in srgb,var(--c) 70%,transparent)}
 .obx.enter .obx-cats .obx-cat{animation:obgrow .45s var(--dl,0ms) cubic-bezier(.3,1.4,.5,1) both}
-.obx-swatch{width:48px;height:48px;flex:none;border-radius:16px;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--c) 20%,var(--tint-base));
-  border:1px solid color-mix(in srgb,var(--c) 42%,transparent);
+.obx-swatch{width:54px;height:54px;flex:none;border-radius:18px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--c) 26%,var(--tint-base));
+  border:1px solid color-mix(in srgb,var(--c) 48%,transparent);
   color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));
   box-shadow:0 10px 24px -14px color-mix(in srgb,var(--c) 95%,transparent);
   transition:transform .14s,background .14s}
 .obx-swatch > *{pointer-events:none}
-.obx-cat:hover .obx-swatch,.obx-cat.open .obx-swatch{transform:scale(1.07);background:color-mix(in srgb,var(--c) 30%,var(--tint-base))}
+.obx-cat:hover .obx-swatch,.obx-cat.open .obx-swatch{transform:scale(1.07);background:color-mix(in srgb,var(--c) 38%,var(--tint-base))}
+/* The name is written in its own colour, the calendar’s recipe, so it reads
+   in both themes whatever colour is picked. */
 .obx-cat-name{width:100%;padding:2px 0;border:0;outline:0;background:none;text-align:center;
-  font:inherit;font-size:14px;font-weight:600;color:var(--ink);text-overflow:ellipsis}
+  font:inherit;font-size:14px;font-weight:600;color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));text-overflow:ellipsis}
 .obx-cat-name:focus{text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--c)}
 .obx-x{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
   color:var(--muted);opacity:.45;transition:opacity .14s,background .14s,color .14s}
 .obx-cat:hover .obx-x,.obx-x:focus-visible{opacity:1}
 .obx-x:hover{background:var(--surface-3);color:var(--ink)}
 .obx-x > *{pointer-events:none}
-/* The colours open inside the card and the card grows; the grid starts its
-   cards at the top, so only this one gets taller. */
-.obx-pal{width:100%;margin-top:3px;padding-top:12px;border-top:1px solid var(--line);
-  display:grid;grid-template-columns:repeat(6,1fr);gap:8px;justify-items:center;animation:obpop .18s ease both}
+/* Colour and icon open inside the card and the card grows; the grid starts
+   its cards at the top, so only this one gets taller. A pop-over would be
+   clipped by the foot of the page on the last row. */
+.obx-pick{width:100%;margin-top:3px;padding-top:10px;border-top:1px solid color-mix(in srgb,var(--c) 22%,var(--line));
+  animation:obpop .18s ease both}
+.obx-pick-h{margin:0 0 8px;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.obx-pick-h:not(:first-child){margin-top:14px}
+.obx-pal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;justify-items:center}
 .obx-pal button{width:22px;height:22px;border-radius:50%;background:var(--c);transition:transform .12s}
 .obx-pal button:hover{transform:scale(1.18)}
 .obx-pal button.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.obx-ico{display:grid;grid-template-columns:repeat(auto-fill,minmax(26px,1fr));gap:6px;justify-items:center}
+.obx-ico button{width:26px;height:26px;border-radius:9px;display:grid;place-items:center;color:var(--muted);
+  transition:background .12s,color .12s,transform .12s}
+.obx-ico button > *{pointer-events:none}
+.obx-ico button:hover{background:var(--surface-3);color:var(--ink);transform:scale(1.08)}
+.obx-ico button.on{background:color-mix(in srgb,var(--c) 26%,var(--tint-base));
+  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 50%,transparent)}
 .obx-cat.obx-cat-add{border-style:dashed;border-color:var(--line-2);background:none;box-shadow:none;color:var(--muted)}
-.obx-cat.obx-cat-add:hover{color:var(--ink);border-color:var(--muted);box-shadow:none}
+.obx-cat.obx-cat-add:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 55%,var(--line));
+  background:linear-gradient(180deg,var(--accent-soft),transparent 72%);box-shadow:none}
 .obx-cat-add .obx-swatch{background:var(--surface-3);border-color:transparent;color:inherit;box-shadow:none}
-.obx-cat-add:hover .obx-swatch{background:var(--surface-3)}
+.obx-cat-add:hover .obx-swatch{background:color-mix(in srgb,var(--accent) 22%,var(--tint-base));transform:scale(1.07)}
 .obx-cat-add b{font-size:14px;font-weight:600}
 /* The setup previews were a sky of orbits until the planner became Ember;
    what stood here -- rings, planets, a core and a burst -- is gone, and the
@@ -1178,8 +1199,7 @@ button.obx-rt-txt > *{pointer-events:none}
 .obx-wk-name{display:flex;align-items:center;gap:7px;min-width:0;font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden}
 .obx-wk-name i{width:8px;height:8px;flex:none;border-radius:50%;background:var(--c)}
 .obx-wk-name small{margin-left:auto;padding-left:6px;font-weight:500;color:var(--muted)}
-.obx-cell{width:26px;height:26px;border-radius:8px;background:var(--surface-3);border:0;padding:0;cursor:pointer;
-  display:grid;place-items:center;transition:transform .12s,box-shadow .12s,background .12s}
+.obx-cell{width:26px;height:26px;border-radius:8px;background:var(--surface-3);border:0;padding:0;cursor:pointer;transition:transform .12s,box-shadow .12s}
 .obx-cell:hover{box-shadow:inset 0 0 0 2px var(--c);transform:scale(1.08)}
 .obx-cell:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .obx-len{white-space:nowrap;display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;height:26px;padding:0 4px 0 6px;border-radius:8px;font-size:12px;font-weight:600;color:var(--muted)}
@@ -1190,12 +1210,9 @@ button.obx-rt-txt > *{pointer-events:none}
 .obx-lens .obx-chip{padding:0 2px;font-size:12px;white-space:nowrap}
 .obx-wk-name b{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .obx-week-hint{grid-column:1/-1;margin:8px 0 0;font-size:12px;color:var(--muted)}
-/* A day the routine is kept carries its own little fire, in the category
-   colour, on a square tinted with it -- a solid block of colour said the
-   same thing without saying it was alight. */
-.obx-cell.on{background:color-mix(in srgb,var(--c) 26%,var(--tint-base));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent)}
-.obx-cell .fl{width:13px;height:18px;pointer-events:none}
-.obx-cell .fl svg{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--c) 70%,transparent))}
+/* A day the routine is kept is simply its colour. A little flame in each
+   square was tried and read as decoration on a control. */
+.obx-cell.on{background:var(--c)}
 .obx-cell.pop.on{animation:obcell .45s var(--dl) cubic-bezier(.3,1.6,.5,1) both}
 @keyframes obcell{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
 .obx-week-empty{grid-column:1/-1;margin:16px 0 4px;text-align:center;font-size:13px;color:var(--muted)}

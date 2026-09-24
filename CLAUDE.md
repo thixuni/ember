@@ -602,8 +602,9 @@ created, replaced rather than added to when someone goes back and forth.
   is a question on the left and, on the
   right, a live picture of the answer (`obShow()`): the greeting with the
   name being typed,
-  the week filling in as routines are ticked -- a day kept is a lit square
-  with its own little fire, not a block of colour -- the app in miniature in
+  the week filling in as routines are ticked -- a day kept is simply its
+  colour; a little flame in each square was tried and read as decoration on
+  a control -- the app in miniature in
   the theme being chosen, a
   reminder arriving and the day as a 24-hour clock with quiet hours shaded,
   and a bonfire at the end (`obShowDone()`: sparks off a blaze, the name on
@@ -619,14 +620,21 @@ created, replaced rather than added to when someone goes back and forth.
   answer *is* the thing being edited: `obShow()` returns nothing for it,
   `obRender()` leaves the `<aside>` out and the stage takes the whole width
   (`.obx-stage.one`). `obCats()` draws one card a category in a wrapping
-  grid -- the colour and icon as a tile that opens the colours *inside* the
-  card (the card grows; a pop-over was clipped by the foot of the page on
-  the last row), the name typed straight in, a cross to drop it, and an Add
-  category card at the end. Chips on the left with a row of flames on the
-  right was the design before, and it fell apart the moment anyone had more
-  than six categories: the flames ran past the log they stood on and the
-  names underneath collided. Any step that has nothing worth showing can do
-  the same by returning "" from `obShow()`.
+  grid, and **each card is washed in its own colour** -- the gradient, the
+  border, the glow and the name (through the calendar's `--ev-label`
+  recipe, so any colour reads in either theme). Plain white cards on a
+  near-white page said nothing about what the step is for. Pressing the
+  tile opens **Color and Icon together** inside the card, which grows to
+  hold them (`.obx-pick`; a pop-over was clipped by the foot of the page on
+  the last row) and stays open so the two can be set one after the other --
+  `ob-cat-swatch` and `ob-cat-icon`, the same `CAT_COLORS` and
+  `CAT_ICONS` the planner's own category window offers. The name is typed
+  straight in, a cross drops it, and an Add category card sits at the end.
+  Chips on the left with a row of flames on the right was the design
+  before, and it fell apart the moment anyone had more than six categories:
+  the flames ran past the log they stood on and the names underneath
+  collided. Any step that has nothing worth showing can do the same by
+  returning "" from `obShow()`.
 - **How it reads.** Short and about the person: a heading that says what they
   get, one line under it, labels a person would say out loud. It does not
   explain where things appear or how they work, and it never shows a code, a

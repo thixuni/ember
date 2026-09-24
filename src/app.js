@@ -2838,16 +2838,21 @@ function obShowName(){
 function obCats(){
   const many=S.categories.length>1;
   return obHead("Categories","Color-code <em>your life</em>",
-      "Rename, recolor or remove any of these. Add as many as you need.")+
+      "Press a tile to change its color and its icon. Add as many as you need.")+
     '<div class="obx-cats">'+S.categories.map((c,k)=>{const open=OB.pal===c.id;
       return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+';--dl:'+(k*45)+'ms">'+
-        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Color of '+esc(c.name)+'">'+icon(c.icon,"ic-20")+'</button>'+
+        '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Color and icon of '+esc(c.name)+'">'+icon(c.icon,"ic-22")+'</button>'+
         '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="30" aria-label="Category name">'+
         (many?'<button class="obx-x" data-act="ob-cat-del" data-id="'+c.id+'" aria-label="Remove '+esc(c.name)+'">'+icon("i-x","ic-14")+'</button>':"")+
-        (open?'<div class="obx-pal" role="group" aria-label="Colors">'+CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>':"")+
+        (open?'<div class="obx-pick">'+
+          '<p class="obx-pick-h">Color</p><div class="obx-pal" role="group" aria-label="Colors">'+
+            CAT_COLORS.map(x=>'<button class="'+(x===c.color?"on":"")+'" style="--c:'+x+'" data-act="ob-cat-swatch" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+'</div>'+
+          '<p class="obx-pick-h">Icon</p><div class="obx-ico" role="group" aria-label="Icons">'+
+            CAT_ICONS.map(i=>'<button class="'+(i===c.icon?"on":"")+'" data-act="ob-cat-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+esc(i.replace("i-",""))+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>'+
+        '</div>':"")+
         '</div>';}).join("")+
       '<button class="obx-cat obx-cat-add" data-act="ob-cat-add" style="--dl:'+(S.categories.length*45)+'ms">'+
-        '<span class="obx-swatch">'+icon("i-plus","ic-20")+'</span><b>Add category</b></button>'+
+        '<span class="obx-swatch">'+icon("i-plus","ic-22")+'</span><b>Add category</b></button>'+
     '</div>';
 }
 /* Your categories as planets round you: the page's name, made literal. */
@@ -2910,7 +2915,7 @@ function obShowWeek(){
       (on.length?on.map(x=>{const c=cat(obRtCat(x)),open=OB.rtOpen===x.k,name=x.title||"Your own routine";
         return '<span class="obx-wk-name" style="--c:'+c.color+'"><i></i><b data-rt-name="'+x.k+'">'+esc(name)+'</b></span>'+
           order.map((d,j)=>{const is=x.days.indexOf(d)>-1;
-            return '<button class="obx-cell'+(is?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+is+'" aria-label="'+esc(name)+" on "+DOWS[j]+'">'+(is?obFlame("wk",c.color):"")+'</button>';}).join("")+
+            return '<button class="obx-cell'+(is?" on":"")+(OB.pop===x.k?" pop":"")+'" style="--c:'+c.color+';--dl:'+(j*35)+'ms" data-act="ob-rt-day" data-k="'+x.k+'" data-v="'+d+'" aria-pressed="'+is+'" aria-label="'+esc(name)+" on "+DOWS[j]+'"></button>';}).join("")+
           '<button class="obx-len'+(open?" open":"")+'" data-act="ob-rt-open" data-k="'+x.k+'" aria-expanded="'+open+'" aria-label="How long: '+esc(fmtMins(x.dur))+'">'+esc(fmtMins(x.dur))+icon("i-chev-d","ic-12")+'</button>'+
           (open?'<div class="obx-lens" role="group" aria-label="How long '+esc(name)+' takes">'+OB_DURS.map(m=>
             '<button class="obx-chip'+(x.dur===m?" on":"")+'" data-act="ob-rt-dur" data-k="'+x.k+'" data-v="'+m+'" aria-pressed="'+(x.dur===m)+'">'+esc(fmtMins(m))+'</button>').join("")+'</div>':"");}).join("")+
@@ -4328,7 +4333,9 @@ document.addEventListener("click",function(e){
         e=>{OB.busy=false;OB.err=e.message;obRender();});break;
     case "ob-cat-pal":OB.pal=OB.pal===id?null:id;obRender();break;
     case "ob-cat-swatch":{const c=S.categories.find(x=>x.id===id);if(!c)break;
-      c.color=n.dataset.v;OB.pal=null;save("categories");obRender();break;}
+      c.color=n.dataset.v;save("categories");obRender();break;}
+    case "ob-cat-icon":{const c=S.categories.find(x=>x.id===id);if(!c)break;
+      c.icon=n.dataset.v;save("categories");obRender();break;}
     case "ob-jump":OB.found=null;obGo(n.dataset.v);break;
     case "ob-rt-toggle":{const x=obRtFind(n.dataset.k);if(!x)break;x.on=!x.on;OB.pop=x.on?x.k:null;
       if(!x.on&&OB.rtOpen===x.k)OB.rtOpen=null;obRtRedraw('[data-act="ob-rt-toggle"][data-k="'+x.k+'"]');break;}
