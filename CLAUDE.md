@@ -582,11 +582,15 @@ has got to is in `prefs.onboard` (`{done, step, mode, made}`), so closing half
 way picks up at the same step; `made` is the ids of the routines setup
 created, replaced rather than added to when someone goes back and forth.
 
-- **How it looks. Setup is lit by one fire.** `obFlame(cls, color)` draws it
-  wherever it shows: three layers -- body, middle, core -- each flickering at
-  its own pace from `20px 52px`, taking its colour from `--c` and the two
-  warm tokens `--flame-mid` and `--flame-core`. The sign-in is a hearth
-  (`obSky()`, kept by that name): a living flame with the wordmark under it,
+- **How it looks. Setup is lit by one fire.** `obFlame(cls, color)` draws
+  the brand's flame -- three still layers, body, middle and core, taking
+  their colour from `--c` and the two warm tokens `--flame-mid` and
+  `--flame-core` (see The brand: it is the logo, so it does not flicker).
+  The sign-in is a hearth
+  (`obSky()`, kept by that name): the flame with the wordmark tight under
+  it -- the flame is drawn in the top four fifths of its box, so `.obx-fire`
+  is pulled up past the hero's own gap by a measured negative margin and
+  its glow is a `::before` so it stays behind the flame -- over
   warmth banked at the foot of the page, embers rising off it in the accent
   and the category colours, and the planner's parts drifting among them. Each
   ember carries its own size, drift, pace and a negative delay, so they are
@@ -826,11 +830,23 @@ text on a filled button clears AA; the CSS holds that trio as its default
 (`--a-base`, `--a-dark`, `--a-lift`). Anyone who has picked another accent
 keeps it. The neutrals stay the plain greys they were: the brand’s warm Ash
 Rose and Char belong to the download page and anything outward-facing, not
-to a planner whose accent may be any colour. The mark is the ember spark
-(`i-ember` in the sprite: a coal with a tongue of flame and a loose spark,
-the core punched out with `fill-rule="evenodd"` so the tile shows through),
-and `npm run icon` redraws `build/icon.png` and `build/icon.ico` from the
-same shape. The wordmark is “ember”, lower case, in **Bricolage Grotesque**
+to a planner whose accent may be any colour.
+
+**The mark is a flame, and it is the same flame everywhere.** `obFlame()`
+draws it large on setup's first page in three layers; `i-ember` in the
+sprite is that same outline in one colour, the flame's outer layer scaled
+from its own 40×58 box into 24×24 (`translate(2.56 .55) scale(.473)`,
+copied into `scripts/make-icon.js` too) with the inner teardrop punched
+out so the tile shows through, which is what keeps it reading as a flame
+at 14px. **The punch is two subpaths in one `d`**: `fill-rule="evenodd"`
+works within a single path, and as two `<path>` elements the core simply
+painted on top. `npm run icon` redraws `build/icon.png` and
+`build/icon.ico` from the same shape, and docs/index.html carries a copy.
+**It never moves.** The three layers each flickered at their own pace
+once; a mark that is a different shape every time you look at it is not a
+mark, so the flicker is gone and only the embers drifting behind the page
+still move. An ember spark -- a coal with a tongue of flame and a loose
+spark -- was the mark before this. The wordmark is “ember”, lower case, in **Bricolage Grotesque**
 (`--fw`, the `.wordmark` class and `.brand-name`) — the third face, used
 for the wordmark and nothing else; headings stay Gabarito and text stays
 Plus Jakarta Sans.
