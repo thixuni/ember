@@ -835,14 +835,16 @@ function wsGo(id){
   V.qa=null;V.colMore=null;V.noteId=null;V.lqa=null;
   save("prefs");render();
 }
+/* Everything first, then the one thing at a time, then the two ways to
+   change the list -- quieter than the workspaces themselves, because they
+   are housekeeping and the workspaces are the point of the menu. */
 function spaceMenu(btn){
   const at=S.prefs.spaceAt;
-  const items=spaces().map(w=>({icon:w.id===at?"i-check":(w.icon||"i-grid"),label:w.name,run:()=>wsGo(w.id)}));
+  const items=[{icon:at===WS_ALL?"i-check":"i-grid",label:"All workspaces",run:()=>wsGo(WS_ALL)},"sep"];
+  spaces().forEach(w=>items.push({icon:w.id===at?"i-check":(w.icon||"i-grid"),label:w.name,run:()=>wsGo(w.id)}));
   items.push("sep");
-  items.push({icon:at===WS_ALL?"i-check":"i-grid",label:"All workspaces",run:()=>wsGo(WS_ALL)});
-  items.push("sep");
-  items.push({icon:"i-plus",label:"New workspace",run:()=>spaceAdd()});
-  items.push({icon:"i-settings",label:"Manage workspaces",run:()=>{V.setTab="spaces";settingsModal();}});
+  items.push({icon:"i-plus",label:"New workspace",sub:true,run:()=>spaceAdd()});
+  items.push({icon:"i-settings",label:"Manage",sub:true,run:()=>{V.setTab="spaces";settingsModal();}});
   ctxMenu(items,null,btn);
 }
 function renderRail(){
@@ -6278,7 +6280,7 @@ function ctxMenu(items,at,btn){
   while(items[items.length-1]==="sep")items.pop();
   const m=document.createElement("div");m.className="catmenu tmenu";m.setAttribute("role","menu");
   m.innerHTML=items.map((x,i)=>x==="sep"?'<div class="tm-sep" role="separator"></div>':
-    '<button type="button" role="menuitem" class="cm-opt'+(x.danger?" tm-danger":"")+'" data-act="cx-do" data-i="'+i+'">'+icon(x.icon,"ic-14")+'<span>'+esc(x.label)+'</span></button>').join("");
+    '<button type="button" role="menuitem" class="cm-opt'+(x.danger?" tm-danger":"")+(x.sub?" cm-sub":"")+'" data-act="cx-do" data-i="'+i+'">'+icon(x.icon,"ic-14")+'<span>'+esc(x.label)+'</span></button>').join("");
   document.body.appendChild(m);TMN.el=m;TMN.btn=btn||null;TMN.items=items;if(btn)btn.setAttribute("aria-expanded","true");
   const w=m.offsetWidth,h=m.offsetHeight;let x,y;
   if(btn){const b=btn.getBoundingClientRect();x=b.right-w;y=b.bottom+6;if(y+h>innerHeight-8)y=Math.max(8,b.top-6-h);}

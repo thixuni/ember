@@ -513,6 +513,18 @@ its own categories, and categories were the thing that most needed it.
   another workspace, or nowhere, which deletes them. A new workspace
   starts with the same five categories a new planner does, because one
   with no categories has nowhere to put a task. The last one cannot go.
+- **The sidebar is three bands**, each set off by a hairline: which app,
+  which workspace, then everything that belongs to the workspace. It was
+  one run of rows in three sizes with nothing between them, which is what
+  made the top look unsettled. **Every glyph in it starts at the same
+  22px** -- the mark, the workspace tile, the nav icons, the Categories
+  heading and the category boxes each used to work that out from their own
+  padding and landed at 16, 20 and 22, three ragged columns rather than one
+  edge.
+- **The workspace menu reads widest first**: All workspaces, then the
+  workspaces one at a time, then New workspace and Manage -- those two a
+  size down and in the quieter grey ( on a  item), because
+  they are housekeeping and the workspaces are the point of the menu.
 - **The switcher is at the top of the sidebar**, under the brand
   (`wsBarHtml()`, `#wsBar`), because everything below it belongs to it,
   and it is the biggest thing up there. The brand above it is one slim
