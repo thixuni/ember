@@ -99,45 +99,82 @@ function board(){
    which a single board with a category filter over it never was, because
    the lanes a side project needs are not the lanes work needs.
 
-   What a board owns is its lanes. How tasks *work* -- which fields a task
-   has, which columns the list shows, whether subtasks are tasks -- stays in
-   prefs.board and is the same everywhere, because those are settings about
-   the planner, not about one workspace, and keeping five copies of them in
-   step would be its own chore.
+   A workspace owns everything the planner keeps *about your life*: its
+   categories, its tasks, its routines, its notes, its documents, its
+   tracked time and its lanes. Personal and Office are not two filters over
+   one list, they are two lists, and the sidebar -- categories and all --
+   changes with them.
 
-   Only the Tasks section is divided. The dashboard, the calendar and the
-   matrix are about time, and a day with half of itself missing is worse
-   than useless; they show everything, whichever board it is on. */
-function boards(){
+   What a workspace does **not** own is the planner itself: how it looks,
+   when it reminds you, where it backs up, which fields a task has, which
+   columns the list shows. Those are one set of settings, in prefs and
+   prefs.board, because keeping a copy of them per workspace would be its
+   own chore and nobody wants a different accent in Office.
+
+   There is no nested state. KEYS stays the nine it has always been and
+   every record simply says which workspace it is in, in "ws", so saving,
+   backups, Drive and the vault are untouched by any of this. Things that
+   hang off a record -- a document, a session, an activity entry, a
+   completion -- carry no mark of their own and follow what they belong to.
+
+   prefs.spaceAt is the workspace being shown, or WS_ALL for the view
+   across all of them. The dashboard is always across all of them, because
+   it is today, and today does not belong to one workspace. */
+const WS_ALL="*";
+const WS_ICONS=["i-home","i-briefcase","i-rocket","i-laptop","i-heart","i-leaf","i-star","i-target"];
+function spaces(){
   const p=S.prefs;
-  if(!Array.isArray(p.boards)||!p.boards.length){
-    /* A planner from before boards had one, so its lanes become the first
-       board's and nothing about it moves. */
-    const old=p.board&&Array.isArray(p.board.lanes)&&p.board.lanes.length?p.board.lanes
-      :JSON.parse(JSON.stringify((S.tasks||[]).length?LEGACY_LANES:DEFAULT_LANES));
-    p.boards=[{id:"b_main",name:"Tasks",color:LANE_COLORS[0],lanes:old}];
+  if(!Array.isArray(p.spaces)||!p.spaces.length){
+    /* A planner from before workspaces: its boards become workspaces of
+       the same name, and one that never had boards gets a single workspace
+       holding everything it already has. */
+    const old=Array.isArray(p.boards)&&p.boards.length?p.boards
+      :[{id:"w_main",name:"My workspace",
+         lanes:(p.board&&Array.isArray(p.board.lanes)&&p.board.lanes.length)?p.board.lanes
+           :JSON.parse(JSON.stringify((S.tasks||[]).length?LEGACY_LANES:DEFAULT_LANES))}];
+    p.spaces=old.map((b,i)=>({id:b.id,name:b.name,color:b.color||LANE_COLORS[i%LANE_COLORS.length],
+      icon:b.icon||WS_ICONS[i%WS_ICONS.length],lanes:b.lanes}));
+    delete p.boards;
     if(p.board)delete p.board.lanes;
     setTimeout(()=>save("prefs"),0);
   }
-  if(!p.boards.some(b=>b.id===p.boardAt))p.boardAt=p.boards[0].id;
-  return p.boards;
+  if(p.spaceAt!==WS_ALL&&!p.spaces.some(b=>b.id===p.spaceAt))p.spaceAt=p.spaces[0].id;
+  return p.spaces;
 }
-const boardById=id=>boards().find(b=>b.id===id)||null;
-const curBoard=()=>boardById(S.prefs.boardAt)||boards()[0];
-/* The board a task is on. A task made before boards, or one whose board
-   has gone, belongs to the first. */
-const boardOf=t=>boardById(t&&t.board)||boards()[0];
-const lanesOf=bid=>{const b=boardById(bid);return b?b.lanes:curBoard().lanes;};
-const lanes=()=>curBoard().lanes;
+const spaceById=id=>spaces().find(b=>b.id===id)||null;
+/* Across all of them there is no current workspace, so curSpace() answers
+   with the first: what anything needing a fallback should use. */
+const wsAll=()=>S.prefs.spaceAt===WS_ALL;
+const curSpace=()=>spaceById(S.prefs.spaceAt)||spaces()[0];
+const spaceOf=x=>spaceById(x&&x.ws)||spaces()[0];
+/* The one question everything scoped to a workspace asks. */
+const inWs=x=>wsAll()||spaceOf(x).id===curSpace().id;
+/* Its categories, in its own order. cat(id) still finds any of them,
+   whichever workspace they are in, because a task shown in the view across
+   all of them still has to draw its own. */
+const cats=()=>wsAll()?S.categories:S.categories.filter(c=>spaceOf(c).id===curSpace().id);
+const catsOf=wid=>S.categories.filter(c=>spaceOf(c).id===wid);
+const cat0=()=>cats()[0]||S.categories[0]||{id:"",name:"Uncategorised",icon:"i-circle",color:"#7A8A80"};
+/* A category belongs to one workspace, so a task carried to another needs
+   one of that workspace's: the one called the same thing where there is
+   one, else its Other, else its first. */
+function catFor(id,wid){
+  const L=catsOf(wid);if(!L.length)return id;
+  if(L.some(c=>c.id===id))return id;
+  const src=cat(id),same=src&&L.find(c=>c.name.toLowerCase()===src.name.toLowerCase());
+  return (same||L.find(c=>c.id==="other"||c.name.toLowerCase()==="other")||L[0]).id;
+}
+const lanesOf=bid=>{const b=spaceById(bid);return b?b.lanes:curSpace().lanes;};
+const lanes=()=>curSpace().lanes;
 /* A lane is looked up across every board, never within one: a task carries
    its lane id and nothing else, so anything asking what colour that lane
    is, or whether it counts as finished, has to find it without being told
    which board to look on. That is also why a new lane's id is generated
    rather than named -- two boards must never share one. */
 const ixLanes=()=>ix("lanes",()=>{const m=new Map();
-  boards().forEach(b=>b.lanes.forEach(l=>m.set(l.id,l)));return m;});
+  spaces().forEach(b=>b.lanes.forEach(l=>m.set(l.id,l)));return m;});
 const lane=id=>ixLanes().get(id)||null;
-const laneIn=(bid,id)=>{const b=boardById(bid);return b?(b.lanes.find(l=>l.id===id)||null):null;};
+const laneIn=(bid,id)=>{const b=spaceById(bid);return b?(b.lanes.find(l=>l.id===id)||null):null;};
 const ST=id=>lane(id)||{id:id,name:"No lane",color:"#8A8F98",done:false};
 /* Done-ness comes from the lane and from nowhere else. A task whose lane
    has gone is not finished, and fixTasks() -- which runs at the top of
@@ -147,9 +184,15 @@ const isDoneT=t=>{const l=lane(t.status);return !!(l&&l.done);};
 const firstOpen=bid=>{const L=lanesOf(bid);return (L.find(l=>!l.done)||L[0]).id;};
 const firstDone=bid=>{const L=lanesOf(bid);return (L.find(l=>l.done)||L[L.length-1]).id;};
 /* Lanes a new board starts with: the three, with ids of their own. */
-const newBoardLanes=()=>DEFAULT_LANES.map(l=>({id:uid("lane"),name:l.name,color:l.color,done:l.done}));
+const newSpaceLanes=()=>DEFAULT_LANES.map(l=>({id:uid("lane"),name:l.name,color:l.color,done:l.done}));
 /* The Tasks section's tasks: this board's, and only this board's. */
-const boardTasks=()=>tops().filter(t=>boardOf(t).id===curBoard().id);
+/* The lists a section draws: this workspace's, or every workspace's in the
+   view across all of them. The dashboard does not use these -- it is always
+   across all of them, and says so. */
+const wsTasks=()=>tops().filter(inWs);
+const wsRoutines=()=>S.routines.filter(inWs);
+const wsNotes=()=>S.notes.filter(inWs);
+const wsAway=()=>awayList().filter(inWs);
 /* Every part starts on except Created, a date nobody fills in. */
 const FEAT_OFF={created:1};
 const feat=k=>{const v=board().show[k];return v==null?!FEAT_OFF[k]:v!==false;};
@@ -172,8 +215,8 @@ function laneFor(status,bid){
 }
 /* A task with its every field, for anything that makes one. */
 function newTask(preset){
-  return Object.assign({id:uid("t"),title:"",desc:"",due:"",dueTime:"",endTime:"",deadline:"",cat:S.categories[0].id,
-    board:curBoard().id,status:firstOpen(),urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],cf:{},
+  return Object.assign({id:uid("t"),title:"",desc:"",due:"",dueTime:"",endTime:"",deadline:"",cat:cat0().id,
+    ws:curSpace().id,status:firstOpen(),urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],cf:{},
     created:TODAY(),completedAt:null},preset||{});
 }
 const QUADS=[
@@ -261,24 +304,36 @@ function fixRoutines(){
   const p=S.prefs;if(p.rtSeeded||OB.open||obNeeded())return;
   p.rtSeeded=true;
   if(!S.routines.length){
-    S.routines=OB_RT.map(x=>({id:uid("r"),title:x.title,cat:S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id,
+    S.routines=OB_RT.map(x=>({id:uid("r"),ws:curSpace().id,title:x.title,cat:S.categories.some(c=>c.id===x.cat)?x.cat:cat0().id,
       freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""}));
     save("routines");
   }
   save("prefs");
 }
 function fixTasks(){
-  let n=0;const bs=boards(),first=bs[0].id;
+  let n=0;const bs=spaces(),first=bs[0].id;
   (S.tasks||[]).forEach(t=>{
-    /* A task carries the board it lives on. One made before boards, or one
-       whose board has been removed, belongs to the first. */
-    if(!t.board||!bs.some(b=>b.id===t.board)){t.board=first;n++;}
-    /* And its lane has to be one of that board's, never another's. */
-    if(!laneIn(t.board,t.status)){t.status=laneFor(t.status,t.board);n++;}
+    /* A task carries the workspace it lives in. One made before workspaces,
+       or one whose workspace has been removed, belongs to the first. */
+    if(!t.ws||!bs.some(b=>b.id===t.ws)){t.ws=first;n++;}
+    /* And its lane and its category have to be that workspace's own. */
+    if(!laneIn(t.ws,t.status)){t.status=laneFor(t.status,t.ws);n++;}
+    const c=catFor(t.cat,t.ws);if(c!==t.cat){t.cat=c;n++;}
     if(!t.start)return;
     t.due=t.start;t.start="";n++;
   });
   if(n)save("tasks");
+}
+/* The other things a workspace owns. A planner from before workspaces has
+   none of these marks, so everything it has joins the first -- and nothing
+   is ever left belonging to a workspace that has gone. */
+function fixSpaces(){
+  const bs=spaces(),first=bs[0].id,has=id=>bs.some(b=>b.id===id);
+  const fix=(list,key)=>{let n=0;(list||[]).forEach(x=>{if(!x.ws||!has(x.ws)){x.ws=first;n++;}});
+    if(n)save(key);};
+  fix(S.categories,"categories");fix(S.routines,"routines");fix(S.notes,"notes");
+  let n=0;awayList().forEach(a=>{if(!a.ws||!has(a.ws)){a.ws=first;n++;}});
+  if(n)save("prefs");
 }
 function sampleState(){
   const st=blankState(),o=n=>ymd(addDays(today(),n));
@@ -595,6 +650,13 @@ const streakSays=(r,n)=>n+" "+streakUnit(r)+(n===1?"":"s")+" in a row";
 /* Asked for by the sidebar, the dashboard and the calendar in one redraw, so
    worked out once per change. */
 const overdueItems=()=>ix("overdue",overdueNow);
+/* The same, cut to the workspace on screen, for the calendar's Catch-up
+   panel. The dashboard uses the whole of it. */
+function overdueHere(){
+  const o=overdueItems();
+  if(wsAll())return o;
+  return {tasks:o.tasks.filter(inWs),miss:o.miss.filter(x=>inWs(x.r))};
+}
 function overdueNow(){
   const tasks=tops().filter(t=>isOverdue(t)&&visibleCat(t.cat)).sort((a,b)=>a.due<b.due?-1:1);
   const miss=[];
@@ -710,9 +772,62 @@ function applyRail(){
   const mini=!!S.prefs.railMini;document.body.classList.toggle("rail-mini",mini);
   const b=el("railMini");if(b){const l=mini?"Expand the sidebar":"Collapse the sidebar";b.setAttribute("aria-label",l);b.title=l;b.setAttribute("aria-expanded",String(!mini));}
 }
+/* Across all of them there is no workspace to put a new thing in, so
+   anything being made asks which one it is for -- once, in front of the
+   thing it is making, rather than as a field on every form that would be
+   answered already every other time. In a workspace it never asks. */
+const WSQ={run:null};
+function askSpace(what,run){
+  if(!wsAll()){run(curSpace().id);return;}
+  WSQ.run=run;
+  openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Choose a workspace">'+
+    '<div class="mhead2">'+icon("i-grid","ic-18")+'<h2>Which workspace?</h2>'+
+    '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+    '<div class="mbody"><p class="cz-lead">You are looking across all of them, so '+esc(what)+' needs a home.</p>'+
+    '<div class="wspick">'+spaces().map(w=>'<button class="wspick-b" data-act="ws-pick" data-id="'+w.id+'" style="--s:'+w.color+'">'+
+      '<span class="wsrow-ic">'+icon(w.icon||"i-grid","ic-14")+'</span><b>'+esc(w.name)+'</b>'+icon("i-chev-r","ic-14")+'</button>').join("")+
+    '</div></div></div>',{focus:false});
+}
+/* Which workspace you are in, named at the top of the sidebar because that
+   is what everything under it belongs to -- the sections, the categories,
+   all of it. It is not in the Tasks top bar any more: a workspace is not a
+   property of one screen. */
+function wsBarHtml(){
+  if(wsAll())return '<button class="ws-btn" data-act="ws-menu" aria-haspopup="menu" aria-expanded="false"'+
+    ' title="Switch workspace" aria-label="All workspaces. Switch workspace">'+
+    '<span class="ws-ic all">'+icon("i-grid","ic-14")+'</span>'+
+    '<span class="ws-t"><b>All workspaces</b><small>Everything, everywhere</small></span>'+
+    icon("i-chev-d","ic-14")+'</button>';
+  const w=curSpace(),n=spaces().length;
+  return '<button class="ws-btn" data-act="ws-menu" aria-haspopup="menu" aria-expanded="false"'+
+    ' title="Switch workspace" aria-label="Workspace: '+esc(w.name)+'. Switch workspace">'+
+    '<span class="ws-ic" style="--c:'+w.color+'">'+icon(w.icon||"i-grid","ic-14")+'</span>'+
+    '<span class="ws-t"><b>'+esc(w.name)+'</b><small>'+(n===1?"Workspace":n+" workspaces")+'</small></span>'+
+    icon("i-chev-d","ic-14")+'</button>';
+}
+/* Going to a workspace forgets what was filtered in the one before it: a
+   lane and a category belong to the workspace they were set in. */
+function wsGo(id){
+  if(S.prefs.spaceAt===id)return;
+  S.prefs.spaceAt=id;
+  V.f={quick:"all",status:"",cat:"",quad:"",from:"",to:"",sort:"due"};
+  V.qa=null;V.colMore=null;V.noteId=null;V.lqa=null;
+  save("prefs");render();
+}
+function spaceMenu(btn){
+  const at=S.prefs.spaceAt;
+  const items=spaces().map(w=>({icon:w.id===at?"i-check":(w.icon||"i-grid"),label:w.name,run:()=>wsGo(w.id)}));
+  items.push("sep");
+  items.push({icon:at===WS_ALL?"i-check":"i-grid",label:"All workspaces",run:()=>wsGo(WS_ALL)});
+  items.push("sep");
+  items.push({icon:"i-plus",label:"New workspace",run:()=>spaceAdd()});
+  items.push({icon:"i-settings",label:"Manage workspaces",run:()=>{V.setTab="spaces";settingsModal();}});
+  ctxMenu(items,null,btn);
+}
 function renderRail(){
   applyRail();
   const bs=el("brandSub");if(bs)bs.textContent="Personal planner";
+  const wb=el("wsBar");if(wb)wb.innerHTML=wsBarHtml();
   renderMe();
   el("nav").innerHTML=NAV.map(n=>{const a=navAlert(n.id);
     return '<button class="nav-btn" data-act="view" data-view="'+n.id+'" aria-current="'+(V.view===n.id)+'" title="'+esc(n.name+(a?" · "+a.label:""))+'">'+
@@ -724,51 +839,38 @@ function renderRail(){
   el("railHead").innerHTML='<span class="grow">Categories</span>'+
     (hid?'<button class="txt" data-act="cat-all" title="Show every category">Show all</button>':"")+
     '<button data-act="manage-cats" title="Edit categories" aria-label="Edit categories">'+icon("i-edit","ic-14")+'</button>';
-  el("catList").innerHTML=S.categories.map(c=>{const off=!visibleCat(c.id);
+  el("catList").innerHTML=cats().map(c=>{const off=!visibleCat(c.id);
     return '<button class="cat-row'+(off?" off":"")+'" style="--c:'+c.color+'" data-act="cat-toggle" data-id="'+c.id+'" role="switch" aria-checked="'+(!off)+'" title="'+esc(off?"Show":"Hide")+' '+esc(c.name)+'">'+
       '<span class="cat-box">'+icon("i-check")+'</span>'+icon(c.icon,"ic-14 ic-cat")+'<span class="cname">'+esc(c.name)+'</span></button>';}).join("");
 }
 function topSearch(ph){
   return '<div class="search">'+icon("i-search")+'<input id="q" type="search" placeholder="'+esc(ph)+'" value="'+esc(V.q)+'" aria-label="Search"></div>';
 }
-/* The board the Tasks section is on, and the way to another. A workspace
-   is not a filter, so it is not in the filter panel; it sits first in the
-   top bar's controls, where the thing you are looking at is named. */
-function boardPickHtml(){
-  const b=curBoard();
-  return '<button class="tb-btn bd-pick" data-act="board-menu" aria-haspopup="menu" aria-expanded="false"'+
-    ' title="Switch board" aria-label="Board: '+esc(b.name)+'. Switch board">'+
-    '<span class="bd-dot" style="--s:'+b.color+'"></span><span class="bd-name">'+esc(b.name)+'</span>'+icon("i-chev-d","ic-14")+'</button>';
-}
-function boardMenu(btn){
-  const cur=curBoard();
-  const items=boards().map(b=>({icon:b.id===cur.id?"i-check":"i-board",label:b.name,
-    run:()=>{if(b.id===cur.id)return;S.prefs.boardAt=b.id;
-      /* A lane filter belongs to the board it was set on. */
-      if(V.f.status)V.f.status="";
-      V.qa=null;V.colMore=null;save("prefs");render();}}));
-  items.push("sep");
-  items.push({icon:"i-plus",label:"New board",run:()=>boardAdd()});
-  items.push({icon:"i-sliders",label:"Manage boards",run:()=>{V.cz={tab:"boards"};customiseModal();}});
-  ctxMenu(items,null,btn);
-}
 function renderTopbar(){
   const open=tops().filter(isOpen),over=tops().filter(isOverdue);
   let title="",sub="",right="";
   if(V.view==="dashboard"){
     const d=todayItems(),left=d.tasks.filter(isOpen).length+d.routines.filter(r=>!doneR(r,TODAY())).length;
-    title="Dashboard";sub="Your day at a glance";
+    /* It is the one section that never changes with the workspace, so it
+       says so rather than leaving you to wonder why Office work is on it. */
+    title="Dashboard";sub=spaces().length>1?"Your day at a glance \u00b7 across all workspaces":"Your day at a glance";
     right='<button class="btn btn-primary" data-act="new-task" data-date="'+TODAY()+'">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="calendar"){
     title="Calendar";
     sub=V.calMode==="week"?"Week of "+fmtDate(ymd(startOfWeek(V.anchor))):MON[V.anchor.getMonth()]+" "+V.anchor.getFullYear();
     right=topSearch("Search tasks and routines")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="tasks"){
-    const mine=boardTasks(),mOpen=mine.filter(isOpen),mOver=mine.filter(isOverdue);
+    const mine=wsTasks(),mOpen=mine.filter(isOpen),mOver=mine.filter(isOverdue);
     title="Tasks";sub=mine.length?mOpen.length+" open"+(mOver.length?" · "+mOver.length+" overdue":"")+" · "+mine.length+" total":"Nothing on this board yet";
     const fn=activeFilterCount();
-    right=boardPickHtml()+'<div class="seg"><button data-act="task-mode" data-mode="board" aria-pressed="'+(V.taskMode==="board")+'">'+icon("i-board")+'Board</button>'+
-      '<button data-act="task-mode" data-mode="list" aria-pressed="'+(V.taskMode==="list")+'">'+icon("i-list")+'List</button></div>'+
+    /* Lanes belong to a workspace, so there is no one board to draw across
+       all of them: two workspaces' To do are two different lanes, and
+       merging them by name would be a guess. The list is honest about it --
+       a table a workspace -- so Board is off rather than lying. */
+    const noBoard=wsAll();
+    right='<div class="seg"><button data-act="task-mode" data-mode="board" aria-pressed="'+(V.taskMode==="board"&&!noBoard)+'"'+
+      (noBoard?' disabled title="Lanes belong to a workspace. Open one to use the board."':"")+'>'+icon("i-board")+'Board</button>'+
+      '<button data-act="task-mode" data-mode="list" aria-pressed="'+(V.taskMode==="list"||noBoard)+'">'+icon("i-list")+'List</button></div>'+
       '<button class="tb-btn'+(V.adv||fn?" on":"")+'" data-act="adv-toggle" aria-expanded="'+!!V.adv+'" title="Filter tasks">'+icon("i-filter")+'<span>Filter</span>'+(fn?'<b class="num">'+fn+'</b>':"")+'</button>'+
       '<button class="tb-btn" data-act="customise" data-tip="customize" title="Customize tasks">'+icon("i-sliders")+'<span>Customize</span></button>'+
       topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
@@ -776,8 +878,9 @@ function renderTopbar(){
     title="Eisenhower Matrix";sub="Open tasks by urgency and importance, closest due date first";
     right=topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
   }else if(V.view==="routines"){
-    const due=S.routines.filter(r=>routineHere(r,today())).length,done=S.routines.filter(r=>doneR(r,TODAY())).length;
-    title="Routines & Habits";sub=!S.routines.length?"Nothing on repeat yet":S.routines.length+" routine"+(S.routines.length===1?"":"s")+(due?" · "+done+" of "+due+" done today":" · none due today");
+    const mine=wsRoutines();
+    const due=mine.filter(r=>routineHere(r,today())).length,done=mine.filter(r=>doneR(r,TODAY())).length;
+    title="Routines & Habits";sub=!mine.length?"Nothing on repeat yet":mine.length+" routine"+(mine.length===1?"":"s")+(due?" · "+done+" of "+due+" done today":" · none due today");
     right=topSearch("Search routines")+'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>';
     }else{
     title="Notes";sub=S.notes.length?S.notes.length+" note"+(S.notes.length===1?"":"s")+" · action items land in your tasks and calendar":"Ideas, meeting notes and anything worth keeping";
@@ -793,12 +896,16 @@ function renderTopbar(){
    the field -- the same dot its list shows beside every option -- so the
    colours stay familiar wherever a category is picked. `any` adds a first
    option with no category, which shows no dot. */
+/* `o.ws` names whose categories to offer. A category belongs to one
+   workspace, so a thing being edited offers its own workspace's and not
+   every workspace's -- which is what the view across all of them would
+   otherwise hand it. */
 function catSelect(attrs,val,o){
-  o=o||{};const c=val?cat(val):null;
+  o=o||{};const c=val?cat(val):null,L=o.ws?catsOf(o.ws):cats();
   return '<span class="catsel'+(o.cls?" "+o.cls:"")+(c?"":" none")+'" style="--c:'+(c?c.color:"transparent")+'">'+
     '<i class="catsel-dot" aria-hidden="true"></i><select '+attrs+'>'+
     (o.any?'<option value="">'+esc(o.any)+'</option>':"")+
-    S.categories.map(x=>'<option value="'+x.id+'"'+(val===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+
+    L.map(x=>'<option value="'+x.id+'"'+(val===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+
     '</select></span>';
 }
 /* With what it belongs to, the pill is a button: a click on it changes the
@@ -815,7 +922,7 @@ function catMenu(btn){
   catMenuClose();pkClose();
   const x=catOf(btn.dataset.kind,btn.dataset.id);if(!x)return;
   const m=document.createElement("div");m.className="catmenu";m.setAttribute("role","menu");
-  m.innerHTML=S.categories.map(c=>'<button type="button" role="menuitemradio" aria-checked="'+(x.cat===c.id)+'" class="cm-opt'+(x.cat===c.id?" on":"")+'" style="--c:'+c.color+'" data-act="cat-set" data-kind="'+btn.dataset.kind+'" data-id="'+btn.dataset.id+'" data-v="'+c.id+'">'+
+  m.innerHTML=(x&&x.ws?catsOf(x.ws):cats()).map(c=>'<button type="button" role="menuitemradio" aria-checked="'+(x.cat===c.id)+'" class="cm-opt'+(x.cat===c.id?" on":"")+'" style="--c:'+c.color+'" data-act="cat-set" data-kind="'+btn.dataset.kind+'" data-id="'+btn.dataset.id+'" data-v="'+c.id+'">'+
     '<i></i><span>'+esc(c.name)+'</span>'+(x.cat===c.id?icon("i-check","ic-14"):"")+'</button>').join("");
   document.body.appendChild(m);CM.el=m;CM.btn=btn;btn.setAttribute("aria-expanded","true");
   const r=btn.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
@@ -850,7 +957,7 @@ function tickBtn(t){return '<button class="tick'+(isDoneT(t)?" on":"")+'" data-a
 /* ============ calendar ============ */
 function eventsFor(d){
   const s=ymd(d);
-  const evs=S.routines.filter(r=>visibleCat(r.cat)&&routineHere(r,d)).map(r=>{
+  const evs=S.routines.filter(r=>inWs(r)&&visibleCat(r.cat)&&routineHere(r,d)).map(r=>{
     const t=rtTime(r,s),[h,m]=t.split(":").map(Number);
     /* time on the event, not r.time: this occurrence may have been moved,
        and everything drawing it reads the event. */
@@ -928,7 +1035,7 @@ function layoutEvents(evs){
 }
 /* A task belongs to its date. */
 function tasksFor(s){
-  return (ixDay().get(s)||NONE).filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped");
+  return (ixDay().get(s)||NONE).filter(t=>inWs(t)&&visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped");
 }
 /* A task with a time sits in the time grid; the band across the top is for
    the rest. */
@@ -1297,7 +1404,7 @@ const QC={el:null};
 const AWAY_DEF="Unavailable";
 const qcDurs=[15,30,45,60,90,120,180,240];
 function awayList(){return S.prefs.away||(S.prefs.away=[]);}
-function awayOn(s){return awayList().filter(a=>a.date===s);}
+function awayOn(s){return awayList().filter(a=>inWs(a)&&a.date===s);}
 function qcOpen(o,anchor){
   qcClose(true);
   QC.v=Object.assign({kind:"task",title:"",cat:"",prio:"",rep:"week"},o);
@@ -1339,7 +1446,7 @@ function qcDraw(){
           timeField('id="qcStart"',v.start,{sm:1,label:"Starts at",req:1})+'<span class="qc-dash">–</span>'+
           timeField('id="qcEnd"',v.end,{sm:1,label:"Ends at",req:1,after:v.start}))+
     '</div></div>';
-  const catRow='<div class="qc-row">'+icon("i-tag","ic-16 qc-ic")+catSelect('class="inp inp-sm" id="qcCat" aria-label="Category"',v.cat||(S.categories.find(c=>c.id==="other")||S.categories[0]).id)+'</div>';
+  const catRow='<div class="qc-row">'+icon("i-tag","ic-16 qc-ic")+catSelect('class="inp inp-sm" id="qcCat" aria-label="Category"',v.cat||(cats().find(c=>c.id==="other")||cat0()).id)+'</div>';
   let rows="";
   if(v.kind==="task"){
     rows=when+catRow+
@@ -1382,20 +1489,20 @@ function qcSave(){
   if(v.kind==="task"){
     if(!title){toast("Give the task a name");el("qcTitle").focus();return;}
     const f={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[v.prio]||[null,null];
-    const t=newTask({title:title,status:firstOpen(),cat:v.cat||(S.categories.find(c=>c.id==="other")||S.categories[0]).id,
+    const t=newTask({title:title,status:firstOpen(),cat:v.cat||(cats().find(c=>c.id==="other")||cat0()).id,
       due:v.date,dueTime:v.start,endTime:hm2m(v.end)>hm2m(v.start)?v.end:"",urgent:f[0],important:f[1]});
     S.tasks.push(t);logAct(t.id,"created","Created this task");save("tasks");toast("Task added");
   }else if(v.kind==="routine"){
     if(!title){toast("Give the routine a name");el("qcTitle").focus();return;}
     const dow=parseD(v.date).getDay();
     const days=v.rep==="day"?[1,2,3,4,5,6,0]:v.rep==="weekdays"?[1,2,3,4,5]:[dow];
-    S.routines.push({id:uid("r"),title:title,cat:v.cat||S.categories[0].id,freq:"weekly",days:days,every:2,time:v.start,
+    S.routines.push({id:uid("r"),ws:curSpace().id,title:title,cat:v.cat||cat0().id,freq:"weekly",days:days,every:2,time:v.start,
       dur:Math.max(5,hm2m(v.end)-hm2m(v.start)||30),start:v.date,end:"",active:true,remind:null,note:""});
     save("routines");toast("Routine added");
   }else{
     const x={date:v.date,start:v.start,end:hm2m(v.end)>hm2m(v.start)?v.end:m2hm(Math.min(24*60-1,hm2m(v.start)+60)),title:title||AWAY_DEF};
     if(v.id){const a=awayList().find(a=>a.id===v.id);if(a)Object.assign(a,x);}
-    else awayList().push(Object.assign({id:uid("a")},x));
+    else awayList().push(Object.assign({id:uid("a"),ws:curSpace().id},x));
     save("prefs");toast(v.id?"Updated":"Marked as unavailable");
   }
   qcClose();render();
@@ -1409,7 +1516,7 @@ function qcMore(){
     const ti=el("shTitle");if(ti){ti.focus();if(title)ti.setSelectionRange(title.length,title.length);}
   }else if(v.kind==="routine"){
     const dow=parseD(v.date).getDay();
-    routineModal(null,{title:title,cat:v.cat||S.categories[0].id,time:v.start,dur:Math.max(5,hm2m(v.end)-hm2m(v.start)||30),start:v.date,
+    routineModal(null,{title:title,cat:v.cat||cat0().id,time:v.start,dur:Math.max(5,hm2m(v.end)-hm2m(v.start)||30),start:v.date,
       days:v.rep==="day"?[1,2,3,4,5,6,0]:v.rep==="weekdays"?[1,2,3,4,5]:[dow]});
   }
 }
@@ -1523,7 +1630,7 @@ let fitTimer=null;
 window.addEventListener("resize",()=>{clearTimeout(fitTimer);fitTimer=setTimeout(()=>{if(V.view==="calendar"&&V.calMode!=="week")fitMonth();},120);});
 
 function overduePanel(){
-  const o=overdueItems(),n=o.tasks.length+o.miss.length;
+  const o=overdueHere(),n=o.tasks.length+o.miss.length;
   const head='<div class="od-head">'+
     '<button class="icon-btn" data-act="od-toggle" title="'+(V.odOpen?"Collapse":"Expand")+' catch-up panel" aria-label="Toggle catch-up panel">'+icon(V.odOpen?"i-chev-r":"i-panel")+'</button>'+
     '<h3>Catch-up</h3>'+(n?'<span class="od-count num">'+n+'</span>':"")+'</div>';
@@ -1636,7 +1743,7 @@ function viewDashboard(){
     '<button class="gchip" style="--c:'+e.color+'" data-act="gcal-ev" data-id="'+esc(e.id)+'"><span>'+esc(e.title)+'</span></button>').join("")+'</div>':"";
   const leftR=d.routines.filter(r=>!doneR(r,ts)).length;
 
-  const qc=S.categories.some(c=>c.id===S.prefs.quickCat)?S.prefs.quickCat:S.categories[0].id;
+  const qc=cats().some(c=>c.id===S.prefs.quickCat)?S.prefs.quickCat:cat0().id;
   const quick='<div class="dquick">'+icon("i-plus","ic-14")+
     '<input id="dashQuick" placeholder="Add a task for today, then press Enter" aria-label="Add a task for today" autocomplete="off">'+
     catSelect('id="dashQuickCat" aria-label="Category for the new task"',qc,{cls:"bare"})+'</div>';
@@ -1876,7 +1983,7 @@ function scratchToTask(){
   const lines=p?p.text.split(/\n+/).map(x=>x.replace(/^\s*[•\-*]\s*/,"").trim()).filter(Boolean):[];
   if(!lines.length){toast("Select some text in the scratch pad, or click into a line");return;}
   const made=lines.map(line=>{
-    const t={id:uid("t"),title:line.slice(0,200),desc:"",due:"",start:"",cat:S.categories[0].id,board:curBoard().id,status:firstOpen(),
+    const t={id:uid("t"),title:line.slice(0,200),desc:"",due:"",start:"",cat:cat0().id,ws:curSpace().id,status:firstOpen(),
       urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],created:TODAY(),completedAt:null};
     S.tasks.push(t);logAct(t.id,"created","Created from the scratch pad");return t;});
   p.remove();scratchCommit();save("tasks");
@@ -1897,15 +2004,15 @@ function scratchToNote(){
   const text=p?p.text.trim():"";
   if(!text){toast("Write something in the scratch pad first");return;}
   const title=text.split(/\n/)[0].replace(/^\s*[•\-*]\s*/,"").trim().slice(0,80);
-  const nn={id:uid("n"),title:title,cat:S.categories[0].id,tags:[],pinned:false,html:p.html,actions:[],updated:Date.now()};
+  const nn={id:uid("n"),ws:curSpace().id,title:title,cat:cat0().id,tags:[],pinned:false,html:p.html,actions:[],updated:Date.now()};
   S.notes.unshift(nn);p.remove();scratchCommit();save("notes");render();
   toast("Saved to Notes as “"+title+"”");
 }
 function quickAdd(){
   const inp=el("dashQuick");if(!inp)return;
   const title=inp.value.trim();if(!title)return;
-  const c=(el("dashQuickCat")||{}).value||S.categories[0].id;
-  const t={id:uid("t"),title:title,desc:"",due:TODAY(),start:"",cat:c,board:curBoard().id,status:firstOpen(),
+  const c=(el("dashQuickCat")||{}).value||cat0().id;
+  const t={id:uid("t"),title:title,desc:"",due:TODAY(),start:"",cat:c,ws:curSpace().id,status:firstOpen(),
     urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],created:TODAY(),completedAt:null};
   S.tasks.push(t);save("tasks");logAct(t.id,"created","Created this task");
   render();
@@ -1936,7 +2043,7 @@ function viewCalendar(){
 const QUICKS=[{id:"all",name:"All"},{id:"today",name:"Today"},{id:"week",name:"This Week"},{id:"overdue",name:"Overdue"},{id:"done",name:"Completed"}];
 function filterTasks(mode){
   const f=V.f,t0=TODAY(),wkEnd=ymd(addDays(startOfWeek(today()),6));
-  let list=boardTasks().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q));
+  let list=wsTasks().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q));
   if(f.quick==="today")list=list.filter(t=>t.due===t0);
   else if(f.quick==="week")list=list.filter(t=>t.due&&t.due>=ymd(startOfWeek(today()))&&t.due<=wkEnd);
   else if(f.quick==="overdue")list=list.filter(isOverdue);
@@ -1964,13 +2071,13 @@ function activeFilterCount(){const f=V.f;return (f.status?1:0)+(f.cat?1:0)+(f.qu
    So when this board has nothing to show and another one does, the way
    there is on the page rather than left to be guessed at. */
 function elsewhereHtml(){
-  if(!V.q.trim()||filterTasks().length)return "";
-  const cur=curBoard().id;
-  const hits=boards().filter(b=>b.id!==cur&&tops().some(t=>boardOf(t).id===b.id&&matchQ(t,V.q)));
+  if(wsAll()||!V.q.trim()||filterTasks().length)return "";
+  const cur=curSpace().id;
+  const hits=spaces().filter(b=>b.id!==cur&&tops().some(t=>spaceOf(t).id===b.id&&matchQ(t,V.q)));
   if(!hits.length)return "";
   return '<div class="bd-else">'+icon("i-search","ic-14")+
-    '<span>Nothing on this board \u2014 found on</span>'+
-    hits.map(b=>'<button type="button" class="bd-else-go" data-act="board-go" data-id="'+b.id+'">'+
+    '<span>Nothing in this workspace \u2014 found in</span>'+
+    hits.map(b=>'<button type="button" class="bd-else-go" data-act="ws-go" data-id="'+b.id+'">'+
       '<span class="bd-dot" style="--s:'+b.color+'"></span>'+esc(b.name)+'</button>').join("")+'</div>';
 }
 function filterBar(){
@@ -2135,7 +2242,7 @@ function qaSave(){
   if(!title){toast("Give the task a name");qaFocus();return;}
   const flags={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[q.prio]||[null,null];
   /* No category picked: Other, where there is one. */
-  const fallback=(S.categories.find(c=>c.id==="other")||S.categories[0]).id;
+  const fallback=(cats().find(c=>c.id==="other")||cat0()).id;
   const t=newTask({title:title,status:q.lane,cat:q.cat||fallback,due:q.due||"",est:q.est||0,urgent:flags[0],important:flags[1]});
   if(isDoneT(t))t.completedAt=TODAY();
   S.tasks.push(t);logAct(t.id,"created","Created this task");save("tasks");
@@ -2146,7 +2253,7 @@ function qaSave(){
 function viewList(){
   const list=filterTasks("list");
   if(!list.length){
-    const any=boardTasks().some(t=>visibleCat(t.cat)),n=activeFilterCount();
+    const any=wsTasks().some(t=>visibleCat(t.cat)),n=activeFilterCount();
     const acts=any?(n?'<button class="btn btn-sm" data-act="filter-clear">'+icon("i-x","ic-14")+'Clear filters</button>':"")+
 ""
       :'<button class="btn btn-sm btn-primary" data-act="new-task">'+icon("i-plus","ic-14")+'New task</button>';
@@ -2196,6 +2303,10 @@ const lqaDate=k=>TODAY().slice(0,7)===k?TODAY():k+"-01";
    into a few clear piles. [value, name, hint, icon]. */
 function lgChoices(){
   const out=[];
+  /* Only where there is more than one, and always first in the view across
+     all of them: a table a workspace is the only grouping that view can
+     honestly offer, since lanes and categories belong to a workspace. */
+  if(spaces().length>1)out.push(["ws","Workspace","A table for each workspace","i-grid"]);
   if(feat("when"))out.push(["date","Date","A table for each month",("i-calendar")]);
   out.push(["status","Status","A table for each lane","i-board"]);
   if(feat("category"))out.push(["category","Category","A table for each category","i-folder"]);
@@ -2208,14 +2319,19 @@ function lgChoices(){
 /* The grouping in force: the person's pick while its field is on, else the
    start date, the due date, or the lanes, whichever is there first. */
 function lgBy(){const ok=lgChoices().map(x=>x[0]),g=board().lgroup;
+  /* Across all of them the tables are the workspaces, whatever is set:
+     every other grouping is a workspace's own and would read as one list
+     with two meanings. */
+  if(wsAll()&&ok.indexOf("ws")>-1)return "ws";
   return g&&ok.indexOf(g)>-1?g:ok[0];}
 const monName=k=>MON[Number(k.slice(5))-1]+" "+k.slice(0,4);
 /* A task's table under grouping g: {k, name, o} (o orders the tables). */
 function lgOf(t,g){
   const month=(v,none)=>v?{k:v.slice(0,7),name:monName(v.slice(0,7)),o:v.slice(0,7)}:{k:"none",name:none,o:"~"};
+  if(g==="ws"){const L=spaces(),i=L.findIndex(w=>w.id===t.ws);return {k:t.ws,name:i<0?"No workspace":L[i].name,o:String(1000+(i<0?999:i))};}
   if(g==="date")return month(t.due,"No date");
   if(g==="status"){const L=lanes(),i=L.findIndex(l=>l.id===t.status);return {k:t.status,name:i<0?"No status":L[i].name,o:String(1000+(i<0?999:i))};}
-  if(g==="category"){const i=S.categories.findIndex(c=>c.id===t.cat);return {k:t.cat,name:i<0?"No category":S.categories[i].name,o:String(1000+(i<0?999:i))};}
+  if(g==="category"){const L=cats(),i=L.findIndex(c=>c.id===t.cat);return {k:t.cat,name:i<0?"No category":L[i].name,o:String(1000+(i<0?999:i))};}
   if(g==="priority"){const q=quadOf(t),i=QUADS.findIndex(x=>x.id===q);return q?{k:q,name:QUADS[i].name,o:String(1000+i)}:{k:"none",name:"No priority",o:"~"};}
   if(g&&g.indexOf("cf:")===0){const f=fieldById(g.slice(3));if(!f)return {k:"all",name:"All tasks",o:"0"};const v=cfVal(t,f);
     if(f.type==="date")return month(v,"No "+f.name.toLowerCase());
@@ -2226,6 +2342,7 @@ function lgOf(t,g){
 /* What a task added under a table gets, so it lands in that table. */
 function lgPreset(g,k){
   if(k==="none"||k==="all")return {};
+  if(g==="ws")return {ws:k,status:firstOpen(k),cat:catFor(cat0().id,k)};
   if(g==="date")return {due:lqaDate(k)};
   if(g==="status")return {status:k};
   if(g==="category")return {cat:k};
@@ -2243,7 +2360,7 @@ function lrSortVal(k,t){
     case "name":return (t.title||"").toLowerCase();
     case "date":return t.due?t.due+" "+(t.dueTime||""):null;
     case "priority":{const q=quadOf(t);return q?["do","decide","delegate","drop"].indexOf(q):null;}
-    case "category":{const i=S.categories.findIndex(c=>c.id===t.cat);return i<0?null:i;}
+    case "category":{const i=cats().findIndex(c=>c.id===t.cat);return i<0?null:i;}
     case "status":{const i=lanes().findIndex(l=>l.id===t.status);return i<0?null:i;}
     case "estimate":return tEst(t)||null;
     case "tracked":return trackedSecs(t.id)||null;
@@ -2407,7 +2524,7 @@ function setFullSubs(on){
     let n=0;
     S.tasks.slice().forEach(t=>{
       if(t.parent||!(t.subtasks||[]).length)return;
-      t.subtasks.forEach(s=>{if(!s.t)return;S.tasks.push(newTask({title:s.t,parent:t.id,cat:t.cat,board:t.board,status:s.d?firstDone(t.board):firstOpen(t.board)}));n++;});
+      t.subtasks.forEach(s=>{if(!s.t)return;S.tasks.push(newTask({title:s.t,parent:t.id,cat:t.cat,ws:t.ws,status:s.d?firstDone(t.ws):firstOpen(t.ws)}));n++;});
       t.subtasks=[];
     });
     if(n)save("tasks");
@@ -2489,9 +2606,10 @@ function colCell(k,t){
 function customiseModal(){
   const c=V.cz=V.cz||{tab:"lanes"};
   czReadDraft();  /* a field being written survives a redraw from a switch */
-  const tabs=[["boards","Boards","i-grid"],["lanes","Board lanes","i-board"],["panel","Task details","i-panel"],["list","List view","i-list"]];
+  const tabs=[["lanes","Board lanes","i-board"],["panel","Task details","i-panel"],["list","List view","i-list"]];
   if(c.tab==="cols")c.tab="list";
-  const body=c.tab==="boards"?czBoards():c.tab==="panel"?czPanel():c.tab==="list"?czList():czLanes();
+  if(c.tab==="boards")c.tab="lanes";
+  const body=c.tab==="panel"?czPanel():c.tab==="list"?czList():czLanes();
   openModal('<div class="modal cz" role="dialog" aria-modal="true" aria-label="Customize tasks">'+
     '<div class="mhead2">'+icon("i-sliders","ic-18")+'<h2>Customize tasks</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="cz-tabs" role="tablist">'+tabs.map(x=>'<button role="tab" class="cz-tab" data-act="cz-tab" data-v="'+x[0]+'" aria-selected="'+(c.tab===x[0])+'">'+icon(x[2],"ic-14")+x[1]+'</button>').join("")+'</div>'+
@@ -2500,67 +2618,125 @@ function customiseModal(){
 /* ---- boards, the making and unmaking of them ----
    Lives beside the customise window it is edited from; the model itself is
    further up, with the lanes. */
-function boardAdd(){
-  const bs=boards(),used=bs.map(b=>b.color),col=LANE_COLORS.find(x=>used.indexOf(x)<0)||LANE_COLORS[bs.length%LANE_COLORS.length];
-  const b={id:uid("b"),name:"New board",color:col,lanes:newBoardLanes()};
-  bs.push(b);S.prefs.boardAt=b.id;V.f={quick:"all",status:"",cat:"",quad:"",from:"",to:"",sort:"due"};
-  V.qa=null;save("prefs");V.cz={tab:"boards"};customiseModal();render();
+/* ---- making, renaming and removing a workspace ----
+   Lives in Settings, not in Customize: a workspace is not a setting about
+   tasks, it is where everything lives. V.ws holds what the pane is doing --
+   which swatch is open, which one is being removed. */
+function wsState(){return V.ws||(V.ws={});}
+function spaceAdd(){
+  const bs=spaces(),used=bs.map(b=>b.color),col=LANE_COLORS.find(x=>used.indexOf(x)<0)||LANE_COLORS[bs.length%LANE_COLORS.length];
+  const w={id:uid("w"),name:"New workspace",color:col,icon:WS_ICONS[bs.length%WS_ICONS.length],lanes:newSpaceLanes()};
+  bs.push(w);
+  /* A workspace with no categories of its own would have nowhere to put a
+     task, so it starts with the same five a new planner starts with. */
+  baseCategories().forEach(c=>S.categories.push(Object.assign({},c,{id:uid("c"),ws:w.id})));
+  S.prefs.spaceAt=w.id;
+  V.f={quick:"all",status:"",cat:"",quad:"",from:"",to:"",sort:"due"};
+  V.qa=null;V.noteId=null;V.ws={};
+  save("prefs");save("categories");
+  V.setTab="spaces";settingsModal();render();
   /* Opening the window afresh puts the caret in its first field 40ms later
-     (openModal), which would be another board's name; this one waits. */
-  setTimeout(()=>{const inp=document.querySelector('[data-act="cz-board-name"][data-id="'+b.id+'"]');
+     (openModal), which would be another workspace's name; this one waits. */
+  setTimeout(()=>{const inp=document.querySelector('[data-act="ws-name"][data-id="'+w.id+'"]');
     if(inp){inp.focus();inp.select();}},60);
 }
-/* Removing a board asks where its tasks go, as removing a lane does, and
-   the last one cannot go at all: the Tasks section has to be somewhere. */
-function boardRemove(id){
-  const bs=boards();if(bs.length<2)return;
-  const b=boardById(id);if(!b)return;
-  const to=(el("czBoardTo")||{}).value||(bs.find(x=>x.id!==id)||{}).id;
-  const mine=(S.tasks||[]).filter(t=>t.board===id);
-  if(to==="__del__")mine.forEach(t=>deleteTask(t.id,true));
-  else mine.forEach(t=>{t.board=to;t.status=laneFor(t.status,to);});
-  S.prefs.boards=bs.filter(x=>x.id!==id);
-  if(S.prefs.boardAt===id)S.prefs.boardAt=to==="__del__"?S.prefs.boards[0].id:to;
-  V.cz.del=null;V.f.status="";
-  save("tasks");save("prefs");customiseModal();render();renderSheet();
-  toast(to==="__del__"?"Board and its tasks deleted":"Board removed, its tasks moved");
+/* Everything a workspace holds goes with it, so removing one asks where
+   that is to go: into another workspace, or nowhere. The last one cannot
+   go at all -- the planner has to be somewhere. */
+function wsCounts(id){
+  return {tasks:tops().filter(t=>t.ws===id).length,
+    routines:S.routines.filter(r=>r.ws===id).length,
+    notes:S.notes.filter(n=>n.ws===id).length,
+    cats:catsOf(id).length};
 }
-function czBoards(){
-  const bs=boards(),cur=curBoard(),del=V.cz.del?boardById(V.cz.del):null;
-  const count=id=>tops().filter(t=>(t.board||bs[0].id)===id).length;
-  return '<p class="cz-lead">A board is a workspace of its own \u2014 its own lanes, its own tasks. '+
-      'Your calendar, dashboard and matrix still show everything, whichever board it is on.</p>'+
-    '<div class="cz-lanes" id="czBoards">'+bs.map(b=>{const n=count(b.id),pal=V.cz.pal===b.id;
-      return '<div class="cz-lane'+(b.id===cur.id?" on":"")+'" draggable="true" data-board="'+b.id+'" style="--s:'+b.color+'">'+
-        '<button type="button" class="cz-grip" data-grip="board" data-id="'+b.id+'" title="Drag to reorder" aria-label="Move '+esc(b.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
-        '<button class="cz-swatch" data-act="cz-board-pal" data-id="'+b.id+'" aria-label="Color of '+esc(b.name)+'" aria-expanded="'+pal+'"></button>'+
-        '<input class="cz-name" data-act="cz-board-name" data-id="'+b.id+'" value="'+esc(b.name)+'" maxlength="40" aria-label="Board name">'+
-        '<span class="cz-n num" title="Tasks on this board">'+n+'</span>'+
-        '<span class="cz-n-lanes">'+b.lanes.length+' lane'+(b.lanes.length===1?"":"s")+'</span>'+
-        (b.id===cur.id?'<span class="cz-here">Showing</span>'
-          :'<button class="btn btn-sm" data-act="cz-board-open" data-id="'+b.id+'">Open</button>')+
-        '<button class="icon-btn btn-sm cz-del" data-act="cz-board-del" data-id="'+b.id+'" aria-label="Remove '+esc(b.name)+'"'+(bs.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
-        (pal?'<div class="cz-pal">'+LANE_COLORS.map(x=>'<button class="'+(x===b.color?"on":"")+'" style="--c:'+x+'" data-act="cz-board-color" data-id="'+b.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
-          cpSwatch('data-act="cp-open" data-cp="board" data-id="'+b.id+'"',b.color,LANE_COLORS.indexOf(b.color)<0,"Any color you like")+'</div>':"")+
-        (del&&del.id===b.id?czBoardDelRow(b,n):"")+
-        '</div>';}).join("")+'</div>'+
-    '<button class="btn btn-sm" data-act="cz-board-add">'+icon("i-plus","ic-14")+'Add a board</button>';
+function spaceRemove(id){
+  const bs=spaces();if(bs.length<2)return;
+  const w=spaceById(id);if(!w)return;
+  const to=(el("wsMoveTo")||{}).value||(bs.find(x=>x.id!==id)||{}).id;
+  const drop=to==="__del__";
+  if(drop){
+    tops().filter(t=>t.ws===id).forEach(t=>deleteTask(t.id,true));
+    S.routines.filter(r=>r.ws===id).forEach(r=>{
+      Object.keys(S.completions).forEach(k=>{if(k.indexOf(r.id+"|")===0)delete S.completions[k];});});
+    S.routines=S.routines.filter(r=>r.ws!==id);
+    S.notes=S.notes.filter(n=>n.ws!==id);
+    S.categories=S.categories.filter(c=>c.ws!==id);
+    S.prefs.away=awayList().filter(a=>a.ws!==id);
+    save("completions");save("notes");
+  }else{
+    /* Carried over: each thing keeps a category of the same name where the
+       workspace it lands in has one, and its lane likewise. */
+    tops().filter(t=>t.ws===id).forEach(t=>{
+      t.ws=to;t.status=laneFor(t.status,to);t.cat=catFor(t.cat,to);
+      S.tasks.forEach(k=>{if(k.parent===t.id){k.ws=to;k.status=laneFor(k.status,to);k.cat=catFor(k.cat,to);}});});
+    S.routines.forEach(r=>{if(r.ws===id){r.ws=to;r.cat=catFor(r.cat,to);}});
+    S.notes.forEach(n=>{if(n.ws===id){n.ws=to;n.cat=catFor(n.cat,to);}});
+    awayList().forEach(a=>{if(a.ws===id)a.ws=to;});
+    /* Its categories are not carried: everything that wore one now wears
+       one of the workspace it moved to. */
+    S.categories=S.categories.filter(c=>c.ws!==id);
+    save("routines");save("notes");
+  }
+  S.prefs.spaces=bs.filter(x=>x.id!==id);
+  if(S.prefs.spaceAt===id)S.prefs.spaceAt=drop?S.prefs.spaces[0].id:to;
+  wsState().del=null;V.f.status="";V.noteId=null;
+  save("tasks");save("categories");save("prefs");
+  settingsModal();render();renderSheet();
+  toast(drop?"Workspace deleted, and everything in it":"Workspace removed \u2014 what was in it moved to "+spaceById(to).name);
 }
-function czBoardDelRow(b,n){
-  const others=boards().filter(x=>x.id!==b.id);
-  return '<div class="cz-delrow">'+(n
-    ?'<span>Move its '+n+' task'+(n===1?"":"s")+' to</span><select class="inp inp-sm" id="czBoardTo">'+
+function setSpacesPane(sec,field){
+  const bs=spaces(),at=S.prefs.spaceAt,w=wsState(),del=w.del?spaceById(w.del):null;
+  const rows=bs.map(b=>{const n=wsCounts(b.id),pal=w.pal===b.id,here=b.id===at;
+    const held=[n.tasks+" task"+(n.tasks===1?"":"s"),n.routines+" routine"+(n.routines===1?"":"s"),
+      n.notes+" note"+(n.notes===1?"":"s"),n.cats+" categor"+(n.cats===1?"y":"ies")].join(" \u00b7 ");
+    return '<div class="wsrow'+(here?" on":"")+'" draggable="true" data-ws="'+b.id+'" style="--s:'+b.color+'">'+
+      '<button type="button" class="cz-grip" data-grip="ws" data-id="'+b.id+'" title="Drag to reorder" aria-label="Move '+esc(b.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
+      '<button class="wsrow-ic" data-act="ws-pal" data-id="'+b.id+'" aria-label="Icon and color of '+esc(b.name)+'" aria-expanded="'+pal+'">'+icon(b.icon||"i-grid","ic-14")+'</button>'+
+      '<span class="wsrow-t"><input class="cz-name" data-act="ws-name" data-id="'+b.id+'" value="'+esc(b.name)+'" maxlength="40" aria-label="Workspace name">'+
+        '<small>'+esc(held)+'</small></span>'+
+      (here?'<span class="cz-here">Current</span>'
+        :'<button class="btn btn-sm" data-act="ws-open" data-id="'+b.id+'">Open</button>')+
+      '<button class="icon-btn btn-sm cz-del" data-act="ws-del" data-id="'+b.id+'" aria-label="Remove '+esc(b.name)+'"'+(bs.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
+      (pal?'<div class="ws-pal">'+
+        '<div class="ws-pal-row">'+LANE_COLORS.map(x=>'<button class="'+(x===b.color?"on":"")+'" style="--c:'+x+'" data-act="ws-color" data-id="'+b.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
+          cpSwatch('data-act="cp-open" data-cp="ws" data-id="'+b.id+'"',b.color,LANE_COLORS.indexOf(b.color)<0,"Any color you like")+'</div>'+
+        '<div class="ws-pal-row ic">'+WS_ICONS.map(x=>'<button class="'+(x===(b.icon||"i-grid")?"on":"")+'" data-act="ws-icon" data-id="'+b.id+'" data-v="'+x+'" aria-label="'+x+'">'+icon(x,"ic-14")+'</button>').join("")+'</div>'+
+        '</div>':"")+
+      (del&&del.id===b.id?wsDelRow(b,n):"")+
+      '</div>';}).join("");
+  return sec("Your workspaces",
+      '<div class="wslist" id="wsList">'+rows+'</div>'+
+      '<button class="btn btn-sm" data-act="ws-add">'+icon("i-plus","ic-14")+'New workspace</button>')+
+    sec("Across all of them",
+      field("",'<button class="btn btn-sm'+(at===WS_ALL?" btn-primary":"")+'" data-act="ws-open" data-id="'+WS_ALL+'">'+
+        icon("i-grid","ic-14")+(at===WS_ALL?"You are in All workspaces":"Open All workspaces")+'</button>',
+        "Every section shows everything at once. The dashboard is always across all of them, whichever workspace you are in, because today does not belong to one."));
+}
+function wsDelRow(b,n){
+  const others=spaces().filter(x=>x.id!==b.id);
+  const any=n.tasks+n.routines+n.notes;
+  return '<div class="cz-delrow">'+(any
+    ?'<span>Move what is in it to</span><select class="inp inp-sm" id="wsMoveTo">'+
       others.map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("")+
-      '<option value="__del__">Nowhere \u2014 delete them</option></select>'
-    :'<span>Remove this empty board?</span>')+
-    '<div class="spacer" style="flex:1"></div><button class="btn btn-sm" data-act="cz-board-del-no">Keep it</button>'+
-    '<button class="btn btn-sm btn-danger" data-act="cz-board-del-yes" data-id="'+b.id+'">Remove board</button></div>';
+      '<option value="__del__">Nowhere \u2014 delete it all</option></select>'
+    :'<span>Remove this empty workspace?</span>')+
+    '<div class="spacer" style="flex:1"></div><button class="btn btn-sm" data-act="ws-del-no">Keep it</button>'+
+    '<button class="btn btn-sm btn-danger" data-act="ws-del-yes" data-id="'+b.id+'">Remove workspace</button></div>';
 }
-
+/* Lanes and categories belong to a workspace. Across all of them there is
+   no workspace to edit, and quietly editing the first one's -- which is
+   what curSpace() answers with -- would be a change nobody asked for. */
+function wsOnlyNote(what){
+  return '<div class="ws-only">'+icon("i-grid","ic-18")+
+    '<div><b>'+esc(what)+' belong to a workspace</b>'+
+    '<small>You are looking across all of them. Open one to edit its '+esc(what.toLowerCase())+'.</small></div>'+
+    '<button class="btn btn-sm" data-act="ws-menu" aria-haspopup="menu">Choose one</button></div>';
+}
 function czLanes(){
-  const L=lanes(),count=id=>boardTasks().filter(t=>t.status===id).length,doneN=L.filter(l=>l.done).length;
+  if(wsAll())return wsOnlyNote("Lanes");
+  const L=lanes(),count=id=>wsTasks().filter(t=>t.status===id).length,doneN=L.filter(l=>l.done).length;
   const del=V.cz.del?lane(V.cz.del):null;
-  return '<p class="cz-lead">The columns on <b class="cz-which"><span class="bd-dot" style="--s:'+curBoard().color+'"></span>'+esc(curBoard().name)+'</b>, left to right. '+
+  return '<p class="cz-lead">The columns on <b class="cz-which"><span class="bd-dot" style="--s:'+curSpace().color+'"></span>'+esc(curSpace().name)+'</b>, left to right. '+
       'Drag to reorder, click a name to rename it, and switch on <b>Done</b> for the lane finished tasks go to. '+
       'Every board keeps its own.</p>'+
     '<div class="cz-lanes" id="czLanes">'+L.map((l,i)=>{const n=count(l.id),pal=V.cz.pal===l.id;
@@ -2742,10 +2918,10 @@ function czMoveLane(id,step){
   if(i<0||j<0||j>=L.length)return;
   const x=L.splice(i,1)[0];L.splice(j,0,x);save("prefs");customiseModal();render();
 }
-function czMoveBoard(id,step){
-  const bs=boards(),i=bs.findIndex(b=>b.id===id),j=i+step;
+function spaceMove(id,step){
+  const bs=spaces(),i=bs.findIndex(b=>b.id===id),j=i+step;
   if(i<0||j<0||j>=bs.length)return;
-  const x=bs.splice(i,1)[0];bs.splice(j,0,x);save("prefs");customiseModal();render();
+  const x=bs.splice(i,1)[0];bs.splice(j,0,x);save("prefs");settingsModal();render();
 }
 function czMoveCol(k,step){
   const cols=listCols(),on=cols.filter(c=>c.on),i=on.findIndex(c=>c.k===k),j=i+step;
@@ -2760,18 +2936,18 @@ function czRemoveLane(id){
   const to=(el("czMoveTo")||{}).value||(L.find(x=>x.id!==id)||{}).id;
   S.tasks.forEach(t=>{if(t.status===id){t.status=to;t.completedAt=isDoneT(t)?(t.completedAt||TODAY()):null;}});
   ixDrop();
-  curBoard().lanes=L.filter(x=>x.id!==id);
+  curSpace().lanes=L.filter(x=>x.id!==id);
   V.cz.del=null;save("tasks");save("prefs");customiseModal();render();renderSheet();toast("Lane removed");
 }
 /* Dragging a lane or a column in the list to a new place. */
 function czDragWire(){
   let from=null;
   document.addEventListener("dragstart",e=>{
-    const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col,.cm-row");if(!r)return;
+    const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col,.cm-row,.wsrow");if(!r)return;
     from=r;r.classList.add("dragging");try{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain","");}catch(x){}
   });
   document.addEventListener("dragover",e=>{
-    if(!from)return;const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col,.cm-row");
+    if(!from)return;const r=e.target.closest&&e.target.closest(".cz-lane,.cz-col,.cm-row,.wsrow");
     if(!r||r===from||r.parentNode!==from.parentNode)return;
     e.preventDefault();const b=r.getBoundingClientRect(),after=e.clientY>b.top+b.height/2;
     r.parentNode.insertBefore(from,after?r.nextSibling:r);
@@ -2779,11 +2955,11 @@ function czDragWire(){
   document.addEventListener("dragend",()=>{
     if(!from)return;const box=from.parentNode;from.classList.remove("dragging");from=null;
     if(box.id==="czLanes"){const order=[...box.children].map(x=>x.dataset.lane);
-      curBoard().lanes=order.map(id=>lane(id)).filter(Boolean);save("prefs");customiseModal();render();}
-    else if(box.id==="czBoards"){const order=[...box.children].map(x=>x.dataset.board);
-      S.prefs.boards=order.map(id=>boardById(id)).filter(Boolean);save("prefs");customiseModal();render();}
+      curSpace().lanes=order.map(id=>lane(id)).filter(Boolean);save("prefs");customiseModal();render();}
+    else if(box.id==="wsList"){const order=[...box.children].map(x=>x.dataset.ws);
+      S.prefs.spaces=order.map(id=>spaceById(id)).filter(Boolean);save("prefs");settingsModal();render();}
     else if(box.id==="cmList"){const order=[...box.children].map(x=>x.dataset.cat);
-      S.categories=order.map(id=>S.categories.find(c=>c.id===id)).filter(Boolean);save("categories");renderRail();renderView();catsModal();}
+      catsReorder(order);renderRail();renderView();catsModal();}
     else if(box.id==="czCols"){const cols=listCols(),order=[...box.children].map(x=>x.dataset.col);
       board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean).concat(cols.filter(c=>order.indexOf(c.k)<0));save("prefs");customiseModal();render();}
   });
@@ -2792,7 +2968,7 @@ czDragWire();
 
 /* ============ matrix ============ */
 function viewMatrix(){
-  const base=tops().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped"&&(!isDoneT(t)||V.f.quick==="done"));
+  const base=wsTasks().filter(t=>visibleCat(t.cat)&&matchQ(t,V.q)&&t.status!=="dropped"&&(!isDoneT(t)||V.f.quick==="done"));
   const byDue=(a,b)=>{if(!a.due)return 1;if(!b.due)return -1;return a.due<b.due?-1:(a.due>b.due?1:0);};
   const grid='<div class="mx">'+QUADS.map(Q=>{
     const items=base.filter(t=>quadOf(t)===Q.id).sort(byDue);
@@ -2821,7 +2997,7 @@ function viewMatrix(){
 /* ============ routines ============ */
 function viewRoutines(){
   const q=V.q.toLowerCase();
-  const list=S.routines.filter(r=>visibleCat(r.cat)&&(!q||r.title.toLowerCase().indexOf(q)>-1||cat(r.cat).name.toLowerCase().indexOf(q)>-1));
+  const list=wsRoutines().filter(r=>visibleCat(r.cat)&&(!q||r.title.toLowerCase().indexOf(q)>-1||cat(r.cat).name.toLowerCase().indexOf(q)>-1));
   if(!list.length)return '<div class="card es-card">'+(S.routines.length
     ?es("filter","No routines match",q?"Nothing fits “"+esc(V.q)+"”. Try another word.":"Their categories are hidden. Check them in the sidebar to see them.",{hue:"var(--apricot)"})
     :es("routine","Build a rhythm","Stand-ups, workouts, a weekly review: pick the days, check them off, and watch your streak grow.",
@@ -3006,7 +3182,7 @@ function freqLabel(r){
 function allTags(){const s=[];S.notes.forEach(n=>(n.tags||[]).forEach(t=>{if(s.indexOf(t)===-1)s.push(t);}));return s.sort();}
 function viewNotes(){
   const q=V.q.toLowerCase();
-  let list=S.notes.filter(n=>visibleCat(n.cat));
+  let list=wsNotes().filter(n=>visibleCat(n.cat));
   if(V.noteTag)list=list.filter(n=>(n.tags||[]).indexOf(V.noteTag)>-1);
   if(q)list=list.filter(n=>(n.title||"").toLowerCase().indexOf(q)>-1||stripHtml(n.html).toLowerCase().indexOf(q)>-1||(n.tags||[]).join(" ").toLowerCase().indexOf(q)>-1);
   list.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.updated||0)-(a.updated||0));
@@ -3049,7 +3225,7 @@ function viewNotes(){
     '<button data-act="note-pin" data-id="'+n.id+'" title="Pin note" style="width:auto;padding:0 9px;font-size:12px;font-weight:600">'+(n.pinned?"Unpin":"Pin")+'</button>'+
     '<button data-act="note-delete" data-id="'+n.id+'" title="Delete note" style="color:var(--danger)">'+icon("i-trash","ic-14")+'</button></div>';
   const meta='<div class="ned-meta">'+
-    catSelect('class="inp" id="noteCat" aria-label="Category"',n.cat,{cls:"note-cat"})+
+    catSelect('class="inp" id="noteCat" aria-label="Category"',n.cat,{cls:"note-cat",ws:n.ws||curSpace().id})+
     '<input class="inp" id="noteTags" style="width:auto;min-width:200px;flex:1" value="'+esc((n.tags||[]).join(", "))+'" placeholder="Tags, comma separated">'+
     '</div>';
   const acts='<div class="actions-panel"><h4>'+icon("i-check","ic-14")+'Action items <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0">— each one becomes a task on your board and calendar</span></h4>'+
@@ -3320,7 +3496,7 @@ function obFlame(cls,c){
    so they are already in the air when the page opens rather than setting
    off together. */
 function obEmbers(n){
-  const cols=[accentHex(),ACCENTS[0].hex].concat(S.categories.map(c=>c.color),CAT_COLORS);
+  const cols=[accentHex(),ACCENTS[0].hex].concat(cats().map(c=>c.color),CAT_COLORS);
   let em="";
   for(let k=0;k<n;k++){
     const x=(k*37+7)%100, s=3+(k%5), dx=((k%5)-2)*34, d=10+(k%7)*2.2, dl=-((k*1.7)%18), soft=k%4===0;
@@ -3463,7 +3639,7 @@ function obShowName(){
     '<h2 id="obxHi">'+esc(dashGreeting()+(n?", "+n:""))+'</h2>'+
     '<p class="obx-hi-sub">Here is your day, all in one place.</p>'+
     '<div class="obx-hi-row"><div class="obx-ring-mini"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15"/><circle class="arc" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="60 100"/></svg><b class="num">3/5</b></div>'+
-      '<div class="obx-strip">'+S.categories.slice(0,4).map((c,k)=>'<i style="--c:'+c.color+';left:'+(8+k*22)+'%;width:'+(10+(k%2)*6)+'%"></i>').join("")+'<em style="left:58%"></em></div></div>'+
+      '<div class="obx-strip">'+cats().slice(0,4).map((c,k)=>'<i style="--c:'+c.color+';left:'+(8+k*22)+'%;width:'+(10+(k%2)*6)+'%"></i>').join("")+'<em style="left:58%"></em></div></div>'+
     '</div>';
 }
 
@@ -3476,10 +3652,10 @@ function obShowName(){
    of full-width rows were both tried in between; the chips are what the
    step wants. */
 function obCats(){
-  const many=S.categories.length>1;
+  const many=cats().length>1;
   return obHead("Categories","Color-code <em>your life</em>",
       "Rename, recolor or remove any of these to suit how you plan.")+
-    '<div class="obx-cats">'+S.categories.map(c=>{const open=OB.pal===c.id;
+    '<div class="obx-cats">'+cats().map(c=>{const open=OB.pal===c.id;
       return '<div class="obx-cat'+(open?" open":"")+'" style="--c:'+c.color+'">'+
         '<button class="obx-swatch" data-act="ob-cat-pal" data-id="'+c.id+'" aria-expanded="'+open+'" aria-label="Color and icon of '+esc(c.name)+'">'+icon(c.icon,"ic-16")+'</button>'+
         '<input class="obx-cat-name" data-act="ob-cat-name" data-id="'+c.id+'" value="'+esc(c.name)+'" size="'+Math.max(4,c.name.length)+'" maxlength="30" aria-label="Category name">'+
@@ -3512,7 +3688,7 @@ function obPickClose(){
   return true;
 }
 function obShowCats(){
-  const cs=S.categories,n=cs.length;
+  const cs=cats(),n=cs.length;
   return '<div class="obx-orbit">'+
     '<div class="obx-orbit-ring r1"></div><div class="obx-orbit-ring r2"></div>'+
     '<div class="obx-core">'+obFlame("core")+'<span>'+esc(S.prefs.name||"You")+'</span></div>'+
@@ -3538,7 +3714,7 @@ function obRt(){
   if(!OB.rt)OB.rt=OB_RT.map(x=>Object.assign({on:false},x));
   return OB.rt;
 }
-const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:S.categories[0].id;
+const obRtCat=x=>S.categories.some(c=>c.id===x.cat)?x.cat:cat0().id;
 /* Each routine is a card, and a card only picks: tapping it puts the
    routine in your week or takes it out. What it is like is changed in the
    week beside it — a square is a day, tapped on or off, and the length at
@@ -3596,7 +3772,7 @@ function obRtCommit(){
   S.routines=S.routines.filter(r=>made.indexOf(r.id)<0);
   const ids=[];
   obRt().filter(x=>x.on&&x.days.length).forEach(x=>{const id=uid("r");ids.push(id);
-    S.routines.push({id:id,title:(x.title||"").trim()||"My routine",cat:obRtCat(x),freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""});});
+    S.routines.push({id:id,ws:curSpace().id,title:(x.title||"").trim()||"My routine",cat:obRtCat(x),freq:"weekly",days:x.days.slice(),every:2,time:x.time,dur:x.dur,start:TODAY(),end:"",active:true,note:""});});
   save("routines");
   S.prefs.onboard=Object.assign({},S.prefs.onboard||{},{made:ids});S.prefs.rtSeeded=true;save("prefs");
 }
@@ -3615,7 +3791,7 @@ function obCalendar(){
     '<p class="obx-fine">Uses the account you signed in with. You can change this anytime.</p>';
 }
 function obShowCalendar(){
-  const on=gcalOn(),c=S.categories;
+  const on=gcalOn(),c=cats();
   const row=(dir,title,when,col,from)=>'<div class="obx-flow '+dir+'" style="--c:'+col+'"><i></i><b>'+esc(title)+'</b><small class="num">'+esc(when)+'</small><em>'+icon(from?"i-chev-l":"i-chev-r","ic-14")+'</em></div>';
   return '<div class="obx-panel obx-cal'+(on?" on":"")+'">'+
     '<div class="obx-pair"><span class="obx-tile brand-mark">'+icon("i-ember","ic-18")+'</span>'+
@@ -3651,7 +3827,7 @@ function obLook(){
   const cur=S.prefs.theme||"light";
   /* Each theme as the app in miniature: a sidebar, a header with the accent
      button, and two task cards in the person's own category colours. */
-  const cc=S.categories;
+  const cc=cats();
   const mini=t=>'<span class="mini '+t+'"><i class="m-rail"><b></b><b></b><b></b></i>'+
     '<i class="m-top"><u></u><em></em></i>'+
     [0,1].map(k=>'<i class="m-card"><s style="--c:'+((cc[k]||{}).color||CAT_COLORS[k])+'"></s><u></u></i>').join("")+'</span>';
@@ -3665,7 +3841,7 @@ function obLook(){
 /* The app in miniature, drawn from the real tokens, so it changes the moment
    the theme or accent does. */
 function obShowApp(){
-  const c=S.categories,n=S.prefs.name||"";
+  const c=cats(),n=S.prefs.name||"";
   const card=(cc,title,done)=>'<div class="obx-mcard'+(done?" done":"")+'" style="--c:'+cc.color+'"><span class="obx-mpill">'+esc(cc.name)+'</span>'+
     '<span class="obx-mline"><i class="obx-mtick">'+(done?icon("i-check"):"")+'</i>'+esc(title)+'</span></div>';
   return '<div class="obx-app">'+
@@ -3760,7 +3936,7 @@ function obDone(){
       (g?item(signedIn(),"i-user","Signed in",esc((GC.status&&GC.status.email)||"")):"")+
       item(true,driveOn()?"i-cloud":"i-laptop",driveOn()?"Backed up to Google Drive":"Saved in this "+here(),
         driveOn()?"After every change":"As you go")+
-      (OB.mode==="new"?item(true,"i-tag",S.categories.length+" categories",rts?rts+" routine"+(rts===1?"":"s")+" to start with":"Ready for your first task"):"")+
+      (OB.mode==="new"?item(true,"i-tag",cats().length+" categories",rts?rts+" routine"+(rts===1?"":"s")+" to start with":"Ready for your first task"):"")+
       (g?item(gcalOn(),"i-calendar",gcalOn()?"Google Calendar connected":"Google Calendar",gcalOn()?"Syncing both ways":"Connect anytime in Settings"):"")+
       (d?item(!!vaultPath(),"i-folder",vaultPath()?"Obsidian vault linked":"Obsidian",vaultPath()?esc(vaultPath()):"Link a vault anytime in Settings"):"")+
     '</div>'+obBackupCard()+(d?"":obGetApp());
@@ -3791,12 +3967,12 @@ function obGetApp(){
    of moons stood here, which said orbit rather than ember. */
 function obShowDone(){
   const g=googleReady(),d=hasDesktop(),rts=((S.prefs.onboard&&S.prefs.onboard.made)||[]).length;
-  const logs=[[true,"i-tag",S.categories.length+" categories"]];
+  const logs=[[true,"i-tag",cats().length+" categories"]];
   if(rts)logs.push([true,"i-repeat",rts+" routine"+(rts===1?"":"s")]);
   if(g){logs.push([driveOn(),"i-cloud","Drive"]);logs.push([gcalOn(),"i-calendar","Calendar"]);}
   if(d)logs.push([!!vaultPath(),"i-folder","Obsidian"]);
   logs.push([true,"i-bell","Reminders"]);
-  const cols=[accentHex(),ACCENTS[0].hex].concat(S.categories.map(c=>c.color));
+  const cols=[accentHex(),ACCENTS[0].hex].concat(cats().map(c=>c.color));
   let sparks="";
   for(let k=0;k<26;k++)sparks+='<i style="--c:'+cols[k%cols.length]+';--x:'+(((k*31)%110)-55)+'px;--s:'+(3+k%5)+'px;--d:'+(2.6+(k%5)*.7).toFixed(1)+'s;--dl:'+((k*310)%3400)+'ms"></i>';
   return '<div class="obx-bonfire">'+
@@ -3964,6 +4140,7 @@ function applyAppearance(){
 const SET_TABS=[
   {group:"You"},
   {id:"account",    name:"Account",        icon:"i-user"},
+  {id:"spaces",     name:"Workspaces",     icon:"i-grid"},
   {group:"Preferences"},
   {id:"appearance", name:"Appearance",     icon:"i-palette"},
   {id:"dates",      name:"Dates and times",icon:"i-clock"},
@@ -4082,6 +4259,7 @@ function settingsModal(){
 
   let pane="";
   if(tab==="account")pane=accountPane(sec,field,toggle);
+  else if(tab==="spaces")pane=setSpacesPane(sec,field);
   else if(tab==="appearance"){
     const themePick=themePickHtml(),accentPick=accentPickHtml();
 
@@ -4435,7 +4613,7 @@ function subRow(s){return '<div class="sub-row'+(s.d?" done":"")+'" data-sid="'+
    More options, closed. "At 9am for 30m in Personal" as a sentence read as
    a puzzle, and four tabs with nothing under two of them looked broken. */
 function routineModal(id,preset){
-  const r=id?routineById(id):Object.assign({id:"",title:"",cat:S.categories[0].id,freq:"weekly",days:[1,2,3,4,5],every:2,time:"09:00",dur:30,start:TODAY(),end:"",active:true,note:""},preset||{});
+  const r=id?routineById(id):Object.assign({id:"",title:"",cat:cat0().id,freq:"weekly",days:[1,2,3,4,5],every:2,time:"09:00",dur:30,start:TODAY(),end:"",active:true,note:""},preset||{});
   if(!r)return;
   const days=r.days||[],wk=days.length===5&&[1,2,3,4,5].every(x=>days.indexOf(x)>-1);
   const rep=r.freq==="interval"?"interval":days.length===7?"daily":wk?"weekdays":"weekly";
@@ -4449,7 +4627,7 @@ function routineModal(id,preset){
     '<div class="rt-grid">'+
       field("Time",timeField('id="rTime"',r.time,{label:"Time",req:1}))+
       field("How long",'<select class="inp" id="rDur" aria-label="How long">'+durs.map(m=>'<option value="'+m+'"'+(m===r.dur?" selected":"")+'>'+esc(fmtMins(m))+'</option>').join("")+'</select>')+
-      field("Category",catSelect('class="inp" id="rCat" aria-label="Category"',r.cat))+
+      field("Category",catSelect('class="inp" id="rCat" aria-label="Category"',r.cat,{ws:r.ws||curSpace().id}))+
     '</div>'+
     '<div class="rt-sec"><div class="rt-rep">'+field("Repeats",'<select class="inp" id="rRep" aria-label="Repeats">'+
       [["daily","Every day"],["weekdays","Weekdays (Mon – Fri)"],["weekly","On chosen days"],["interval","Every few days"]].map(x=>
@@ -4469,6 +4647,9 @@ function routineModal(id,preset){
     '</div><div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Cancel</button>'+
     '<button class="btn btn-primary" data-act="routine-save" data-id="'+(id||"")+'">'+icon("i-check")+(id?"Save":"Add routine")+'</button></div></div>');
   const M=el("modalRoot");M.dataset.freq=r.freq;M.dataset.active=String(!!r.active);
+  /* Across all of them the workspace was asked for before the window
+     opened; it is kept here because nothing on the form carries it. */
+  M.dataset.ws=r.ws||curSpace().id;
   if(!id){const t=el("rTitle");if(t)t.focus();}
 }
 /* How a routine repeats, chosen from the drop-down: the week lights the
@@ -4488,10 +4669,14 @@ function rtRepeat(v){
    and says where its tasks go. Name, colour and icon were once a second
    window, and every row carried a Shown label and a task count. */
 function catsModal(){
+  if(wsAll()){openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Categories">'+
+    '<div class="mhead2">'+icon("i-folder","ic-18")+'<h2>Categories</h2>'+
+    '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+    '<div class="mbody">'+wsOnlyNote("Categories")+'</div></div>',{focus:false});return;}
   const E=V.catEdit||{},del=E.del?cat(E.del):null;
   const row=c=>{const open=E.id===c.id?E.part:"",off=!visibleCat(c.id);
     const n=S.tasks.filter(t=>t.cat===c.id).length+S.routines.filter(r=>r.cat===c.id).length;
-    const to=S.categories.find(x=>x.id!==c.id);
+    const to=cats().find(x=>x.id!==c.id);
     return '<div class="cm-row'+(off?" off":"")+(open?" open":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
       '<button type="button" class="cz-grip" data-grip="cat" data-id="'+c.id+'" title="Drag to reorder" aria-label="Move '+esc(c.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
       '<button type="button" class="cm-ic'+(open==="icon"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="icon" aria-label="Icon for '+esc(c.name)+'" aria-expanded="'+(open==="icon")+'">'+icon(c.icon,"ic-16")+'</button>'+
@@ -4509,7 +4694,7 @@ function catsModal(){
   openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Categories">'+
     '<div class="mhead2"><h2>Categories</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="mbody"><p class="cz-lead">Rename, recolor or reorder them. Drag the handle to move one.</p>'+
-      '<div class="cat-manage" id="cmList">'+S.categories.map(row).join("")+'</div>'+
+      '<div class="cat-manage" id="cmList">'+cats().map(row).join("")+'</div>'+
       '<button type="button" class="btn btn-sm cm-new" data-act="cm-new">'+icon("i-plus","ic-14")+'New category</button></div>'+
     '<div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
 }
@@ -4520,13 +4705,28 @@ document.addEventListener("keydown",function(e){const t=e.target;if(t&&t.classLi
 document.addEventListener("keydown",function(e){
   const g=e.target&&e.target.closest&&e.target.closest(".cz-grip[data-grip]");if(!g||(e.key!=="ArrowUp"&&e.key!=="ArrowDown"))return;
   e.preventDefault();const step=e.key==="ArrowUp"?-1:1,k=g.dataset.grip,id=g.dataset.id;
-  if(k==="lane")czMoveLane(id,step);else if(k==="board")czMoveBoard(id,step);
+  if(k==="lane")czMoveLane(id,step);else if(k==="ws")spaceMove(id,step);
   else if(k==="col")czMoveCol(id,step);else if(k==="cat")cmMove(id,step);
   const n=document.querySelector('.cz-grip[data-grip="'+k+'"][data-id="'+CSS.escape(id)+'"]');if(n)n.focus({preventScroll:true});
 });
 function cmSet(id,patch){const c=cat(id);if(!c||c.id!==id)return;Object.assign(c,patch);save("categories");renderRail();renderView();catsModal();}
-function cmMove(id,step){const L=S.categories,i=L.findIndex(c=>c.id===id),j=i+step;if(i<0||j<0||j>=L.length)return;
-  const x=L.splice(i,1)[0];L.splice(j,0,x);save("categories");renderRail();renderView();catsModal();}
+/* Every category lives in the one S.categories list, so reordering a
+   workspace's own writes them back into the places its own occupied and
+   leaves every other workspace's exactly where they were. Mapping the
+   dragged order straight onto S.categories would have deleted every
+   category belonging to every other workspace. */
+function catsReorder(order){
+  if(wsAll())return false;
+  const mine=order.map(id=>S.categories.find(c=>c.id===id)).filter(Boolean);
+  if(mine.length!==cats().length)return false;
+  let i=0;
+  S.categories=S.categories.map(c=>spaceOf(c).id===curSpace().id?mine[i++]:c);
+  save("categories");return true;
+}
+function cmMove(id,step){const L=cats(),i=L.findIndex(c=>c.id===id),j=i+step;if(i<0||j<0||j>=L.length)return;
+  const order=L.map(c=>c.id);order.splice(j,0,order.splice(i,1)[0]);
+  if(!catsReorder(order))return;
+  renderRail();renderView();catsModal();}
 function peekModal(date){
   V.peek=date;
   const ts=tasksFor(date),evs=eventsFor(parseD(date));
@@ -4596,7 +4796,7 @@ function renderView(){
   vp.className="viewport"+(flush?" flush":"");
   if(V.view==="dashboard")vp.innerHTML=viewDashboard();
   else if(V.view==="calendar")vp.innerHTML=viewCalendar();
-  else if(V.view==="tasks")vp.innerHTML=V.taskMode==="board"?viewBoard():viewList();
+  else if(V.view==="tasks")vp.innerHTML=(V.taskMode==="board"&&!wsAll())?viewBoard():viewList();
   else if(V.view==="matrix")vp.innerHTML=viewMatrix();
   else if(V.view==="routines")vp.innerHTML=viewRoutines();
   else vp.innerHTML=viewNotes();
@@ -4616,7 +4816,7 @@ function render(){
   /* The boards and their lanes are settled before anything else: first
      thing on a new planner, before any task can arrive and make it look
      like an old one. */
-  ixDrop();board();boards();fixCats();fixRoutines();fixTasks();
+  ixDrop();board();spaces();fixCats();fixRoutines();fixSpaces();fixTasks();
   renderRail();renderTopbar();renderView();
   /* The day popup lists what the page does; a tick in it redraws the page, so
      the popup is redrawn with it rather than left showing the old state. */
@@ -4629,8 +4829,8 @@ function render(){
 /* ============ actions ============ */
 function toggleTaskDone(id){
   const t=taskById(id);if(!t)return;
-  if(isDoneT(t)){t.status=firstOpen(t.board);t.completedAt=null;logAct(id,"reopened","Reopened the task");}
-  else{t.status=firstDone(t.board);t.completedAt=TODAY();logAct(id,"done","Completed the task");}
+  if(isDoneT(t)){t.status=firstOpen(t.ws);t.completedAt=null;logAct(id,"reopened","Reopened the task");}
+  else{t.status=firstDone(t.ws);t.completedAt=TODAY();logAct(id,"done","Completed the task");}
   save("tasks");render();
   /* A subtask ticked in its parent's panel: the panel shows the tick too. */
   if(V.sheet&&V.sheet.id)renderSheet();
@@ -4654,14 +4854,30 @@ function commitSubs(){
    two move together: laneFor() finds the lane of the same name where the
    new board has one. Subtasks live inside their parent and go with it.
    Returns the board it came from, or nothing if it did not move. */
-function moveTaskBoard(id,bid){
-  const t=taskById(id),b=boardById(bid);
-  if(!t||!b||t.board===bid)return null;
-  const was=boardOf(t).name,before=JSON.parse(JSON.stringify(t));
-  t.board=bid;t.status=laneFor(t.status,bid);
-  S.tasks.forEach(k=>{if(k.parent===id){k.board=bid;k.status=laneFor(k.status,bid);}});
+/* A task belongs to one workspace, and so do the lane it sits in and the
+   category it wears, so all three move together: laneFor() and catFor()
+   find the one called the same thing where the new workspace has one.
+   Subtasks live inside their parent and go with it. Returns the workspace
+   it came from, or nothing if it did not move. */
+function moveTaskWs(id,bid){
+  const t=taskById(id),b=spaceById(bid);
+  if(!t||!b||t.ws===bid)return null;
+  const was=spaceOf(t).name,before=JSON.parse(JSON.stringify(t));
+  t.ws=bid;t.status=laneFor(t.status,bid);t.cat=catFor(t.cat,bid);
+  S.tasks.forEach(k=>{if(k.parent===id){k.ws=bid;k.status=laneFor(k.status,bid);k.cat=catFor(k.cat,bid);}});
   logChanges(id,before,t);
   save("tasks");render();renderSheet();
+  return was;
+}
+/* The same for the other two things a workspace holds. Neither has lanes,
+   so it is only the category that has to be found again. */
+function moveThingWs(kind,id,wid){
+  const b=spaceById(wid);if(!b)return null;
+  const x=kind==="routine"?routineById(id):noteById(id);
+  if(!x||x.ws===wid)return null;
+  const was=spaceOf(x).name;
+  x.ws=wid;x.cat=catFor(x.cat,wid);
+  save(kind==="routine"?"routines":"notes");render();
   return was;
 }
 
@@ -4722,20 +4938,21 @@ function saveRoutine(id){
     remind:(v=>v==="d"?null:v==="off"?false:Number(v))(el("rRemind").value)};
   if(freq==="weekly"&&!days.length){toast("Pick at least one day");return;}
   let r=id?routineById(id):null;
-  if(r)Object.assign(r,data);else S.routines.push(Object.assign({id:uid("r"),note:""},data));
+  if(r)Object.assign(r,data);
+  else S.routines.push(Object.assign({id:uid("r"),ws:M.dataset.ws||curSpace().id,note:""},data));
   save("routines");closeModal();render();toast(id?"Routine updated":"Routine added");
 }
 function saveCat(id){
   const M=el("modalRoot"),name=el("cName").value.trim();
   if(!name){el("cName").focus();toast("Name the category first");return;}
   if(id){const c=cat(id);c.name=name;c.color=M.dataset.color;c.icon=M.dataset.icon;}
-  else S.categories.push({id:uid("c"),name:name,color:M.dataset.color,icon:M.dataset.icon});
+  else S.categories.push({id:uid("c"),ws:curSpace().id,name:name,color:M.dataset.color,icon:M.dataset.icon});
   save("categories");catsModal();renderRail();renderView();
 }
 function delCat(id){
   const n=S.tasks.filter(t=>t.cat===id).length+S.routines.filter(r=>r.cat===id).length+S.notes.filter(x=>x.cat===id).length;
-  if(S.categories.length<2){toast("Keep at least one category");return;}
-  const fbc=S.categories.find(c=>c.id!==id),fb=fbc.id;
+  if(cats().length<2){toast("Keep at least one category in this workspace");return;}
+  const fbc=cats().find(c=>c.id!==id),fb=fbc.id;
   S.tasks.forEach(t=>{if(t.cat===id)t.cat=fb;});S.routines.forEach(r=>{if(r.cat===id)r.cat=fb;});S.notes.forEach(x=>{if(x.cat===id)x.cat=fb;});
   S.categories=S.categories.filter(c=>c.id!==id);
   S.prefs.hidden=S.prefs.hidden.filter(x=>x!==id);
@@ -4746,7 +4963,7 @@ function addAction(nid){
   const n=noteById(nid);if(!n)return;
   const txt=el("aiText").value.trim();if(!txt){el("aiText").focus();return;}
   const due=el("aiDate").value||"";
-  const t={id:uid("t"),title:txt,desc:"From note: "+n.title,due:due,cat:n.cat,board:curBoard().id,status:firstOpen(),urgent:null,important:null,subtasks:[],created:TODAY(),completedAt:null,noteId:n.id};
+  const t={id:uid("t"),title:txt,desc:"From note: "+n.title,due:due,cat:n.cat,ws:curSpace().id,status:firstOpen(),urgent:null,important:null,subtasks:[],created:TODAY(),completedAt:null,noteId:n.id};
   S.tasks.push(t);
   n.actions=n.actions||[];n.actions.push({id:uid("a"),t:txt,done:false,taskId:t.id});
   n.updated=Date.now();
@@ -4772,8 +4989,8 @@ document.addEventListener("click",function(e){
     case "view":V.view=n.dataset.view;V.q="";closeRail();render();break;
     case "cat-toggle":if(n.classList.contains("cat-row")&&Date.now()<CP.skipUntil)break;toggleCat(id);break;
     case "cat-all":hiddenCats().length=0;touched.prefs=true;save("prefs");render();refreshCatsModal();break;
-    case "cat-none":S.prefs.hidden=S.categories.map(c=>c.id);touched.prefs=true;save("prefs");render();refreshCatsModal();break;
-    case "cat-only":S.prefs.hidden=S.categories.filter(c=>c.id!==id).map(c=>c.id);touched.prefs=true;save("prefs");render();refreshCatsModal();break;
+    case "cat-none":S.prefs.hidden=cats().map(c=>c.id);touched.prefs=true;save("prefs");render();refreshCatsModal();break;
+    case "cat-only":S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(c=>c.id!==id).map(c=>c.id));touched.prefs=true;save("prefs");render();refreshCatsModal();break;
     case "cal-prev":V.anchor=V.calMode==="week"?addDays(V.anchor,-7):new Date(V.anchor.getFullYear(),V.anchor.getMonth()-1,1);renderTopbar();renderView();break;
     case "cal-next":V.anchor=V.calMode==="week"?addDays(V.anchor,7):new Date(V.anchor.getFullYear(),V.anchor.getMonth()+1,1);renderTopbar();renderView();break;
     case "cal-today":V.anchor=today();renderTopbar();renderView();break;
@@ -4798,7 +5015,8 @@ document.addEventListener("click",function(e){
     case "task":if(id)openSheet(id);break;
     case "sh-open":if(id)openSheet(id);break;
     case "task-done":toggleTaskDone(id);break;
-    case "new-task":openSheet(null,{due:n.dataset.date||"",status:n.dataset.status||firstOpen()});break;
+    case "new-task":askSpace("the new task",w=>openSheet(null,{ws:w,due:n.dataset.date||"",
+      status:n.dataset.status||firstOpen(w),cat:catFor(cat0().id,w)}));break;
     case "task-delete":if(arm(n,"Delete for good?")){closeModal();deleteTask(id);}break;
     case "sh-sub-add":{const w=el("shSubs"),e=w.parentNode.querySelector(":scope > .es");if(e)e.remove();w.insertAdjacentHTML("beforeend",subRow({id:uid("s"),t:"",d:false}));w.lastElementChild.querySelector("input").focus();break;}
     case "sub-toggle":n.classList.toggle("on");n.closest(".sub-row").classList.toggle("done");commitSubs();break;
@@ -4858,7 +5076,7 @@ document.addEventListener("click",function(e){
           hex=>{setCustomAccent(hex);save("prefs");syncTimerWindow();render();panels();});}
       else if(k==="cat"){const c=cat(id);if(c&&c.id===id)cpOpen(n,c.color,hex=>{n.style.setProperty("--dot",hex);n.classList.add("on");},hex=>cmSet(id,{color:hex}));}
       else if(k==="lane"){const l=lane(id);if(l)cpOpen(n,l.color,hex=>{n.style.setProperty("--dot",hex);n.classList.add("on");},hex=>{l.color=hex;save("prefs");customiseModal();render();});}
-      else if(k==="board"){const b=boardById(id);if(b)cpOpen(n,b.color,hex=>{n.style.setProperty("--dot",hex);n.classList.add("on");},hex=>{b.color=hex;save("prefs");customiseModal();render();});}
+      else if(k==="ws"){const b=spaceById(id);if(b)cpOpen(n,b.color,hex=>{n.style.setProperty("--dot",hex);n.classList.add("on");},hex=>{b.color=hex;save("prefs");settingsModal();render();});}
       else if(k==="opt"){czReadDraft();const o=V.cz.draft&&V.cz.draft.options[Number(n.dataset.v)];
         if(o)cpOpen(n,o.color,hex=>n.style.setProperty("--c",hex),hex=>{czReadDraft();o.color=hex;customiseModal();});}
       break;}
@@ -4867,7 +5085,7 @@ document.addEventListener("click",function(e){
     case "qa-open":qaOpen(n.dataset.status);break;
     case "qa-save":qaSave();break;
     case "qa-close":qaClose();break;
-    case "qa-cat":qaMenu(n,[{v:"",label:"No category"}].concat(S.categories.map(c=>({v:c.id,label:c.name,color:c.color}))),V.qa.cat||"",v=>qaSet("cat",v));break;
+    case "qa-cat":qaMenu(n,[{v:"",label:"No category"}].concat(cats().map(c=>({v:c.id,label:c.name,color:c.color}))),V.qa.cat||"",v=>qaSet("cat",v));break;
     case "qa-prio":qaMenu(n,[{v:"",label:"No priority"}].concat(QA_PRIO.map(x=>({v:x[0],label:x[1]}))),V.qa.prio||"",v=>qaSet("prio",v));break;
     case "qa-est":qaMenu(n,[{v:0,label:"No estimate"}].concat(QA_EST.map(m=>({v:m,label:fmtMins(m)}))),V.qa.est||0,v=>qaSet("est",v));break;
     case "qa-pick":if(CM.pick&&CM.items){const x=CM.items[Number(n.dataset.i)];if(x)CM.pick(x.v);}break;
@@ -4884,16 +5102,18 @@ document.addEventListener("click",function(e){
     case "cz-feat-all":{const b=board();BOARD_FEATS.forEach(g=>g[1].forEach(x=>{b.show[x[0]]=true;}));b.fields.forEach(f=>{f.panel=true;f.list=true;});
       save("prefs");renderSheet();render();customiseModal();break;}
     case "cz-tab":czReadDraft();V.cz.tab=n.dataset.v;V.cz.edit=null;V.cz.draft=null;V.cz.del=null;customiseModal();break;
-    case "board-menu":boardMenu(n);break;
-    case "board-go":{S.prefs.boardAt=id;V.f.status="";V.qa=null;save("prefs");render();break;}
-    case "cz-board-add":boardAdd();break;
-    case "cz-board-open":{S.prefs.boardAt=id;V.f.status="";V.qa=null;save("prefs");customiseModal();render();break;}
-    case "cz-board-pal":V.cz.pal=V.cz.pal===id?null:id;customiseModal();break;
-    case "cz-board-color":{const b=boardById(id);if(b){b.color=n.dataset.v;save("prefs");V.cz.pal=null;customiseModal();render();}break;}
-    case "cz-board-del":V.cz.del=id;customiseModal();break;
-    case "cz-board-del-no":V.cz.del=null;customiseModal();break;
-    case "cz-board-del-yes":boardRemove(id);break;
-    case "cz-board-move":czMoveBoard(id,Number(n.dataset.v));break;
+    case "ws-menu":spaceMenu(n);break;
+    case "ws-go":wsGo(id);break;
+    case "ws-pick":{const run=WSQ.run;WSQ.run=null;closeModal();if(run)run(id);break;}
+    case "ws-add":spaceAdd();break;
+    case "ws-open":wsGo(id);if(el("modalRoot").querySelector(".modal.settings"))settingsModal();break;
+    case "ws-pal":wsState().pal=wsState().pal===id?null:id;settingsModal();break;
+    case "ws-color":{const b=spaceById(id);if(b){b.color=n.dataset.v;save("prefs");wsState().pal=null;settingsModal();render();}break;}
+    case "ws-icon":{const b=spaceById(id);if(b){b.icon=n.dataset.v;save("prefs");wsState().pal=null;settingsModal();render();}break;}
+    case "ws-del":wsState().del=id;settingsModal();break;
+    case "ws-del-no":wsState().del=null;settingsModal();break;
+    case "ws-del-yes":spaceRemove(id);break;
+    case "ws-move":spaceMove(id,Number(n.dataset.v));break;
     case "cz-lane-pal":V.cz.pal=V.cz.pal===id?null:id;customiseModal();break;
     case "cz-lane-color":{const l=lane(id);if(l){l.color=n.dataset.v;save("prefs");V.cz.pal=null;customiseModal();render();}break;}
     case "cz-lane-move":czMoveLane(id,Number(n.dataset.v));break;
@@ -4965,7 +5185,7 @@ document.addEventListener("click",function(e){
     case "mx-quad":{const t=taskById(id);if(!t)break;
       const v=n.dataset.v;t.urgent=v==="do"||v==="delegate";t.important=v==="do"||v==="decide";
       save("tasks");render();toast("Moved to "+(QUADS.find(q=>q.id===v)||{}).name);break;}
-    case "new-routine":routineModal(null);break;
+    case "new-routine":askSpace("the new routine",w=>routineModal(null,{ws:w,cat:catFor(cat0().id,w)}));break;
     case "qc-kind":qcRead();QC.v.kind=n.dataset.v;qcDraw();qcPlace();{const t=el("qcTitle");if(t)t.focus();}break;
     case "qc-rep":qcRead();QC.v.rep=n.dataset.v;qcDraw();break;
     case "qc-close":qcClose();break;
@@ -5021,20 +5241,20 @@ document.addEventListener("click",function(e){
     case "cm-color":cmSet(id,{color:n.dataset.v});break;
     case "cm-icon":cmSet(id,{icon:n.dataset.v});break;
     case "cm-new":{const used=S.categories.map(x=>x.color.toLowerCase()),col=CAT_COLORS.find(x=>used.indexOf(x.toLowerCase())<0)||CAT_COLORS[0],nid=uid("c");
-      S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();catsModal();
+      S.categories.push({id:nid,ws:curSpace().id,name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();catsModal();
       const i=document.querySelector('.cm-name[data-id="'+nid+'"]');if(i){i.focus();i.select();}break;}
     case "cm-more":{const c=cat(id);if(!c||c.id!==id)break;const i=S.categories.indexOf(c),off=!visibleCat(id);
       const items=[{v:"vis",label:off?"Show in my views":"Hide from my views"},{v:"only",label:"Show only this"}]
-        .concat(S.categories.length>1?[{v:"del",label:"Delete…"}]:[]);
+        .concat(cats().length>1?[{v:"del",label:"Delete…"}]:[]);
       qaMenu(n,items,null,v=>{
         if(v==="vis")toggleCat(id);
-        else if(v==="only"){S.prefs.hidden=S.categories.filter(x=>x.id!==id).map(x=>x.id);touched.prefs=true;save("prefs");render();catsModal();}
+        else if(v==="only"){S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(x=>x.id!==id).map(x=>x.id));touched.prefs=true;save("prefs");render();catsModal();}
         else if(v==="up"||v==="down")cmMove(id,v==="up"?-1:1);
         else if(v==="del"){V.catEdit={del:id};catsModal();}});break;}
     case "cm-del-no":V.catEdit={};catsModal();break;
     case "cm-del-yes":V.catEdit={};delCat(id);break;
-    case "new-note":{const nn={id:uid("n"),title:"",cat:S.categories[0].id,tags:[],pinned:false,html:"",actions:[],updated:Date.now()};
-      S.notes.unshift(nn);V.view="notes";V.noteId=nn.id;V.q="";save("notes");render();const ti=el("noteTitle");if(ti)ti.focus();break;}
+    case "new-note":askSpace("the new note",w=>{const nn={id:uid("n"),ws:w,title:"",cat:catFor(cat0().id,w),tags:[],pinned:false,html:"",actions:[],updated:Date.now()};
+      S.notes.unshift(nn);V.view="notes";V.noteId=nn.id;V.q="";save("notes");render();const ti=el("noteTitle");if(ti)ti.focus();});break;
     case "note-open":V.noteId=id;renderView();break;
     case "scratch-task":scratchToTask();break;
     case "scratch-note":scratchToNote();break;
@@ -5101,14 +5321,14 @@ document.addEventListener("click",function(e){
     case "ob-rt-dur":{const x=obRtFind(n.dataset.k);if(!x)break;x.dur=Number(n.dataset.v);OB.pop=null;
       OB.rtOpen=null;obRtRedraw('[data-act="ob-rt-open"][data-k="'+x.k+'"]');break;}
     case "ob-rt-add":{const k=uid("rt");
-      obRt().push({k:k,custom:true,on:true,title:"",cat:S.categories[0].id,days:[1,2,3,4,5],time:"09:00",dur:30,ic:"i-repeat"});
+      obRt().push({k:k,custom:true,on:true,title:"",cat:cat0().id,days:[1,2,3,4,5],time:"09:00",dur:30,ic:"i-repeat"});
       OB.rtOpen=null;OB.pop=k;obRtRedraw('[data-act="ob-rt-name"][data-k="'+k+'"]');break;}
     case "ob-rt-del":OB.rt=obRt().filter(r=>r.k!==n.dataset.k);OB.rtOpen=null;obRender();break;
-    case "ob-cat-del":if(S.categories.length>1){if(OB.pal===id)OB.pal=null;
+    case "ob-cat-del":if(cats().length>1){if(OB.pal===id)OB.pal=null;
       S.categories=S.categories.filter(x=>x.id!==id);save("categories");obRender();}break;
     case "ob-cat-add":{OB.pal=null;
       const used=S.categories.map(x=>x.color),col=CAT_COLORS.find(x=>used.indexOf(x)<0)||CAT_COLORS[0],nid=uid("c");
-      S.categories.push({id:nid,name:"New category",icon:"i-circle",color:col});save("categories");obRender();
+      S.categories.push({id:nid,ws:curSpace().id,name:"New category",icon:"i-circle",color:col});save("categories");obRender();
       const f=document.querySelector('[data-act="ob-cat-name"][data-id="'+nid+'"]');if(f){f.focus();f.select();}break;}
     /* ---- the Google account, in Settings ---- */
     case "acct-signout":if(arm(n,"Sign out?")){const o=gAcct();if(!o)break;
@@ -5402,7 +5622,7 @@ document.addEventListener("change",function(e){
     setCf(fd.id,fd.type==="checkbox"?t.checked:fd.type==="number"?(t.value===""?"":Number(t.value)):fd.type==="progress"?Number(t.value):t.value.trim(),t.dataset.tid);
     return;
   }
-  if(t.dataset&&t.dataset.act==="cz-board-name"){const b=boardById(t.dataset.id);
+  if(t.dataset&&t.dataset.act==="ws-name"){const b=spaceById(t.dataset.id);
     if(b&&t.value.trim()){b.name=t.value.trim().slice(0,40);save("prefs");render();}else if(b)t.value=b.name;return;}
   if(t.dataset&&t.dataset.act==="cz-lane-name"){const l=lane(t.dataset.id);if(l&&t.value.trim()){l.name=t.value.trim().slice(0,40);save("prefs");render();renderSheet();}else if(l)t.value=l.name;return;}
   if(t.dataset&&t.dataset.act==="cz-lane-done"){const l=lane(t.dataset.id);if(!l)return;
@@ -5452,11 +5672,11 @@ document.addEventListener("change",function(e){
       patchCurrent({dueTime:v,endTime:m2hm(Math.min(hm2m(v)+len,24*60-1))});return;}
     if(k==="endTime"){const cur=sheetTask()||{};
       if(v&&cur.dueTime&&hm2m(v)<=hm2m(cur.dueTime)){toast("The end time has to be after the start");renderSheet();return;}}
-    if(k==="board"){const cur=sheetTask()||{};
-      if(!boardById(v))return;
+    if(k==="ws"){const cur=sheetTask()||{};
+      if(!spaceById(v))return;
       /* A task still being made has no id to move; its draft carries both. */
-      if(V.sheet&&V.sheet.id)moveTaskBoard(V.sheet.id,v);
-      else patchCurrent({board:v,status:laneFor(cur.status,v)});
+      if(V.sheet&&V.sheet.id)moveTaskWs(V.sheet.id,v);
+      else patchCurrent({ws:v,cat:catFor(cur.cat,v),status:laneFor(cur.status,v)});
       return;}
     if(k==="title"){v=v.trim();if(!v){const cur=sheetTask();t.value=cur?cur.title:"";return;}}
     // Re-rendering while the caret is in a text field would throw it away.
@@ -5509,7 +5729,7 @@ window.addEventListener("unhandledrejection",function(e){
 /* Everything that happens to a task lands here: comments and documents you
    write, plus an automatic entry for every field that changes. */
 const FIELD_LABEL={title:"Title",desc:"Description",due:"Date",start:"Date",endTime:"End time",
-  status:"Status",board:"Board",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
+  status:"Status",ws:"Workspace",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
   dueTime:"Start time",remind:"Reminder",remindAt:"Reminder"};
 
@@ -5529,7 +5749,7 @@ function fieldText(k,v){
   if(k==="dueTime"||k==="endTime")return v?fmtTime(v):"no time";
   if(v==null||v===""||(Array.isArray(v)&&!v.length))return "empty";
   if(k==="status")return ST(v).name;
-  if(k==="board")return (boardById(v)||{name:"\u2014"}).name;
+  if(k==="ws")return (spaceById(v)||{name:"\u2014"}).name;
   if(k==="cat")return cat(v).name;
   if(k==="due"||k==="start")return fmtDate(v);
   if(k==="est")return fmtMins(Number(v)||0);
@@ -5848,8 +6068,8 @@ function taskMenu(id,at,btn,fromCard){
   items.push(["dup","i-copy","Duplicate task"]);
   /* A task belongs to one board, so there has to be a way to hand it to
      another; the lane it lands in is worked out by laneFor(). */
-  if(boards().length>1&&!t.parent)boards().filter(b=>b.id!==boardOf(t).id)
-    .forEach(b=>items.push(["board:"+b.id,"i-board","Move to "+b.name]));
+  if(spaces().length>1&&!t.parent)spaces().filter(b=>b.id!==spaceOf(t).id)
+    .forEach(b=>items.push(["ws:"+b.id,b.icon||"i-grid","Move to "+b.name]));
   if(feat("activity")){const on=V.sheet&&V.sheet.id===id&&V.sheet.tab==="activity";items.push(["activity",on?"i-panel":"i-chart",on?"Back to details":"Activity history"]);}
   const m=document.createElement("div");m.className="catmenu tmenu";m.setAttribute("role","menu");
   m.innerHTML=items.map(x=>'<button type="button" role="menuitem" class="cm-opt" data-act="tm-do" data-v="'+x[0]+'" data-id="'+id+'">'+icon(x[1],"ic-14")+'<span>'+x[2]+'</span></button>').join("")+
@@ -5863,8 +6083,8 @@ function taskMenu(id,at,btn,fromCard){
 }
 function tmDo(v,id,n){
   if(v==="del"){if(!arm(n,"Delete for good?"))return;taskMenuClose();deleteTask(id);return;}
-  if(v.indexOf("board:")===0){
-    const b=boardById(v.slice(6)),was=moveTaskBoard(id,v.slice(6));
+  if(v.indexOf("ws:")===0){
+    const b=spaceById(v.slice(3)),was=moveTaskWs(id,v.slice(3));
     taskMenuClose();
     if(was&&b)toast("Moved from "+was+" to "+b.name);
     return;
@@ -5897,6 +6117,12 @@ function tmDo(v,id,n){
    A step whose thing is not on the screen is passed over. */
 const TIP_TOURS=[
   {id:"dashboard",where:()=>V.view==="dashboard",steps:[
+    /* First, because it is the thing everything else on the page belongs
+       to, and because setup deliberately never mentioned it: what was set
+       up went into the workspace that was already there. */
+    {sel:"#wsBar .ws-btn",title:"Your workspace",
+      text:()=>"Everything below this \u2014 your tasks, routines, notes and categories \u2014 lives in a workspace. "+
+        "Add one for work, or anything you keep apart, and switch between them here. The dashboard always shows all of them."},
     {sel:".dash-scratch [data-act=\"scratch-task\"]",title:"A scratch pad",
       text:()=>"Jot anything down here. Turn a line into a task, or save the lot as a note."},
     {sel:"#railHead [data-act=\"manage-cats\"]",title:"Your categories",
@@ -6093,7 +6319,7 @@ function catItems(id){
   const off=!visibleCat(id);
   return [
     {icon:off?"i-eye":"i-eye-off",label:off?"Show "+c.name:"Hide "+c.name,run:()=>toggleCat(id)},
-    {icon:"i-target",label:"Show only "+c.name,run:()=>{S.prefs.hidden=S.categories.filter(x=>x.id!==id).map(x=>x.id);touched.prefs=true;save("prefs");render();refreshCatsModal();}},
+    {icon:"i-target",label:"Show only "+c.name,run:()=>{S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(x=>x.id!==id).map(x=>x.id));touched.prefs=true;save("prefs");render();refreshCatsModal();}},
     hiddenCats().length?{icon:"i-eye",label:"Show every category",run:()=>{S.prefs.hidden=[];touched.prefs=true;save("prefs");render();refreshCatsModal();}}:null,
     "sep",
     {icon:"i-edit",label:"Edit categories",run:()=>{V.catEdit={};catsModal();}}];
@@ -6162,7 +6388,7 @@ function lrCommit(i,keep){
   else if(i.id==="lrTag"){const v=i.value.trim().replace(/^#/,""),t=taskById(i.dataset.id);V.ltag=null;
     if(keep&&v&&t&&(t.tags||[]).indexOf(v)<0)patchTask(t.id,{tags:(t.tags||[]).concat([v])});else renderView();}
   else if(i.id==="lqaTitle"){const v=i.value.trim(),k=V.lqa;
-    if(keep&&v){const x=newTask(Object.assign({title:v,status:firstOpen(),cat:(S.categories.find(c=>c.id==="other")||S.categories[0]).id},lgPreset(lgBy(),k)));if(isDoneT(x))x.completedAt=TODAY();
+    if(keep&&v){const x=newTask(Object.assign({title:v,status:firstOpen(),cat:(cats().find(c=>c.id==="other")||cat0()).id},lgPreset(lgBy(),k)));if(isDoneT(x))x.completedAt=TODAY();
       S.tasks.push(x);logAct(x.id,"created","Created this task");save("tasks");render();const n=el("lqaTitle");if(n)n.focus();}
     else{V.lqa=null;renderView();}}
 }
@@ -6219,8 +6445,8 @@ function openSheet(id,preset){
   if(id&&!taskById(id))return;
   V.tmBreak=null;
   V.sheet={id:id||null,tab:"details",
-    draft:id?null:Object.assign({title:"",desc:"",due:"",dueTime:"",endTime:"",deadline:"",cat:S.categories[0].id,
-      board:curBoard().id,status:firstOpen(),urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],cf:{}},preset||{})};
+    draft:id?null:Object.assign({title:"",desc:"",due:"",dueTime:"",endTime:"",deadline:"",cat:cat0().id,
+      ws:curSpace().id,status:firstOpen(),urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],cf:{}},preset||{})};
   renderSheet();
 }
 function closeSheet(){V.sheet=null;V.tmBreak=null;renderSheet();clearGhosts();}
@@ -6627,7 +6853,7 @@ try{new MutationObserver(function(){if(PK.el&&!(PK.btn&&PK.btn.isConnected))pkRe
   .observe(document.body,{childList:true,subtree:true});}catch(e){}
 
 function sheetCats(t){
-  return catSelect('class="inp inp-sm" data-act="sh-set" data-k="cat" aria-label="Category"',t.cat);
+  return catSelect('class="inp inp-sm" data-act="sh-set" data-k="cat" aria-label="Category"',t.cat,{ws:t.ws||curSpace().id});
 }
 /* Two questions, each a yes or a no, and the quadrant they add up to --
    rather than four checkboxes whose pairing had to be guessed. */
@@ -6890,10 +7116,10 @@ function renderSheet(){
          it ignores the Lane switch in Customize: which lane a task is in
          can be nobody's business, but which board it is on cannot. */
       (function(){
-        const bd=boards().length<2?"":'<select class="inp inp-sm sh-board" data-act="sh-set" data-k="board" aria-label="Board">'+
-          boards().map(x=>'<option value="'+x.id+'"'+(boardOf(t).id===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>';
+        const bd=spaces().length<2?"":'<select class="inp inp-sm sh-board" data-act="sh-set" data-k="ws" aria-label="Workspace">'+
+          spaces().map(x=>'<option value="'+x.id+'"'+(spaceOf(t).id===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>';
         const ln=!feat("status")?"":'<select class="inp inp-sm sh-status" data-act="sh-set" data-k="status" aria-label="Lane">'+
-          lanesOf(t.board).map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>';
+          lanesOf(t.ws).map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>';
         return bd||ln?'<div class="sh-where">'+bd+ln+'</div>':"";
       })()+
       '<div class="spacer" style="flex:1"></div>'+

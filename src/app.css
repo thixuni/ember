@@ -3095,20 +3095,31 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .mvdrop{color:var(--danger-ink)}
 .mvdrop:hover{background:var(--danger-soft)}
 
-/* ---------- the board the Tasks section is on ----------
-   A workspace is not a filter, so it is named in the top bar rather than
-   hidden in the filter panel: its colour, its name, and the way to another. */
-.bd-pick{max-width:200px}
-/* Below 1280 the top bar's buttons drop their words and keep their icon.
-   This one's icon is a chevron, which says nothing on its own -- the board's
-   name and colour *are* the control -- so it keeps both, narrower. */
-@media (max-width:1280px){
-  .bd-pick{padding:0 9px}
-  .bd-pick .bd-dot,.bd-pick .bd-name{display:block}
-  .bd-pick .bd-name{max-width:88px}
-}
-.bd-pick .bd-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bd-pick .ic:last-child{color:var(--faint);margin-left:-2px}
+/* ---------- the workspace you are in ----------
+   Named at the top of the sidebar, under the brand, because everything
+   below it -- the sections, the categories, all of it -- belongs to it. It
+   sat in the Tasks top bar while it was only a board; a workspace is not a
+   property of one screen. */
+.ws-bar{padding:0 12px 10px;flex:none}
+.ws-btn{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:var(--r-m);
+  border:1px solid var(--line);background:var(--surface);text-align:left;cursor:pointer;
+  transition:border-color .12s,background .12s}
+.ws-btn:hover{border-color:var(--line-2);background:var(--surface-2)}
+.ws-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ws-btn > *{pointer-events:none}
+.ws-ic{width:28px;height:28px;flex:none;border-radius:9px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--c) 16%,var(--tint-base));color:var(--c)}
+.ws-ic.all{--c:var(--muted);background:var(--surface-3)}
+.ws-t{flex:1;min-width:0}
+.ws-t b{display:block;font-size:13px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-t small{display:block;font-size:11px;color:var(--faint);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-btn > .ic{flex:none;color:var(--faint)}
+/* Folded to its icons, the tile is the whole control. */
+.rail-mini .ws-bar{padding:0 0 10px;display:flex;justify-content:center}
+.rail-mini .ws-btn{width:40px;padding:6px;justify-content:center;border-color:transparent;background:none}
+.rail-mini .ws-t,.rail-mini .ws-btn > .ic{display:none}
 .bd-dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--s)}
 /* Where a search comes up empty here but not everywhere. */
 .bd-else{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 10px;padding:9px 12px;
@@ -3117,3 +3128,52 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .bd-else-go{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:20px;
   border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer}
 .bd-else-go:hover{border-color:var(--accent);color:var(--accent-ink)}
+
+/* ---------- Settings: your workspaces ----------
+   One row each, the way lanes and categories are edited: a handle, the tile
+   that opens its colour and its icon, the name typed into, what it holds,
+   and the way in. */
+.wslist{display:flex;flex-direction:column;margin-bottom:10px;border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden}
+.wsrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;
+  border-left:3px solid var(--s);background:var(--surface)}
+.wsrow + .wsrow{border-top:1px solid var(--line)}
+.wsrow.on{background:var(--surface-2)}
+.wsrow.dragging{opacity:.45}
+.wsrow-ic{width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;cursor:pointer;
+  background:color-mix(in srgb,var(--s) 16%,var(--tint-base));color:var(--s);border:1px solid transparent}
+.wsrow-ic:hover{border-color:var(--s)}
+.wsrow-t{flex:1;min-width:120px}
+.wsrow-t .cz-name{width:100%;border:1px solid transparent;background:none;font-size:13.5px;font-weight:600;
+  color:var(--ink);padding:2px 5px;border-radius:6px;margin-left:-5px}
+.wsrow-t .cz-name:hover{border-color:var(--line)}
+.wsrow-t .cz-name:focus{border-color:var(--accent);background:var(--surface)}
+.wsrow-t small{display:block;font-size:11.5px;color:var(--faint);padding-left:0}
+.ws-pal{flex-basis:100%;display:flex;flex-direction:column;gap:7px;padding:9px 0 2px;border-top:1px solid var(--line-soft)}
+.ws-pal-row{display:flex;flex-wrap:wrap;gap:6px}
+.ws-pal-row button{width:24px;height:24px;border-radius:7px;border:2px solid transparent;background:var(--c);cursor:pointer}
+.ws-pal-row button.on{border-color:var(--ink)}
+.ws-pal-row.ic button{background:var(--surface-2);color:var(--muted);display:grid;place-items:center;border-color:var(--line)}
+.ws-pal-row.ic button.on{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+
+/* ---------- which workspace is this for ----------
+   Only ever seen in the view across all of them, where a new thing has no
+   workspace to land in. One button a workspace, nothing preselected. */
+.wspick{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.wspick-b{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;border-radius:var(--r-m);
+  border:1px solid var(--line);background:var(--surface);text-align:left;cursor:pointer;
+  transition:border-color .12s,background .12s}
+.wspick-b:hover{border-color:var(--s);background:var(--surface-2)}
+.wspick-b:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wspick-b > *{pointer-events:none}
+.wspick-b b{flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wspick-b > .ic{flex:none;color:var(--faint)}
+
+/* Lanes and categories belong to a workspace; across all of them there is
+   nothing to edit, so the window says which and offers the way in. */
+.ws-only{display:flex;align-items:center;gap:13px;padding:16px;border-radius:var(--r-m);
+  background:var(--surface-2);border:1px solid var(--line)}
+.ws-only > .ic{flex:none;color:var(--faint)}
+.ws-only div{flex:1;min-width:0}
+.ws-only b{display:block;font-size:13.5px;font-weight:600;color:var(--ink)}
+.ws-only small{display:block;margin-top:2px;font-size:12px;color:var(--muted)}

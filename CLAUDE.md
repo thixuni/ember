@@ -437,63 +437,106 @@ that puts the number into words goes through `streakSays()`. `.sq.done` uses the
 neat rather than the week squares' recipe: those mix toward the ink because
 they carry a check mark, and at 13px with nothing on it that read as black.
 
-### Customising tasks
+### Workspaces, and customising tasks
 
 Tasks has no row of quick filters (All, Today, This week…): they read as
 noise over every board and list. **Filter** and **Customize** sit in the top
 bar beside Board and List; Filter opens the panel (`filterBar()`, `V.adv`)
 and, once shut, any filter still set shows as a chip with its own ×.
 
-**There can be more than one board.** `prefs.boards` is
-`[{id, name, color, lanes}]` — Personal, Work, Side hustle — and
-`prefs.boardAt` is the one the Tasks section is showing. **A board owns its
-lanes and its tasks**: a task carries `t.board`, and the whole Tasks section
-(both views, the filters, the search, the counts in the top bar) reads
-`boardTasks()`, never `tops()`. A single board with a category filter over
-it was the alternative and is not the same thing — the lanes a side project
-needs are not the lanes work needs, and a filter cannot give you two sets.
+**The planner is divided into workspaces.** `prefs.spaces` is
+`[{id, name, color, icon, lanes}]` — My workspace, Office — and
+`prefs.spaceAt` is the one being shown, or `WS_ALL` (`"*"`) for the view
+across all of them. A workspace owns everything the planner keeps *about
+your life*: its **categories**, its tasks, its routines, its notes, its
+documents, its tracked time, its unavailable time and its lanes. Personal
+and Office are not two filters over one list, they are two lists, and the
+sidebar — categories and all — changes with them. Boards, which this
+replaced, only divided the Tasks section; a board could not give Office
+its own categories, and categories were the thing that most needed it.
 
-- **Only Tasks is divided.** The dashboard, the calendar, the matrix, overdue
-  and the reminders show everything, whichever board it is on, because they
-  are about time and a day with half of itself missing is worse than no day
-  at all. A search, though, *is* scoped, so `elsewhereHtml()` puts the way
-  to a match on another board on the page: a task you cannot find otherwise
-  reads as a task that has been deleted.
-- **Lane ids are unique across every board.** A task carries its lane id and
-  nothing else, so anything asking what colour that lane is, or whether it
-  counts as finished, has to find it without being told which board to look
-  on — `lane(id)` searches them all (`ixLanes()`, in the lookups) while
-  `lanes()` is the current board's. That is why a new lane's id is generated
-  rather than named.
-- **A task's lane must be one of its own board's.** `fixTasks()` enforces
-  both halves every render: a task with no board joins the first, and a
-  lane that is not its board's is replaced by `laneFor(status, board)` —
-  which matches by name first, so a task carried from one board's *In
-  progress* lands in the other's, and by done-ness after that.
-- **Boards are made and unmade** in Customize ▸ Boards (`czBoards()`), which
-  is the lanes list in miniature: drag to reorder, click to rename, a
-  swatch, a task count, Open, and a Remove that asks where its tasks go —
-  another board, or nowhere, which deletes them
-  (`deleteTask(id, quiet)` for the run of them, one redraw at the end). The
-  last board cannot go: the Tasks section has to be somewhere. The switcher
-  itself is a pill in the top bar, before Board and List, because a
-  workspace is not a filter and does not belong in the filter panel.
-- **A task moves board** from the panel's own header or from its ⋯ menu,
-  both through `moveTaskBoard()`, which is the only way it is done: the
-  lane moves with the board (`laneFor()`), the subtasks move with the task,
-  and the change is logged like any other edit (`board` is in
-  `FIELD_LABEL`, so it reads *Board: Personal → Work*).
+- **What a workspace does *not* own is the planner itself**: how it looks,
+  when it reminds you, where it backs up, which fields a task has, which
+  columns the list shows. Those stay one set, in `prefs` and
+  `prefs.board`, because a copy of them per workspace would be its own
+  chore and nobody wants a different accent in Office. **Reminders are
+  global too** — a notification cannot ask which workspace you were
+  looking at.
+- **There is no nested state.** `KEYS` is the nine names it has always
+  been; every record simply carries `ws`, so saving, backups, Drive and
+  the vault are untouched. Things that hang off a record — a document, a
+  session, an activity entry, a completion — carry no mark of their own
+  and follow what they belong to.
+- **One question does the scoping**: `inWs(x)`, true across all of them
+  and otherwise only for this workspace's. `wsTasks()`, `wsRoutines()`,
+  `wsNotes()` and `wsAway()` are the lists a section draws; `cats()` is
+  the workspace's categories while `cat(id)` still finds any of them,
+  because a task shown across all of them has to draw its own.
+- **The dashboard is always across all of them** and says so in its
+  subtitle, because it is today and today does not belong to one
+  workspace. Everything else — Tasks, Calendar, Matrix, Routines, Notes —
+  follows the workspace. `overdueItems()` stays whole for the dashboard
+  and the sidebar's late count; `overdueHere()` is the cut-down one the
+  calendar's Catch-up panel uses.
+- **Across all of them, the board is off.** Lanes belong to a workspace, so
+  two workspaces' *To do* are two different lanes and merging them by name
+  would be a guess; the list is honest instead — a table a workspace
+  (`lgBy()` forces the `"ws"` grouping there). For the same reason the
+  lane editor and the category window refuse to edit anything there and
+  say which workspace they need (`wsOnlyNote()`), rather than quietly
+  editing the first one's.
+- **Creating across all of them asks which workspace** (`askSpace()`,
+  `WSQ`), once, in front of the thing it is making — not as a field on
+  every form that would be answered already every other time. In a
+  workspace it never asks. A task added under a workspace table in the
+  list skips the question, because the table *is* the answer
+  (`lgPreset("ws", k)`).
+- **Lane ids are unique across every workspace**, and so are category ids.
+  A task carries its lane id and its category id and nothing else, so
+  anything asking what colour that lane is, or whether it counts as
+  finished, has to find it without being told which workspace to look in —
+  `lane(id)` searches them all (`ixLanes()`) while `lanes()` is the
+  current workspace's.
+- **A task's lane and category must be its own workspace's.**
+  `fixTasks()` enforces all three every render — a task with no workspace
+  joins the first, a lane that is not its workspace's is replaced by
+  `laneFor(status, ws)`, a category by `catFor(cat, ws)` — and both match
+  by name first, so a task carried from one workspace's *In progress* and
+  *Work* lands in the other's. `fixSpaces()` does the same for categories,
+  routines, notes and unavailable time, so nothing is ever left belonging
+  to a workspace that has gone.
+- **Workspaces are made and unmade in Settings ▸ Workspaces**
+  (`setSpacesPane()`), not in Customize: a workspace is not a setting
+  about tasks, it is where everything lives. A row each — drag to
+  reorder, a tile that opens its colour and its icon, the name typed into,
+  what it holds, Open, and a Remove that asks where its contents go:
+  another workspace, or nowhere, which deletes them. A new workspace
+  starts with the same five categories a new planner does, because one
+  with no categories has nowhere to put a task. The last one cannot go.
+- **The switcher is at the top of the sidebar**, under the brand
+  (`wsBarHtml()`, `#wsBar`), because everything below it belongs to it.
+  It sat in the Tasks top bar while it was only a board; a workspace is
+  not a property of one screen. Switching clears the filters, since a lane
+  and a category belong to the workspace they were set in (`wsGo()`).
+- **A task moves workspace** from the panel's header or its ⋯ menu, both
+  through `moveTaskWs()`: the lane and the category move with it, the
+  subtasks move with the task, and the change is logged (`ws` is in
+  `FIELD_LABEL`, so it reads *Workspace: My workspace → Office*).
+  `moveThingWs()` does the same for a routine or a note.
 - **The panel header is two drop-downs**, in the order the thing is named:
-  the board a task is on, then the lane it is in *on that board*
-  (`.sh-where`). The lane list is `lanesOf(t.board)` and never `lanes()` —
-  a task opened from the dashboard or the calendar knows nothing about
-  which board the Tasks section happens to be showing, and offering it
-  another board's lanes would put it somewhere it cannot be. The board one
-  appears only where there is a second board to choose, and it ignores the
-  Lane switch in Customize: which lane a task is in can be nobody's
-  business, but which board it is on cannot. They are one box so that under
-  640px they drop to a row of their own rather than squeezing until the
-  board's name is a bare chevron.
+  the workspace a task is in, then the lane it is in *in that workspace*
+  (`.sh-where`). The lane list is `lanesOf(t.ws)` and the category list
+  `catSelect(..., {ws: t.ws})` — never the current workspace's — because a
+  task opened from the dashboard or the calendar knows nothing about which
+  workspace the sidebar happens to be showing, and offering it another
+  workspace's lanes would put it somewhere it cannot be. The workspace one
+  appears only where there is a second to choose. They are one box so that
+  under 640px they drop to a row of their own rather than squeezing until
+  the name is a bare chevron.
+- **Setup never mentions workspaces.** Everything it collects goes into the
+  one that is already there, and the dashboard's guided tour introduces
+  them in its first step — pointing at the switcher, because that is the
+  thing everything else on the page belongs to.
 
 How tasks work is the person's to set, in one window opened from
 **Customize** beside Filter in the top bar (`customiseModal()`, the customise section).
@@ -504,21 +547,21 @@ subtasks are tasks. Those are settings about the planner rather than about
 one workspace, and five copies of them to keep in step would be its own
 chore.
 
-- **Swimlanes** are `curBoard().lanes`: `{id, name, color, done}` in board
+- **Swimlanes** are `curSpace().lanes`: `{id, name, color, done}` in board
   order, and a task's `status` is its lane's id. A new planner starts with
-  one board called Tasks carrying To do, In progress and Completed
-  (`DEFAULT_LANES`); a planner that already had tasks keeps the six it had
-  (`LEGACY_LANES`), and a planner from before boards keeps its lanes as that
-  first board's, so nothing moves. That is decided the first time
-  `boards()` runs, which `render()` makes happen before anything else —
-  left later, a new planner's first sample tasks made it look like an old
-  one. Lanes can be added, renamed, recoloured, reordered (drag, or the
-  arrows) and removed; removing one with tasks asks where they go, and
-  every board keeps its own set.
+  one workspace called *My workspace* carrying To do, In progress and
+  Completed (`DEFAULT_LANES`); a planner that already had tasks keeps the
+  six it had (`LEGACY_LANES`), and a planner from before workspaces keeps
+  its lanes — or each of its boards' — as its workspaces', so nothing
+  moves. That is decided the first time `spaces()` runs, which `render()`
+  makes happen before anything else — left later, a new planner's first
+  sample tasks made it look like an old one. Lanes can be added, renamed,
+  recoloured, reordered (drag, or the arrows) and removed; removing one
+  with tasks asks where they go, and every workspace keeps its own set.
 - **Done is a lane, not a word.** A lane marked done is where ticking sends a
-  task (`firstDone(t.board)`, and back to `firstOpen(t.board)` — the task's
-  own board, because a task is ticked from the dashboard, the calendar and
-  the matrix, where no board is in sight), and what counts as finished
+  task (`firstDone(t.ws)`, and back to `firstOpen(t.ws)` — the task's
+  own workspace, because a task is ticked from the dashboard, the calendar
+  and the matrix, where no workspace is in sight), and what counts as finished
   everywhere through `isDoneT(t)`, which reads the lane and nothing else: a
   task whose lane has gone is not finished, and `fixTasks()` gives it one.
   Never test `t.status==="completed"` — a test fails on it. A status a lane no longer has (the sample week, an old
@@ -572,7 +615,8 @@ chore.
 - **The list view** (`viewList()`) is a table per group, each a card with
   its own headings and its own + Add task. What it groups by is the
   person's, in Customize ▸ List view (`board().lgroup`, `lgChoices()`):
-  start date or due date (a table a month, the empty ones last), status,
+  workspace (offered only where there is more than one, and forced across
+  all of them), start date or due date (a table a month, the empty ones last), status,
   category, priority, a field of their own that is a date, a single choice
   or a checkbox, or nothing. Only fields switched on are offered; with none
   picked, or the pick switched off, it is the start date, then the due
@@ -732,6 +776,14 @@ The foot of the sidebar is one button to Settings (`renderMe()`): a letter,
 the person's name, and under it where the planner is kept (`saveWhere()`,
 written by `setSync()`). Backup and restore were two bare arrow icons
 there; they live in Settings > Your data, in words.
+
+**Categories belong to a workspace**, so the sidebar's list changes with
+it and `cats()` is what everything offering a choice reads. They all live
+in the one `S.categories` array with a `ws` on each, so reordering one
+workspace's writes them back into the places its own occupied
+(`catsReorder()`) — mapping the dragged order straight onto
+`S.categories`, as the old code did, would have deleted every category
+belonging to every other workspace.
 
 Categories are edited in one window (`catsModal()`, from the pencil by the
 sidebar's Categories): a row each, dragged by its handle to reorder; the
