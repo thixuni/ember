@@ -1641,13 +1641,18 @@ function viewDashboard(){
     '<input id="dashQuick" placeholder="Add a task for today, then press Enter" aria-label="Add a task for today" autocomplete="off">'+
     catSelect('id="dashQuickCat" aria-label="Category for the new task"',qc,{cls:"bare"})+'</div>';
 
-  const todayCard='<section class="dcard dash-today">'+dashHead("i-sun","Today","",
+  /* The card fills its column and scrolls inside itself, with the heading
+     and the add box pinned above. A long schedule used to push everything
+     under it -- the whole of Needs your attention among it -- off the foot
+     of the page, because Today and that card shared one scrolling column. */
+  const todayCard='<section class="dcard fill dash-today">'+dashHead("i-sun","Today","",
       '<small>'+openT+' to do · '+leftR+' in your schedule</small>')+quick+
+    '<div class="dcard-body">'+
     dashGroup("To do",openT,d.tasks.map(taskRow).join(""),es("list","Today’s list is clear","Add something above, or enjoy the breathing room.",{mini:1,hue:"var(--blue)"}))+
     '<div class="dgroup"><h3>Schedule'+(leftR?'<span class="num">'+leftR+'</span>':"")+'</h3>'+allDay+
       (sched.length?'<div class="dag">'+sched.map(agRow).join("")+'</div>'
         :(allDay?"":es("timeline","No fixed times today","Your day is yours to shape.",{mini:1,hue:"var(--amber)"})))+'</div>'+
-    '</section>';
+    '</div></section>';
 
   /* ---- needs your attention ---- */
   const o=overdueItems(),ai=noteActionItems();
@@ -1655,7 +1660,8 @@ function viewDashboard(){
   /* No red total here: the sidebar's red number means late, and a total that
      also counts missed routines and undated notes would say 10 beside its 1.
      Each group below carries its own count. */
-  const attn='<section class="dcard dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-flag","Needs your attention",need?"warn":"")+
+  const attn='<section class="dcard fill dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-flag","Needs your attention",need?"warn":"")+
+    '<div class="dcard-body">'+
     (!need?es("clear","You’re all caught up","Nothing overdue, nothing missed. Enjoy the head start.",{mini:1,cls:"es-attn"}):
       (o.tasks.length?dashGroup("Overdue",o.tasks.length,o.tasks.map(t=>{const c=cat(t.cat);
         return dashRow({color:c.color,tick:tickBtn(t),open:'data-act="task" data-id="'+t.id+'"',title:t.title,
@@ -1672,10 +1678,10 @@ function viewDashboard(){
           open:'data-act="routine" data-id="'+x.r.id+'" data-date="'+x.date+'"',title:x.r.title,meta:esc(c.name),
           end:esc(fmtDate(x.date)),extra:skipBtn(x.r,x.date)});}).join("")+
         (o.miss.length>MISS_SHOWN?'<button class="dmore" data-act="dash-more">'+(V.dashAll?"Show fewer":"Show "+(o.miss.length-MISS_SHOWN)+" more")+'</button>':"")):""))+
-    '</section>';
+    '</div></section>';
 
   /* ---- scratch pad ---- */
-  const scratch='<section class="dcard dash-scratch">'+dashHead("i-edit","Scratch pad","note",'<small>Saves as you type</small>')+
+  const scratch='<section class="dcard fill dash-scratch">'+dashHead("i-edit","Scratch pad","note",'<small>Saves as you type</small>')+
     '<div class="rte-bar">'+["bold|B","italic|I","insertUnorderedList|•"].map(x=>{const q=x.split("|");
       return '<button data-act="rte" data-cmd="'+q[0]+'" data-scratch="1" aria-label="'+q[0]+'">'+q[1]+'</button>';}).join("")+
       '<span class="spacer" style="flex:1"></span>'+
@@ -1685,9 +1691,16 @@ function viewDashboard(){
     '<div class="rte" id="scratchPad" contenteditable="true" data-ph="Anything you need out of your head…">'+(S.prefs.scratch||"")+'</div>'+
     '</section>';
 
+  /* Three columns, left to right in the order the day is read: what is on
+     today, what is behind, and somewhere to put a thought. Each card owns
+     its own scroll, so a long one is long inside its column and nothing it
+     holds can push another card off the page. */
   return '<div class="dash">'+dashHero(d)+
-    '<div class="dash-grid"><div class="dash-col">'+todayCard+attn+'</div>'+
-    '<div class="dash-side">'+timeTodayCard()+scratch+'</div></div></div>';
+    '<div class="dash-grid">'+
+      '<div class="dcol">'+todayCard+'</div>'+
+      '<div class="dcol">'+attn+'</div>'+
+      '<div class="dcol">'+scratch+timeTodayCard()+'</div>'+
+    '</div></div>';
 }
 
 /* ---- the welcome panel ----
@@ -1720,13 +1733,18 @@ function dashHero(d){
     '</svg>'+
     '<div class="dorbit-mid">'+(total?'<b class="num">'+done+'<i>/'+total+'</i></b><span>done</span>':icon("i-sun"))+'</div></div>';
 
+  /* Now and next sit beside the greeting rather than under it. They were a
+     row of their own, and the panel is the one thing on this page that does
+     not need to be read -- every row it costs is a row the three columns
+     below it do not get. */
   return '<section class="dhero">'+
     '<div class="dhero-top"><div class="dhero-text">'+
       '<div class="dhero-eyebrow">'+esc(today().toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long"}))+'</div>'+
       '<h2 class="dhero-hi">'+esc(dashGreeting()+(S.prefs.name?", "+S.prefs.name:""))+'</h2>'+
       '<p class="dhero-line">'+esc(line)+'</p>'+
-      '<div class="dnext-list" id="dashNext">'+upNextHtml()+'</div>'+
-    '</div>'+ring+'</div>'+
+    '</div>'+
+    '<div class="dnext-list" id="dashNext">'+upNextHtml()+'</div>'+
+    ring+'</div>'+
     '<div id="dashStrip">'+dayStripHtml()+'</div>'+
   '</section>';
 }

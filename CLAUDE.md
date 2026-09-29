@@ -689,6 +689,29 @@ a scroll.
 
 ### Dashboard
 
+**Three columns, and every card scrolls inside itself.** Left to right in
+the order the day is read: **Today**, **Needs your attention**, then the
+**scratch pad** with time tracked under it — a `.dcol` each, each card
+`.dcard.fill` with a pinned `.dcard-h` over a scrolling `.dcard-body`.
+Today and Needs your attention shared one scrolling column before, and a
+day with a full schedule pushed the whole of the second card off the foot
+of the page: the thing that tells you what is *late* was the thing a busy
+day hid. Nothing a card holds can move another card now, because no card
+can grow. Inside a body a group's heading is sticky, so "Schedule" is still
+named halfway down it. A short window (under 720px) gives the grid a floor
+of 420px and lets the page scroll the little that is past it — letting the
+cards size to their content there put a thousand pixels of list on a
+700px page, which is the thing this layout exists to stop. Under 1080px it
+is one column in the same order, and the cards stop filling and stop
+scrolling, because then the page is the scroll.
+
+**The attention card wears its state**: a danger-tinted head and edge while
+there is something in it, neutral the moment there is not
+(`.dash-attn:not(.clear)`). There is still no total on it, for the reason
+below. The welcome panel keeps now/next *beside* the greeting rather than
+under it — it is the one thing on this page nobody needs to read, and every
+row it costs is a row the three columns do not get.
+
 `viewDashboard` is today on one page and owns no data of its own. The
 scratch pad (`prefs.scratch`) lives only here — Notes once had a button
 opening it too, and it was taken out so there is one place for it. "Needs your
