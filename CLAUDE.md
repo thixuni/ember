@@ -137,7 +137,15 @@ section’s own: leaving half way keeps its place (`prefs.tips.at`),
 finishing or skipping marks it done (`prefs.tips.done`), and Settings ▸
 Appearance ▸ Show the tips again clears both. A step whose thing is not on
 the screen is passed over, and a tour with nothing left to point at counts
-as given rather than waiting for ever. They wait while setup, a window, a
+as given rather than waiting for ever. **That forgiveness hides a broken
+tour**: the Notes tour lost its opening tip when the New note button was
+taken out of the list's head, and it simply began at "2 of 2" instead of
+failing. A step should point at something that is on that screen whatever
+state it is in — the top bar rather than a list head that only exists once
+there are tags — and **moving or renaming anything a step points at means
+running the tours.** So does changing what a step's words describe: the
+routines tour told you the foot of the card showed the reminder for a
+while after the reminder had gone. They wait while setup, a window, a
 menu or the task panel is open, or the window is hidden, and never take the
 keyboard. A new tour is an entry in `TIP_TOURS` with a `where()` and its
 steps.

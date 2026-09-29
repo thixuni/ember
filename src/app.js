@@ -5915,12 +5915,15 @@ const TIP_TOURS=[
     {sel:".rcard .week-dots",title:"Check off a day",
       text:()=>"Click a day’s square to mark the routine done. Any day up to today counts toward your streak, even one that wasn’t scheduled."},
     {sel:".rcard .streak,.rcard .rpaused",title:"How it is going",
-      text:()=>"A flame counts the days in a row. The foot of the card shows its category and when it reminds you."},
+      text:()=>"A flame counts how many in a row you have kept. Press it to open the whole streak log."},
     {sel:'.rcard [data-act="rt-menu"]',title:"Edit, pause or delete",
       text:()=>"This button, or a right-click anywhere on the card, opens everything you can do to a routine."}]},
   {id:"notes",where:()=>V.view==="notes",steps:[
-    {sel:'.nlist-head [data-act="new-note"]',title:"Notes that turn into tasks",
-      text:()=>"Write anything here: meeting notes, ideas, plans. Give a note action items and they become real tasks."},
+    /* The top bar's, which is on the screen whether or not there are any
+       notes or any tags -- the one in the list's head is gone and the one
+       on the blank page only exists while the planner has no notes. */
+    {sel:'#topbar [data-act="new-note"]',title:"Notes that turn into tasks",
+      text:()=>"Meeting notes, ideas, plans \u2014 start one here. Give a note action items and they become real tasks."},
     {sel:".ai-add",title:"Action items",
       text:()=>"Type a to-do and pick a date. It shows up in your tasks and on the calendar, and checking it off here checks it off there."}]}];
 const TIP={el:null,tour:null,i:0,target:null,miss:0};
