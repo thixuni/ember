@@ -321,10 +321,21 @@ planner that has been running for years counts all of it.
 not saved: you step back to fill something in, and next time the page opens
 it is on this week, where the work is. `weekLabel()` says "This week" while
 you are on it and the days it covers otherwise, naming the month twice only
-when the week straddles two. **Each square carries its date** — a week other
-than this one is unreadable without it — and stepping back has no floor,
-because a routine can be filled in long after it was made, while forward
-stops at this week, where the days still to come say nothing you can act on.
+when the week straddles two. Stepping back has no floor, because a routine
+can be filled in long after it was made, while forward stops at this week,
+where the days still to come say nothing you can act on.
+
+**The week is one block** (`.rwk`): the week named on the left, Today and
+the two arrows together on the right the way a calendar toolbar is laid
+out, then seven equal columns (`grid-template-columns:repeat(7,1fr)`) so
+the weekday and its square sit on one centre line and the row ends where
+the card does. The arrows were either side of the label with Today after
+them, and the forward arrow was stranded in the middle of the row; the
+columns were a fixed 30px in a flex row, which left a ragged edge no card
+lined up with. **The date is in the square**, as the streak log writes it —
+one row fewer on the card and the same thing said the same way in both
+places — and the square fills its column up to 32px, because seven
+stretched across a wide card read as a wall of boxes rather than a week.
 
 **The streak log** (`streakModal(id)`, `V.slog`) is the rest of the
 history. It opens from the streak on the card — a button, there at nought

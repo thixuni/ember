@@ -2387,25 +2387,29 @@ function viewRoutines(){
     const off=(V.rweek&&V.rweek[r.id])||0,wkStart=addDays(nowWk,off*7);
     const days='<div class="week-dots">'+[0,1,2,3,4,5,6].map(i=>{
       const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
-      /* Every square up to today takes a tick, the days off the schedule
-         included. Days still to come wait for their day. The date is over
-         the square because a week other than this one is only readable if
-         it says which days it is. */
+      /* Every square up to today can be checked off, the days off the
+         schedule included; days still to come wait for their day. The date
+         is **in** the square, the way the streak log writes it: one row
+         fewer on the card, and the same thing said the same way in both
+         places. A week other than this one is unreadable without it. */
       return '<div class="wd'+(isT?" is-today":"")+'"><small>'+DOWS[(d.getDay()+6)%7][0]+'</small>'+
-        '<b>'+d.getDate()+'</b>'+
         '<button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
         ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
         ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
-        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
+        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+d.getDate()+'</button></div>';}).join("")+'</div>';
     /* Stepping back has no floor -- a routine you are filling in after the
        fact may go back further than the day it was made -- and forward
        stops at this week, because a week of days still to come says
        nothing you can act on. */
+    /* The week named on the left and everything that moves it together on
+       the right, the way a calendar's toolbar is laid out. The arrows were
+       either side of the label with Today after them, which left the
+       forward arrow stranded in the middle of the row. */
     const wkNav='<div class="rweek">'+
-      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="-1" aria-label="The week before">'+icon("i-chev-l","ic-14")+'</button>'+
       '<span class="rweek-l'+(off?"":" now")+'">'+esc(weekLabel(wkStart))+'</span>'+
-      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="1"'+(off>=0?" disabled":"")+' aria-label="The week after">'+icon("i-chev-r","ic-14")+'</button>'+
       (off?'<button class="rweek-now" data-act="rt-week" data-id="'+r.id+'" data-v="0">Today</button>':"")+
+      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="-1" aria-label="The week before">'+icon("i-chev-l","ic-14")+'</button>'+
+      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="1"'+(off>=0?" disabled":"")+' aria-label="The week after">'+icon("i-chev-r","ic-14")+'</button>'+
       '</div>';
     /* Every card is the same four rows, each one line high: the name and
        its streak, when (time, length, how often), the week, and a foot with
@@ -2424,7 +2428,7 @@ function viewRoutines(){
          ' title="View streak log"'+
          ' aria-label="View streak log for '+esc(r.title)+' \u2014 '+esc(streakSays(r,st))+'">'+
          icon("i-flame","ic-14")+st+'</button>')+'</div>'+
-      wkNav+days+
+      '<div class="rwk">'+wkNav+days+'</div>'+
       '<div class="rfoot">'+catChip(r.cat,"routine",r.id)+
         '<span class="rbell'+(rm===null?" off":"")+'" title="Reminder">'+icon(rm===null?"i-bell-off":"i-bell","ic-14")+esc(rm===null?"No reminder":remindLabel(r).replace(" (default)",""))+'</span>'+
         '<div class="spacer" style="flex:1"></div>'+

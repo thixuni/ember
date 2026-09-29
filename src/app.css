@@ -847,36 +847,42 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .ravatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 14%,var(--tint-base));color:var(--c);flex:none}
 .rcard h3{font-size:14px;line-height:1.25}
 .rcard .rsub{font-size:11.5px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-/* The week you are looking at, and the way back through the others. */
-.rweek{display:flex;align-items:center;gap:2px;margin-bottom:-3px}
-.rweek .icon-btn{width:24px;height:24px;flex:none}
-.rweek-l{flex:1;min-width:0;text-align:center;font-size:11.5px;font-weight:700;color:var(--ink-2);
+/* The week, and the way back through the others, as one block: the week
+   named on the left, everything that moves it together on the right. */
+.rwk{display:flex;flex-direction:column;gap:7px}
+.rweek{display:flex;align-items:center;gap:4px;min-width:0}
+.rweek .icon-btn{width:26px;height:26px;flex:none}
+.rweek-l{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--ink-2);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rweek-l.now{color:var(--muted)}
-.rweek-now{flex:none;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;
+.rweek-now{flex:none;margin-right:2px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;
   background:var(--accent-soft);color:var(--accent-ink);transition:background .12s}
 .rweek-now:hover{background:color-mix(in srgb,var(--accent) 26%,var(--tint-base))}
-.week-dots{display:flex;gap:5px}
-.wd{width:30px;display:flex;flex-direction:column;align-items:center;gap:2px}
-.wd small{font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.03em}
-/* The date over the square: a week other than this one only reads if it
-   says which days it is. */
-.wd b{font-size:10.5px;font-weight:700;color:var(--muted);line-height:1.2;margin-bottom:2px}
-.wd.is-today b{color:var(--accent-ink)}
-.wd .cell{width:26px;height:26px;border-radius:9px;border:1.6px solid var(--line);display:grid;place-items:center;background:var(--surface);color:transparent}
-.wd .cell.sched{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background:color-mix(in srgb,var(--c) 8%,var(--tint-base))}
+/* Seven equal columns across the card, so the weekday and its square sit on
+   one centre line and the row ends where the card does. Fixed-width columns
+   in a flex row left a ragged edge that no card lined up with. */
+.week-dots{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+.wd small{font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.03em;line-height:1}
+.wd.is-today small{color:var(--accent-ink)}
+/* The date is in the square, as the streak log writes it: one row fewer,
+   and the same thing said the same way in both places. */
+/* It fills its column up to a point: seven squares stretched across a wide
+   card read as a wall of boxes rather than a week. */
+.wd .cell{width:100%;max-width:32px;aspect-ratio:1;border-radius:10px;border:1.6px solid var(--line);
+  display:grid;place-items:center;background:var(--surface);
+  font-size:11.5px;font-weight:700;color:var(--muted);line-height:1;
+  cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.wd .cell.sched{border-color:color-mix(in srgb,var(--c) 45%,var(--line));
+  background:color-mix(in srgb,var(--c) 8%,var(--tint-base));color:var(--ink-2)}
 .wd .cell.done{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));border-color:transparent;color:var(--on-accent)}
 .wd .cell.today{box-shadow:0 0 0 2px var(--accent-soft)}
-.wd .cell .ic{width:13px;height:13px;stroke-width:3}
-.wd .cell > *{pointer-events:none}
-/* Any square can be ticked, so each one answers the pointer: the edge takes
-   the category colour and a faint tick shows what a click will do. */
-.wd .cell{cursor:pointer;transition:border-color .12s,background .12s,color .12s}
-.wd .cell:not(.done):hover{border-color:color-mix(in srgb,var(--c) 75%,var(--line));color:color-mix(in srgb,var(--c) 55%,transparent)}
-.wd .cell.off:not(.done):hover{background:color-mix(in srgb,var(--c) 6%,var(--tint-base))}
+/* Any square can be checked off, so each one answers the pointer. */
+.wd .cell:not(.done):hover{border-color:color-mix(in srgb,var(--c) 75%,var(--line));
+  background:color-mix(in srgb,var(--c) 12%,var(--tint-base));color:var(--ink)}
 /* Still to come: there, but not yet tickable. */
-.wd .cell.later:not(.done){border-style:dashed;background:transparent;cursor:default}
-.wd .cell.later:not(.done):hover{border-color:color-mix(in srgb,var(--c) 45%,var(--line));color:transparent;background:transparent}
+.wd .cell.later:not(.done){border-style:dashed;background:transparent;color:var(--faint);cursor:default}
+.wd .cell.later:not(.done):hover{border-color:var(--line);background:transparent;color:var(--faint)}
 /* The streak is a button, so it answers the pointer; at nought it is quiet
    but still there, because the way into the log should not appear only once
    you are already going. */
