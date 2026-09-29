@@ -2061,6 +2061,26 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
    push the second quiet-hours time onto a line of its own. */
 .set-field .inp.inp-time{width:124px}
 .set-to{font-size:12.5px;color:var(--muted)}
+/* Quiet hours, a night at a time: the week as seven round buttons, then a
+   row of times under each night that is lit. The buttons are the answer to
+   "which nights"; the rows are the answer to "when", and only the nights
+   chosen have one, so the block is as tall as the question is big. */
+.qh-days{display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 4px}
+.qh-day{width:32px;height:32px;flex:none;border-radius:50%;border:1px solid var(--line-2);
+  background:var(--surface);color:var(--muted);font-size:12.5px;font-weight:700;cursor:pointer;
+  display:grid;place-items:center;transition:background .12s,color .12s,border-color .12s}
+.qh-day:hover{border-color:var(--accent);color:var(--ink)}
+.qh-day.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.qh-day:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.qh-rows{display:flex;flex-direction:column;margin-top:10px;border-top:1px solid var(--line)}
+.qh-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--line)}
+.qh-row.one{border:0;padding:2px 0 0}
+.qh-name{min-width:86px;font-size:13px;font-weight:600;color:var(--ink)}
+/* A window that runs past midnight is two dates, and reads as a mistake
+   without somewhere saying so. */
+.qh-next{font-size:11.5px;color:var(--faint)}
+.obx-quiet{margin-top:10px}
+.obx-quiet .qh-day{width:29px;height:29px;font-size:12px}
 
 /* ---------- settings ----------
    A sidebar of sections and one pane open at a time, the way Notion Calendar

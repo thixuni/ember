@@ -710,8 +710,26 @@ behind a permission prompt, and only while the tab is open.
   (12:00 unless changed), counting tasks as they will stand *then*: open and
   due before that day. It is rebuilt every five minutes, so it is never more
   than that out of date.
-- Quiet hours have no default and may wrap midnight. A reminder inside them
-  is skipped, not queued for later.
+- **Quiet hours are a night at a time.** `remind.quietDays` holds the
+  weekday numbers that have one and `remind.quietAt` the window each of
+  them keeps (`{from, to}`, keyed 0=Sunday, the way a `Date` counts).
+  One window for the whole week could not say "weekends I sleep in", which
+  is most of what anyone wants them for. The control is the week as seven
+  round buttons and a row of times under every night that is lit
+  (`quietWeekHtml()`), in the order the planner's own week runs; setup
+  shows the same seven buttons with **one** pair of times for all of them
+  (`compact`), because nobody has a different Tuesday before they have
+  used the thing. Switching quiet hours on quiets every night
+  (`quietSeed()`) and the nights you want back are turned off one at a
+  time; a night put out keeps its times, so turning it on again does not
+  start from scratch. A planner set up when there was one window for the
+  week is moved to seven of the same, once, in `remindPrefs()`.
+- **A window that wraps belongs to the night it starts on.** 10pm–7am on
+  Friday is Friday night, so `inQuiet()` asks the day's own window and
+  then yesterday's, and Saturday morning is quiet whatever Saturday itself
+  says. Rows say "next day" where `to` is not after `from`, because a
+  window across midnight is two dates and reads as a mistake without it.
+  A reminder inside one is skipped, not queued for later.
 
 ### Account and setup
 

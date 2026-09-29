@@ -22,6 +22,11 @@ const dayDiff=(a,b)=>Math.round((parseD(a)-parseD(b))/864e5);
 const MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const DOWS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+/* Indexed the way a Date is, 0=Sunday, so a weekday number reads straight
+   into it. DOWS above is written Monday-first, for columns. */
+const DAY_LONG=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+/* The seven weekday numbers in the order this planner shows a week. */
+const weekOrder=()=>{const out=[],w=weekStart();for(let i=0;i<7;i++)out.push((w+i)%7);return out;};
 const icon=(n,c)=>'<svg class="ic '+(c||"")+'" aria-hidden="true"><use href="#'+n+'"/></svg>';
 const fmtDate=s=>{if(!s)return"";const d=parseD(s);return MONS[d.getMonth()]+" "+d.getDate()+(d.getFullYear()!==today().getFullYear()?", "+d.getFullYear():"");};
 const fmtTime=t=>{if(!t)return"";const[h,m]=t.split(":").map(Number);
@@ -3514,8 +3519,9 @@ function obNotify(){
         (rp.on?'<p class="obx-fine">30 minutes ahead by default.'+(web?" Works while this tab is open.":" Works even when the app is closed.")+'</p>'+
         webNotifyHtml():""))+
       opt("i-alert",'<div class="obx-inline">'+tg("overdue",rp.overdue,"Daily overdue summary at")+tin("overdueAt",rp.overdueAt,"Time of the overdue count")+'</div>')+
-      opt("i-moon",'<div class="obx-inline">'+tg("quiet",rp.quiet,"Quiet hours")+
-        (rp.quiet?tin("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+tin("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>')+
+      opt("i-moon",'<div class="obx-inline">'+tg("quiet",rp.quiet,"Quiet hours")+'</div>'+
+        (rp.quiet?'<div class="obx-quiet">'+quietWeekHtml(rp,true)+
+          '<p class="obx-fine">Every chosen night keeps the same hours. Settings can give each one its own.</p></div>':""))+
     '</div>';
 }
 /* A reminder as it will arrive, and the whole day as a clock: quiet hours the
@@ -3523,11 +3529,16 @@ function obNotify(){
 function obShowNotify(){
   const rp=remindPrefs(),R=78,C=2*Math.PI*R,frac=hm=>hm2m(hm)/1440;
   const first=obRt().find(x=>x.on)||{title:"Morning stand-up",time:"09:30"};
+  /* The clock is one day, so it draws tonight's window -- or, where
+     tonight is not a quiet night, the first one that is, so the picture is
+     not blank on a Tuesday for someone who only quiets the weekend. */
+  const qd=rp.quiet?[new Date().getDay()].concat(weekOrder()).filter(d=>quietWin(rp,d))[0]:null;
+  const qa=qd==null?null:rp.quietAt[qd];
   let arc="";
-  if(rp.quiet&&rp.quietFrom&&rp.quietTo){
+  if(qa){
     /* A dash one circumference apart from the next wraps past midnight by
        itself: quiet hours from 10pm to 7am are one arc over the top. */
-    const a=frac(rp.quietFrom),len=((frac(rp.quietTo)-a)+1)%1||1;
+    const a=frac(qa.from),len=((frac(qa.to)-a)+1)%1||1;
     arc='<circle class="quiet" cx="100" cy="100" r="'+R+'" stroke-dasharray="'+(len*C).toFixed(1)+' '+(C-len*C).toFixed(1)+'" stroke-dashoffset="'+(-a*C).toFixed(1)+'" transform="rotate(-90 100 100)"/>';
   }
   const at=frac(rp.overdueAt||"12:00")*Math.PI*2-Math.PI/2,mx=100+R*Math.cos(at),my=100+R*Math.sin(at);
@@ -3542,7 +3553,9 @@ function obShowNotify(){
       (rp.overdue?'<circle class="mark" cx="'+mx.toFixed(1)+'" cy="'+my.toFixed(1)+'" r="6"/>':"")+
       '<text x="100" y="14">12am</text><text x="190" y="104">6am</text><text x="100" y="197">12pm</text><text x="10" y="104">6pm</text>'+
       '</svg><div class="obx-clock-key">'+
-        (rp.quiet&&rp.quietFrom&&rp.quietTo?'<span><i class="k-quiet"></i>Quiet '+esc(fmtTime(rp.quietFrom))+'–'+esc(fmtTime(rp.quietTo))+'</span>':'<span><i class="k-none"></i>No quiet hours</span>')+
+        (qa?'<span><i class="k-quiet"></i>Quiet '+esc(fmtTime(qa.from))+'–'+esc(fmtTime(qa.to))+
+            ' · '+(rp.quietDays.length===7?"every night":rp.quietDays.length+(rp.quietDays.length===1?" night":" nights"))+'</span>'
+          :'<span><i class="k-none"></i>No quiet hours</span>')+
         (rp.overdue?'<span><i class="k-mark"></i>Overdue count at '+esc(fmtTime(rp.overdueAt||"12:00"))+'</span>':"")+
       '</div></div>';
 }
@@ -3920,11 +3933,11 @@ function settingsModal(){
           (rp.overdue?'<span class="set-to">at</span>'+timeIn("overdueAt",rp.overdueAt,"Time of the overdue count",1):"")+'</div>',
           rp.overdue?"One notification with how many tasks are overdue, not one per task, and only when there are any.":""))+
       sec("Quiet hours",
-        field("",'<div class="set-actions">'+toggle("remind.quiet",rp.quiet,"Quiet hours")+
-          (rp.quiet?timeIn("quietFrom",rp.quietFrom,"Quiet hours start")+'<span class="set-to">to</span>'+
-            timeIn("quietTo",rp.quietTo,"Quiet hours end"):"")+'</div>',
-          !rp.quiet?"":!(rp.quietFrom&&rp.quietTo)?"Pick both times to switch quiet hours on."
-            :"Nothing is sent in this window, the overdue count included. Reminders inside it are skipped, not saved up."));
+        field("",'<div class="set-actions">'+toggle("remind.quiet",rp.quiet,"Quiet hours")+'</div>',
+          rp.quiet?"":"Reminders arrive whenever they are due, at any hour.")+
+        (rp.quiet?field("",quietWeekHtml(rp),
+          !rp.quietDays.length?"Choose the nights you want quiet."
+            :"Nothing is sent in these windows, the overdue count included. A reminder that falls inside one is skipped, not saved up."):""));
   }
   else if(tab==="connections"){
     const vault=vaultPath();
@@ -4744,6 +4757,13 @@ document.addEventListener("click",function(e){
     case "routine-delete":if(arm(n,"Delete for good?"))deleteRoutine(id);break;
     case "rt-menu":ctxMenu(routineItems(id,TODAY()),null,n);break;
     case "streak-log":V.slogY=null;streakModal(id);break;
+    /* A night lit gets the window the other nights keep; a night put out
+       keeps its times, so turning it back on does not start from scratch. */
+    case "quiet-day":{const p=remindPrefs(),wd=Number(n.dataset.v),i=p.quietDays.indexOf(wd);
+      if(i>-1)p.quietDays.splice(i,1);
+      else{const t=quietSeedTimes(p);p.quietDays.push(wd);p.quietDays.sort((a,b)=>a-b);
+        if(!p.quietAt[wd])p.quietAt[wd]={from:t.from,to:t.to};}
+      save("prefs");remindSoon();panels();break;}
     case "mv-scope":MVQ.scope=n.dataset.v;rtMoveDraw();break;
     case "mv-save":rtMoveApply();break;
     case "rt-skip":{const date=n.dataset.date,r=routineById(id);if(!r)break;
@@ -5124,12 +5144,20 @@ document.addEventListener("change",function(e){
   if(t.dataset&&t.dataset.act==="set-accent-hex"){
     setCustomAccent(t.value);save("prefs");syncTimerWindow();render();panels();return;
   }
+  if(t.dataset&&(t.dataset.act==="quiet-time"||t.dataset.act==="quiet-all")){
+    const p=remindPrefs(),k=t.dataset.k;
+    /* Setup sets every chosen night at once; Settings sets one. */
+    const days=t.dataset.act==="quiet-all"?p.quietDays.slice():[Number(t.dataset.v)];
+    days.forEach(d=>{p.quietAt[d]=Object.assign({from:"22:00",to:"07:00"},p.quietAt[d]);p.quietAt[d][k]=t.value;});
+    save("prefs");remindSoon();panels();return;
+  }
   if(t.dataset&&t.dataset.act==="set-pref"){
     const k=t.dataset.k,v=t.type==="checkbox"?t.checked:t.value;
     if(k.indexOf(".")>-1){const[a,b]=k.split(".");
       /* In place, not a copy: a sync in flight holds this object. */
       S.prefs[a]=S.prefs[a]||{};S.prefs[a][b]=v;
       if(a==="autoBackup"&&b==="on"&&v&&!S.prefs.autoBackup.dir)pickBackupFolder();
+      if(a==="remind"&&b==="quiet"&&v)quietSeed();
       if(a==="gcal")gcalSoon();
     }else S.prefs[k]=(k==="weekStart")?Number(v):v;
     if(k==="launch")S.prefs.launchSet=true;
@@ -7458,13 +7486,82 @@ function remindPrefs(){
   if(p.quiet===undefined)p.quiet=false;
   if(p.quietFrom===undefined)p.quietFrom="";
   if(p.quietTo===undefined)p.quietTo="";
+  /* Quiet hours are a night at a time: quietDays holds the nights that
+     have one, quietAt the window each of them keeps. One window for the
+     whole week could not say "weekends I sleep in", which is most of what
+     anyone wants quiet hours for. A planner set up before this had the one
+     window, so it becomes seven the same, once. */
+  if(!Array.isArray(p.quietDays))p.quietDays=[];
+  if(!p.quietAt||typeof p.quietAt!=="object")p.quietAt={};
+  if(p.quietFrom&&p.quietTo&&!p.quietDays.length&&!Object.keys(p.quietAt).length){
+    p.quietDays=[0,1,2,3,4,5,6];
+    p.quietDays.forEach(d=>{p.quietAt[d]={from:p.quietFrom,to:p.quietTo};});
+  }
   return p;
 }
+/* The week as seven buttons, and a row of times under every night that
+   is lit. The rows follow the planner's own week start, so the nights read
+   in the order they do everywhere else. "next day" is on a window that
+   runs past midnight, because 10pm to 7am is two dates and looks like a
+   mistake without it. `compact` is setup's version: the same seven
+   buttons, but one pair of times for all of them, since nobody has a
+   different Tuesday before they have used the thing. */
+function quietWeekHtml(p,compact){
+  const t=quietSeedTimes(p);
+  const tin=(attrs,v,label)=>timeField(attrs,v,{sm:1,cls:"inp-time",label:label,ph:"Pick a time",req:1});
+  const chips='<div class="qh-days" role="group" aria-label="Nights with quiet hours">'+
+    weekOrder().map(d=>{const on=p.quietDays.indexOf(d)>-1;
+      return '<button type="button" class="qh-day'+(on?" on":"")+'" data-act="quiet-day" data-v="'+d+'"'+
+        ' aria-pressed="'+on+'" title="'+DAY_LONG[d]+'" aria-label="'+DAY_LONG[d]+'">'+DAY_LONG[d].charAt(0)+'</button>';}).join("")+'</div>';
+  if(!p.quietDays.length)return chips;
+  if(compact)return chips+'<div class="qh-rows"><div class="qh-row one">'+
+    tin('data-act="quiet-all" data-k="from"',t.from,"Quiet hours start")+'<span class="set-to">to</span>'+
+    tin('data-act="quiet-all" data-k="to"',t.to,"Quiet hours end")+
+    (hm(t.to)<=hm(t.from)?'<span class="qh-next">next day</span>':"")+'</div></div>';
+  return chips+'<div class="qh-rows">'+weekOrder().filter(d=>p.quietDays.indexOf(d)>-1).map(d=>{
+    const a=p.quietAt[d]||t;
+    return '<div class="qh-row"><span class="qh-name">'+DAY_LONG[d]+'</span>'+
+      tin('data-act="quiet-time" data-v="'+d+'" data-k="from"',a.from,DAY_LONG[d]+" quiet hours start")+
+      '<span class="set-to">to</span>'+
+      tin('data-act="quiet-time" data-v="'+d+'" data-k="to"',a.to,DAY_LONG[d]+" quiet hours end")+
+      (hm(a.to)<=hm(a.from)?'<span class="qh-next">next day</span>':"")+'</div>';}).join("")+'</div>';
+}
+/* A night's window, or nothing where that night has none. */
+function quietWin(p,wd){
+  if((p.quietDays||[]).indexOf(Number(wd))<0)return null;
+  const a=(p.quietAt||{})[wd];
+  if(!a||!a.from||!a.to||a.from===a.to)return null;
+  return {a:hm(a.from),b:hm(a.to)};
+}
+/* The window a new night starts with: whatever the nights already set
+   keep, so turning Saturday on beside six nights of 10pm-7am gives 10pm-7am
+   rather than an argument. */
+function quietSeedTimes(p){
+  const d=(p.quietDays||[]).filter(x=>p.quietAt&&p.quietAt[x])[0];
+  const a=d==null?null:p.quietAt[d];
+  return {from:(a&&a.from)||p.quietFrom||"22:00",to:(a&&a.to)||p.quietTo||"07:00"};
+}
+/* Switching quiet hours on quiets every night, which is what someone
+   asking for quiet hours means; the nights they want back are then turned
+   off one at a time. */
+function quietSeed(){
+  const p=remindPrefs();if(p.quietDays.length)return;
+  const t=quietSeedTimes(p);
+  p.quietDays=[0,1,2,3,4,5,6];
+  p.quietDays.forEach(d=>{if(!p.quietAt[d])p.quietAt[d]={from:t.from,to:t.to};});
+}
 const hm=tm=>{const x=String(tm||"0:0").split(":").map(Number);return x[0]*60+(x[1]||0);};
+/* A window that runs past midnight belongs to the night it starts on, so
+   a moment is quiet when its own day's window covers it, or when last
+   night's wrapped and has not finished yet. 10pm-7am on Friday is Friday
+   night, and Saturday morning is quiet whatever Saturday itself says. */
 function inQuiet(ms,p){
-  if(!p.quiet||!p.quietFrom||!p.quietTo||p.quietFrom===p.quietTo)return false;
-  const d=new Date(ms),m=d.getHours()*60+d.getMinutes(),a=hm(p.quietFrom),b=hm(p.quietTo);
-  return a<b?(m>=a&&m<b):(m>=a||m<b);          // a window like 22:00-07:00 wraps midnight
+  if(!p.quiet)return false;
+  const d=new Date(ms),m=d.getHours()*60+d.getMinutes(),wd=d.getDay();
+  const t=quietWin(p,wd);
+  if(t&&(t.a<t.b?(m>=t.a&&m<t.b):m>=t.a))return true;
+  const y=quietWin(p,(wd+6)%7);
+  return !!(y&&y.a>y.b&&m<y.b);
 }
 function leadText(mins){
   if(!mins)return "now";
