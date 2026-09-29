@@ -911,13 +911,25 @@ button.sq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .sq.later,.sq.out{background:none;box-shadow:inset 0 0 0 1px var(--line)}
 .sq.out{box-shadow:none}
 .sq.today{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
+/* One run picked out: the rest of the year steps back rather than the run
+   being ringed, which at 13px a square only made it busier. */
+.lit-on .sq:not(.lit){opacity:.22}
+.lit-on .sq.lit{opacity:1}
 .sq.today.miss{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 42%,transparent),0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
 .slog-key{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:600;color:var(--muted)}
 .slog-key .k{display:inline-flex;align-items:center;gap:6px}
 .slog-key .sq{width:11px;height:11px;border-radius:3px}
 .slog-runs{display:flex;flex-direction:column;gap:7px;max-height:210px;overflow-y:auto;scrollbar-width:thin}
+/* Each run is a button: it lights itself up in the year above and takes the
+   picker to it, which is the quickest way around a history spanning years. */
 .slog-run{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-m);
-  background:var(--surface);border:1px solid var(--line)}
+  background:var(--surface);border:1px solid var(--line);text-align:left;width:100%;
+  cursor:pointer;transition:border-color .12s,background .12s,transform .12s}
+.slog-run:hover{border-color:color-mix(in srgb,var(--c) 50%,var(--line));transform:translateX(2px)}
+.slog-run:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.slog-run.on{border-color:color-mix(in srgb,var(--c) 70%,var(--line));
+  box-shadow:inset 3px 0 0 color-mix(in srgb,var(--c) 80%,transparent)}
+.slog-run > *{pointer-events:none}
 .slog-run.live{border-color:color-mix(in srgb,var(--c) 45%,var(--line));
   background:linear-gradient(100deg,color-mix(in srgb,var(--c) 12%,var(--surface)),var(--surface) 60%)}
 .slog-run .len{display:inline-flex;align-items:center;gap:5px;font-family:var(--fd);font-size:15px;font-weight:700;
@@ -1521,6 +1533,9 @@ button.obx-rt-txt > *{pointer-events:none}
 .modal{background:var(--surface);border-radius:var(--r-l);box-shadow:var(--sh-3);width:min(660px,100%);max-height:min(88dvh,860px);display:flex;flex-direction:column;overflow:hidden;animation:pop .18s cubic-bezier(.2,.7,.3,1)}
 .modal.wide{width:min(760px,100%)}
 .modal.narrow{width:min(460px,100%)}
+/* Wide enough that a whole year of squares fits without scrolling on a
+   normal screen; it still scrolls on a narrow one. */
+.modal.slog{width:min(920px,96vw)}
 .mhead2{display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
 .mhead2 h2{font-size:17px;flex:1;min-width:0}
 .mbody{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}

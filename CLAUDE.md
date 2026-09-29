@@ -327,9 +327,27 @@ at this year. Every square is a real `routine-done` button, so a day
 pressed there goes through the same handler as a day pressed on a card, and
 `render()` draws the log again (the way it redraws the day popup for
 `V.peek`) because the numbers above it have just changed — `openModal()`
-swaps it in place, so `.slog-map` keeps where it was scrolled. Under it,
-every run the routine has ever had, most recent first, the live one marked
-Going and the longest Best. `.sq.done` uses the category colour nearly
+swaps it in place, so `.slog-map` keeps where it was scrolled. The modal
+is `.modal.slog` rather than `wide` so a whole year of squares fits
+without scrolling on a normal screen.
+
+Under it, every run the routine has ever had, most recent first, the live
+one marked Going and the longest Best — and **each one is a button**: it
+takes the year picker to where that run sits and lights it up, the rest of
+the year stepping back to a fifth (`.lit-on .sq:not(.lit)`) rather than
+the run being ringed, which at 13px a square only made it busier. Pressing
+it again puts the whole year back. A run is held in `V.slogRun` by its
+first day, not by its place in the list, because a day ticked in the log
+can merge two runs into one and every index after it would then point at
+the wrong run; `V.slogSeek` scrolls it into view once, by the cell's own
+offset rather than `scrollIntoView()`, which would move the modal body as
+well. Without that, the list was the same information as the wall above it
+and the two numbers beside it, laid out again as text.
+
+**A streak counts times kept, not days**, and `streakUnit(r)` says which
+word to use: a run of 38 on something due every day is 38 days, but a run
+of 28 on a weekly review is 28 Fridays — near enough six months. Everything
+that puts the number into words goes through `streakSays()`. `.sq.done` uses the category colour nearly
 neat rather than the week squares' recipe: those mix toward the ink because
 they carry a check mark, and at 13px with nothing on it that read as black.
 
