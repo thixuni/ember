@@ -1212,10 +1212,10 @@ function rtMoveDraw(){
      than announcing a day it has kept all along. */
   const already=moves&&(r.days||[]).indexOf(parseD(MVQ.to).getDay())>-1;
   const noteAll=moves
-    ?(already?"Every one moves to "+fmtTime(MVQ.time)+", and it stops repeating on "+dayName(MVQ.from)+"s."
-      :"Every one moves to "+fmtTime(MVQ.time)+", on "+dayName(MVQ.to)+"s from now on instead of "+dayName(MVQ.from)+"s.")
-    :!sameDay?"Every one moves to "+fmtTime(MVQ.time)+". The day stays as it falls: this repeats every "+(r.every||2)+" days."
-    :"Every one, past and future, moves to "+fmtTime(MVQ.time)+".";
+    ?(already?"Moves to "+fmtTime(MVQ.time)+", and it stops repeating on "+dayName(MVQ.from)+"s."
+      :"Moves to "+fmtTime(MVQ.time)+" and repeats on "+dayName(MVQ.to)+"s from now on, not "+dayName(MVQ.from)+"s.")
+    :!sameDay?"Moves to "+fmtTime(MVQ.time)+". The day stays as it falls: this one repeats every "+(r.every||2)+" days."
+    :"Every day it falls on, past and future, moves to "+fmtTime(MVQ.time)+".";
   const opt=(v,label,note,off)=>'<button class="mvopt'+(MVQ.scope===v?" on":"")+(off?" off":"")+'" role="radio"'+
     ' aria-checked="'+(MVQ.scope===v)+'"'+(off?' disabled aria-disabled="true"':"")+
     ' data-act="mv-scope" data-v="'+v+'"><i></i><span><b>'+esc(label)+'</b>'+(note?'<small>'+esc(note)+'</small>':"")+'</span></button>';
@@ -1226,12 +1226,21 @@ function rtMoveDraw(){
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="mbody">'+
       '<div class="mvopts" role="radiogroup" aria-label="Which days to move">'+
-        opt("one","Just this one",
-          clash?"It already repeats on "+fmtDate(MVQ.to)
-            :fmtDate(MVQ.from)+" moves on its own. The routine carries on as it is.",clash)+
-        opt("following","This one and the ones after",
-          fmtDate(MVQ.from)+" onward move. Everything before it keeps "+fmtTime(was)+".")+
-        opt("all","Every one",noteAll)+
+        /* Each title says how far the change reaches, and each note says
+           what it leaves alone. "Just this one", "This one and the ones
+           after", "Every one" named no noun at all -- one what? -- so the
+           three read as the same answer three times. They are days now,
+           and the third is the routine itself, which is the real
+           difference: the first two move days, the last rewrites the
+           thing that makes them. */
+        opt("one","This day only",
+          clash?"It already happens on "+fmtDate(MVQ.to)+" \u2014 two cannot share a day."
+            :"Only "+fmtDate(MVQ.from)+" moves. The routine itself is unchanged.",clash)+
+        /* Not "and every day after it": on a routine that repeats on chosen
+           days that reads as a promise to start happening daily. */
+        opt("following","This day onward",
+          fmtDate(MVQ.from)+" onward moves. The days before it keep "+fmtTime(was)+".")+
+        opt("all","The whole routine",noteAll)+
       '</div>'+
       '<div class="mvwhen"><span class="lab">When</span><div><b>'+esc(when(MVQ.to,MVQ.time))+'</b>'+
         '<s>'+esc(when(MVQ.from,rtTime(r,MVQ.from)))+'</s></div></div>'+
