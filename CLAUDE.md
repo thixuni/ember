@@ -505,6 +505,10 @@ its own categories, and categories were the thing that most needed it.
   *Work* lands in the other's. `fixSpaces()` does the same for categories,
   routines, notes and unavailable time, so nothing is ever left belonging
   to a workspace that has gone.
+- **Six workspaces is the most** (`WS_MAX`): enough to keep the parts of a
+  life apart, few enough that the switcher stays a list you read rather
+  than one you search. Past it the New workspace button is disabled and
+  `spaceAdd()` refuses anyway, since a button is not a guard.
 - **Workspaces are made and unmade in Settings ▸ Workspaces**
   (`setSpacesPane()`), not in Customize: a workspace is not a setting
   about tasks, it is where everything lives. A row each — drag to
@@ -513,6 +517,10 @@ its own categories, and categories were the thing that most needed it.
   another workspace, or nowhere, which deletes them. A new workspace
   starts with the same five categories a new planner does, because one
   with no categories has nowhere to put a task. The last one cannot go.
+  A new planner's one workspace is called **My Workspace** until it is
+  renamed. There is no "Across all of them" section in the pane: the
+  switcher in the sidebar already has All workspaces in it, and saying it
+  twice made the pane look like it had two subjects.
 - **The sidebar is three bands**, each set off by a hairline: which app,
   which workspace, then everything that belongs to the workspace. It was
   one run of rows in three sizes with nothing between them, which is what
@@ -568,7 +576,7 @@ chore.
 
 - **Swimlanes** are `curSpace().lanes`: `{id, name, color, done}` in board
   order, and a task's `status` is its lane's id. A new planner starts with
-  one workspace called *My workspace* carrying To do, In progress and
+  one workspace called *My Workspace* carrying To do, In progress and
   Completed (`DEFAULT_LANES`); a planner that already had tasks keeps the
   six it had (`LEGACY_LANES`), and a planner from before workspaces keeps
   its lanes — or each of its boards' — as its workspaces', so nothing
@@ -797,17 +805,13 @@ written by `setSync()`). Backup and restore were two bare arrow icons
 there; they live in Settings > Your data, in words.
 
 **Categories belong to a workspace**, so the sidebar's list changes with
-it and `cats()` is what everything offering a choice reads. The window
-that edits them (`catsModal(ws)`, `V.catWs`, read back through `cmWs()`)
-edits **one named workspace's**: the one you are in from the sidebar's
-pencil, or whichever row opened it from **Settings ▸ Workspaces**, where
-every workspace has a Categories button. Only an opening sets which
-workspace -- every redraw from inside the window keeps it, or one opened
-for Office would jump back to whichever workspace the sidebar is on at
-the first click -- and the heading names it, because editing Office's
-while the sidebar shows Personal should not look like editing
-Personal's. Across all of them the sidebar's pencil goes to Settings
-rather than to a window with nothing to edit. They all live
+it and `cats()` is what everything offering a choice reads. **They are edited where the workspaces are**: in **Settings ▸
+Workspaces**, opened under the workspace they belong to (`catListHtml()`,
+`V.catWs` for the one open, `catsPane()` to get there, `refreshCats()` to
+redraw it). They had a window of their own, and from Settings that meant
+a popup opening on top of the popup that was already listing them. The
+sidebar's pencil goes to the same place, with that workspace's list
+already open. They all live
 in the one `S.categories` array with a `ws` on each, so reordering one
 workspace's writes them back into the places its own occupied
 (`catsReorder()`) — mapping the dragged order straight onto

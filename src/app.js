@@ -122,6 +122,9 @@ function board(){
    it is today, and today does not belong to one workspace. */
 const WS_ALL="*";
 const WS_ICONS=["i-home","i-briefcase","i-rocket","i-laptop","i-heart","i-leaf","i-star","i-target"];
+/* Six is enough to keep apart the parts of a life and few enough that the
+   switcher stays a list you read rather than one you search. */
+const WS_MAX=6;
 function spaces(){
   const p=S.prefs;
   if(!Array.isArray(p.spaces)||!p.spaces.length){
@@ -129,7 +132,7 @@ function spaces(){
        the same name, and one that never had boards gets a single workspace
        holding everything it already has. */
     const old=Array.isArray(p.boards)&&p.boards.length?p.boards
-      :[{id:"w_main",name:"My workspace",
+      :[{id:"w_main",name:"My Workspace",
          lanes:(p.board&&Array.isArray(p.board.lanes)&&p.board.lanes.length)?p.board.lanes
            :JSON.parse(JSON.stringify((S.tasks||[]).length?LEGACY_LANES:DEFAULT_LANES))}];
     p.spaces=old.map((b,i)=>({id:b.id,name:b.name,color:b.color||LANE_COLORS[i%LANE_COLORS.length],
@@ -500,9 +503,8 @@ const visibleCat=id=>hiddenCats().indexOf(id)===-1;
 function toggleCat(id,force){
   const h=hiddenCats(),i=h.indexOf(id),show=force==null?i>-1:force;
   if(show){if(i>-1)h.splice(i,1);}else if(i===-1)h.push(id);
-  touched.prefs=true;save("prefs");render();refreshCatsModal();
+  touched.prefs=true;save("prefs");render();refreshCats();
 }
-function refreshCatsModal(){const r=el("modalRoot");if(r&&r.querySelector("#cmList"))catsModal();}
 /* ---- lookups ----
    One pass over each big list, kept until the data changes, instead of a
    scan per card, per day or per row: a year in, the board was counting 8,000
@@ -2651,7 +2653,9 @@ function customiseModal(){
    which swatch is open, which one is being removed. */
 function wsState(){return V.ws||(V.ws={});}
 function spaceAdd(){
-  const bs=spaces(),used=bs.map(b=>b.color),col=LANE_COLORS.find(x=>used.indexOf(x)<0)||LANE_COLORS[bs.length%LANE_COLORS.length];
+  const bs=spaces();
+  if(bs.length>=WS_MAX){toast("Six workspaces is the most for now");return;}
+  const used=bs.map(b=>b.color),col=LANE_COLORS.find(x=>used.indexOf(x)<0)||LANE_COLORS[bs.length%LANE_COLORS.length];
   const w={id:uid("w"),name:"New workspace",color:col,icon:WS_ICONS[bs.length%WS_ICONS.length],lanes:newSpaceLanes()};
   bs.push(w);
   /* A workspace with no categories of its own would have nowhere to put a
@@ -2713,7 +2717,7 @@ function spaceRemove(id){
 }
 function setSpacesPane(sec,field){
   const bs=spaces(),at=S.prefs.spaceAt,w=wsState(),del=w.del?spaceById(w.del):null;
-  const rows=bs.map(b=>{const n=wsCounts(b.id),pal=w.pal===b.id,here=b.id===at;
+  const rows=bs.map(b=>{const n=wsCounts(b.id),pal=w.pal===b.id,here=b.id===at,catsOpen=V.catWs===b.id;
     const held=[n.tasks+" task"+(n.tasks===1?"":"s"),n.routines+" routine"+(n.routines===1?"":"s"),
       n.notes+" note"+(n.notes===1?"":"s"),n.cats+" categor"+(n.cats===1?"y":"ies")].join(" \u00b7 ");
     return '<div class="wsrow'+(here?" on":"")+'" draggable="true" data-ws="'+b.id+'" style="--s:'+b.color+'">'+
@@ -2721,7 +2725,8 @@ function setSpacesPane(sec,field){
       '<button class="wsrow-ic" data-act="ws-pal" data-id="'+b.id+'" aria-label="Icon and color of '+esc(b.name)+'" aria-expanded="'+pal+'">'+icon(b.icon||"i-grid","ic-14")+'</button>'+
       '<span class="wsrow-t"><input class="cz-name" data-act="ws-name" data-id="'+b.id+'" value="'+esc(b.name)+'" maxlength="40" aria-label="Workspace name">'+
         '<small>'+esc(held)+'</small></span>'+
-      '<button class="btn btn-sm" data-act="ws-cats" data-id="'+b.id+'" title="Edit this workspace\u2019s categories">'+icon("i-folder","ic-14")+'Categories</button>'+
+      '<button class="btn btn-sm'+(catsOpen?" on":"")+'" data-act="ws-cats" data-id="'+b.id+'" aria-expanded="'+catsOpen+'"'+
+        ' title="Edit this workspace\u2019s categories">'+icon("i-folder","ic-14")+'Categories'+icon(catsOpen?"i-chev-u":"i-chev-d","ic-14")+'</button>'+
       (here?'<span class="cz-here">Current</span>'
         :'<button class="btn btn-sm" data-act="ws-open" data-id="'+b.id+'">Open</button>')+
       '<button class="icon-btn btn-sm cz-del" data-act="ws-del" data-id="'+b.id+'" aria-label="Remove '+esc(b.name)+'"'+(bs.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
@@ -2731,14 +2736,13 @@ function setSpacesPane(sec,field){
         '<div class="ws-pal-row ic">'+WS_ICONS.map(x=>'<button class="'+(x===(b.icon||"i-grid")?"on":"")+'" data-act="ws-icon" data-id="'+b.id+'" data-v="'+x+'" aria-label="'+x+'">'+icon(x,"ic-14")+'</button>').join("")+'</div>'+
         '</div>':"")+
       (del&&del.id===b.id?wsDelRow(b,n):"")+
+      (catsOpen?catListHtml(b.id):"")+
       '</div>';}).join("");
+  const full=bs.length>=WS_MAX;
   return sec("Your workspaces",
       '<div class="wslist" id="wsList">'+rows+'</div>'+
-      '<button class="btn btn-sm" data-act="ws-add">'+icon("i-plus","ic-14")+'New workspace</button>')+
-    sec("Across all of them",
-      field("",'<button class="btn btn-sm'+(at===WS_ALL?" btn-primary":"")+'" data-act="ws-open" data-id="'+WS_ALL+'">'+
-        icon("i-grid","ic-14")+(at===WS_ALL?"You are in All workspaces":"Open All workspaces")+'</button>',
-        "Every section shows everything at once. The dashboard is always across all of them, whichever workspace you are in, because today does not belong to one."));
+      '<button class="btn btn-sm" data-act="ws-add"'+(full?" disabled":"")+'>'+icon("i-plus","ic-14")+'New workspace</button>'+
+      (full?'<p class="set-help">Six is the most for now.</p>':""));
 }
 function wsDelRow(b,n){
   const others=spaces().filter(x=>x.id!==b.id);
@@ -2987,7 +2991,7 @@ function czDragWire(){
     else if(box.id==="wsList"){const order=[...box.children].map(x=>x.dataset.ws);
       S.prefs.spaces=order.map(id=>spaceById(id)).filter(Boolean);save("prefs");settingsModal();render();}
     else if(box.id==="cmList"){const order=[...box.children].map(x=>x.dataset.cat);
-      catsReorder(order);renderRail();renderView();catsModal();}
+      catsReorder(order);renderRail();renderView();refreshCats();}
     else if(box.id==="czCols"){const cols=listCols(),order=[...box.children].map(x=>x.dataset.col);
       board().cols=order.map(k=>cols.find(c=>c.k===k)).filter(Boolean).concat(cols.filter(c=>order.indexOf(c.k)<0));save("prefs");customiseModal();render();}
   });
@@ -4703,19 +4707,23 @@ function rtRepeat(v){
    workspace's are in one place. */
 const cmWs=()=>{const w=spaceById(V.catWs);return w?w.id:(wsAll()?spaces()[0].id:curSpace().id);};
 const cmSpace=()=>spaceById(cmWs())||spaces()[0];
-function catsModal(ws){
-  /* Only an opening sets which workspace; every redraw from inside the
-     window keeps it, or one opened for Office from Settings would jump
-     back to whichever workspace the sidebar is on at the first click. */
-  if(ws)V.catWs=ws;
-  if(!spaceById(V.catWs)){
-    if(wsAll()){V.setTab="spaces";settingsModal();return;}
-    V.catWs=curSpace().id;
-  }
+/* Categories are edited where the workspaces are, under the workspace
+   they belong to -- Settings > Workspaces, opened from there or from the
+   sidebar's pencil. They had a window of their own, and from Settings
+   that meant a popup opening on top of a popup to edit something the
+   first popup was already listing. V.catWs is the workspace whose list is
+   open, and only one is at a time. */
+function catsPane(ws){
+  if(ws!==undefined)V.catWs=ws;
+  V.setTab="spaces";settingsModal();
+}
+/* Anything that changes a category redraws the pane where it is open. */
+function refreshCats(){if(el("modalRoot").querySelector(".modal.settings"))settingsModal();}
+function catListHtml(wid){
   const E=V.catEdit||{},del=E.del?cat(E.del):null;
   const row=c=>{const open=E.id===c.id?E.part:"",off=!visibleCat(c.id);
     const n=S.tasks.filter(t=>t.cat===c.id).length+S.routines.filter(r=>r.cat===c.id).length;
-    const to=catsOf(cmWs()).find(x=>x.id!==c.id);
+    const to=catsOf(wid).find(x=>x.id!==c.id);
     return '<div class="cm-row'+(off?" off":"")+(open?" open":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
       '<button type="button" class="cz-grip" data-grip="cat" data-id="'+c.id+'" title="Drag to reorder" aria-label="Move '+esc(c.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
       '<button type="button" class="cm-ic'+(open==="icon"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="icon" aria-label="Icon for '+esc(c.name)+'" aria-expanded="'+(open==="icon")+'">'+icon(c.icon,"ic-16")+'</button>'+
@@ -4730,17 +4738,10 @@ function catsModal(ws){
         '<span class="spacer" style="flex:1"></span><button type="button" class="btn btn-sm" data-act="cm-del-no">Keep it</button>'+
         '<button type="button" class="btn btn-sm btn-danger" data-act="cm-del-yes" data-id="'+c.id+'">Delete</button></div>':"")+
       '</div>';};
-  openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Categories">'+
-    /* The window says whose, because from Settings it can be a workspace
-       you are not in -- editing Office's categories while the sidebar
-       shows Personal should not look like editing Personal's. */
-    '<div class="mhead2"><span class="ws-ic" style="--c:'+cmSpace().color+'">'+icon(cmSpace().icon||"i-grid","ic-14")+'</span>'+
-      '<h2>Categories<em class="mh-sub">'+esc(cmSpace().name)+'</em></h2>'+
-      '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody"><p class="cz-lead">Rename, recolor or reorder them. Drag the handle to move one.</p>'+
-      '<div class="cat-manage" id="cmList">'+catsOf(cmWs()).map(row).join("")+'</div>'+
-      '<button type="button" class="btn btn-sm cm-new" data-act="cm-new">'+icon("i-plus","ic-14")+'New category</button></div>'+
-    '<div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
+  return '<div class="ws-cats">'+
+    '<p class="ws-cats-lead">Rename, recolor or reorder them. Drag a handle to move one.</p>'+
+    '<div class="cat-manage" id="cmList">'+catsOf(wid).map(row).join("")+'</div>'+
+    '<button type="button" class="btn btn-sm cm-new" data-act="cm-new">'+icon("i-plus","ic-14")+'New category</button></div>';
 }
 document.addEventListener("keydown",function(e){const t=e.target;if(t&&t.classList&&t.classList.contains("cm-name")&&e.key==="Enter"){e.preventDefault();t.blur();}});
 /* Rows move by their handle only: dragged, or with the arrow keys once it
@@ -4753,7 +4754,7 @@ document.addEventListener("keydown",function(e){
   else if(k==="col")czMoveCol(id,step);else if(k==="cat")cmMove(id,step);
   const n=document.querySelector('.cz-grip[data-grip="'+k+'"][data-id="'+CSS.escape(id)+'"]');if(n)n.focus({preventScroll:true});
 });
-function cmSet(id,patch){const c=cat(id);if(!c||c.id!==id)return;Object.assign(c,patch);save("categories");renderRail();renderView();catsModal();}
+function cmSet(id,patch){const c=cat(id);if(!c||c.id!==id)return;Object.assign(c,patch);save("categories");renderRail();renderView();refreshCats();}
 /* Every category lives in the one S.categories list, so reordering a
    workspace's own writes them back into the places its own occupied and
    leaves every other workspace's exactly where they were. Mapping the
@@ -4770,7 +4771,7 @@ function catsReorder(order){
 function cmMove(id,step){const L=catsOf(cmWs()),i=L.findIndex(c=>c.id===id),j=i+step;if(i<0||j<0||j>=L.length)return;
   const order=L.map(c=>c.id);order.splice(j,0,order.splice(i,1)[0]);
   if(!catsReorder(order))return;
-  renderRail();renderView();catsModal();}
+  renderRail();renderView();refreshCats();}
 function peekModal(date){
   V.peek=date;
   const ts=tasksFor(date),evs=eventsFor(parseD(date));
@@ -4991,7 +4992,7 @@ function saveCat(id){
   if(!name){el("cName").focus();toast("Name the category first");return;}
   if(id){const c=cat(id);c.name=name;c.color=M.dataset.color;c.icon=M.dataset.icon;}
   else S.categories.push({id:uid("c"),ws:cmWs(),name:name,color:M.dataset.color,icon:M.dataset.icon});
-  save("categories");catsModal();renderRail();renderView();
+  save("categories");refreshCats();renderRail();renderView();
 }
 function delCat(id){
   const n=S.tasks.filter(t=>t.cat===id).length+S.routines.filter(r=>r.cat===id).length+S.notes.filter(x=>x.cat===id).length;
@@ -5000,7 +5001,7 @@ function delCat(id){
   S.tasks.forEach(t=>{if(t.cat===id)t.cat=fb;});S.routines.forEach(r=>{if(r.cat===id)r.cat=fb;});S.notes.forEach(x=>{if(x.cat===id)x.cat=fb;});
   S.categories=S.categories.filter(c=>c.id!==id);
   S.prefs.hidden=S.prefs.hidden.filter(x=>x!==id);
-  save("categories");save("tasks");save("routines");save("notes");save("prefs");catsModal();render();
+  save("categories");save("tasks");save("routines");save("notes");save("prefs");refreshCats();render();
   toast(n?n+" item"+(n===1?"":"s")+" moved to "+fbc.name:"Category deleted");
 }
 function addAction(nid){
@@ -5032,9 +5033,9 @@ document.addEventListener("click",function(e){
     case "rail":document.body.classList.toggle("rail-open");break;
     case "view":V.view=n.dataset.view;V.q="";closeRail();render();break;
     case "cat-toggle":if(n.classList.contains("cat-row")&&Date.now()<CP.skipUntil)break;toggleCat(id);break;
-    case "cat-all":hiddenCats().length=0;touched.prefs=true;save("prefs");render();refreshCatsModal();break;
-    case "cat-none":S.prefs.hidden=cats().map(c=>c.id);touched.prefs=true;save("prefs");render();refreshCatsModal();break;
-    case "cat-only":S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(c=>c.id!==id).map(c=>c.id));touched.prefs=true;save("prefs");render();refreshCatsModal();break;
+    case "cat-all":hiddenCats().length=0;touched.prefs=true;save("prefs");render();refreshCats();break;
+    case "cat-none":S.prefs.hidden=cats().map(c=>c.id);touched.prefs=true;save("prefs");render();refreshCats();break;
+    case "cat-only":S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(c=>c.id!==id).map(c=>c.id));touched.prefs=true;save("prefs");render();refreshCats();break;
     case "cal-prev":V.anchor=V.calMode==="week"?addDays(V.anchor,-7):new Date(V.anchor.getFullYear(),V.anchor.getMonth()-1,1);renderTopbar();renderView();break;
     case "cal-next":V.anchor=V.calMode==="week"?addDays(V.anchor,7):new Date(V.anchor.getFullYear(),V.anchor.getMonth()+1,1);renderTopbar();renderView();break;
     case "cal-today":V.anchor=today();renderTopbar();renderView();break;
@@ -5153,7 +5154,7 @@ document.addEventListener("click",function(e){
     /* From Settings the window edits that workspace's, whichever one the
        sidebar happens to be showing -- that is the whole point of its
        being here rather than only behind the sidebar's pencil. */
-    case "ws-cats":V.catEdit={};catsModal(id);break;
+    case "ws-cats":V.catEdit={};catsPane(V.catWs===id?null:id);break;
     case "ws-open":wsGo(id);if(el("modalRoot").querySelector(".modal.settings"))settingsModal();break;
     case "ws-pal":wsState().pal=wsState().pal===id?null:id;settingsModal();break;
     case "ws-color":{const b=spaceById(id);if(b){b.color=n.dataset.v;save("prefs");wsState().pal=null;settingsModal();render();}break;}
@@ -5283,23 +5284,23 @@ document.addEventListener("click",function(e){
       const on=[...M.querySelectorAll("#rDays button.on")].map(b=>b.dataset.v).sort().join("");
       const sel=el("rRep");if(sel)sel.value=on==="0123456"?"daily":on==="12345"?"weekdays":"weekly";break;}
     case "r-active":{const on=M.dataset.active!=="false";M.dataset.active=String(!on);n.classList.toggle("on",on);n.setAttribute("aria-checked",String(on));break;}
-    case "manage-cats":V.catEdit={};catsModal(wsAll()?null:curSpace().id);break;
-    case "cm-part":{const E=V.catEdit||{};V.catEdit=(E.id===id&&E.part===n.dataset.v)?{}:{id:id,part:n.dataset.v};catsModal();
+    case "manage-cats":V.catEdit={};catsPane(wsAll()?null:curSpace().id);break;
+    case "cm-part":{const E=V.catEdit||{};V.catEdit=(E.id===id&&E.part===n.dataset.v)?{}:{id:id,part:n.dataset.v};refreshCats();
       const b=document.querySelector('.cm-row[data-cat="'+id+'"] [data-act="cm-part"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});break;}
     case "cm-color":cmSet(id,{color:n.dataset.v});break;
     case "cm-icon":cmSet(id,{icon:n.dataset.v});break;
     case "cm-new":{const used=catsOf(cmWs()).map(x=>x.color.toLowerCase()),col=CAT_COLORS.find(x=>used.indexOf(x.toLowerCase())<0)||CAT_COLORS[0],nid=uid("c");
-      S.categories.push({id:nid,ws:cmWs(),name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();catsModal();
+      S.categories.push({id:nid,ws:cmWs(),name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();refreshCats();
       const i=document.querySelector('.cm-name[data-id="'+nid+'"]');if(i){i.focus();i.select();}break;}
     case "cm-more":{const c=cat(id);if(!c||c.id!==id)break;const i=S.categories.indexOf(c),off=!visibleCat(id);
       const items=[{v:"vis",label:off?"Show in my views":"Hide from my views"},{v:"only",label:"Show only this"}]
         .concat(catsOf(cmWs()).length>1?[{v:"del",label:"Delete…"}]:[]);
       qaMenu(n,items,null,v=>{
         if(v==="vis")toggleCat(id);
-        else if(v==="only"){S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(x=>x.id!==id).map(x=>x.id));touched.prefs=true;save("prefs");render();catsModal();}
+        else if(v==="only"){S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(x=>x.id!==id).map(x=>x.id));touched.prefs=true;save("prefs");render();refreshCats();}
         else if(v==="up"||v==="down")cmMove(id,v==="up"?-1:1);
-        else if(v==="del"){V.catEdit={del:id};catsModal();}});break;}
-    case "cm-del-no":V.catEdit={};catsModal();break;
+        else if(v==="del"){V.catEdit={del:id};refreshCats();}});break;}
+    case "cm-del-no":V.catEdit={};refreshCats();break;
     case "cm-del-yes":V.catEdit={};delCat(id);break;
     case "new-note":askSpace("the new note",w=>{const nn={id:uid("n"),ws:w,title:"",cat:catFor(cat0().id,w),tags:[],pinned:false,html:"",actions:[],updated:Date.now()};
       S.notes.unshift(nn);V.view="notes";V.noteId=nn.id;V.q="";save("notes");render();const ti=el("noteTitle");if(ti)ti.focus();});break;
@@ -5491,7 +5492,7 @@ function catSweepEnd(e){
   if(e.type==="pointercancel"){render();return;}
   const h=hiddenCats();
   (CP.rows||new Map()).forEach((show,id)=>{const i=h.indexOf(id);if(show){if(i>-1)h.splice(i,1);}else if(i<0)h.push(id);});
-  touched.prefs=true;save("prefs");render();refreshCatsModal();
+  touched.prefs=true;save("prefs");render();refreshCats();
 }
 document.addEventListener("pointerup",catSweepEnd);
 document.addEventListener("pointercancel",catSweepEnd);
@@ -6367,10 +6368,10 @@ function catItems(id){
   const off=!visibleCat(id);
   return [
     {icon:off?"i-eye":"i-eye-off",label:off?"Show "+c.name:"Hide "+c.name,run:()=>toggleCat(id)},
-    {icon:"i-target",label:"Show only "+c.name,run:()=>{S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(x=>x.id!==id).map(x=>x.id));touched.prefs=true;save("prefs");render();refreshCatsModal();}},
-    hiddenCats().length?{icon:"i-eye",label:"Show every category",run:()=>{S.prefs.hidden=[];touched.prefs=true;save("prefs");render();refreshCatsModal();}}:null,
+    {icon:"i-target",label:"Show only "+c.name,run:()=>{S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(x=>x.id!==id).map(x=>x.id));touched.prefs=true;save("prefs");render();refreshCats();}},
+    hiddenCats().length?{icon:"i-eye",label:"Show every category",run:()=>{S.prefs.hidden=[];touched.prefs=true;save("prefs");render();refreshCats();}}:null,
     "sep",
-    {icon:"i-edit",label:"Edit categories",run:()=>{V.catEdit={};catsModal();}}];
+    {icon:"i-edit",label:"Edit categories",run:()=>{V.catEdit={};catsPane(wsAll()?null:curSpace().id);}}];
 }
 function laneItems(id){
   const l=lane(id);if(!l)return [];
