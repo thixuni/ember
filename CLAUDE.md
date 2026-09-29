@@ -346,8 +346,15 @@ history. It opens from the streak on the card — a button, there at nought
 too, so the way in does not appear only once you are already going — and
 from **View streak log** in a routine's menu anywhere it shows. Inside:
 four numbers, then **the year as twelve calendars**, every day under its own
-weekday in its own month with its date on it, and a year picker that stops
-at the first tick and at this year. It was one wall of weeks, a column each,
+weekday in its own month with its date on it. Over them, one bar
+(`.slog-bar`) holding the key and the year picker, and it **sticks to the
+top of the modal body**: on a screen short enough to scroll, the thing
+that says what the colours mean should not scroll away from the colours.
+A sticky child settles below the scrolling box’s own top padding, so a
+`::before` covers that band -- the stat tiles slid through it on their way
+past. The picker stops at the first tick and at this year. "Every day
+since <the first tick>" held that line for a while and said nothing the
+calendars below it do not. It was one wall of weeks, a column each,
 the way a contribution chart is drawn — and a column that straddles two
 months has to be labelled with one of them, so the week of Mon Sep 28 was
 labelled October and a day ticked on Sep 29 looked like it was in October.

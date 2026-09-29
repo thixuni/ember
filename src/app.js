@@ -2505,17 +2505,27 @@ function streakModal(id){
         stat(st.total,"Times kept")+
         stat(pct+"%","Of days due")+
       '</div>'+
-      '<div class="slog-head"><div class="sec-label">Every day since '+esc(fmtDate(st.first))+'</div>'+
-        '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y-1)+'"'+(y<=firstY?" disabled":"")+' aria-label="Earlier year">'+icon("i-chev-l","ic-14")+'</button>'+
-        '<b class="slog-y">'+y+'</b>'+
-        '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y+1)+'"'+(y>=nowY?" disabled":"")+' aria-label="Later year">'+icon("i-chev-r","ic-14")+'</button></div>'+
-      '<div class="slog-year">'+months+'</div>'+
-      '<div class="slog-key">'+
-        '<span class="k"><i class="sq done" style="--c:'+c.color+'"></i>Kept</span>'+
-        '<span class="k"><i class="sq miss"></i>Missed</span>'+
-        '<span class="k"><i class="sq made"></i>Made up later</span>'+
-        '<span class="k"><i class="sq off"></i>Not scheduled</span>'+
-        '<span class="spacer" style="flex:1"></span><span class="k mnone">Press any day to change it</span></div>'
+      /* The key and the year in one bar over the calendars, and it stays
+         there when the modal is short enough to scroll: what the colours
+         mean and which year you are in are both about what is underneath
+         it, so neither should scroll away from it. "Every day since <the
+         first tick>" used to hold this line and said nothing the calendars
+         below do not. */
+      '<div class="slog-bar">'+
+        '<div class="slog-key">'+
+          '<span class="k"><i class="sq done" style="--c:'+c.color+'"></i>Kept</span>'+
+          '<span class="k"><i class="sq miss"></i>Missed</span>'+
+          '<span class="k"><i class="sq made"></i>Made up later</span>'+
+          '<span class="k"><i class="sq off"></i>Not scheduled</span>'+
+        '</div>'+
+        '<span class="k mnone">Press any day to change it</span>'+
+        '<div class="slog-ynav">'+
+          '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y-1)+'"'+(y<=firstY?" disabled":"")+' aria-label="Earlier year">'+icon("i-chev-l","ic-14")+'</button>'+
+          '<b class="slog-y">'+y+'</b>'+
+          '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y+1)+'"'+(y>=nowY?" disabled":"")+' aria-label="Later year">'+icon("i-chev-r","ic-14")+'</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="slog-year">'+months+'</div>'
       :es("routine","No check-ins yet","Check a day off on the card and the log fills in behind you. Nothing is ever trimmed \u2014 a streak here can run as long as you keep it.",
           {hue:"var(--apricot)"}))+
     '</div>'+

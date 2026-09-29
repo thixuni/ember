@@ -908,8 +908,18 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .slog-stat span{display:block;margin-top:3px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
 .slog-stat.hot{background:var(--apricot-soft);border-color:color-mix(in srgb,var(--apricot) 32%,var(--line))}
 .slog-stat.hot b{color:var(--apricot-ink)}
-.slog-head{display:flex;align-items:center;gap:6px}
-.slog-head .sec-label{flex:1;min-width:0;margin:0}
+/* The key and the year picker in one bar over the calendars. It sticks to
+   the top of the modal body, so on a screen short enough to scroll the
+   thing that says what the colours mean stays with the colours. The
+   negative side margins take it out to the body's own edge, and the solid
+   background is what the calendars pass behind. */
+.slog-bar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;
+  margin:0 -20px;padding:7px 20px 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+/* A sticky child settles below the scrolling box’s own top padding, and
+   the stats slid through that 16px band on their way past. This covers it. */
+.slog-bar::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:24px;background:var(--surface)}
+.slog-ynav{display:flex;align-items:center;gap:2px;flex:none}
+.slog-ynav .icon-btn{width:28px;height:28px;padding:0;place-items:center}
 .slog-y{font-family:var(--fd);font-size:13.5px;font-weight:700;min-width:44px;text-align:center;color:var(--ink)}
 /* Twelve months, each a real calendar: every day under its own weekday,
    in its own month, with its date on it. */
@@ -940,7 +950,7 @@ button.sq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .sq.later{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--faint);opacity:.6}
 .sq.today{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
 .sq.today.miss{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 42%,transparent),0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
-.slog-key{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:600;color:var(--muted)}
+.slog-key{flex:1;min-width:0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:600;color:var(--muted)}
 .slog-key .k{display:inline-flex;align-items:center;gap:6px}
 .slog-key .sq{width:11px;height:11px;aspect-ratio:auto;border-radius:3px}
 /* Narrow: four numbers across becomes two, and the wall of weeks scrolls. */
