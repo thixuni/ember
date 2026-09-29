@@ -1105,11 +1105,35 @@ function rtMoveModal(id,from,to,time){
   Object.assign(MVQ,{id:id,from:from,to:to,time:time,scope:MVQ.scope||"one"});
   rtMoveDraw();
 }
+/* Each choice says which days it reaches and what it leaves alone. The
+   first pass named them and left the rest to be guessed -- "The routine
+   splits here" is what the code does, not what you get -- so the notes now
+   name the days and the times on either side of the change. */
 function rtMoveDraw(){
   const r=routineById(MVQ.id);if(!r)return;
   const c=cat(r.cat),dur=Number(r.dur)||30;
-  const sameDay=MVQ.from===MVQ.to;
-  const opt=(v,label,note)=>'<button class="mvopt'+(MVQ.scope===v?" on":"")+'" role="radio" aria-checked="'+(MVQ.scope===v)+'"'+
+  const sameDay=MVQ.from===MVQ.to,was=rtTime(r,MVQ.from);
+  /* Two of the same routine cannot share a day -- completions are keyed by
+     the day -- so where it already falls on the day being dragged to, the
+     single-day move is off from the start rather than refused after Save. */
+  const clash=!sameDay&&routineOn(r,parseD(MVQ.to));
+  if(clash&&MVQ.scope==="one")MVQ.scope="following";
+  /* Only a routine on chosen weekdays changes the day it repeats on. One
+     that repeats on a gap counts from its start, so its days are not a
+     list to be edited: Every one moves the hour and leaves the day alone. */
+  const moves=!sameDay&&r.freq!=="interval";
+  const dayName=s=>parseD(s).toLocaleDateString("en-US",{weekday:"long"});
+  /* Moving the whole routine onto a weekday it already repeats on does not
+     add a day, it takes the old one away -- so the note says that, rather
+     than announcing a day it has kept all along. */
+  const already=moves&&(r.days||[]).indexOf(parseD(MVQ.to).getDay())>-1;
+  const noteAll=moves
+    ?(already?"Every one moves to "+fmtTime(MVQ.time)+", and it stops repeating on "+dayName(MVQ.from)+"s."
+      :"Every one moves to "+fmtTime(MVQ.time)+", on "+dayName(MVQ.to)+"s from now on instead of "+dayName(MVQ.from)+"s.")
+    :!sameDay?"Every one moves to "+fmtTime(MVQ.time)+". The day stays as it falls: this repeats every "+(r.every||2)+" days."
+    :"Every one, past and future, moves to "+fmtTime(MVQ.time)+".";
+  const opt=(v,label,note,off)=>'<button class="mvopt'+(MVQ.scope===v?" on":"")+(off?" off":"")+'" role="radio"'+
+    ' aria-checked="'+(MVQ.scope===v)+'"'+(off?' disabled aria-disabled="true"':"")+
     ' data-act="mv-scope" data-v="'+v+'"><i></i><span><b>'+esc(label)+'</b>'+(note?'<small>'+esc(note)+'</small>':"")+'</span></button>';
   const when=(d,t)=>(sameDay?"":fmtDate(d)+", ")+fmtRange(t,dur);
   openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Move routine">'+
@@ -1118,9 +1142,12 @@ function rtMoveDraw(){
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="mbody">'+
       '<div class="mvopts" role="radiogroup" aria-label="Which days to move">'+
-        opt("one","This one only",fmtDate(MVQ.from))+
-        opt("following","This and the ones after it","The routine splits here")+
-        opt("all","Every one",sameDay?"Changes the routine\u2019s time":"Changes the routine\u2019s day and time")+
+        opt("one","Just this one",
+          clash?"It already repeats on "+fmtDate(MVQ.to)
+            :fmtDate(MVQ.from)+" moves on its own. The routine carries on as it is.",clash)+
+        opt("following","This one and the ones after",
+          fmtDate(MVQ.from)+" onward move. Everything before it keeps "+fmtTime(was)+".")+
+        opt("all","Every one",noteAll)+
       '</div>'+
       '<div class="mvwhen"><span class="lab">When</span><div><b>'+esc(when(MVQ.to,MVQ.time))+'</b>'+
         '<s>'+esc(when(MVQ.from,rtTime(r,MVQ.from)))+'</s></div></div>'+
@@ -2638,10 +2665,10 @@ function viewRoutines(){
       '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="1"'+(off>=0?" disabled":"")+' aria-label="The week after">'+icon("i-chev-r","ic-14")+'</button>'+
       '</div>';
     /* Every card is the same four rows, each one line high: the name and
-       its streak, when (time, length, how often), the week, and a foot with
-       the category and the reminder. A reminder once sat in the second line
-       and pushed that card's week lower than its neighbours'. */
-    const rm=remindMins(r);
+       its streak, when (time, length, how often), the week, and a foot
+       carrying the category. A reminder once sat in the second line and
+       pushed that card's week lower than its neighbours'; it then spent a
+       while in the foot and is now only in the routine's own window. */
     return '<article class="rcard'+(r.active?"":" paused")+'" style="--c:'+c.color+'" data-rid="'+r.id+'">'+
       '<div class="rtop"><span class="ravatar">'+icon(c.icon,"ic-18")+'</span>'+
       '<div class="rhead"><h3 title="'+esc(r.title)+'">'+esc(r.title)+'</h3>'+
@@ -2655,8 +2682,11 @@ function viewRoutines(){
          ' aria-label="View streak log for '+esc(r.title)+' \u2014 '+esc(streakSays(r,st))+'">'+
          icon("i-flame","ic-14")+st+'</button>')+'</div>'+
       '<div class="rwk">'+wkNav+days+'</div>'+
+      /* The reminder is set in the routine's own window and read there. On
+         the card it was a line of small print on every one of them saying
+         the same thing -- 30 min before is the default nobody changes --
+         next to the category, which is the thing you do change from here. */
       '<div class="rfoot">'+catChip(r.cat,"routine",r.id)+
-        '<span class="rbell'+(rm===null?" off":"")+'" title="Reminder">'+icon(rm===null?"i-bell-off":"i-bell","ic-14")+esc(rm===null?"No reminder":remindLabel(r).replace(" (default)",""))+'</span>'+
         '<div class="spacer" style="flex:1"></div>'+
         '<button class="icon-btn btn-sm" data-act="rt-menu" data-id="'+r.id+'" title="More" aria-label="More for '+esc(r.title)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button></div>'+
       '</article>';}).join("")+'</div>';
@@ -2787,11 +2817,13 @@ function viewNotes(){
   list.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.updated||0)-(a.updated||0));
   if(!V.noteId||!noteById(V.noteId))V.noteId=list.length?list[0].id:null;
   const tags=allTags();
-  const side='<div class="nlist"><div class="nlist-head">'+
-    '<button class="btn btn-primary btn-sm" data-act="new-note">'+icon("i-plus","ic-14")+'New note</button>'+
-    (tags.length?'<div class="pickers"><button class="pick'+(V.noteTag?"":" on")+'" data-act="note-tag" data-v="">All</button>'+
-      tags.map(t=>'<button class="pick'+(V.noteTag===t?" on":"")+'" data-act="note-tag" data-v="'+esc(t)+'">#'+esc(t)+'</button>').join("")+'</div>':"")+
-    '</div><div class="nlist-body">'+
+  /* The list's head is the tag filter and nothing else. New note sat here
+     as well, a third of the way down a page that already has it in the top
+     bar and again on the blank page -- three buttons for one action. */
+  const side='<div class="nlist">'+
+    (tags.length?'<div class="nlist-head"><div class="pickers"><button class="pick'+(V.noteTag?"":" on")+'" data-act="note-tag" data-v="">All</button>'+
+      tags.map(t=>'<button class="pick'+(V.noteTag===t?" on":"")+'" data-act="note-tag" data-v="'+esc(t)+'">#'+esc(t)+'</button>').join("")+'</div></div>':"")+
+    '<div class="nlist-body">'+
     (list.length?list.map(n=>{const c=cat(n.cat);
       return '<button class="nitem'+(n.id===V.noteId?" on":"")+'" data-act="note-open" data-id="'+n.id+'">'+
         '<b>'+(n.pinned?"📌 ":"")+esc(n.title||"Untitled note")+'</b>'+
@@ -5053,6 +5085,20 @@ document.addEventListener("keydown",function(e){
     e.preventDefault();const v=t.value;t.value="";addKid(V.sheet.id,v);renderSheet();render();
     const k=el("shKid");if(k)k.focus();return;
   }
+  /* A checklist subtask keeps the list going on Enter: what was typed is
+     saved and a fresh row opens under it, so a run of them goes in without
+     reaching for Add subtask. An empty one ends the run rather than
+     leaving a blank row behind -- the same bargain the full-subtask box
+     above makes. */
+  if(t&&t.tagName==="INPUT"&&t.closest&&t.closest("#shSubs")){
+    e.preventDefault();
+    const row=t.closest(".sub-row");if(!row)return;
+    if(!t.value.trim()){t.blur();row.remove();commitSubs();renderSheet();return;}
+    commitSubs();
+    row.insertAdjacentHTML("afterend",subRow({id:uid("s"),t:"",d:false}));
+    const nx=row.nextElementSibling;if(nx)nx.querySelector("input").focus();
+    return;
+  }
   if(t&&t.dataset&&t.dataset.act==="cz-lane-name"&&e.key==="Enter"){e.preventDefault();t.blur();return;}
   if(t&&t.id==="shComment"&&(e.metaKey||e.ctrlKey)){
     e.preventDefault();
@@ -5618,7 +5664,7 @@ const TIP_TOURS=[
   {id:"routines",where:()=>V.view==="routines",steps:[
     {sel:".rcard .week-dots",title:"Check off a day",
       text:()=>"Click a day’s square to mark the routine done. Any day up to today counts toward your streak, even one that wasn’t scheduled."},
-    {sel:".rcard .streak,.rcard .rpaused,.rcard .rbell",title:"How it is going",
+    {sel:".rcard .streak,.rcard .rpaused",title:"How it is going",
       text:()=>"A flame counts the days in a row. The foot of the card shows its category and when it reminds you."},
     {sel:'.rcard [data-act="rt-menu"]',title:"Edit, pause or delete",
       text:()=>"This button, or a right-click anywhere on the card, opens everything you can do to a routine."}]},
