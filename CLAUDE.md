@@ -799,6 +799,13 @@ tasks go. A second window for name, colour and icon, and a Shown label and
 count on every row, were taken out. The sidebar has no "None"; "Show all"
 appears only while something is hidden.
 
+**Folded to its icons, a category is its own icon and nothing else** --
+lit in its colour while it is shown, faint while it is not, with its name
+on the hover. It was a tick box *and* its icon, two marks a row in 70px,
+under a heading whose only surviving part was a stranded pencil; the
+heading is hidden there now, since editing categories is a thing you do
+with the sidebar open.
+
 The category boxes in the sidebar can be swept: press one and drag over the
 others, and every row between takes the state the first took, saved once on
 release (`CP`, the sweeping section of app.js). On a touch screen the sweep

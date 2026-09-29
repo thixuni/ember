@@ -3106,11 +3106,15 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
    below it -- the sections, the categories, all of it -- belongs to it. It
    sat in the Tasks top bar while it was only a board; a workspace is not a
    property of one screen. */
-.ws-bar{padding:0 12px 12px;flex:none}
-.ws-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:var(--r-m);
-  border:1px solid var(--line);background:var(--surface);text-align:left;cursor:pointer;
-  transition:border-color .12s,background .12s}
-.ws-btn:hover{border-color:var(--line-2);background:var(--surface-2)}
+.ws-bar{padding:0 12px 10px;flex:none}
+/* A row, not a card. It was a bordered box between a brand line and a list
+   of plain rows -- three different treatments stacked in 200px, and the box
+   read as something to fill in rather than the name of where you are. It is
+   the sidebar's heading now: the tile, the name, a chevron, and a hover. */
+.ws-btn{display:flex;align-items:center;gap:10px;width:100%;padding:7px 8px;border-radius:var(--r-s);
+  border:1px solid transparent;background:none;text-align:left;cursor:pointer;
+  transition:background .12s}
+.ws-btn:hover{background:var(--surface-3)}
 .ws-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ws-btn > *{pointer-events:none}
 .ws-ic{width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;
@@ -3124,7 +3128,7 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .ws-btn > .ic{flex:none;color:var(--faint)}
 /* Folded to its icons, the tile is the whole control. */
 .rail-mini .ws-bar{padding:0 0 10px;display:flex;justify-content:center}
-.rail-mini .ws-btn{width:40px;padding:6px;justify-content:center;border-color:transparent;background:none}
+.rail-mini .ws-btn{width:40px;padding:6px;justify-content:center}
 .rail-mini .ws-t,.rail-mini .ws-btn > .ic{display:none}
 .bd-dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--s)}
 /* Where a search comes up empty here but not everywhere. */
@@ -3183,3 +3187,20 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .ws-only div{flex:1;min-width:0}
 .ws-only b{display:block;font-size:13.5px;font-weight:600;color:var(--ink)}
 .ws-only small{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
+
+/* ---------- the sidebar folded to its icons ----------
+   A category was a tick box *and* its icon, two marks a row in 70px, under
+   a heading whose only surviving part was a stranded pencil. Folded, a
+   category is its own icon and nothing else: lit in its colour while it is
+   shown, faint while it is not, with its name on the hover. The heading
+   goes with the words it was made of -- editing categories is a thing you
+   do with the sidebar open. */
+@media (min-width:1081px){
+  body.rail-mini .rail-head{display:none}
+  body.rail-mini #catList{padding-top:10px;border-top:1px solid var(--line);margin-top:4px;
+    display:flex;flex-direction:column;align-items:center;gap:2px}
+  body.rail-mini .cat-row{width:38px;height:34px;padding:0;justify-content:center;border-radius:var(--r-s)}
+  body.rail-mini .cat-box{display:none}
+  body.rail-mini .cat-row .ic-cat{width:17px;height:17px}
+  body.rail-mini .cat-row.off .ic-cat{opacity:.4}
+}
