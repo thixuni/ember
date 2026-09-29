@@ -1357,6 +1357,14 @@ show everything). The matrix quadrants (`QUAD_EMPTY`) and board columns
   page runs inside the artifact sandbox and fail silently. Destructive actions use
   `arm(button, label)`, which requires a second click. The note editor's link
   button uses an inline bar, not a prompt.
+- **Never put a coloured stripe down the left edge of anything.** No row,
+  card, chip or block carries its colour as a bar stuck to one side -- not
+  a lane, a category, a workspace, a calendar block, a month chip. The
+  colour goes in the fill, in a swatch or an icon tile, or in a hairline
+  all the way round (`box-shadow: inset 0 0 0 1px`, the way Google’s own
+  events are drawn). Quote bars in the note and document editors are the
+  one left rule left, and they are the line grey, not a hue. This is a
+  standing rule: do not reintroduce the pattern.
 - **Never hardcode a colour in a rule.** Every colour is a token on `:root`,
   including `--on-accent` (text on a filled colour) and `--tint-base` (what
   `color-mix()` mixes a category colour toward). A test enforces this.
