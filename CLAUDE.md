@@ -523,7 +523,7 @@ its own categories, and categories were the thing that most needed it.
   edge.
 - **The workspace menu reads widest first**: All workspaces, then the
   workspaces one at a time, then New workspace and Manage -- those two a
-  size down and in the quieter grey ( on a  item), because
+  size down and in the quieter grey (`sub` on a `ctxMenu` item), because
   they are housekeeping and the workspaces are the point of the menu.
 - **The switcher is at the top of the sidebar**, under the brand
   (`wsBarHtml()`, `#wsBar`), because everything below it belongs to it,
