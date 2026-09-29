@@ -847,9 +847,22 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .ravatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 14%,var(--tint-base));color:var(--c);flex:none}
 .rcard h3{font-size:14px;line-height:1.25}
 .rcard .rsub{font-size:11.5px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* The week you are looking at, and the way back through the others. */
+.rweek{display:flex;align-items:center;gap:2px;margin-bottom:-3px}
+.rweek .icon-btn{width:24px;height:24px;flex:none}
+.rweek-l{flex:1;min-width:0;text-align:center;font-size:11.5px;font-weight:700;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rweek-l.now{color:var(--muted)}
+.rweek-now{flex:none;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;
+  background:var(--accent-soft);color:var(--accent-ink);transition:background .12s}
+.rweek-now:hover{background:color-mix(in srgb,var(--accent) 26%,var(--tint-base))}
 .week-dots{display:flex;gap:5px}
-.wd{width:30px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.wd{width:30px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .wd small{font-size:9.5px;font-weight:700;color:var(--faint);letter-spacing:.03em}
+/* The date over the square: a week other than this one only reads if it
+   says which days it is. */
+.wd b{font-size:10.5px;font-weight:700;color:var(--muted);line-height:1.2;margin-bottom:2px}
+.wd.is-today b{color:var(--accent-ink)}
 .wd .cell{width:26px;height:26px;border-radius:9px;border:1.6px solid var(--line);display:grid;place-items:center;background:var(--surface);color:transparent}
 .wd .cell.sched{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background:color-mix(in srgb,var(--c) 8%,var(--tint-base))}
 .wd .cell.done{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));border-color:transparent;color:var(--on-accent)}
@@ -889,56 +902,38 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .slog-head{display:flex;align-items:center;gap:6px}
 .slog-head .sec-label{flex:1;min-width:0;margin:0}
 .slog-y{font-family:var(--fd);font-size:13.5px;font-weight:700;min-width:44px;text-align:center;color:var(--ink)}
-/* Its own scrolling box, so a redraw after a tick puts it back where it was. */
-.slog-map{overflow-x:auto;overflow-y:hidden;padding-bottom:6px;scrollbar-width:thin}
-.slog-inner{display:flex;gap:7px;width:max-content}
-.slog-wd{display:grid;grid-template-rows:repeat(7,13px);gap:3px;padding-top:16px}
-.slog-wd span{font-size:9px;font-weight:700;color:var(--faint);line-height:13px}
-.slog-months{display:grid;grid-auto-flow:column;grid-auto-columns:13px;gap:3px;height:13px;margin-bottom:3px}
-.slog-months span{font-size:9.5px;font-weight:700;color:var(--faint);white-space:nowrap;overflow:hidden}
-.slog-grid{display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:13px;gap:3px}
-.sq{width:13px;height:13px;border-radius:4px;border:0;padding:0;display:block;background:var(--surface-3)}
+/* Twelve months, each a real calendar: every day under its own weekday,
+   in its own month, with its date on it. */
+/* Six and six rather than as many as fit: twelve months left 5, 5 and 2,
+   and the short last row read as something missing. */
+.slog-year{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:15px 16px}
+@media (max-width:760px){.slog-year{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:560px){.slog-year{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:420px){.slog-year{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.slog-mon > b{display:block;font-family:var(--fd);font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px}
+.slog-wk,.slog-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.slog-wk{margin-bottom:3px}
+.slog-wk span{font-size:9px;font-weight:700;color:var(--faint);text-align:center}
+.sq{aspect-ratio:1;border-radius:4px;border:0;padding:0;display:grid;place-items:center;
+  background:var(--surface-3);font-size:9px;font-weight:700;color:var(--muted);line-height:1}
+.sq.pad{background:none}
+.sq > b{pointer-events:none;font-weight:700}
 button.sq{cursor:pointer;transition:transform .1s,box-shadow .1s,background .1s}
-button.sq:hover{transform:scale(1.35);box-shadow:0 2px 8px -2px color-mix(in srgb,var(--ink) 40%,transparent);position:relative;z-index:2}
+button.sq:hover{transform:scale(1.28);box-shadow:0 2px 8px -2px color-mix(in srgb,var(--ink) 40%,transparent);position:relative;z-index:2}
 button.sq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 /* A heatmap wants the colour itself, not the deep shade a tick sits on:
    the week squares mix toward the ink because they carry a check mark, and
    at 13px with nothing on it that read as black. */
-.sq.done{background:color-mix(in srgb,var(--c) 88%,var(--surface))}
+.sq.done{background:color-mix(in srgb,var(--c) 88%,var(--surface));color:var(--on-accent)}
 .sq.miss{background:var(--surface-3);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 42%,transparent)}
 .sq.made{background:var(--surface-3);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--amber) 55%,transparent)}
-.sq.off{background:var(--surface-3);opacity:.55}
-.sq.later,.sq.out{background:none;box-shadow:inset 0 0 0 1px var(--line)}
-.sq.out{box-shadow:none}
+.sq.off{background:var(--surface-3);color:var(--faint)}
+.sq.later{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--faint);opacity:.6}
 .sq.today{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
-/* One run picked out: the rest of the year steps back rather than the run
-   being ringed, which at 13px a square only made it busier. */
-.lit-on .sq:not(.lit){opacity:.22}
-.lit-on .sq.lit{opacity:1}
 .sq.today.miss{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 42%,transparent),0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
 .slog-key{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:600;color:var(--muted)}
 .slog-key .k{display:inline-flex;align-items:center;gap:6px}
-.slog-key .sq{width:11px;height:11px;border-radius:3px}
-.slog-runs{display:flex;flex-direction:column;gap:7px;max-height:210px;overflow-y:auto;scrollbar-width:thin}
-/* Each run is a button: it lights itself up in the year above and takes the
-   picker to it, which is the quickest way around a history spanning years. */
-.slog-run{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:var(--r-m);
-  background:var(--surface);border:1px solid var(--line);text-align:left;width:100%;
-  cursor:pointer;transition:border-color .12s,background .12s,transform .12s}
-.slog-run:hover{border-color:color-mix(in srgb,var(--c) 50%,var(--line));transform:translateX(2px)}
-.slog-run:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.slog-run.on{border-color:color-mix(in srgb,var(--c) 70%,var(--line));
-  box-shadow:inset 3px 0 0 color-mix(in srgb,var(--c) 80%,transparent)}
-.slog-run > *{pointer-events:none}
-.slog-run.live{border-color:color-mix(in srgb,var(--c) 45%,var(--line));
-  background:linear-gradient(100deg,color-mix(in srgb,var(--c) 12%,var(--surface)),var(--surface) 60%)}
-.slog-run .len{display:inline-flex;align-items:center;gap:5px;font-family:var(--fd);font-size:15px;font-weight:700;
-  color:var(--ink);min-width:58px}
-.slog-run .len .ic{color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
-.slog-run .when{flex:1;min-width:0;font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.slog-run .tag{flex:none;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;
-  background:var(--surface-3);color:var(--muted)}
-.slog-run .tag.now{background:var(--apricot-soft);color:var(--apricot-ink)}
+.slog-key .sq{width:11px;height:11px;aspect-ratio:auto;border-radius:3px}
 /* Narrow: four numbers across becomes two, and the wall of weeks scrolls. */
 @media (max-width:620px){
   .slog-stats{grid-template-columns:repeat(2,minmax(0,1fr))}

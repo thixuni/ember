@@ -2378,17 +2378,35 @@ function viewRoutines(){
     ?es("filter","No routines match",q?"Nothing fits “"+esc(V.q)+"”. Try another word.":"Their categories are hidden. Check them in the sidebar to see them.",{hue:"var(--apricot)"})
     :es("routine","Build a rhythm","Stand-ups, workouts, a weekly review: pick the days, check them off, and watch your streak grow.",
       {actions:'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>'}))+'</div>';
-  const wkStart=startOfWeek(today());
+  const nowWk=startOfWeek(today());
   return '<div class="rgrid">'+list.map(r=>{
     const c=cat(r.cat),st=streak(r);
+    /* Which week this card is showing. Kept per routine, and not saved: you
+       step back to fill something in, and the next time you open the page
+       you are on this week again, where the work is. */
+    const off=(V.rweek&&V.rweek[r.id])||0,wkStart=addDays(nowWk,off*7);
     const days='<div class="week-dots">'+[0,1,2,3,4,5,6].map(i=>{
       const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
       /* Every square up to today takes a tick, the days off the schedule
-         included. Days still to come wait for their day. */
-      return '<div class="wd"><small>'+DOWS[(d.getDay()+6)%7][0]+'</small><button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
+         included. Days still to come wait for their day. The date is over
+         the square because a week other than this one is only readable if
+         it says which days it is. */
+      return '<div class="wd'+(isT?" is-today":"")+'"><small>'+DOWS[(d.getDay()+6)%7][0]+'</small>'+
+        '<b>'+d.getDate()+'</b>'+
+        '<button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
         ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
         ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
-        ' title="'+(done?(later?"Checked off ahead of time. Click to undo":"Done"):later?"Not yet: this day is still to come":sched?"Mark done":"Not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
+        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+icon("i-check")+'</button></div>';}).join("")+'</div>';
+    /* Stepping back has no floor -- a routine you are filling in after the
+       fact may go back further than the day it was made -- and forward
+       stops at this week, because a week of days still to come says
+       nothing you can act on. */
+    const wkNav='<div class="rweek">'+
+      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="-1" aria-label="The week before">'+icon("i-chev-l","ic-14")+'</button>'+
+      '<span class="rweek-l'+(off?"":" now")+'">'+esc(weekLabel(wkStart))+'</span>'+
+      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="1"'+(off>=0?" disabled":"")+' aria-label="The week after">'+icon("i-chev-r","ic-14")+'</button>'+
+      (off?'<button class="rweek-now" data-act="rt-week" data-id="'+r.id+'" data-v="0">Today</button>':"")+
+      '</div>';
     /* Every card is the same four rows, each one line high: the name and
        its streak, when (time, length, how often), the week, and a foot with
        the category and the reminder. A reminder once sat in the second line
@@ -2406,7 +2424,7 @@ function viewRoutines(){
          ' title="View streak log"'+
          ' aria-label="View streak log for '+esc(r.title)+' \u2014 '+esc(streakSays(r,st))+'">'+
          icon("i-flame","ic-14")+st+'</button>')+'</div>'+
-      days+
+      wkNav+days+
       '<div class="rfoot">'+catChip(r.cat,"routine",r.id)+
         '<span class="rbell'+(rm===null?" off":"")+'" title="Reminder">'+icon(rm===null?"i-bell-off":"i-bell","ic-14")+esc(rm===null?"No reminder":remindLabel(r).replace(" (default)",""))+'</span>'+
         '<div class="spacer" style="flex:1"></div>'+
@@ -2423,7 +2441,7 @@ function viewRoutines(){
    exactly the same handler as a tick on a card -- and render() draws the log
    again underneath it (V.slog), the way the day popup is redrawn, because
    the numbers above it have just changed. */
-function slogCell(r,s,c,lit){
+function slogCell(r,s,c){
   const d=parseD(s),T=TODAY();
   const done=doneR(r,s),sched=routineOn(r,d),later=s>T,today=s===T;
   const kind=done?"done":later?"later":sched?(madeUp(r,d)?"made":"miss"):"off";
@@ -2433,48 +2451,40 @@ function slogCell(r,s,c,lit){
     :kind==="miss"?"Missed on "+when
     :kind==="made"?"Missed on "+when+", made up after"
     :"Not scheduled on "+when;
-  if(later)return '<i class="sq later'+(lit?" lit":"")+'" title="'+esc(when+" \u2014 still to come")+'"></i>';
-  return '<button class="sq '+kind+(today?" today":"")+(lit?" lit":"")+'" data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'"'+
-    ' style="--c:'+c.color+'" aria-pressed="'+done+'" title="'+esc(say)+'" aria-label="'+esc(say)+'"></button>';
+  if(later)return '<i class="sq later" title="'+esc(when+" \u2014 still to come")+'"><b>'+d.getDate()+'</b></i>';
+  return '<button class="sq '+kind+(today?" today":"")+'" data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'"'+
+    ' style="--c:'+c.color+'" aria-pressed="'+done+'" title="'+esc(say)+'" aria-label="'+esc(say)+'"><b>'+d.getDate()+'</b></button>';
 }
 function streakModal(id){
   const r=routineById(id);if(!r)return;
-  const fresh=!el("modalRoot").querySelector(".modal[data-slog]");
   /* A different routine starts on this year rather than wherever the last
      one was left. */
   if(V.slog!==id)V.slogY=null;
   V.slog=id;
   const c=cat(r.cat),st=streakStats(r),T=TODAY(),unit=streakUnit(r);
-  /* A run pressed in the list lights up where it sits in the year. It is
-     held by its first day rather than its place in the list, because a day
-     ticked in the log can merge two runs into one and every index after it
-     would then point at the wrong run. */
-  const lit=V.slogRun?st.runs.filter(x=>x.from===V.slogRun)[0]:null;
-  if(V.slogRun&&!lit)V.slogRun=null;
   const firstY=+st.first.slice(0,4),nowY=+T.slice(0,4);
   let y=V.slogY==null?nowY:V.slogY;
   if(y<firstY)y=firstY;if(y>nowY)y=nowY;V.slogY=y;
 
-  /* The year as a wall of weeks, a column each, Monday at the top -- the
-     shape every contribution chart uses, because a year of days fits in it
-     and the gaps read at a glance. */
-  const from=startOfWeek(parseD(y+"-01-01")),to=addDays(startOfWeek(parseD(y+"-12-31")),6);
-  let cells="",months="",run=0,mLast=-1,cols=0;
-  const inLit=s=>lit&&s>=lit.from&&s<=lit.to;
-  for(let d=from;ymd(d)<=ymd(to);d=addDays(d,7)){
-    cols++;
-    const m=addDays(d,3).getMonth();          // the month the week mostly sits in
-    if(m!==mLast){if(run)months+='<span style="grid-column:span '+run+'">'+(run>2?MONS[mLast]:"")+'</span>';mLast=m;run=1;}
-    else run++;
-    for(let i=0;i<7;i++){const s=ymd(addDays(d,i));
-      cells+=(s.slice(0,4)!==String(y))?'<i class="sq out"></i>'
-        :slogCell(r,s,c,inLit(s));}
-  }
-  if(run)months+='<span style="grid-column:span '+run+'">'+(run>2?MONS[mLast]:"")+'</span>';
+  /* The year as twelve calendars. It was one wall of weeks, a column each,
+     the way a contribution chart is drawn -- and a column that straddles two
+     months has to be labelled with one of them, so the week of Mon Sep 28
+     sat under October and a day ticked on Sep 29 looked like October. Here
+     every day is in its own month, under its own weekday, with its date on
+     it, and there is nothing left to work out. */
+  const months=MONS.map((name,m)=>{
+    const first=parseD(y+"-"+pad(m+1)+"-01"),len=new Date(y,m+1,0).getDate();
+    const lead=(first.getDay()+6)%7;          // Monday-first
+    let box="";
+    for(let i=0;i<lead;i++)box+='<i class="sq pad"></i>';
+    for(let i=1;i<=len;i++)box+=slogCell(r,y+"-"+pad(m+1)+"-"+pad(i),c);
+    return '<div class="slog-mon"><b>'+name+'</b>'+
+      '<div class="slog-wk">'+["M","T","W","T","F","S","S"].map(x=>'<span>'+x+'</span>').join("")+'</div>'+
+      '<div class="slog-days">'+box+'</div></div>';
+  }).join("");
 
   const pct=st.due?Math.round(st.kept/st.due*100):0;
   const stat=(v,label,cls)=>'<div class="slog-stat'+(cls?" "+cls:"")+'"><b>'+v+'</b><span>'+label+'</span></div>';
-  const span=x=>x.live?fmtDate(x.from)+" \u2013 today":x.from===x.to?fmtDate(x.from):fmtDate(x.from)+" \u2013 "+fmtDate(x.to);
 
   openModal('<div class="modal slog" role="dialog" aria-modal="true" aria-label="Streak log" data-slog="1">'+
     '<div class="mhead2"><span class="ravatar" style="--c:'+c.color+'">'+icon(c.icon,"ic-18")+'</span>'+
@@ -2495,43 +2505,26 @@ function streakModal(id){
         '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y-1)+'"'+(y<=firstY?" disabled":"")+' aria-label="Earlier year">'+icon("i-chev-l","ic-14")+'</button>'+
         '<b class="slog-y">'+y+'</b>'+
         '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y+1)+'"'+(y>=nowY?" disabled":"")+' aria-label="Later year">'+icon("i-chev-r","ic-14")+'</button></div>'+
-      '<div class="slog-map"><div class="slog-inner'+(lit?" lit-on":"")+'" style="--cols:'+cols+'">'+
-        '<div class="slog-wd"><span>M</span><span></span><span>W</span><span></span><span>F</span><span></span><span>S</span></div>'+
-        '<div><div class="slog-months">'+months+'</div><div class="slog-grid">'+cells+'</div></div>'+
-      '</div></div>'+
+      '<div class="slog-year">'+months+'</div>'+
       '<div class="slog-key">'+
         '<span class="k"><i class="sq done" style="--c:'+c.color+'"></i>Kept</span>'+
         '<span class="k"><i class="sq miss"></i>Missed</span>'+
         '<span class="k"><i class="sq made"></i>Made up later</span>'+
         '<span class="k"><i class="sq off"></i>Not scheduled</span>'+
-        '<span class="spacer" style="flex:1"></span><span class="k mnone">Press any day to change it</span></div>'+
-      '<div class="slog-head"><div class="sec-label">Streaks</div>'+
-        '<span class="mnone">'+(st.runs.length>1?"Press one to find it above":"")+'</span></div>'+
-      '<div class="slog-runs">'+st.runs.map(x=>
-        '<button class="slog-run'+(x.live?" live":"")+(lit&&lit.from===x.from?" on":"")+'" style="--c:'+c.color+'"'+
-          ' data-act="slog-run" data-v="'+x.from+'" aria-pressed="'+(!!lit&&lit.from===x.from)+'"'+
-          ' aria-label="'+esc(streakSays(r,x.len)+", "+span(x)+". Find it in the year above")+'">'+
-          '<span class="len">'+icon("i-flame","ic-14")+x.len+'</span>'+
-          '<span class="when">'+esc(span(x))+'</span>'+
-          (x.live?'<span class="tag now">Going</span>':"")+
-          (x.len===st.best&&st.runs.length>1?'<span class="tag">Best</span>':"")+
-        '</button>').join("")+'</div>'
+        '<span class="spacer" style="flex:1"></span><span class="k mnone">Press any day to change it</span></div>'
       :es("routine","No check-ins yet","Check a day off on the card and the log fills in behind you. Nothing is ever trimmed \u2014 a streak here can run as long as you keep it.",
           {hue:"var(--apricot)"}))+
     '</div>'+
     '<div class="mfoot"><button class="btn" data-act="rt-edit" data-id="'+r.id+'">'+icon("i-edit","ic-14")+'Edit routine</button>'+
     '<div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
-  /* Opened fresh on this year, it shows the end of the year -- where today
-     is. A redraw after a tick keeps where it was scrolled instead. */
-  const map=el("modalRoot").querySelector(".slog-map");
-  if(fresh&&y===nowY&&map)map.scrollLeft=map.scrollWidth;
-  /* A run just pressed is brought into view, once. Its own offset rather
-     than scrollIntoView(), which would scroll the modal body as well. */
-  if(V.slogSeek&&map){
-    const cell=map.querySelector('[data-date="'+V.slogSeek+'"]');
-    if(cell)map.scrollLeft=Math.max(0,cell.offsetLeft-map.clientWidth/2);
-    V.slogSeek=null;
-  }
+}
+/* "This week" while you are on it, otherwise the days it covers -- and the
+   month only once unless the week straddles two. */
+function weekLabel(mon){
+  const a=mon,b=addDays(mon,6),s=ymd(a),e=ymd(b),T=TODAY();
+  if(s<=T&&T<=e)return "This week";
+  return MONS[a.getMonth()]+" "+a.getDate()+" \u2013 "+
+    (a.getMonth()===b.getMonth()?"":MONS[b.getMonth()]+" ")+b.getDate();
 }
 function freqLabel(r){
   if(r.freq==="interval")return "Every "+(r.every||2)+" days";
@@ -2604,7 +2597,7 @@ function viewNotes(){
 }
 
 /* ============ modals ============ */
-function closeModal(){el("modalRoot").innerHTML="";V.peek=null;V.slog=null;V.slogY=null;V.slogRun=null;V.slogSeek=null;}
+function closeModal(){el("modalRoot").innerHTML="";V.peek=null;V.slog=null;V.slogY=null;}
 function openModal(html,opt){
   const root=el("modalRoot"),open=root.querySelector(".scrim > .modal");
   const label=(html.match(/aria-label="([^"]*)"/)||[])[1];
@@ -4476,14 +4469,12 @@ document.addEventListener("click",function(e){
     case "routine-save":saveRoutine(id||null);break;
     case "routine-delete":if(arm(n,"Delete for good?"))deleteRoutine(id);break;
     case "rt-menu":ctxMenu(routineItems(id,TODAY()),null,n);break;
-    case "streak-log":V.slogY=null;V.slogRun=null;streakModal(id);break;
-    case "slog-year":V.slogY=Number(n.dataset.v);V.slogSeek=null;if(V.slog)streakModal(V.slog);break;
-    /* Pressing a run lights it up where it sits and takes the year to it;
-       pressing it again puts the whole year back. */
-    case "slog-run":{const v=n.dataset.v;
-      if(V.slogRun===v){V.slogRun=null;}
-      else{V.slogRun=v;V.slogY=Number(v.slice(0,4));V.slogSeek=v;}
-      if(V.slog)streakModal(V.slog);break;}
+    case "streak-log":V.slogY=null;streakModal(id);break;
+    case "rt-week":{const v=Number(n.dataset.v);
+      V.rweek=V.rweek||{};
+      V.rweek[id]=v?Math.min(0,(V.rweek[id]||0)+v):0;
+      renderView();break;}
+    case "slog-year":V.slogY=Number(n.dataset.v);if(V.slog)streakModal(V.slog);break;
     case "rt-edit":routineModal(id);break;
     case "cx-do":{const x=TMN.items&&TMN.items[Number(n.dataset.i)];if(!x)break;
       if(x.arm&&!arm(n,x.arm))break;taskMenuClose();x.run();break;}

@@ -316,33 +316,38 @@ year could not be made up at all. The only limit left is a guard against a
 date that cannot be real. Nothing prunes `S.completions` by age, so a
 planner that has been running for years counts all of it.
 
-**The streak log** (`streakModal(id)`, `V.slog`) is where the rest of the
-history lives, because a card keeps to the week you are working. It opens
-from the streak on the card — a button, there at nought too, so the way in
-does not appear only once you are already going — and from **View streak
-log** in a routine's menu anywhere it shows. Inside: four numbers, then the
-year as a wall of weeks, a column each and Monday at the top, with the
-months labelled along it and a year picker that stops at the first tick and
-at this year. Every square is a real `routine-done` button, so a day
-pressed there goes through the same handler as a day pressed on a card, and
-`render()` draws the log again (the way it redraws the day popup for
-`V.peek`) because the numbers above it have just changed — `openModal()`
-swaps it in place, so `.slog-map` keeps where it was scrolled. The modal
-is `.modal.slog` rather than `wide` so a whole year of squares fits
-without scrolling on a normal screen.
+**The card shows one week, and you can walk back through the others.**
+`V.rweek[r.id]` is how many weeks back that card is, kept per routine and
+not saved: you step back to fill something in, and next time the page opens
+it is on this week, where the work is. `weekLabel()` says "This week" while
+you are on it and the days it covers otherwise, naming the month twice only
+when the week straddles two. **Each square carries its date** — a week other
+than this one is unreadable without it — and stepping back has no floor,
+because a routine can be filled in long after it was made, while forward
+stops at this week, where the days still to come say nothing you can act on.
 
-Under it, every run the routine has ever had, most recent first, the live
-one marked Going and the longest Best — and **each one is a button**: it
-takes the year picker to where that run sits and lights it up, the rest of
-the year stepping back to a fifth (`.lit-on .sq:not(.lit)`) rather than
-the run being ringed, which at 13px a square only made it busier. Pressing
-it again puts the whole year back. A run is held in `V.slogRun` by its
-first day, not by its place in the list, because a day ticked in the log
-can merge two runs into one and every index after it would then point at
-the wrong run; `V.slogSeek` scrolls it into view once, by the cell's own
-offset rather than `scrollIntoView()`, which would move the modal body as
-well. Without that, the list was the same information as the wall above it
-and the two numbers beside it, laid out again as text.
+**The streak log** (`streakModal(id)`, `V.slog`) is the rest of the
+history. It opens from the streak on the card — a button, there at nought
+too, so the way in does not appear only once you are already going — and
+from **View streak log** in a routine's menu anywhere it shows. Inside:
+four numbers, then **the year as twelve calendars**, every day under its own
+weekday in its own month with its date on it, and a year picker that stops
+at the first tick and at this year. It was one wall of weeks, a column each,
+the way a contribution chart is drawn — and a column that straddles two
+months has to be labelled with one of them, so the week of Mon Sep 28 was
+labelled October and a day ticked on Sep 29 looked like it was in October.
+There is nothing left to work out now. Six months to a row rather than as
+many as fit: twelve left 5, 5 and 2, and the short last row read as
+something missing.
+
+Every square is a real `routine-done` button, so a day pressed there goes
+through the same handler as a day pressed on a card, and `render()` draws
+the log again (the way it redraws the day popup for `V.peek`) because the
+numbers above it have just changed. The modal is `.modal.slog` rather than
+`wide` so a whole year fits without the body scrolling on a normal screen.
+A list of every run the routine had ever had was under it for a while and
+was taken out: the calendars above it already are those runs, and the two
+that matter are the first two numbers.
 
 **A streak counts times kept, not days**, and `streakUnit(r)` says which
 word to use: a run of 38 on something due every day is 38 days, but a run
