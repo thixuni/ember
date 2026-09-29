@@ -317,6 +317,43 @@ routine menu — right-click it wherever it shows, which a skipped day still
 does. Checking a skipped day off clears the skip with it: a day cannot be
 both let off and kept.
 
+**One occurrence can be moved.** A routine repeats, so a block dragged off
+its day or its hour has to say which occurrences were meant, and
+`rtMoveModal()` asks the way Google asks, with the old time struck
+through under the new one so the change is on the page rather than in the
+head:
+
+- **This one only** writes `prefs.rtMove`, keyed `"<routine>|<date>"` by
+  the day the occurrence *left* and holding `{d, t}`, the day and time it
+  now sits at — in prefs with the skips, so it travels with backups
+  without a tenth entry in `KEYS`. The routine itself is untouched.
+- **This and the ones after it** ends the routine the day before and
+  carries a copy on from this day at the new time. A split, so the copy
+  starts its own streak — the same trade Google makes. With nothing before
+  that day there is nothing to split, so it just edits the routine.
+- **Every one** changes the routine's own time, and its weekday with it if
+  the day moved.
+
+**The move is gated in exactly one place**, `routineOn()`: a day an
+occurrence left is no longer due and the day it landed on is, decided
+before the start and end dates are looked at, because a move is an
+instruction about that one day. Everything asks `routineOn()`, so the
+calendar, the missed lists, the streak walk and the reminders all follow
+without knowing any of this exists. The map is keyed by the day left, so
+drawing a day needs the other direction too — `ixMovedOnto()`, built once
+per change like the other lookups, leaving out a move within the same day
+because that day is due as it always was and only its hour changed.
+`rtTime(r, s)` is the hour an occurrence actually sits at, and **every
+reader of a routine's hour goes through it**, never `r.time`: the week
+grid, the day popup, the dashboard's schedule, up next, the day strip and
+`buildReminders()`. Two of the same routine cannot share a day —
+completions are keyed by the day, so the second would have nowhere to
+live — so a per-occurrence move onto a day it already falls on is refused.
+
+**Google Calendar does not know about this yet.** The sync writes a
+routine's *series* time, so an occurrence moved on its own is local only.
+Recurrence exceptions are the way to fix it, and worth doing.
+
 **A streak has no ceiling.** `streakNow(r)` walks the whole history in one
 pass — from `firstDayOf(r)` (the routine's start, or its first tick,
 whichever is earlier) to today — and returns the run still going, the best
@@ -564,6 +601,22 @@ planner's own and is not synced to Google. The once-a-minute redraw of
 the week waits while a drag or a placeholder is on it. Google Calendar sync
 writes a timed task as a timed event and reads times back from it; the
 date and its times are all there is to sync.
+
+**A block already on the week is dragged to another day or hour** (`MV`,
+the moving a block section), as in Google Calendar: the one it came from
+dims, a ghost follows the pointer at the quarter hour it would land on
+(`colAt()` for the column, `minuteIn()` for the hour), and letting go
+puts it there. The press only becomes a drag past 4px, so a press that
+does not move is still a click and blocks open as they always did; the
+click that *ends* a drag is swallowed (`MV.skip`) or every move would
+also open what it moved. A tick box on a block is a control, not a
+handle. Tasks (`moveTask()`, which logs the change like any edit) and
+unavailable time (`moveAway()`) move outright, keeping their length. A
+routine asks first — see Routines. Google's own events are not ours to
+move and tracked time is a record of what happened, so neither carries
+`data-move` and neither can be picked up. It is on `mousedown`, like the
+create-drag above it and for the same reason: a drag on a touch screen is
+a scroll.
 
 ### Dashboard
 
@@ -1221,5 +1274,7 @@ electron-updater reads. See DEVELOPMENT.md for code signing.
 ## Worth doing next
 
 - Code signing certificates, so the SmartScreen and Gatekeeper warnings go away.
+- Recurrence exceptions in the Google Calendar sync, so a routine occurrence
+  moved on its own reaches Google instead of staying in the planner.
 - Widen `test/` beyond convention guards — there is no coverage of the date
   helpers, recurrence logic or filtering, which is where the real logic lives.

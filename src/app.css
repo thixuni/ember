@@ -2994,15 +2994,17 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 
 /* ---------- moving a repeating routine ---------- */
 .mvopts{display:flex;flex-direction:column;gap:2px}
-.mvopt{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;padding:10px 11px;border-radius:var(--r-m);
+.mvopt{--mv-gap:var(--surface);display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;padding:10px 11px;border-radius:var(--r-m);
   background:none;border:1px solid transparent;cursor:pointer;transition:background .12s,border-color .12s}
 .mvopt:hover{background:var(--surface-2)}
-.mvopt.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.mvopt.on{--mv-gap:var(--accent-soft);background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
 .mvopt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .mvopt > *{pointer-events:none}
 .mvopt i{width:17px;height:17px;flex:none;margin-top:1px;border-radius:50%;border:2px solid var(--line-2);
   display:block;transition:border-color .12s,box-shadow .12s}
-.mvopt.on i{border-color:var(--accent);box-shadow:inset 0 0 0 3.5px var(--surface),inset 0 0 0 9px var(--accent)}
+/* The ring’s gap is whatever the row itself is painted: a chosen row is
+   tinted, and a --surface gap read as a dark halo inside the accent. */
+.mvopt.on i{border-color:var(--accent);box-shadow:inset 0 0 0 3.5px var(--mv-gap),inset 0 0 0 9px var(--accent)}
 .mvopt span{min-width:0}
 .mvopt b{display:block;font-size:13.5px;font-weight:600;color:var(--ink)}
 .mvopt small{display:block;margin-top:2px;font-size:11.5px;color:var(--muted)}
