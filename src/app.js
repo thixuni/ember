@@ -815,17 +815,19 @@ function askSpace(what,run){
    is what everything under it belongs to -- the sections, the categories,
    all of it. It is not in the Tasks top bar any more: a workspace is not a
    property of one screen. */
+/* The brand and the workspace are one row. They were two bands, one of
+   them a line that only said which app you have open, and the workspace
+   under it read as the second thing on a page where it is the first. The
+   mark stands on its own at the left -- it is the app, not a control --
+   and the rest of the row is the switcher, with "ember" as its eyebrow so
+   the name is still there without a row of its own. */
 function wsBarHtml(){
-  if(wsAll())return '<button class="ws-btn" data-act="ws-menu" aria-haspopup="menu" aria-expanded="false"'+
-    ' title="Switch workspace" aria-label="All workspaces. Switch workspace">'+
-    '<span class="ws-ic all">'+icon("i-grid","ic-14")+'</span>'+
-    '<span class="ws-t"><b>All workspaces</b><small>Everything, everywhere</small></span>'+
-    icon("i-chev-d","ic-14")+'</button>';
-  const w=curSpace(),n=spaces().length;
+  const all=wsAll(),w=curSpace();
   return '<button class="ws-btn" data-act="ws-menu" aria-haspopup="menu" aria-expanded="false"'+
-    ' title="Switch workspace" aria-label="Workspace: '+esc(w.name)+'. Switch workspace">'+
-    '<span class="ws-ic" style="--c:'+w.color+'">'+icon(w.icon||"i-grid","ic-14")+'</span>'+
-    '<span class="ws-t"><b>'+esc(w.name)+'</b><small>'+(n===1?"Workspace":n+" workspaces")+'</small></span>'+
+    ' data-hint="'+(all?"All workspaces":esc(w.name))+'"'+
+    ' title="Switch workspace" aria-label="'+(all?"All workspaces":"Workspace: "+esc(w.name))+'. Switch workspace">'+
+    '<span class="ws-ic'+(all?" all":"")+'"'+(all?"":' style="--c:'+w.color+'"')+'>'+icon(all?"i-grid":(w.icon||"i-grid"),"ic-14")+'</span>'+
+    '<span class="ws-t"><em>ember</em><b>'+(all?"All workspaces":esc(w.name))+'</b></span>'+
     icon("i-chev-d","ic-14")+'</button>';
 }
 /* Going to a workspace forgets what was filtered in the one before it: a
@@ -849,12 +851,43 @@ function spaceMenu(btn){
   items.push({icon:"i-settings",label:"Manage",sub:true,run:()=>{V.setTab="spaces";settingsModal();}});
   ctxMenu(items,null,btn);
 }
+/* Folded to its icons, the sidebar is a column of glyphs, so hovering one
+   names it. It is drawn into <body> rather than out of the button, because
+   the rail scrolls and anything positioned inside it would be clipped at
+   its edge -- and the browser's own tooltip is too slow to be a substitute
+   for a label you need every time you point at something.
+
+   Anything in the rail carrying data-hint takes part; nothing does while
+   the sidebar is open, where every icon has its words beside it. */
+const RT={el:null,at:null};
+function railHintHide(){if(RT.el){RT.el.remove();RT.el=null;}RT.at=null;}
+function railHintShow(node){
+  const text=node.dataset.hint;if(!text)return;
+  if(RT.at===node)return;
+  railHintHide();RT.at=node;
+  const d=document.createElement("div");d.className="railtip";d.setAttribute("role","tooltip");
+  d.textContent=text;document.body.appendChild(d);RT.el=d;
+  const b=node.getBoundingClientRect();
+  d.style.left=Math.round(b.right+10)+"px";
+  d.style.top=Math.round(Math.min(Math.max(8,b.top+b.height/2-d.offsetHeight/2),innerHeight-d.offsetHeight-8))+"px";
+}
+document.addEventListener("mouseover",function(e){
+  if(!document.body.classList.contains("rail-mini")){railHintHide();return;}
+  const n=e.target.closest&&e.target.closest(".rail [data-hint]");
+  if(n)railHintShow(n);else railHintHide();
+});
+document.addEventListener("mouseleave",function(e){
+  if(e.target&&e.target.classList&&e.target.classList.contains("rail"))railHintHide();
+},true);
+/* A click, a scroll or a key takes it away: it is a label, not a thing to
+   keep on the page. */
+["click","scroll","keydown"].forEach(t=>document.addEventListener(t,railHintHide,true));
 function renderRail(){
   applyRail();
   const wb=el("wsBar");if(wb)wb.innerHTML=wsBarHtml();
   renderMe();
   el("nav").innerHTML=NAV.map(n=>{const a=navAlert(n.id);
-    return '<button class="nav-btn" data-act="view" data-view="'+n.id+'" aria-current="'+(V.view===n.id)+'" title="'+esc(n.name+(a?" · "+a.label:""))+'">'+
+    return '<button class="nav-btn" data-act="view" data-view="'+n.id+'" aria-current="'+(V.view===n.id)+'" data-hint="'+esc(n.name)+'" title="'+esc(n.name+(a?" · "+a.label:""))+'">'+
       icon(n.icon,"ic-18")+'<span>'+esc(n.name)+'</span>'+
       /* <b>, not <span>: the icon-only rail hides every span in a nav button,
          and an alert has to survive that. */
@@ -869,7 +902,7 @@ function renderRail(){
     '<span class="grow"></span>'+
     (hid?'<button class="txt" data-act="cat-all" title="Show every category">Show all</button>':"");
   el("catList").innerHTML=cats().map(c=>{const off=!visibleCat(c.id);
-    return '<button class="cat-row'+(off?" off":"")+'" style="--c:'+c.color+'" data-act="cat-toggle" data-id="'+c.id+'" role="switch" aria-checked="'+(!off)+'" title="'+esc(off?"Show":"Hide")+' '+esc(c.name)+'">'+
+    return '<button class="cat-row'+(off?" off":"")+'" style="--c:'+c.color+'" data-act="cat-toggle" data-id="'+c.id+'" data-hint="'+esc(c.name)+'" role="switch" aria-checked="'+(!off)+'" title="'+esc(off?"Show":"Hide")+' '+esc(c.name)+'">'+
       '<span class="cat-box">'+icon("i-check")+'</span>'+icon(c.icon,"ic-14 ic-cat")+'<span class="cname">'+esc(c.name)+'</span></button>';}).join("");
 }
 function topSearch(ph){
@@ -1820,7 +1853,7 @@ function viewDashboard(){
     '</div></section>';
 
   /* ---- scratch pad ---- */
-  const scratch='<section class="dcard fill dash-scratch">'+dashHead("i-edit","Scratch pad","note",'<small>Saves as you type</small>')+
+  const scratch='<section class="dcard fill dash-scratch">'+dashHead("i-edit","Scratch pad","violet",'<small>Saves as you type</small>')+
     '<div class="rte-bar">'+["bold|B","italic|I","insertUnorderedList|•"].map(x=>{const q=x.split("|");
       return '<button data-act="rte" data-cmd="'+q[0]+'" data-scratch="1" aria-label="'+q[0]+'">'+q[1]+'</button>';}).join("")+
       '<span class="spacer" style="flex:1"></span>'+

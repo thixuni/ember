@@ -133,19 +133,18 @@
 
 <div class="app">
   <aside class="rail">
-    <div class="brand">
-      <div class="brand-mark"><svg class="ic" aria-hidden="true"><use href="#i-ember"/></svg></div>
-      <div class="brand-name">ember</div>
+    <div class="rail-top">
+      <div class="brand-mark" title="Ember"><svg class="ic" aria-hidden="true"><use href="#i-ember"/></svg></div>
+      <div class="ws-bar" id="wsBar"></div>
       <button class="rail-mini-btn" id="railMini" data-act="rail-mini" aria-label="Collapse the sidebar" title="Collapse the sidebar" aria-expanded="true"><svg class="ic ic-14" aria-hidden="true"><use href="#i-chev-l"/></svg></button>
     </div>
-    <div class="ws-bar" id="wsBar"></div>
     <div class="rail-scroll">
       <nav class="nav" id="nav"></nav>
       <div class="rail-head" id="railHead"></div>
       <div id="catList"></div>
     </div>
     <div class="rail-foot">
-      <button class="me" data-act="settings" title="Settings" aria-label="Settings">
+      <button class="me" data-act="settings" data-hint="Settings" title="Settings" aria-label="Settings">
         <span class="me-av" id="meAv" aria-hidden="true">?</span>
         <span class="me-txt"><b id="meName">Your planner</b><span class="sync" id="sync"><span class="dot"></span><span>Saved</span></span></span>
         <svg class="ic ic-16 me-gear" aria-hidden="true"><use href="#i-settings"/></svg>

@@ -521,8 +521,13 @@ its own categories, and categories were the thing that most needed it.
   renamed. There is no "Across all of them" section in the pane: the
   switcher in the sidebar already has All workspaces in it, and saying it
   twice made the pane look like it had two subjects.
-- **The sidebar is three bands**, each set off by a hairline: which app,
-  which workspace, then everything that belongs to the workspace. It was
+- **The brand and the workspace are one row** (`.rail-top`): the mark on
+  the left, since it is the app and not a control, then the switcher
+  filling the rest with "ember" as its eyebrow so the name is still there
+  without a row of its own. They were two bands, one of them a line that
+  only said which app you have open.
+- **The sidebar is two bands**, set off by a hairline: which app and
+  workspace, then everything that belongs to the workspace. It was
   one run of rows in three sizes with nothing between them, which is what
   made the top look unsettled. **Every glyph in it starts at the same
   22px** -- the mark, the workspace tile, the nav icons, the Categories
@@ -785,9 +790,12 @@ equal thirds.
 **Five sections, five colours**, keyed from the head (`--tone` on
 `.dcard-h`, set by the class `dashHead()` puts there): it colours the
 badge, a wash behind the heading, the hairline under it and what a row
-lights up to on hover. The welcome panel is the **accent**, Today
-**blue**, what needs seeing to the **danger** colour, the scratch pad
-**amber** and time tracked **teal** (`--teal`, added for this). It used
+lights up to on hover. The welcome panel is the **accent**, so its
+gradient follows a custom colour the way the date on it does; Today is
+**blue**, what needs seeing to the **danger** colour at a heavier wash
+(`--wash`) so it reads red rather than as one more warm tint, the scratch
+pad **violet** and time tracked **teal** (both tokens added for this --
+amber beside the danger colour read as the same warm beige). It used
 to be a grey box with a coloured sticker on it. Measured in both themes:
 headings 10.5:1 or better on their wash, the small grey 4.98:1 or
 better, and every badge glyph clears 3:1 against its own tile -- which is
@@ -839,7 +847,15 @@ Workspaces**, opened under the workspace they belong to (`catListHtml()`,
 redraw it). They had a window of their own, and from Settings that meant
 a popup opening on top of the popup that was already listing them. The
 sidebar's pencil goes to the same place, with that workspace's list
-already open. They all live
+already open.
+
+**Folded to its icons, the sidebar names what the pointer is on**
+(`data-hint`, `railHintShow()`, `.railtip`). It is drawn into `<body>`
+rather than out of the button, because the rail scrolls and anything
+positioned inside it is clipped at its edge; and the browser's own
+tooltip is far too slow to be the label you need every time you point at
+something. Nothing shows it while the sidebar is open, where every icon
+has its words beside it. They all live
 in the one `S.categories` array with a `ws` on each, so reordering one
 workspace's writes them back into the places its own occupied
 (`catsReorder()`) — mapping the dragged order straight onto
