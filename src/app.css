@@ -36,6 +36,7 @@
   --muted:#54555B;
   --faint:#606167;
   --apricot:#E0854A;
+  --teal:#2E8B84;
   --danger:#C25340;
   --amber:#BC841A;
   --blue:#3A6DA6;
@@ -155,6 +156,7 @@
     --muted:#B6B6BB;
     --faint:#A4A4AA;
     --apricot:#EDA470;
+  --teal:#6FC3BA;
     --danger:#E58270;
     --amber:#DDAE52;
     --blue:#7BA8DD;
@@ -202,6 +204,7 @@
   --muted:#B6B6BB;
   --faint:#A4A4AA;
   --apricot:#EDA470;
+  --teal:#6FC3BA;
   --danger:#E58270;
   --amber:#DDAE52;
   --blue:#7BA8DD;
@@ -1852,7 +1855,10 @@ button.obx-rt-txt > *{pointer-events:none}
    one place on the page with atmosphere -- a faint neutral sheen behind the
    greeting, the accent kept to the date and the progress orbit -- so the
    lists below it can stay calm. */
-.dash{height:100%;min-height:0;background:var(--canvas);padding:20px 24px 24px;
+/* The page behind the cards is the ground, not the surface, so a white
+   card reads as a card without a heavy shadow under it -- two of those
+   meeting in an 18px gap made a dark band that looked like a rule. */
+.dash{height:100%;min-height:0;background:var(--ground);padding:20px 24px 24px;
   display:flex;flex-direction:column;gap:18px;overflow:hidden}
 /* Three columns, left to right in the order the day is read: Today, then
    what is behind, then somewhere to put a thought. Today and Needs your
@@ -1860,16 +1866,20 @@ button.obx-rt-txt > *{pointer-events:none}
    schedule pushed the whole of the second card off the foot of the page.
    Each card now fills its column and scrolls inside itself, which is the
    whole point: a long list is long in its own box. */
-.dash-grid{flex:1;min-height:0;display:grid;gap:18px;
+.dash-grid{flex:1;min-height:0;display:grid;gap:20px;
   grid-template-columns:repeat(3,minmax(0,1fr))}
-.dcol{display:flex;flex-direction:column;gap:18px;min-height:0;min-width:0}
+/* Not .dcol: that is the week grid's day-column header, and it carries a
+   border-right and a side padding of its own. Sharing the name put a rule
+   down every gap between the dashboard's columns and set each card 6px
+   inside its own column. */
+.dash-col{display:flex;flex-direction:column;gap:20px;min-height:0;min-width:0}
 
 /* ---- the welcome panel ---- */
 .dhero{position:relative;flex:none;overflow:hidden;border:1px solid var(--line);border-radius:var(--r-l);
   padding:16px 22px 10px;
   background:
-    radial-gradient(70% 130% at 0% 0%,color-mix(in srgb,var(--ink) 5%,transparent),transparent 70%),
-    var(--panel)}
+    radial-gradient(80% 140% at 0% 0%,color-mix(in srgb,var(--accent) 12%,transparent),transparent 72%),
+    var(--surface);box-shadow:var(--sh-1)}
 .dhero-top{position:relative;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 .dhero-text{flex:1 1 280px;min-width:0}
 .dhero-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink)}
@@ -1928,7 +1938,7 @@ button.obx-rt-txt > *{pointer-events:none}
    only thing drawing one, so three cards side by side read as three ruled
    columns with lines between them rather than as three cards. They sit on
    the surface with a soft shadow instead, which is what a card is. */
-.dcard{border:0;border-radius:var(--r-l);background:var(--surface);box-shadow:var(--sh-1),var(--sh-2);min-width:0;flex:none}
+.dcard{border:0;border-radius:var(--r-l);background:var(--surface);box-shadow:var(--sh-1);min-width:0;flex:none}
 /* Fills what is left of its column; its head stays put and its body takes
    the scroll. The rule under a pinned head is what says it scrolls. */
 .dcard.fill{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
@@ -1951,8 +1961,12 @@ button.obx-rt-txt > *{pointer-events:none}
 .dcard-h.warn{--tone:var(--danger)}
 .dcard-h.blue{--tone:var(--blue)}
 .dcard-h.note{--tone:var(--amber)}
+.dcard-h.teal{--tone:var(--teal)}
+/* The badge is a light wash so the glyph on it clears 3:1 -- an icon is a
+   graphical object and has to be seen, and at 18% the amber one measured
+   2.7 against its own tile. */
 .dch-ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
-  background:color-mix(in srgb,var(--tone) 18%,var(--surface));color:var(--tone)}
+  background:color-mix(in srgb,var(--tone) 11%,var(--surface));color:var(--tone)}
 /* The one card on the page that is about something being wrong says so from
    across the room, and goes quiet again the moment there is nothing in it. */
 /* Something to see to: the card is ringed in the danger colour so it is
@@ -1960,7 +1974,7 @@ button.obx-rt-txt > *{pointer-events:none}
    moment there is nothing in it. Its empty state is a row at the top like
    every other empty state -- centred in a tall column it floated in the
    middle of nowhere. */
-.dash-attn:not(.clear){box-shadow:var(--sh-1),var(--sh-2),inset 0 0 0 1px color-mix(in srgb,var(--danger) 26%,transparent)}
+.dash-attn:not(.clear){box-shadow:var(--sh-1),inset 0 0 0 1px color-mix(in srgb,var(--danger) 26%,transparent)}
 .dch-ic.blue{--tone:var(--blue)}
 .dch-ic.note{--tone:var(--amber)}
 .dgroup{padding:6px 8px 10px}
@@ -2078,7 +2092,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 @media (max-width:1080px){
   .dash{overflow-y:auto;padding:16px}
   .dash-grid{display:flex;flex-direction:column;flex:none;min-height:0}
-  .dcol{display:contents}
+  .dash-col{display:contents}
   .dcard.fill{flex:none;overflow:visible}
   .dcard-body{overflow:visible;min-height:0}
   .dcard-body .dgroup h3{position:static}
@@ -3255,8 +3269,14 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 /* The dashboard is the page you open on, so it is allowed some warmth: a
    card is keyed to a colour at its head, and a row lights in that colour
    when the pointer is on it rather than going the same flat grey. */
+/* Five sections, five colours: the welcome panel is the accent, Today is
+   blue, what needs seeing to is the danger colour, the scratch pad amber
+   and the time tracked teal. A row lights to its own card's colour. */
 .dcard-body{--tone:var(--accent)}
+.dash-today .dcard-body{--tone:var(--blue)}
 .dash-attn .dcard-body{--tone:var(--danger)}
+.dash-scratch .dcard-body{--tone:var(--amber)}
+.dash-time .dcard-body{--tone:var(--teal)}
 .drow:hover{background:color-mix(in srgb,var(--tone) 7%,var(--surface))}
 .dag-row:hover{background:color-mix(in srgb,var(--c) 8%,var(--surface))}
 .dcard .es{padding:14px 8px}

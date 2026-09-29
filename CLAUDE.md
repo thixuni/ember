@@ -782,12 +782,25 @@ ruled columns with lines between them. They sit on `--surface` with a
 soft shadow instead, which is what a card is, and the three columns are
 equal thirds.
 
-**Each card is keyed to a colour**, and the key lives on the head
-(`--tone` on `.dcard-h`, set by the class `dashHead()` puts there): it
-colours the badge, a wash behind the heading, the hairline under it and
-what a row lights up to on hover. It used to be a grey box with a
-coloured sticker on it. Measured on the wash, headings read 10.5:1 or
-better and the small grey 4.98:1 or better, in both themes.
+**Five sections, five colours**, keyed from the head (`--tone` on
+`.dcard-h`, set by the class `dashHead()` puts there): it colours the
+badge, a wash behind the heading, the hairline under it and what a row
+lights up to on hover. The welcome panel is the **accent**, Today
+**blue**, what needs seeing to the **danger** colour, the scratch pad
+**amber** and time tracked **teal** (`--teal`, added for this). It used
+to be a grey box with a coloured sticker on it. Measured in both themes:
+headings 10.5:1 or better on their wash, the small grey 4.98:1 or
+better, and every badge glyph clears 3:1 against its own tile -- which is
+why the tile is an 11% wash and not the 18% it started at.
+
+**The dashboard's columns are `.dash-col`, never `.dcol`.** `.dcol` is
+the week grid's day-column header and it carries a `border-right` and a
+side padding of its own; sharing the name put a rule down every gap
+between the dashboard's columns and set every card 6px inside its own
+column. That was what looked like lines between the sections. The page
+behind the cards is `--ground` rather than `--canvas`, so a white card
+reads as a card on one tight shadow -- two heavy ones meeting in the gap
+made a dark band that looked like a rule of its own.
 
 **The attention card wears its state**: the danger tone on its head and a
 ring of it round the card while there is something in it, neutral the

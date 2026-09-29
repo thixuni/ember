@@ -1784,7 +1784,7 @@ function viewDashboard(){
      and the add box pinned above. A long schedule used to push everything
      under it -- the whole of Needs your attention among it -- off the foot
      of the page, because Today and that card shared one scrolling column. */
-  const todayCard='<section class="dcard fill dash-today">'+dashHead("i-sun","Today","",
+  const todayCard='<section class="dcard fill dash-today">'+dashHead("i-sun","Today","blue",
       '<small>'+openT+' to do · '+leftR+' in your schedule</small>')+quick+
     '<div class="dcard-body">'+
     dashGroup("To do",openT,d.tasks.map(taskRow).join(""),es("list","Today’s list is clear","Add something above, or enjoy the breathing room.",{mini:1,hue:"var(--blue)"}))+
@@ -1799,7 +1799,7 @@ function viewDashboard(){
   /* No red total here: the sidebar's red number means late, and a total that
      also counts missed routines and undated notes would say 10 beside its 1.
      Each group below carries its own count. */
-  const attn='<section class="dcard fill dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-flag","Needs your attention",need?"warn":"")+
+  const attn='<section class="dcard fill dash-attn'+(need?"":" clear")+'">'+dashHead(need?"i-alert":"i-flag","Needs your attention","warn")+
     '<div class="dcard-body">'+
     (!need?es("clear","You’re all caught up","Nothing overdue, nothing missed. Enjoy the head start.",{mini:1,cls:"es-attn"}):
       (o.tasks.length?dashGroup("Overdue",o.tasks.length,o.tasks.map(t=>{const c=cat(t.cat);
@@ -1836,9 +1836,9 @@ function viewDashboard(){
      holds can push another card off the page. */
   return '<div class="dash">'+dashHero(d)+
     '<div class="dash-grid">'+
-      '<div class="dcol">'+todayCard+'</div>'+
-      '<div class="dcol">'+attn+'</div>'+
-      '<div class="dcol">'+scratch+timeTodayCard()+'</div>'+
+      '<div class="dash-col">'+todayCard+'</div>'+
+      '<div class="dash-col">'+attn+'</div>'+
+      '<div class="dash-col">'+scratch+timeTodayCard()+'</div>'+
     '</div></div>';
 }
 
@@ -1968,7 +1968,7 @@ function trackedToday(){
 const totalMins=secs=>{const m=Math.floor(secs/60);return m?fmtMins(m):"0m";};
 function timeTodayCard(){
   const d=trackedToday(),max=d.rows.length?d.rows[0].secs:0,r=running();
-  return '<section class="dcard dash-time">'+dashHead("i-timer","Time today","blue",
+  return '<section class="dcard dash-time">'+dashHead("i-timer","Time today","teal",
       '<span class="dtotal num" id="dashTotal">'+esc(totalMins(d.total))+'</span>')+
     (d.rows.length?'<div class="dtime">'+d.rows.map(x=>{const c=cat(x.t.cat),live=r&&r.task===x.t.id;
       return '<button class="dtrow" data-act="task" data-id="'+x.t.id+'" style="--c:'+c.color+'">'+
