@@ -436,23 +436,70 @@ noise over every board and list. **Filter** and **Customize** sit in the top
 bar beside Board and List; Filter opens the panel (`filterBar()`, `V.adv`)
 and, once shut, any filter still set shows as a chip with its own ×.
 
+**There can be more than one board.** `prefs.boards` is
+`[{id, name, color, lanes}]` — Personal, Work, Side hustle — and
+`prefs.boardAt` is the one the Tasks section is showing. **A board owns its
+lanes and its tasks**: a task carries `t.board`, and the whole Tasks section
+(both views, the filters, the search, the counts in the top bar) reads
+`boardTasks()`, never `tops()`. A single board with a category filter over
+it was the alternative and is not the same thing — the lanes a side project
+needs are not the lanes work needs, and a filter cannot give you two sets.
+
+- **Only Tasks is divided.** The dashboard, the calendar, the matrix, overdue
+  and the reminders show everything, whichever board it is on, because they
+  are about time and a day with half of itself missing is worse than no day
+  at all. A search, though, *is* scoped, so `elsewhereHtml()` puts the way
+  to a match on another board on the page: a task you cannot find otherwise
+  reads as a task that has been deleted.
+- **Lane ids are unique across every board.** A task carries its lane id and
+  nothing else, so anything asking what colour that lane is, or whether it
+  counts as finished, has to find it without being told which board to look
+  on — `lane(id)` searches them all (`ixLanes()`, in the lookups) while
+  `lanes()` is the current board's. That is why a new lane's id is generated
+  rather than named.
+- **A task's lane must be one of its own board's.** `fixTasks()` enforces
+  both halves every render: a task with no board joins the first, and a
+  lane that is not its board's is replaced by `laneFor(status, board)` —
+  which matches by name first, so a task carried from one board's *In
+  progress* lands in the other's, and by done-ness after that.
+- **Boards are made and unmade** in Customize ▸ Boards (`czBoards()`), which
+  is the lanes list in miniature: drag to reorder, click to rename, a
+  swatch, a task count, Open, and a Remove that asks where its tasks go —
+  another board, or nowhere, which deletes them
+  (`deleteTask(id, quiet)` for the run of them, one redraw at the end). The
+  last board cannot go: the Tasks section has to be somewhere. The switcher
+  itself is a pill in the top bar, before Board and List, because a
+  workspace is not a filter and does not belong in the filter panel.
+- **A task moves board** from its own ⋯ menu — *Move to Work* — which is
+  where every other thing done to a task already is. Its subtasks go with it.
+
 How tasks work is the person's to set, in one window opened from
 **Customize** beside Filter in the top bar (`customiseModal()`, the customise section).
 All of it is `prefs.board`, filled in by `board()` on the one object, so it
-goes with backups and Drive like any setting.
+goes with backups and Drive like any setting. **What lives there is every
+board's**: which fields a task has, which columns the list shows, whether
+subtasks are tasks. Those are settings about the planner rather than about
+one workspace, and five copies of them to keep in step would be its own
+chore.
 
-- **Swimlanes** are `board().lanes`: `{id, name, color, done}` in board
+- **Swimlanes** are `curBoard().lanes`: `{id, name, color, done}` in board
   order, and a task's `status` is its lane's id. A new planner starts with
-  To do, In progress and Completed (`DEFAULT_LANES`); a planner that already
-  had tasks keeps the six it had (`LEGACY_LANES`), so nothing moves. That is
-  decided the first time `board()` runs, which `render()` makes happen before
-  anything else — left later, a new planner's first sample tasks made it look
-  like an old one. Lanes can be added, renamed, recoloured, reordered (drag,
-  or the arrows) and removed; removing one with tasks asks where they go.
+  one board called Tasks carrying To do, In progress and Completed
+  (`DEFAULT_LANES`); a planner that already had tasks keeps the six it had
+  (`LEGACY_LANES`), and a planner from before boards keeps its lanes as that
+  first board's, so nothing moves. That is decided the first time
+  `boards()` runs, which `render()` makes happen before anything else —
+  left later, a new planner's first sample tasks made it look like an old
+  one. Lanes can be added, renamed, recoloured, reordered (drag, or the
+  arrows) and removed; removing one with tasks asks where they go, and
+  every board keeps its own set.
 - **Done is a lane, not a word.** A lane marked done is where ticking sends a
-  task (`firstDone()`, and back to `firstOpen()`), and what counts as finished
-  everywhere through `isDoneT(t)`. Never test `t.status==="completed"` — a
-  test fails on it. A status a lane no longer has (the sample week, an old
+  task (`firstDone(t.board)`, and back to `firstOpen(t.board)` — the task's
+  own board, because a task is ticked from the dashboard, the calendar and
+  the matrix, where no board is in sight), and what counts as finished
+  everywhere through `isDoneT(t)`, which reads the lane and nothing else: a
+  task whose lane has gone is not finished, and `fixTasks()` gives it one.
+  Never test `t.status==="completed"` — a test fails on it. A status a lane no longer has (the sample week, an old
   backup) is moved to the nearest one by `fixTasks()` via `laneFor()`.
 - **The task panel's parts** can be switched off (`BOARD_FEATS`: key, name, a
   line on what it is for, icon; read with `feat(k)`); hidden parts keep their

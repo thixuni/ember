@@ -2349,6 +2349,12 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .cz-lane,.cz-col{position:relative;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 8px 7px 6px;border-radius:var(--r-s);
   background:var(--surface);border:1px solid var(--line);transition:border-color .12s,opacity .12s}
 .cz-lane{border-left:3px solid var(--s)}
+/* A board in the list says which one the Tasks section is on, since
+   opening one is the point of the row. */
+.cz-lane.on{background:var(--surface-2)}
+.cz-here{font-size:11.5px;font-weight:700;color:var(--accent-ink);white-space:nowrap}
+.cz-n-lanes{font-size:11.5px;color:var(--faint);white-space:nowrap}
+.cz-which{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--ink)}
 .cz-lane:hover,.cz-col:hover{border-color:var(--line-2)}
 .cz-lane.dragging,.cz-col.dragging{opacity:.45}
 .cz-sh .ic{margin-right:7px;color:var(--muted)}
@@ -3034,3 +3040,26 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .mvwhen s{display:block;margin-top:2px;font-size:12.5px;color:var(--muted)}
 .mvdrop{color:var(--danger-ink)}
 .mvdrop:hover{background:var(--danger-soft)}
+
+/* ---------- the board the Tasks section is on ----------
+   A workspace is not a filter, so it is named in the top bar rather than
+   hidden in the filter panel: its colour, its name, and the way to another. */
+.bd-pick{max-width:200px}
+/* Below 1280 the top bar's buttons drop their words and keep their icon.
+   This one's icon is a chevron, which says nothing on its own -- the board's
+   name and colour *are* the control -- so it keeps both, narrower. */
+@media (max-width:1280px){
+  .bd-pick{padding:0 9px}
+  .bd-pick .bd-dot,.bd-pick .bd-name{display:block}
+  .bd-pick .bd-name{max-width:88px}
+}
+.bd-pick .bd-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bd-pick .ic:last-child{color:var(--faint);margin-left:-2px}
+.bd-dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--s)}
+/* Where a search comes up empty here but not everywhere. */
+.bd-else{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 10px;padding:9px 12px;
+  border-radius:var(--r-m);background:var(--panel);border:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.bd-else .ic{color:var(--faint)}
+.bd-else-go{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:20px;
+  border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer}
+.bd-else-go:hover{border-color:var(--accent);color:var(--accent-ink)}
