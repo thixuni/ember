@@ -380,6 +380,19 @@ const ixTasks=()=>ix("tasks",()=>new Map(S.tasks.map(t=>[t.id,t])));
 const ixAct=()=>ix("act",()=>groupBy(S.activity,a=>a.task));
 const ixDocs=()=>ix("docs",()=>groupBy(S.docs,d=>d.task));
 const ixSess=()=>ix("sess",()=>groupBy(S.sessions,x=>x.task));
+/* Every tick a routine has ever had, in order. The streak walks start at the
+   first one rather than a fixed number of days back, which is what lets a
+   streak be as long as it actually is. */
+const ixDone=()=>ix("done",()=>{
+  const m=new Map();
+  Object.keys(S.completions||{}).forEach(k=>{
+    const i=k.lastIndexOf("|");if(i<1)return;
+    const id=k.slice(0,i),s=k.slice(i+1);
+    const a=m.get(id);if(a)a.push(s);else m.set(id,[s]);
+  });
+  m.forEach(a=>a.sort());
+  return m;
+});
 const ixSessDay=()=>ix("sessDay",()=>groupBy(S.sessions,x=>ymd(new Date(x.start))));
 /* A task belongs to its date. */
 const ixBack=()=>ix("back",()=>{const m=new Map();S.tasks.forEach(x=>(Array.isArray(x.links)?x.links:[]).forEach(id=>{const a=m.get(id);if(a)a.push(x.id);else m.set(id,[x.id]);}));return m;});
@@ -410,30 +423,66 @@ const doneR=(r,s)=>!!S.completions[r.id+"|"+s];
 const routineHere=(r,d)=>routineOn(r,d)||doneR(r,ymd(d));
 /* A missed day is made up by doing it on an off day after it, before the next
    day it is due -- each missed day has its own window, so one extra tick
-   never covers two. */
+   never covers two. The window closes at the next scheduled day or at today,
+   whichever comes first, which is what ends the walk; it used to give up
+   after 60 days as well, and a routine due twice a year could not be made
+   up at all. */
 function madeUp(r,d){
-  for(let i=1;i<60;i++){const x=addDays(d,i),s=ymd(x);
+  for(let x=addDays(d,1);;x=addDays(x,1)){const s=ymd(x);
     if(s>TODAY()||routineOn(r,x))return false;
     if(doneR(r,s))return true;}
-  return false;
 }
 function matchQ(t,q){
   if(!q)return true;q=q.toLowerCase();
   return (t.title||"").toLowerCase().indexOf(q)>-1||(t.desc||"").toLowerCase().indexOf(q)>-1||
     cat(t.cat).name.toLowerCase().indexOf(q)>-1||(t.subtasks||[]).some(s=>s.t.toLowerCase().indexOf(q)>-1);
 }
-/* Every day it was done counts, scheduled or not. A scheduled day missed
-   ends the streak unless it was made up; an off day left empty is neutral,
-   and so is today until it is over. */
-function streak(r){
-  if(!r.active)return 0;
-  let n=0;
-  for(let i=0;i<366;i++){const d=addDays(today(),-i);
-    if(doneR(r,ymd(d))){n++;continue;}
-    if(i===0||!routineOn(r,d)||madeUp(r,d))continue;
-    break;}
-  return n;
+/* The first day this routine could have been kept: the day it starts, or the
+   first day it was ever checked off, whichever is earlier. */
+function firstDayOf(r){
+  const a=ixDone().get(r.id);
+  let f=a&&a.length?a[0]:"";
+  if(r.start&&(!f||r.start<f))f=r.start;
+  return f&&f<=TODAY()?f:TODAY();
 }
+/* The whole history in one walk, first day to today: every run of days kept,
+   the one still going, the best there has ever been, and how many of the days
+   it was due were kept.
+
+   **A streak has no ceiling.** It used to stop counting at 366 days back,
+   which quietly capped a year-old streak and, worse, made the number look
+   like it only knew about the week on screen. The walk now starts at the
+   first tick and the only limit is a guard against a date that cannot be
+   real.
+
+   The rules are the ones the week squares follow: a day done counts,
+   scheduled or not; an off day left empty is neutral; today is neutral until
+   it is over; and a scheduled day missed ends the run unless it was made up
+   on an off day before the next one due. */
+function streakNow(r){
+  const T=TODAY(),runs=[];
+  let run=null,total=0,due=0,kept=0,n=0;
+  for(let d=parseD(firstDayOf(r));n<20000;d=addDays(d,1)){
+    const s=ymd(d);if(s>T)break;
+    n++;
+    const done=doneR(r,s),sched=routineOn(r,d);
+    if(done)total++;
+    if(sched){due++;if(done)kept++;}
+    if(done){if(!run){run={from:s,to:s,len:0,live:false};runs.push(run);}run.to=s;run.len++;continue;}
+    if(s===T||!sched||madeUp(r,d))continue;
+    run=null;
+  }
+  if(run)run.live=true;
+  let best=0;runs.forEach(x=>{if(x.len>best)best=x.len;});
+  return {cur:run?run.len:0,best:best,total:total,due:due,kept:kept,
+    first:firstDayOf(r),runs:runs.slice().reverse()};
+}
+/* Asked for by every card in a redraw, so worked out once per change. */
+const streakStats=r=>{const m=ix("streak",()=>new Map());
+  let v=m.get(r.id);if(!v){v=streakNow(r);m.set(r.id,v);}return v;};
+/* A paused routine keeps its history but shows no number: the card says
+   Paused in that corner instead. */
+function streak(r){return r.active?streakStats(r).cur:0;}
 /* Asked for by the sidebar, the dashboard and the calendar in one redraw, so
    worked out once per change. */
 const overdueItems=()=>ix("overdue",overdueNow);
@@ -2344,13 +2393,120 @@ function viewRoutines(){
       '<div class="rtop"><span class="ravatar">'+icon(c.icon,"ic-18")+'</span>'+
       '<div class="rhead"><h3 title="'+esc(r.title)+'">'+esc(r.title)+'</h3>'+
         '<div class="rsub" title="'+esc(fmtTime(r.time)+" · "+fmtMins(r.dur)+" · "+freqLabel(r))+'">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+esc(fmtMins(r.dur))+'</span><span class="rdot">·</span><span class="rfreq">'+esc(freqLabel(r))+'</span></div></div>'+
-      (!r.active?'<span class="rpaused">'+icon("i-pause","ic-12")+'Paused</span>':st?'<span class="streak" title="'+st+(st===1?" day":" days")+' in a row">'+icon("i-flame","ic-14")+st+'</span>':"")+'</div>'+
+      /* The streak is a button: the number says where you are, pressing it
+         opens the whole history. It is there at nought too, so the way in
+         does not appear only once you are already going. */
+      (!r.active?'<span class="rpaused">'+icon("i-pause","ic-12")+'Paused</span>'
+        :'<button class="streak'+(st?"":" none")+'" data-act="streak-log" data-id="'+r.id+'"'+
+         ' title="View streak log"'+
+         ' aria-label="View streak log for '+esc(r.title)+' \u2014 '+st+(st===1?" day":" days")+' in a row">'+
+         icon("i-flame","ic-14")+st+'</button>')+'</div>'+
       days+
       '<div class="rfoot">'+catChip(r.cat,"routine",r.id)+
         '<span class="rbell'+(rm===null?" off":"")+'" title="Reminder">'+icon(rm===null?"i-bell-off":"i-bell","ic-14")+esc(rm===null?"No reminder":remindLabel(r).replace(" (default)",""))+'</span>'+
         '<div class="spacer" style="flex:1"></div>'+
         '<button class="icon-btn btn-sm" data-act="rt-menu" data-id="'+r.id+'" title="More" aria-label="More for '+esc(r.title)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button></div>'+
       '</article>';}).join("")+'</div>';
+}
+/* ---- the streak log ----
+   A routine's whole history on one page: where the streak stands, the best
+   it has ever been, and every day since the first tick as a square you can
+   still press. The card keeps to this week because that is the week you are
+   working; this is the place that remembers the rest.
+
+   Every square is a real `routine-done` button, so a tick here goes through
+   exactly the same handler as a tick on a card -- and render() draws the log
+   again underneath it (V.slog), the way the day popup is redrawn, because
+   the numbers above it have just changed. */
+function slogCell(r,s,c){
+  const d=parseD(s),T=TODAY();
+  const done=doneR(r,s),sched=routineOn(r,d),later=s>T,today=s===T;
+  const kind=done?"done":later?"later":sched?(madeUp(r,d)?"made":"miss"):"off";
+  const when=fmtDate(s);
+  const say=done?(kind==="done"?"Kept on "+when:when)
+    :later?"Still to come"
+    :kind==="miss"?"Missed on "+when
+    :kind==="made"?"Missed on "+when+", made up after"
+    :"Not scheduled on "+when;
+  if(later)return '<i class="sq later" title="'+esc(when+" \u2014 still to come")+'"></i>';
+  return '<button class="sq '+kind+(today?" today":"")+'" data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'"'+
+    ' style="--c:'+c.color+'" aria-pressed="'+done+'" title="'+esc(say)+'" aria-label="'+esc(say)+'"></button>';
+}
+function streakModal(id){
+  const r=routineById(id);if(!r)return;
+  const fresh=!el("modalRoot").querySelector(".modal[data-slog]");
+  /* A different routine starts on this year rather than wherever the last
+     one was left. */
+  if(V.slog!==id)V.slogY=null;
+  V.slog=id;
+  const c=cat(r.cat),st=streakStats(r),T=TODAY();
+  const firstY=+st.first.slice(0,4),nowY=+T.slice(0,4);
+  let y=V.slogY==null?nowY:V.slogY;
+  if(y<firstY)y=firstY;if(y>nowY)y=nowY;V.slogY=y;
+
+  /* The year as a wall of weeks, a column each, Monday at the top -- the
+     shape every contribution chart uses, because a year of days fits in it
+     and the gaps read at a glance. */
+  const from=startOfWeek(parseD(y+"-01-01")),to=addDays(startOfWeek(parseD(y+"-12-31")),6);
+  let cells="",months="",run=0,mLast=-1,cols=0;
+  for(let d=from;ymd(d)<=ymd(to);d=addDays(d,7)){
+    cols++;
+    const m=addDays(d,3).getMonth();          // the month the week mostly sits in
+    if(m!==mLast){if(run)months+='<span style="grid-column:span '+run+'">'+(run>2?MONS[mLast]:"")+'</span>';mLast=m;run=1;}
+    else run++;
+    for(let i=0;i<7;i++){const s=ymd(addDays(d,i));
+      cells+=(s.slice(0,4)!==String(y))?'<i class="sq out"></i>':slogCell(r,s,c);}
+  }
+  if(run)months+='<span style="grid-column:span '+run+'">'+(run>2?MONS[mLast]:"")+'</span>';
+
+  const pct=st.due?Math.round(st.kept/st.due*100):0;
+  const stat=(v,label,cls)=>'<div class="slog-stat'+(cls?" "+cls:"")+'"><b>'+v+'</b><span>'+label+'</span></div>';
+  const span=x=>x.live?fmtDate(x.from)+" \u2013 today":x.from===x.to?fmtDate(x.from):fmtDate(x.from)+" \u2013 "+fmtDate(x.to);
+
+  openModal('<div class="modal wide" role="dialog" aria-modal="true" aria-label="Streak log" data-slog="1">'+
+    '<div class="mhead2"><span class="ravatar" style="--c:'+c.color+'">'+icon(c.icon,"ic-18")+'</span>'+
+    '<div class="rhead"><h2>'+esc(r.title)+'</h2>'+
+      '<div class="rsub">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' \u00b7 '+esc(fmtMins(r.dur))+'</span>'+
+      '<span class="rdot">\u00b7</span><span>'+esc(freqLabel(r))+'</span></div></div>'+
+    '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+    '<div class="mbody">'+
+    (st.total?
+      '<div class="slog-stats">'+
+        stat(st.cur,st.cur===1?"Day in a row":"Days in a row","hot")+
+        stat(st.best,"Best ever")+
+        stat(st.total,"Times kept")+
+        stat(pct+"%","Of days due")+
+      '</div>'+
+      '<div class="slog-head"><div class="sec-label">Every day since '+esc(fmtDate(st.first))+'</div>'+
+        '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y-1)+'"'+(y<=firstY?" disabled":"")+' aria-label="Earlier year">'+icon("i-chev-l","ic-14")+'</button>'+
+        '<b class="slog-y">'+y+'</b>'+
+        '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y+1)+'"'+(y>=nowY?" disabled":"")+' aria-label="Later year">'+icon("i-chev-r","ic-14")+'</button></div>'+
+      '<div class="slog-map"><div class="slog-inner" style="--cols:'+cols+'">'+
+        '<div class="slog-wd"><span>M</span><span></span><span>W</span><span></span><span>F</span><span></span><span>S</span></div>'+
+        '<div><div class="slog-months">'+months+'</div><div class="slog-grid">'+cells+'</div></div>'+
+      '</div></div>'+
+      '<div class="slog-key">'+
+        '<span class="k"><i class="sq done" style="--c:'+c.color+'"></i>Kept</span>'+
+        '<span class="k"><i class="sq miss"></i>Missed</span>'+
+        '<span class="k"><i class="sq made"></i>Made up later</span>'+
+        '<span class="k"><i class="sq off"></i>Not scheduled</span>'+
+        '<span class="spacer" style="flex:1"></span><span class="k mnone">Press any day to change it</span></div>'+
+      '<div class="sec-label">Streaks</div>'+
+      '<div class="slog-runs">'+st.runs.map(x=>
+        '<div class="slog-run'+(x.live?" live":"")+(x.len===st.best?" best":"")+'" style="--c:'+c.color+'">'+
+          '<span class="len">'+icon("i-flame","ic-14")+x.len+'</span>'+
+          '<span class="when">'+esc(span(x))+'</span>'+
+          (x.live?'<span class="tag now">Going</span>':"")+
+          (x.len===st.best&&st.runs.length>1?'<span class="tag">Best</span>':"")+
+        '</div>').join("")+'</div>'
+      :es("routine","No check-ins yet","Check a day off on the card and the log fills in behind you. Nothing is ever trimmed \u2014 a streak here can run as long as you keep it.",
+          {hue:"var(--apricot)"}))+
+    '</div>'+
+    '<div class="mfoot"><button class="btn" data-act="rt-edit" data-id="'+r.id+'">'+icon("i-edit","ic-14")+'Edit routine</button>'+
+    '<div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
+  /* Opened fresh on this year, it shows the end of the year -- where today
+     is. A redraw after a tick keeps where it was scrolled instead. */
+  if(fresh&&y===nowY){const m=el("modalRoot").querySelector(".slog-map");if(m)m.scrollLeft=m.scrollWidth;}
 }
 function freqLabel(r){
   if(r.freq==="interval")return "Every "+(r.every||2)+" days";
@@ -2423,7 +2579,7 @@ function viewNotes(){
 }
 
 /* ============ modals ============ */
-function closeModal(){el("modalRoot").innerHTML="";V.peek=null;}
+function closeModal(){el("modalRoot").innerHTML="";V.peek=null;V.slog=null;V.slogY=null;}
 function openModal(html,opt){
   const root=el("modalRoot"),open=root.querySelector(".scrim > .modal");
   const label=(html.match(/aria-label="([^"]*)"/)||[])[1];
@@ -3968,6 +4124,9 @@ function render(){
   /* The day popup lists what the page does; a tick in it redraws the page, so
      the popup is redrawn with it rather than left showing the old state. */
   if(V.peek&&el("modalRoot").querySelector('.modal[data-peek]'))peekModal(V.peek);
+  /* Same reason: a day pressed in the streak log changes the numbers above
+     it, so the log is drawn again rather than left showing the old ones. */
+  if(V.slog&&el("modalRoot").querySelector('.modal[data-slog]'))streakModal(V.slog);
 }
 
 /* ============ actions ============ */
@@ -4292,6 +4451,9 @@ document.addEventListener("click",function(e){
     case "routine-save":saveRoutine(id||null);break;
     case "routine-delete":if(arm(n,"Delete for good?"))deleteRoutine(id);break;
     case "rt-menu":ctxMenu(routineItems(id,TODAY()),null,n);break;
+    case "streak-log":V.slogY=null;streakModal(id);break;
+    case "slog-year":V.slogY=Number(n.dataset.v);if(V.slog)streakModal(V.slog);break;
+    case "rt-edit":routineModal(id);break;
     case "cx-do":{const x=TMN.items&&TMN.items[Number(n.dataset.i)];if(!x)break;
       if(x.arm&&!arm(n,x.arm))break;taskMenuClose();x.run();break;}
     case "routine-done":{const k=id+"|"+n.dataset.date;
@@ -5302,6 +5464,7 @@ function routineItems(id,date){
   return [
     later&&!done?null:{icon:done?"i-x":"i-check",label:done?"Mark not done "+(date===TODAY()?"today":"on "+day):"Mark done "+(date===TODAY()?"today":"on "+day),
       run:()=>{if(done)delete S.completions[k];else S.completions[k]=true;save("completions");render();}},
+    {icon:"i-flame",label:"View streak log",run:()=>streakModal(id)},
     {icon:"i-edit",label:"Edit routine",run:()=>routineModal(id)},
     {icon:r.active?"i-pause":"i-play",label:r.active?"Pause routine":"Resume routine",
       run:()=>{r.active=!r.active;save("routines");render();toast(r.active?"Routine resumed":"Routine paused");}},

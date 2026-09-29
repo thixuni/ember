@@ -296,12 +296,42 @@ missed list all go by that — but any day's square up to today can be ticked (a
 cannot be yet: the streak counts back from today, so a tick there changed
 nothing; one already ticked can be taken off), and
 `routineHere(r, d)` (due, or done anyway) is what decides where it *shows*:
-the calendar, the dashboard's today and the day popup. `streak()` counts
-every day it was done, scheduled or not; an off day left empty is neutral;
-a scheduled day missed ends the streak unless `madeUp()` finds it done on an
-off day after it and before the next day it is due. That window is one per
-missed day, so one extra tick never covers two, and a made-up day is not
-listed as missed either.
+the calendar, the dashboard's today and the day popup. A day it was done
+counts towards the streak, scheduled or not; an off day left empty is
+neutral; today is neutral until it is over; a scheduled day missed ends the
+streak unless `madeUp()` finds it done on an off day after it and before the
+next day it is due. That window is one per missed day, so one extra tick
+never covers two, and a made-up day is not listed as missed either.
+
+**A streak has no ceiling.** `streakNow(r)` walks the whole history in one
+pass — from `firstDayOf(r)` (the routine's start, or its first tick,
+whichever is earlier) to today — and returns the run still going, the best
+there has ever been, every run it has had, how many times it was kept and
+how many of the days it was due. `streakStats()` memoises that per routine
+in the lookups, so every card in a redraw costs one walk; `streak(r)` is
+just its `cur`, and nought for a paused routine because the card says
+Paused in that corner instead. It used to walk back 366 days and `madeUp()`
+forward 60, which capped a year-old streak and meant a routine due twice a
+year could not be made up at all. The only limit left is a guard against a
+date that cannot be real. Nothing prunes `S.completions` by age, so a
+planner that has been running for years counts all of it.
+
+**The streak log** (`streakModal(id)`, `V.slog`) is where the rest of the
+history lives, because a card keeps to the week you are working. It opens
+from the streak on the card — a button, there at nought too, so the way in
+does not appear only once you are already going — and from **View streak
+log** in a routine's menu anywhere it shows. Inside: four numbers, then the
+year as a wall of weeks, a column each and Monday at the top, with the
+months labelled along it and a year picker that stops at the first tick and
+at this year. Every square is a real `routine-done` button, so a day
+pressed there goes through the same handler as a day pressed on a card, and
+`render()` draws the log again (the way it redraws the day popup for
+`V.peek`) because the numbers above it have just changed — `openModal()`
+swaps it in place, so `.slog-map` keeps where it was scrolled. Under it,
+every run the routine has ever had, most recent first, the live one marked
+Going and the longest Best. `.sq.done` uses the category colour nearly
+neat rather than the week squares' recipe: those mix toward the ink because
+they carry a check mark, and at 13px with nothing on it that read as black.
 
 ### Customising tasks
 
