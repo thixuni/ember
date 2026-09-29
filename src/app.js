@@ -858,9 +858,14 @@ function renderRail(){
          and an alert has to survive that. */
       (a?'<b class="nav-alert num" aria-label="'+esc(a.label)+'">'+a.n+'</b>':'')+'</button>';}).join("");
   const hid=hiddenCats().length;
-  el("railHead").innerHTML='<span class="grow">Categories</span>'+
-    (hid?'<button class="txt" data-act="cat-all" title="Show every category">Show all</button>':"")+
-    '<button data-act="manage-cats" title="Edit categories" aria-label="Edit categories">'+icon("i-edit","ic-14")+'</button>';
+  /* The pencil belongs to the word, so it sits against it; Show all is a
+     different thing and goes to the far end. It was the other way round,
+     with the heading stretched across the sidebar and the pencil stranded
+     at the opposite edge from what it edits. */
+  el("railHead").innerHTML='<span class="rh-t">Categories</span>'+
+    '<button data-act="manage-cats" title="Edit categories" aria-label="Edit categories">'+icon("i-edit","ic-14")+'</button>'+
+    '<span class="grow"></span>'+
+    (hid?'<button class="txt" data-act="cat-all" title="Show every category">Show all</button>':"");
   el("catList").innerHTML=cats().map(c=>{const off=!visibleCat(c.id);
     return '<button class="cat-row'+(off?" off":"")+'" style="--c:'+c.color+'" data-act="cat-toggle" data-id="'+c.id+'" role="switch" aria-checked="'+(!off)+'" title="'+esc(off?"Show":"Hide")+' '+esc(c.name)+'">'+
       '<span class="cat-box">'+icon("i-check")+'</span>'+icon(c.icon,"ic-14 ic-cat")+'<span class="cname">'+esc(c.name)+'</span></button>';}).join("");
@@ -2716,6 +2721,7 @@ function setSpacesPane(sec,field){
       '<button class="wsrow-ic" data-act="ws-pal" data-id="'+b.id+'" aria-label="Icon and color of '+esc(b.name)+'" aria-expanded="'+pal+'">'+icon(b.icon||"i-grid","ic-14")+'</button>'+
       '<span class="wsrow-t"><input class="cz-name" data-act="ws-name" data-id="'+b.id+'" value="'+esc(b.name)+'" maxlength="40" aria-label="Workspace name">'+
         '<small>'+esc(held)+'</small></span>'+
+      '<button class="btn btn-sm" data-act="ws-cats" data-id="'+b.id+'" title="Edit this workspace\u2019s categories">'+icon("i-folder","ic-14")+'Categories</button>'+
       (here?'<span class="cz-here">Current</span>'
         :'<button class="btn btn-sm" data-act="ws-open" data-id="'+b.id+'">Open</button>')+
       '<button class="icon-btn btn-sm cz-del" data-act="ws-del" data-id="'+b.id+'" aria-label="Remove '+esc(b.name)+'"'+(bs.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
@@ -4690,15 +4696,26 @@ function rtRepeat(v){
    moving it, deleting it) is behind the row's ⋯. Deleting asks in the row
    and says where its tasks go. Name, colour and icon were once a second
    window, and every row carried a Shown label and a task count. */
-function catsModal(){
-  if(wsAll()){openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Categories">'+
-    '<div class="mhead2">'+icon("i-folder","ic-18")+'<h2>Categories</h2>'+
-    '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody">'+wsOnlyNote("Categories")+'</div></div>',{focus:false});return;}
+/* Categories belong to a workspace, so the window edits one workspace's:
+   the one you are in from the sidebar's pencil, or whichever row opened it
+   in Settings. V.catWs is which. Across all of them there is no current
+   workspace, so the sidebar's pencil goes to Settings, where every
+   workspace's are in one place. */
+const cmWs=()=>{const w=spaceById(V.catWs);return w?w.id:(wsAll()?spaces()[0].id:curSpace().id);};
+const cmSpace=()=>spaceById(cmWs())||spaces()[0];
+function catsModal(ws){
+  /* Only an opening sets which workspace; every redraw from inside the
+     window keeps it, or one opened for Office from Settings would jump
+     back to whichever workspace the sidebar is on at the first click. */
+  if(ws)V.catWs=ws;
+  if(!spaceById(V.catWs)){
+    if(wsAll()){V.setTab="spaces";settingsModal();return;}
+    V.catWs=curSpace().id;
+  }
   const E=V.catEdit||{},del=E.del?cat(E.del):null;
   const row=c=>{const open=E.id===c.id?E.part:"",off=!visibleCat(c.id);
     const n=S.tasks.filter(t=>t.cat===c.id).length+S.routines.filter(r=>r.cat===c.id).length;
-    const to=cats().find(x=>x.id!==c.id);
+    const to=catsOf(cmWs()).find(x=>x.id!==c.id);
     return '<div class="cm-row'+(off?" off":"")+(open?" open":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
       '<button type="button" class="cz-grip" data-grip="cat" data-id="'+c.id+'" title="Drag to reorder" aria-label="Move '+esc(c.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
       '<button type="button" class="cm-ic'+(open==="icon"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="icon" aria-label="Icon for '+esc(c.name)+'" aria-expanded="'+(open==="icon")+'">'+icon(c.icon,"ic-16")+'</button>'+
@@ -4714,9 +4731,14 @@ function catsModal(){
         '<button type="button" class="btn btn-sm btn-danger" data-act="cm-del-yes" data-id="'+c.id+'">Delete</button></div>':"")+
       '</div>';};
   openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Categories">'+
-    '<div class="mhead2"><h2>Categories</h2><button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+    /* The window says whose, because from Settings it can be a workspace
+       you are not in -- editing Office's categories while the sidebar
+       shows Personal should not look like editing Personal's. */
+    '<div class="mhead2"><span class="ws-ic" style="--c:'+cmSpace().color+'">'+icon(cmSpace().icon||"i-grid","ic-14")+'</span>'+
+      '<h2>Categories<em class="mh-sub">'+esc(cmSpace().name)+'</em></h2>'+
+      '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
     '<div class="mbody"><p class="cz-lead">Rename, recolor or reorder them. Drag the handle to move one.</p>'+
-      '<div class="cat-manage" id="cmList">'+cats().map(row).join("")+'</div>'+
+      '<div class="cat-manage" id="cmList">'+catsOf(cmWs()).map(row).join("")+'</div>'+
       '<button type="button" class="btn btn-sm cm-new" data-act="cm-new">'+icon("i-plus","ic-14")+'New category</button></div>'+
     '<div class="mfoot"><div class="spacer" style="flex:1"></div><button class="btn btn-primary" data-act="close">Done</button></div></div>');
 }
@@ -4738,14 +4760,14 @@ function cmSet(id,patch){const c=cat(id);if(!c||c.id!==id)return;Object.assign(c
    dragged order straight onto S.categories would have deleted every
    category belonging to every other workspace. */
 function catsReorder(order){
-  if(wsAll())return false;
+  const w=cmWs();
   const mine=order.map(id=>S.categories.find(c=>c.id===id)).filter(Boolean);
-  if(mine.length!==cats().length)return false;
+  if(!mine.length||mine.length!==catsOf(w).length)return false;
   let i=0;
-  S.categories=S.categories.map(c=>spaceOf(c).id===curSpace().id?mine[i++]:c);
+  S.categories=S.categories.map(c=>spaceOf(c).id===w?mine[i++]:c);
   save("categories");return true;
 }
-function cmMove(id,step){const L=cats(),i=L.findIndex(c=>c.id===id),j=i+step;if(i<0||j<0||j>=L.length)return;
+function cmMove(id,step){const L=catsOf(cmWs()),i=L.findIndex(c=>c.id===id),j=i+step;if(i<0||j<0||j>=L.length)return;
   const order=L.map(c=>c.id);order.splice(j,0,order.splice(i,1)[0]);
   if(!catsReorder(order))return;
   renderRail();renderView();catsModal();}
@@ -4968,13 +4990,13 @@ function saveCat(id){
   const M=el("modalRoot"),name=el("cName").value.trim();
   if(!name){el("cName").focus();toast("Name the category first");return;}
   if(id){const c=cat(id);c.name=name;c.color=M.dataset.color;c.icon=M.dataset.icon;}
-  else S.categories.push({id:uid("c"),ws:curSpace().id,name:name,color:M.dataset.color,icon:M.dataset.icon});
+  else S.categories.push({id:uid("c"),ws:cmWs(),name:name,color:M.dataset.color,icon:M.dataset.icon});
   save("categories");catsModal();renderRail();renderView();
 }
 function delCat(id){
   const n=S.tasks.filter(t=>t.cat===id).length+S.routines.filter(r=>r.cat===id).length+S.notes.filter(x=>x.cat===id).length;
-  if(cats().length<2){toast("Keep at least one category in this workspace");return;}
-  const fbc=cats().find(c=>c.id!==id),fb=fbc.id;
+  if(catsOf(cmWs()).length<2){toast("Keep at least one category in this workspace");return;}
+  const fbc=catsOf(cmWs()).find(c=>c.id!==id),fb=fbc.id;
   S.tasks.forEach(t=>{if(t.cat===id)t.cat=fb;});S.routines.forEach(r=>{if(r.cat===id)r.cat=fb;});S.notes.forEach(x=>{if(x.cat===id)x.cat=fb;});
   S.categories=S.categories.filter(c=>c.id!==id);
   S.prefs.hidden=S.prefs.hidden.filter(x=>x!==id);
@@ -5128,6 +5150,10 @@ document.addEventListener("click",function(e){
     case "ws-go":wsGo(id);break;
     case "ws-pick":{const run=WSQ.run;WSQ.run=null;closeModal();if(run)run(id);break;}
     case "ws-add":spaceAdd();break;
+    /* From Settings the window edits that workspace's, whichever one the
+       sidebar happens to be showing -- that is the whole point of its
+       being here rather than only behind the sidebar's pencil. */
+    case "ws-cats":V.catEdit={};catsModal(id);break;
     case "ws-open":wsGo(id);if(el("modalRoot").querySelector(".modal.settings"))settingsModal();break;
     case "ws-pal":wsState().pal=wsState().pal===id?null:id;settingsModal();break;
     case "ws-color":{const b=spaceById(id);if(b){b.color=n.dataset.v;save("prefs");wsState().pal=null;settingsModal();render();}break;}
@@ -5257,17 +5283,17 @@ document.addEventListener("click",function(e){
       const on=[...M.querySelectorAll("#rDays button.on")].map(b=>b.dataset.v).sort().join("");
       const sel=el("rRep");if(sel)sel.value=on==="0123456"?"daily":on==="12345"?"weekdays":"weekly";break;}
     case "r-active":{const on=M.dataset.active!=="false";M.dataset.active=String(!on);n.classList.toggle("on",on);n.setAttribute("aria-checked",String(on));break;}
-    case "manage-cats":V.catEdit={};catsModal();break;
+    case "manage-cats":V.catEdit={};catsModal(wsAll()?null:curSpace().id);break;
     case "cm-part":{const E=V.catEdit||{};V.catEdit=(E.id===id&&E.part===n.dataset.v)?{}:{id:id,part:n.dataset.v};catsModal();
       const b=document.querySelector('.cm-row[data-cat="'+id+'"] [data-act="cm-part"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});break;}
     case "cm-color":cmSet(id,{color:n.dataset.v});break;
     case "cm-icon":cmSet(id,{icon:n.dataset.v});break;
-    case "cm-new":{const used=S.categories.map(x=>x.color.toLowerCase()),col=CAT_COLORS.find(x=>used.indexOf(x.toLowerCase())<0)||CAT_COLORS[0],nid=uid("c");
-      S.categories.push({id:nid,ws:curSpace().id,name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();catsModal();
+    case "cm-new":{const used=catsOf(cmWs()).map(x=>x.color.toLowerCase()),col=CAT_COLORS.find(x=>used.indexOf(x.toLowerCase())<0)||CAT_COLORS[0],nid=uid("c");
+      S.categories.push({id:nid,ws:cmWs(),name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();catsModal();
       const i=document.querySelector('.cm-name[data-id="'+nid+'"]');if(i){i.focus();i.select();}break;}
     case "cm-more":{const c=cat(id);if(!c||c.id!==id)break;const i=S.categories.indexOf(c),off=!visibleCat(id);
       const items=[{v:"vis",label:off?"Show in my views":"Hide from my views"},{v:"only",label:"Show only this"}]
-        .concat(cats().length>1?[{v:"del",label:"Delete…"}]:[]);
+        .concat(catsOf(cmWs()).length>1?[{v:"del",label:"Delete…"}]:[]);
       qaMenu(n,items,null,v=>{
         if(v==="vis")toggleCat(id);
         else if(v==="only"){S.prefs.hidden=hiddenCats().filter(h=>!cats().some(c=>c.id===h)).concat(cats().filter(x=>x.id!==id).map(x=>x.id));touched.prefs=true;save("prefs");render();catsModal();}

@@ -520,7 +520,9 @@ its own categories, and categories were the thing that most needed it.
   22px** -- the mark, the workspace tile, the nav icons, the Categories
   heading and the category boxes each used to work that out from their own
   padding and landed at 16, 20 and 22, three ragged columns rather than one
-  edge.
+  edge. The pencil sits against the word it belongs to and
+  **Show all** goes to the far end: the heading used to stretch across the
+  sidebar with the pencil stranded at the opposite edge from what it edits.
 - **The workspace menu reads widest first**: All workspaces, then the
   workspaces one at a time, then New workspace and Manage -- those two a
   size down and in the quieter grey (`sub` on a `ctxMenu` item), because
@@ -795,7 +797,17 @@ written by `setSync()`). Backup and restore were two bare arrow icons
 there; they live in Settings > Your data, in words.
 
 **Categories belong to a workspace**, so the sidebar's list changes with
-it and `cats()` is what everything offering a choice reads. They all live
+it and `cats()` is what everything offering a choice reads. The window
+that edits them (`catsModal(ws)`, `V.catWs`, read back through `cmWs()`)
+edits **one named workspace's**: the one you are in from the sidebar's
+pencil, or whichever row opened it from **Settings ▸ Workspaces**, where
+every workspace has a Categories button. Only an opening sets which
+workspace -- every redraw from inside the window keeps it, or one opened
+for Office would jump back to whichever workspace the sidebar is on at
+the first click -- and the heading names it, because editing Office's
+while the sidebar shows Personal should not look like editing
+Personal's. Across all of them the sidebar's pencil goes to Settings
+rather than to a window with nothing to edit. They all live
 in the one `S.categories` array with a `ws` on each, so reordering one
 workspace's writes them back into the places its own occupied
 (`catsReorder()`) — mapping the dragged order straight onto

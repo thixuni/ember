@@ -283,8 +283,9 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .nav-alert{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:20px;display:inline-grid;place-items:center;
   background:var(--danger);color:var(--on-accent);font-size:11px;font-weight:700;
   box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%,transparent)}
-.rail-head{display:flex;align-items:center;gap:6px;padding:0 10px 8px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
-.rail-head .grow{flex:1;min-width:0;overflow:hidden;white-space:nowrap}
+.rail-head{display:flex;align-items:center;gap:3px;padding:0 10px 8px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.rail-head .rh-t{min-width:0;overflow:hidden;white-space:nowrap}
+.rail-head .grow{flex:1;min-width:0}
 .rail-head button{color:var(--faint);display:grid;place-items:center;width:20px;height:20px;border-radius:6px}
 .rail-head button:hover{background:var(--surface-3);color:var(--ink)}
 .rail-head button.txt{width:auto;padding:0 6px;height:19px;font-size:10px;letter-spacing:.05em;border:1px solid var(--line)}
@@ -3218,3 +3219,9 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
   body.rail-mini .brand{padding:11px 0;justify-content:center}
   body.rail-mini .ws-bar{padding:8px 0}
 }
+
+/* A window that can be about something other than where you are says which
+   in its heading, quietly, beside the noun. */
+.mh-sub{display:block;margin-top:1px;font-family:var(--ff);font-size:11.5px;font-weight:600;
+  font-style:normal;letter-spacing:0;color:var(--muted)}
+.mhead2 .ws-ic{width:28px;height:28px}
