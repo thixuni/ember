@@ -303,6 +303,20 @@ streak unless `madeUp()` finds it done on an off day after it and before the
 next day it is due. That window is one per missed day, so one extra tick
 never covers two, and a made-up day is not listed as missed either.
 
+**A missed day can be let off.** `skipMap()` is `prefs.skips`, keyed
+`"<routine>|<date>"` — in prefs like unavailable time, so it goes with
+backups and Drive without a tenth entry in `KEYS`. A skipped day is
+neither done nor missed: `routineOn()` still says it was due, but
+`skippedR(r, s)` takes it out of the catch-up lists, out of the days
+counted as due, and out of the way of a streak, so a week off does not end
+one. `skipBtn()` puts it on every missed row in the calendar's Catch-up
+panel and the dashboard's Missed routines, and it **asks twice**
+(`arm()`), because it quietly changes what the streak counts and the toast
+carries no undo. The way back is **Don't skip this day** in that day's
+routine menu — right-click it wherever it shows, which a skipped day still
+does. Checking a skipped day off clears the skip with it: a day cannot be
+both let off and kept.
+
 **A streak has no ceiling.** `streakNow(r)` walks the whole history in one
 pass — from `firstDayOf(r)` (the routine's start, or its first tick,
 whichever is earlier) to today — and returns the run still going, the best

@@ -878,6 +878,10 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 /* Any day can be checked off, so each one answers the pointer. */
 .rday:not(.later):hover{border-color:color-mix(in srgb,var(--c) 72%,var(--line));transform:translateY(-1px)}
 /* Still to come: there, but not yet tickable. */
+/* A day let off: there, plainly not counted, and not shouting about it. */
+.rday.skip{border-style:dashed;background:none}
+.rday.skip small,.rday.skip b{color:var(--faint)}
+.rday.skip b{text-decoration:line-through;text-decoration-thickness:1px}
 .rday.later{border-style:dashed;background:transparent;cursor:default}
 .rday.later small,.rday.later b{color:var(--faint)}
 .rday.today{box-shadow:0 0 0 2px var(--accent-soft)}
@@ -947,6 +951,7 @@ button.sq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .sq.miss{background:var(--surface-3);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 42%,transparent)}
 .sq.made{background:var(--surface-3);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--amber) 55%,transparent)}
 .sq.off{background:var(--surface-3);color:var(--faint)}
+.sq.skip{background:none;box-shadow:inset 0 0 0 1.5px var(--line-2);color:var(--faint)}
 .sq.later{background:none;box-shadow:inset 0 0 0 1px var(--line);color:var(--faint);opacity:.6}
 .sq.today{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
 .sq.today.miss{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--danger) 42%,transparent),0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
@@ -2833,6 +2838,11 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 @media (max-width:560px){.rt-grid{grid-template-columns:1fr 1fr}.rt-grid .field:last-child{grid-column:1/-1}}
 
 .rfoot .rbell{margin:0;padding:0;background:none;color:var(--muted);flex:none;white-space:nowrap;font-weight:600}
+/* Skip sits at the end of a missed row and shows itself on hover, the way
+   the other row buttons do; arm() gives it its own words on the way. */
+.skipbtn{flex:none;opacity:0;transition:opacity .12s,background .12s,color .12s}
+.od-item:hover .skipbtn,.drow:hover .skipbtn,.skipbtn:focus-visible,.skipbtn[data-armed="1"]{opacity:1}
+.skipbtn:hover{background:var(--surface-3);color:var(--ink)}
 .rfoot .rbell.off{background:none}
 .sh-histhead{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:6px 0 18px}
 .sh-histhead h3{display:flex;align-items:center;gap:8px;font-size:15px}

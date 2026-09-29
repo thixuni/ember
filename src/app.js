@@ -141,7 +141,7 @@ function blankState(){
     activity:[],docs:[],sessions:[],
     prefs:{hidden:[],scratch:"",setup:false,vault:"",
       theme:"light",accent:"ember",weekStart:1,clock24:false,launch:"dashboard",
-      autoBackup:{on:false,dir:"",every:"week",last:0},
+      autoBackup:{on:false,dir:"",every:"week",last:0},skips:{},
       running:null}};
 }
 /* Tasks gained fields over time; older saved tasks predate them. Read through
@@ -417,6 +417,12 @@ function routineOn(r,d){
   return (r.days||[]).indexOf(d.getDay())>-1;
 }
 const doneR=(r,s)=>!!S.completions[r.id+"|"+s];
+/* A day let off. Not done and not missed either: the day it was due is
+   excused, so it does not end a streak, is not counted among the days due,
+   and drops out of the catch-up lists. It lives in prefs, like unavailable
+   time, so it goes with backups and Drive without a tenth state key. */
+function skipMap(){return S.prefs.skips||(S.prefs.skips={});}
+const skippedR=(r,s)=>!!skipMap()[r.id+"|"+s];
 /* A routine's schedule is a plan, not a rule. It can be ticked on any day,
    and a routine kept on a different day is still kept: it shows on the day it
    was done, counts towards the streak, and makes up for a missed day. */
@@ -465,10 +471,12 @@ function streakNow(r){
   for(let d=parseD(firstDayOf(r));n<20000;d=addDays(d,1)){
     const s=ymd(d);if(s>T)break;
     n++;
-    const done=doneR(r,s),sched=routineOn(r,d);
+    const done=doneR(r,s),skip=skippedR(r,s),sched=routineOn(r,d)&&!skip;
     if(done)total++;
     if(sched){due++;if(done)kept++;}
     if(done){if(!run){run={from:s,to:s,len:0,live:false};runs.push(run);}run.to=s;run.len++;continue;}
+    /* A day off, a day let off, today before it is over: none of them end
+       a run. Only a day that was due and went by unkept does. */
     if(s===T||!sched||madeUp(r,d))continue;
     run=null;
   }
@@ -496,7 +504,7 @@ function overdueNow(){
   const miss=[];
   S.routines.filter(r=>visibleCat(r.cat)).forEach(r=>{
     for(let i=1;i<=7;i++){const d=addDays(today(),-i),s=ymd(d);
-      if(routineOn(r,d)&&!doneR(r,s)&&!madeUp(r,d))miss.push({r:r,date:s});}
+      if(routineOn(r,d)&&!doneR(r,s)&&!skippedR(r,s)&&!madeUp(r,d))miss.push({r:r,date:s});}
   });
   miss.sort((a,b)=>a.date<b.date?1:-1);
   return {tasks:tasks,miss:miss.slice(0,12)};
@@ -1200,7 +1208,8 @@ function overduePanel(){
       '<button class="rowbtn" style="opacity:1" data-act="task" data-id="'+t.id+'" aria-label="Open task">'+icon("i-edit","ic-14")+'</button></div>').join("")+'</div>';
     if(o.miss.length)body+='<div class="od-group"><h4>Missed routines</h4>'+o.miss.map(x=>
       '<div class="od-item"><button class="tick" data-act="routine-done" data-id="'+x.r.id+'" data-date="'+x.date+'" aria-label="Mark done">'+icon("i-check")+'</button>'+
-      '<div class="t"><b>'+esc(x.r.title)+'</b><small class="mut">'+esc(fmtDate(x.date))+' · '+esc(cat(x.r.cat).name)+'</small></div></div>').join("")+'</div>';
+      '<div class="t"><b>'+esc(x.r.title)+'</b><small class="mut">'+esc(fmtDate(x.date))+' · '+esc(cat(x.r.cat).name)+'</small></div>'+
+      skipBtn(x.r,x.date)+'</div>').join("")+'</div>';
   }
   return '<aside class="overdue">'+head+'<div class="od-body">'+body+'</div></aside>';
 }
@@ -1239,7 +1248,15 @@ function dashRow(o){
   return '<div class="drow'+(o.done?" done":"")+'" style="--c:'+o.color+'">'+o.tick+
     '<button class="drow-body" '+o.open+'><b>'+esc(o.title)+'</b>'+
     (o.meta?'<small><i class="cdot"></i>'+o.meta+'</small>':"")+'</button>'+
-    (o.end?'<span class="drow-end'+(o.late?" late":o.behind?" behind":"")+'">'+o.end+'</span>':"")+'</div>';
+    (o.end?'<span class="drow-end'+(o.late?" late":o.behind?" behind":"")+'">'+o.end+'</span>':"")+
+    (o.extra||"")+'</div>';
+}
+/* Letting a missed day off. It asks twice (arm()), because it quietly
+   changes what the streak counts and there is no undo in the toast -- the
+   way back is "Don't skip this day" in that day's routine menu. */
+function skipBtn(r,date){
+  return '<button class="rowbtn skipbtn" data-act="rt-skip" data-id="'+r.id+'" data-date="'+date+'"'+
+    ' title="Skip this day" aria-label="Skip '+esc(r.title)+' on '+esc(fmtDate(date))+'">'+icon("i-minus","ic-14")+'</button>';
 }
 function dashGroup(title,count,rows,empty){
   return '<div class="dgroup"><h3>'+esc(title)+(count?'<span class="num">'+count+'</span>':"")+'</h3>'+
@@ -1324,7 +1341,7 @@ function viewDashboard(){
         return dashRow({color:c.color,
           tick:'<button class="tick" data-act="routine-done" data-id="'+x.r.id+'" data-date="'+x.date+'" aria-label="Mark done">'+icon("i-check")+'</button>',
           open:'data-act="routine" data-id="'+x.r.id+'" data-date="'+x.date+'"',title:x.r.title,meta:esc(c.name),
-          end:esc(fmtDate(x.date))});}).join("")+
+          end:esc(fmtDate(x.date)),extra:skipBtn(x.r,x.date)});}).join("")+
         (o.miss.length>MISS_SHOWN?'<button class="dmore" data-act="dash-more">'+(V.dashAll?"Show fewer":"Show "+(o.miss.length-MISS_SHOWN)+" more")+'</button>':"")):""))+
     '</section>';
 
@@ -2386,16 +2403,16 @@ function viewRoutines(){
        you are on this week again, where the work is. */
     const off=(V.rweek&&V.rweek[r.id])||0,wkStart=addDays(nowWk,off*7);
     const days='<div class="week-dots">'+[0,1,2,3,4,5,6].map(i=>{
-      const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
+      const d=addDays(wkStart,i),s=ymd(d),skip=skippedR(r,s),sched=routineOn(r,d)&&!skip,done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
       /* One tile a day, carrying its weekday and its date: the letters were
          a row of their own above the squares, which left three stacked
          things per day and a letter that could drift off its square. Every
          day up to today can be checked off, the days off the schedule
          included; days still to come wait for their day. */
-      return '<button class="rday'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
+      return '<button class="rday'+(sched?" sched":" off")+(skip?" skip":"")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
         ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
         ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
-        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+
+        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":skip?"skipped":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+
         '<small>'+DOWS[(d.getDay()+6)%7][0]+'</small><b>'+d.getDate()+'</b></button>';}).join("")+'</div>';
     /* Stepping back has no floor -- a routine you are filling in after the
        fact may go back further than the day it was made -- and forward
@@ -2447,11 +2464,12 @@ function viewRoutines(){
    the numbers above it have just changed. */
 function slogCell(r,s,c){
   const d=parseD(s),T=TODAY();
-  const done=doneR(r,s),sched=routineOn(r,d),later=s>T,today=s===T;
-  const kind=done?"done":later?"later":sched?(madeUp(r,d)?"made":"miss"):"off";
+  const done=doneR(r,s),skip=skippedR(r,s),sched=routineOn(r,d)&&!skip,later=s>T,today=s===T;
+  const kind=done?"done":later?"later":skip?"skip":sched?(madeUp(r,d)?"made":"miss"):"off";
   const when=fmtDate(s);
   const say=done?(kind==="done"?"Kept on "+when:when)
     :later?"Still to come"
+    :kind==="skip"?"Skipped on "+when
     :kind==="miss"?"Missed on "+when
     :kind==="made"?"Missed on "+when+", made up after"
     :"Not scheduled on "+when;
@@ -2516,6 +2534,7 @@ function streakModal(id){
           '<span class="k"><i class="sq done" style="--c:'+c.color+'"></i>Kept</span>'+
           '<span class="k"><i class="sq miss"></i>Missed</span>'+
           '<span class="k"><i class="sq made"></i>Made up later</span>'+
+          '<span class="k"><i class="sq skip"></i>Skipped</span>'+
           '<span class="k"><i class="sq off"></i>Not scheduled</span>'+
         '</div>'+
         '<span class="k mnone">Press any day to change it</span>'+
@@ -4484,6 +4503,10 @@ document.addEventListener("click",function(e){
     case "routine-delete":if(arm(n,"Delete for good?"))deleteRoutine(id);break;
     case "rt-menu":ctxMenu(routineItems(id,TODAY()),null,n);break;
     case "streak-log":V.slogY=null;streakModal(id);break;
+    case "rt-skip":{const date=n.dataset.date,r=routineById(id);if(!r)break;
+      if(!arm(n,"Skip?"))break;
+      skipMap()[id+"|"+date]=true;save("prefs");render();
+      toast("Skipped "+fmtDate(date)+" \u2014 undo it from the routine's menu");break;}
     case "rt-week":{const v=Number(n.dataset.v);
       V.rweek=V.rweek||{};
       V.rweek[id]=v?Math.min(0,(V.rweek[id]||0)+v):0;
@@ -4498,6 +4521,9 @@ document.addEventListener("click",function(e){
       if(S.completions[k])delete S.completions[k];
       else if(n.dataset.date>TODAY()){toast("You can check this off on "+fmtDate(n.dataset.date));break;}
       else S.completions[k]=true;
+      /* Checking off a day you had let off takes the excuse back with it:
+         a day cannot be both skipped and kept. */
+      if(S.completions[k]&&skipMap()[k]){delete skipMap()[k];save("prefs");}
       save("completions");render();break;}
     case "r-day":{n.classList.toggle("on");n.setAttribute("aria-pressed",String(n.classList.contains("on")));
       /* The drop-down follows the days: all seven is Every day, Monday to
@@ -5500,6 +5526,13 @@ function routineItems(id,date){
   return [
     later&&!done?null:{icon:done?"i-x":"i-check",label:done?"Mark not done "+(date===TODAY()?"today":"on "+day):"Mark done "+(date===TODAY()?"today":"on "+day),
       run:()=>{if(done)delete S.completions[k];else S.completions[k]=true;save("completions");render();}},
+    /* Only for a day gone by: today is not missed yet, and a day still to
+       come cannot be. */
+    date<TODAY()&&!done?{icon:skippedR(r,date)?"i-plus":"i-minus",
+      label:skippedR(r,date)?"Don\u2019t skip this day":"Skip this day",
+      run:()=>{const k=id+"|"+date;
+        if(skippedR(r,date))delete skipMap()[k];else skipMap()[k]=true;
+        save("prefs");render();toast(skipMap()[k]?"Skipped "+fmtDate(date):"Back in the count");}}:null,
     {icon:"i-flame",label:"View streak log",run:()=>streakModal(id)},
     {icon:"i-edit",label:"Edit routine",run:()=>routineModal(id)},
     {icon:r.active?"i-pause":"i-play",label:r.active?"Pause routine":"Resume routine",
