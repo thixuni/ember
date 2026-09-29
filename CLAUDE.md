@@ -329,13 +329,17 @@ where the days still to come say nothing you can act on.
 the two arrows together on the right the way a calendar toolbar is laid
 out, then seven equal columns (`grid-template-columns:repeat(7,1fr)`) so
 the weekday and its square sit on one centre line and the row ends where
-the card does. The arrows were either side of the label with Today after
-them, and the forward arrow was stranded in the middle of the row; the
-columns were a fixed 30px in a flex row, which left a ragged edge no card
-lined up with. **The date is in the square**, as the streak log writes it —
-one row fewer on the card and the same thing said the same way in both
-places — and the square fills its column up to 32px, because seven
-stretched across a wide card read as a wall of boxes rather than a week.
+the card does, **each column one whole day**: its weekday over its date in
+a single tile (`.rday`) that fills the column. Three shapes came before
+it. The arrows were either side of the label with Today after them, which
+stranded the forward arrow in the middle of the row. The columns were a
+fixed 30px in a flex row, which left a ragged edge no card lined up with.
+And the weekday letters were a row of their own above a row of squares --
+three stacked things per day, and a 32px square centred in a 51px column
+left 24px of air between days that read as seven islands rather than a
+week. `.rweek .icon-btn` sets `padding:0`: the base `.icon-btn` carries
+`padding:0 10px` for the wide ones, which pushed the chevron 11px from one
+edge and 1px from the other once the button was made square.
 
 **The streak log** (`streakModal(id)`, `V.slog`) is the rest of the
 history. It opens from the streak on the card — a button, there at nought

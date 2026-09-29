@@ -2387,16 +2387,16 @@ function viewRoutines(){
     const off=(V.rweek&&V.rweek[r.id])||0,wkStart=addDays(nowWk,off*7);
     const days='<div class="week-dots">'+[0,1,2,3,4,5,6].map(i=>{
       const d=addDays(wkStart,i),s=ymd(d),sched=routineOn(r,d),done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
-      /* Every square up to today can be checked off, the days off the
-         schedule included; days still to come wait for their day. The date
-         is **in** the square, the way the streak log writes it: one row
-         fewer on the card, and the same thing said the same way in both
-         places. A week other than this one is unreadable without it. */
-      return '<div class="wd'+(isT?" is-today":"")+'"><small>'+DOWS[(d.getDay()+6)%7][0]+'</small>'+
-        '<button class="cell'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
+      /* One tile a day, carrying its weekday and its date: the letters were
+         a row of their own above the squares, which left three stacked
+         things per day and a letter that could drift off its square. Every
+         day up to today can be checked off, the days off the schedule
+         included; days still to come wait for their day. */
+      return '<button class="rday'+(sched?" sched":" off")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
         ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
         ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
-        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+d.getDate()+'</button></div>';}).join("")+'</div>';
+        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+
+        '<small>'+DOWS[(d.getDay()+6)%7][0]+'</small><b>'+d.getDate()+'</b></button>';}).join("")+'</div>';
     /* Stepping back has no floor -- a routine you are filling in after the
        fact may go back further than the day it was made -- and forward
        stops at this week, because a week of days still to come says
