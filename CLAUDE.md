@@ -760,9 +760,9 @@ a scroll.
 
 ### Dashboard
 
-**Three columns, and every card scrolls inside itself.** Left to right in
-the order the day is read: **Today**, **Needs your attention**, then the
-**scratch pad** with time tracked under it — a `.dcol` each, each card
+**Three equal columns, and every card scrolls inside itself.** Left to
+right in the order the day is read: **Today**, **Needs your attention**,
+then the **scratch pad** with time tracked under it — a `.dcol` each, each card
 `.dcard.fill` with a pinned `.dcard-h` over a scrolling `.dcard-body`.
 Today and Needs your attention shared one scrolling column before, and a
 day with a full schedule pushed the whole of the second card off the foot
@@ -776,9 +776,24 @@ cards size to their content there put a thousand pixels of list on a
 is one column in the same order, and the cards stop filling and stop
 scrolling, because then the page is the scroll.
 
-**The attention card wears its state**: a danger-tinted head and edge while
-there is something in it, neutral the moment there is not
-(`.dash-attn:not(.clear)`). There is still no total on it, for the reason
+**A dashboard card has no hairline round it.** On a white page the border
+was the only thing drawing the card, so three side by side read as three
+ruled columns with lines between them. They sit on `--surface` with a
+soft shadow instead, which is what a card is, and the three columns are
+equal thirds.
+
+**Each card is keyed to a colour**, and the key lives on the head
+(`--tone` on `.dcard-h`, set by the class `dashHead()` puts there): it
+colours the badge, a wash behind the heading, the hairline under it and
+what a row lights up to on hover. It used to be a grey box with a
+coloured sticker on it. Measured on the wash, headings read 10.5:1 or
+better and the small grey 4.98:1 or better, in both themes.
+
+**The attention card wears its state**: the danger tone on its head and a
+ring of it round the card while there is something in it, neutral the
+moment there is not (`.dash-attn:not(.clear)`). Its empty state is a row
+at the top like every other empty state -- centred in a tall column it
+floated in the middle of nowhere. There is still no total on it, for the reason
 below. The welcome panel keeps now/next *beside* the greeting rather than
 under it — it is the one thing on this page nobody needs to read, and every
 row it costs is a row the three columns do not get.

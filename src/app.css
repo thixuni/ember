@@ -1861,7 +1861,7 @@ button.obx-rt-txt > *{pointer-events:none}
    Each card now fills its column and scrolls inside itself, which is the
    whole point: a long list is long in its own box. */
 .dash-grid{flex:1;min-height:0;display:grid;gap:18px;
-  grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(280px,.95fr)}
+  grid-template-columns:repeat(3,minmax(0,1fr))}
 .dcol{display:flex;flex-direction:column;gap:18px;min-height:0;min-width:0}
 
 /* ---- the welcome panel ---- */
@@ -1924,32 +1924,43 @@ button.obx-rt-txt > *{pointer-events:none}
 .dtick.last{transform:translateX(-100%)}
 
 /* ---- cards ---- */
-.dcard{border:1px solid var(--line);border-radius:var(--r-l);background:var(--panel);min-width:0;flex:none}
+/* No hairline round a dashboard card. On a white page the border was the
+   only thing drawing one, so three cards side by side read as three ruled
+   columns with lines between them rather than as three cards. They sit on
+   the surface with a soft shadow instead, which is what a card is. */
+.dcard{border:0;border-radius:var(--r-l);background:var(--surface);box-shadow:var(--sh-1),var(--sh-2);min-width:0;flex:none}
 /* Fills what is left of its column; its head stays put and its body takes
    the scroll. The rule under a pinned head is what says it scrolls. */
 .dcard.fill{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-.dcard.fill > .dcard-h{padding:13px 16px;border-bottom:1px solid var(--line-soft)}
+.dcard.fill > .dcard-h{padding:13px 16px}
 .dcard-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 /* Inside a scrolling body a group's heading rides at the top, so "Schedule"
    is still named when you are halfway down it. The negative margin takes
    the band out to the card's edge; the padding puts the words back where
    the group's own padding had them. */
-.dcard-body .dgroup h3{position:sticky;top:0;z-index:2;background:var(--panel);margin:0 -8px;padding:8px 16px 6px}
-.dcard-h{display:flex;align-items:center;gap:10px;padding:14px 16px 8px}
+.dcard-body .dgroup h3{position:sticky;top:0;z-index:2;background:var(--surface);margin:0 -8px;padding:8px 16px 6px}
+/* Each card is keyed to a colour, so the page has a rhythm rather than
+   four identical grey boxes: the badge, a wash behind the heading and the
+   rule under it all come off the one --tone. */
+.dcard-h{--tone:var(--accent);display:flex;align-items:center;gap:10px;padding:14px 16px 8px;
+  border-radius:var(--r-l) var(--r-l) 0 0;
+  background:linear-gradient(to bottom,color-mix(in srgb,var(--tone) 9%,var(--surface)),var(--surface));
+  box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--tone) 14%,transparent)}
 .dcard-h h2{font-family:var(--fd);font-size:16px;font-weight:600;letter-spacing:-.01em}
 .dcard-h small{margin-left:auto;font-size:11.5px;color:var(--faint)}
-/* each card wears a small tinted badge, so the page has a rhythm of colour
-   rather than four identical boxes */
-.dch-ic{--tone:var(--accent);width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
-  background:color-mix(in srgb,var(--tone) 16%,var(--tint-base));color:var(--tone)}
-.dch-ic.warn{--tone:var(--danger)}
+.dcard-h.warn{--tone:var(--danger)}
+.dcard-h.blue{--tone:var(--blue)}
+.dcard-h.note{--tone:var(--amber)}
+.dch-ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:color-mix(in srgb,var(--tone) 18%,var(--surface));color:var(--tone)}
 /* The one card on the page that is about something being wrong says so from
    across the room, and goes quiet again the moment there is nothing in it. */
-.dash-attn:not(.clear){border-color:color-mix(in srgb,var(--danger) 28%,var(--line))}
-.dash-attn:not(.clear) > .dcard-h{background:color-mix(in srgb,var(--danger) 7%,transparent);
-  border-bottom-color:color-mix(in srgb,var(--danger) 18%,var(--line-soft))}
-.dash-attn:not(.clear) .dcard-body .dgroup h3{background:var(--panel)}
-.dash-attn.clear .dcard-body{display:grid;place-items:center}
+/* Something to see to: the card is ringed in the danger colour so it is
+   the one thing on the page that catches the eye, and goes quiet again the
+   moment there is nothing in it. Its empty state is a row at the top like
+   every other empty state -- centred in a tall column it floated in the
+   middle of nowhere. */
+.dash-attn:not(.clear){box-shadow:var(--sh-1),var(--sh-2),inset 0 0 0 1px color-mix(in srgb,var(--danger) 26%,transparent)}
 .dch-ic.blue{--tone:var(--blue)}
 .dch-ic.note{--tone:var(--amber)}
 .dgroup{padding:6px 8px 10px}
@@ -2009,7 +2020,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 
 /* needs your attention: a warm wash when there is something; a small
    celebration when there is not */
-.dash-attn:not(.clear){background:linear-gradient(to bottom,color-mix(in srgb,var(--danger) 7%,var(--surface)),var(--surface) 110px)}
+
 
 /* start / pause on a task row */
 .dplay{flex:none;display:inline-flex;align-items:center;gap:5px;height:26px;min-width:26px;padding:0 6px;
@@ -2049,7 +2060,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 /* Three columns want room; below this the gaps close before the columns do. */
 @media (max-width:1280px){
   .dash{padding:16px 16px 18px}
-  .dash-grid{gap:12px;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(250px,.9fr)}
+  .dash-grid{gap:12px}
   .dhero{padding:14px 18px 8px}
 }
 /* A short window cannot give the columns a useful height, so they keep a
@@ -3240,3 +3251,12 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 .ws-cats .cat-manage{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .wsrow .btn.on{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
 .wsrow .btn.on .ic{color:var(--accent-ink)}
+
+/* The dashboard is the page you open on, so it is allowed some warmth: a
+   card is keyed to a colour at its head, and a row lights in that colour
+   when the pointer is on it rather than going the same flat grey. */
+.dcard-body{--tone:var(--accent)}
+.dash-attn .dcard-body{--tone:var(--danger)}
+.drow:hover{background:color-mix(in srgb,var(--tone) 7%,var(--surface))}
+.dag-row:hover{background:color-mix(in srgb,var(--c) 8%,var(--surface))}
+.dcard .es{padding:14px 8px}

@@ -1729,8 +1729,11 @@ function dashGroup(title,count,rows,empty){
 /* Past this many, missed routines fold away behind "Show more": they are the
    least actionable thing on the page and ten of them hid everything below. */
 const MISS_SHOWN=4;
+/* The tone is the head's, not the badge's: it colours the badge, the
+   heading's wash and the hairline under it together, so each card reads as
+   one thing in one colour rather than a grey box with a coloured sticker. */
 function dashHead(ic,title,tone,extra){
-  return '<header class="dcard-h"><span class="dch-ic'+(tone?" "+tone:"")+'">'+icon(ic,"ic-14")+'</span>'+
+  return '<header class="dcard-h'+(tone?" "+tone:"")+'"><span class="dch-ic">'+icon(ic,"ic-14")+'</span>'+
     '<h2>'+esc(title)+'</h2>'+(extra||"")+'</header>';
 }
 function viewDashboard(){
