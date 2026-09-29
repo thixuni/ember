@@ -134,7 +134,8 @@ function spaces(){
            :JSON.parse(JSON.stringify((S.tasks||[]).length?LEGACY_LANES:DEFAULT_LANES))}];
     p.spaces=old.map((b,i)=>({id:b.id,name:b.name,color:b.color||LANE_COLORS[i%LANE_COLORS.length],
       icon:b.icon||WS_ICONS[i%WS_ICONS.length],lanes:b.lanes}));
-    delete p.boards;
+    if(p.boardAt&&p.spaces.some(b=>b.id===p.boardAt))p.spaceAt=p.boardAt;
+    delete p.boards;delete p.boardAt;
     if(p.board)delete p.board.lanes;
     setTimeout(()=>save("prefs"),0);
   }
@@ -313,8 +314,14 @@ function fixRoutines(){
 function fixTasks(){
   let n=0;const bs=spaces(),first=bs[0].id;
   (S.tasks||[]).forEach(t=>{
-    /* A task carries the workspace it lives in. One made before workspaces,
-       or one whose workspace has been removed, belongs to the first. */
+    /* A task carries the workspace it lives in. Before workspaces it
+       carried a board, and the boards became workspaces of the same id, so
+       the value carries straight over -- without this every task on every
+       board but the first quietly moved to the first. */
+    if(!t.ws&&t.board){t.ws=t.board;n++;}
+    if(t.board!==undefined){delete t.board;n++;}
+    /* One made before boards too, or one whose workspace has been removed,
+       belongs to the first. */
     if(!t.ws||!bs.some(b=>b.id===t.ws)){t.ws=first;n++;}
     /* And its lane and its category have to be that workspace's own. */
     if(!laneIn(t.ws,t.status)){t.status=laneFor(t.status,t.ws);n++;}
@@ -334,6 +341,20 @@ function fixSpaces(){
   fix(S.categories,"categories");fix(S.routines,"routines");fix(S.notes,"notes");
   let n=0;awayList().forEach(a=>{if(!a.ws||!has(a.ws)){a.ws=first;n++;}});
   if(n)save("prefs");
+  /* Every workspace has categories, because one without them has nowhere
+     to put a task and an empty list in the sidebar reads as a fault. A
+     planner whose boards became workspaces has all of its categories in
+     the first, so the others are given a copy -- the same names, colours
+     and icons, new ids -- and fixTasks() then matches each task to its own
+     by name. */
+  let made=0;
+  bs.forEach(b=>{
+    if(catsOf(b.id).length)return;
+    const src=catsOf(first);
+    (src.length?src:baseCategories()).forEach(c=>{
+      S.categories.push({id:uid("c"),ws:b.id,name:c.name,icon:c.icon,color:c.color});made++;});
+  });
+  if(made)save("categories");
 }
 function sampleState(){
   const st=blankState(),o=n=>ymd(addDays(today(),n));
