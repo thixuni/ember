@@ -470,8 +470,22 @@ needs are not the lanes work needs, and a filter cannot give you two sets.
   last board cannot go: the Tasks section has to be somewhere. The switcher
   itself is a pill in the top bar, before Board and List, because a
   workspace is not a filter and does not belong in the filter panel.
-- **A task moves board** from its own ⋯ menu — *Move to Work* — which is
-  where every other thing done to a task already is. Its subtasks go with it.
+- **A task moves board** from the panel's own header or from its ⋯ menu,
+  both through `moveTaskBoard()`, which is the only way it is done: the
+  lane moves with the board (`laneFor()`), the subtasks move with the task,
+  and the change is logged like any other edit (`board` is in
+  `FIELD_LABEL`, so it reads *Board: Personal → Work*).
+- **The panel header is two drop-downs**, in the order the thing is named:
+  the board a task is on, then the lane it is in *on that board*
+  (`.sh-where`). The lane list is `lanesOf(t.board)` and never `lanes()` —
+  a task opened from the dashboard or the calendar knows nothing about
+  which board the Tasks section happens to be showing, and offering it
+  another board's lanes would put it somewhere it cannot be. The board one
+  appears only where there is a second board to choose, and it ignores the
+  Lane switch in Customize: which lane a task is in can be nobody's
+  business, but which board it is on cannot. They are one box so that under
+  640px they drop to a row of their own rather than squeezing until the
+  board's name is a bare chevron.
 
 How tasks work is the person's to set, in one window opened from
 **Customize** beside Filter in the top bar (`customiseModal()`, the customise section).

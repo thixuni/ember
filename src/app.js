@@ -4623,6 +4623,21 @@ function commitSubs(){
   if(t&&JSON.stringify(t.subtasks||[])!==JSON.stringify(subs)){t.subtasks=subs;save("tasks");render();}
 }
 
+/* A task belongs to one board and its lane belongs to that board, so the
+   two move together: laneFor() finds the lane of the same name where the
+   new board has one. Subtasks live inside their parent and go with it.
+   Returns the board it came from, or nothing if it did not move. */
+function moveTaskBoard(id,bid){
+  const t=taskById(id),b=boardById(bid);
+  if(!t||!b||t.board===bid)return null;
+  const was=boardOf(t).name,before=JSON.parse(JSON.stringify(t));
+  t.board=bid;t.status=laneFor(t.status,bid);
+  S.tasks.forEach(k=>{if(k.parent===id){k.board=bid;k.status=laneFor(k.status,bid);}});
+  logChanges(id,before,t);
+  save("tasks");render();renderSheet();
+  return was;
+}
+
 /* Deleting a task takes its history, documents and sessions with it. */
 /* `quiet` is for a run of deletions -- removing a board and its tasks --
    where one redraw and one toast at the end is the whole story. */
@@ -5410,6 +5425,12 @@ document.addEventListener("change",function(e){
       patchCurrent({dueTime:v,endTime:m2hm(Math.min(hm2m(v)+len,24*60-1))});return;}
     if(k==="endTime"){const cur=sheetTask()||{};
       if(v&&cur.dueTime&&hm2m(v)<=hm2m(cur.dueTime)){toast("The end time has to be after the start");renderSheet();return;}}
+    if(k==="board"){const cur=sheetTask()||{};
+      if(!boardById(v))return;
+      /* A task still being made has no id to move; its draft carries both. */
+      if(V.sheet&&V.sheet.id)moveTaskBoard(V.sheet.id,v);
+      else patchCurrent({board:v,status:laneFor(cur.status,v)});
+      return;}
     if(k==="title"){v=v.trim();if(!v){const cur=sheetTask();t.value=cur?cur.title:"";return;}}
     // Re-rendering while the caret is in a text field would throw it away.
     patchCurrent({[k]:v},k!=="title"&&k!=="desc");
@@ -5461,7 +5482,7 @@ window.addEventListener("unhandledrejection",function(e){
 /* Everything that happens to a task lands here: comments and documents you
    write, plus an automatic entry for every field that changes. */
 const FIELD_LABEL={title:"Title",desc:"Description",due:"Date",start:"Date",endTime:"End time",
-  status:"Status",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
+  status:"Status",board:"Board",cat:"Category",est:"Estimate",urgent:"Urgent",important:"Important",
   tags:"Tags",links:"Linked tasks",subtasks:"Subtasks",attachments:"Attachments",
   dueTime:"Start time",remind:"Reminder",remindAt:"Reminder"};
 
@@ -5481,6 +5502,7 @@ function fieldText(k,v){
   if(k==="dueTime"||k==="endTime")return v?fmtTime(v):"no time";
   if(v==null||v===""||(Array.isArray(v)&&!v.length))return "empty";
   if(k==="status")return ST(v).name;
+  if(k==="board")return (boardById(v)||{name:"\u2014"}).name;
   if(k==="cat")return cat(v).name;
   if(k==="due"||k==="start")return fmtDate(v);
   if(k==="est")return fmtMins(Number(v)||0);
@@ -5815,14 +5837,9 @@ function taskMenu(id,at,btn,fromCard){
 function tmDo(v,id,n){
   if(v==="del"){if(!arm(n,"Delete for good?"))return;taskMenuClose();deleteTask(id);return;}
   if(v.indexOf("board:")===0){
-    const t=taskById(id),b=boardById(v.slice(6));
-    if(!t||!b){taskMenuClose();return;}
-    const was=boardOf(t).name;
-    t.board=b.id;t.status=laneFor(t.status,b.id);
-    /* Subtasks live inside their parent, so they go where it goes. */
-    S.tasks.forEach(k=>{if(k.parent===id){k.board=b.id;k.status=laneFor(k.status,b.id);}});
-    save("tasks");taskMenuClose();render();renderSheet();
-    toast("Moved from "+was+" to "+b.name);
+    const b=boardById(v.slice(6)),was=moveTaskBoard(id,v.slice(6));
+    taskMenuClose();
+    if(was&&b)toast("Moved from "+was+" to "+b.name);
     return;
   }
   taskMenuClose();
@@ -6834,8 +6851,21 @@ function renderSheet(){
 
   const headHtml=
       '<button class="tick'+(done?" on":"")+'" data-act="sh-done" aria-label="Mark complete"'+(isNew?" disabled":"")+'>'+icon("i-check")+'</button>'+
-      (feat("status")?'<select class="inp inp-sm sh-status" data-act="sh-set" data-k="status" aria-label="Lane">'+
-        lanes().map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>':"")+
+      /* Two drop-downs, in the order the thing is named: the board it is on,
+         then the lane it is in on that board. A lane belongs to one board,
+         so the lane list is the task's own board's, never whichever board
+         the Tasks section happens to be showing -- a task opened from the
+         dashboard or the calendar knows nothing about that. The board one
+         shows only where there is more than one board to choose from, and
+         it ignores the Lane switch in Customize: which lane a task is in
+         can be nobody's business, but which board it is on cannot. */
+      (function(){
+        const bd=boards().length<2?"":'<select class="inp inp-sm sh-board" data-act="sh-set" data-k="board" aria-label="Board">'+
+          boards().map(x=>'<option value="'+x.id+'"'+(boardOf(t).id===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>';
+        const ln=!feat("status")?"":'<select class="inp inp-sm sh-status" data-act="sh-set" data-k="status" aria-label="Lane">'+
+          lanesOf(t.board).map(x=>'<option value="'+x.id+'"'+(t.status===x.id?" selected":"")+'>'+esc(x.name)+'</option>').join("")+'</select>';
+        return bd||ln?'<div class="sh-where">'+bd+ln+'</div>':"";
+      })()+
       '<div class="spacer" style="flex:1"></div>'+
       (isNew||!feat("timer")?"":'<button class="icon-btn btn-sm" data-act="sh-timer" title="Start the timer" aria-label="Start the timer">'+icon(running()&&running().task===t.id&&running().since?"i-pause":"i-play","ic-14")+'</button>')+
       /* A new task is made from the top right, beside close, where the eye
