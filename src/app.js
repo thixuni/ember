@@ -141,7 +141,7 @@ function blankState(){
     activity:[],docs:[],sessions:[],
     prefs:{hidden:[],scratch:"",setup:false,vault:"",
       theme:"light",accent:"ember",weekStart:1,clock24:false,launch:"dashboard",
-      autoBackup:{on:false,dir:"",every:"week",last:0},skips:{},
+      autoBackup:{on:false,dir:"",every:"week",last:0},skips:{},rtMove:{},
       running:null}};
 }
 /* Tasks gained fields over time; older saved tasks predate them. Read through
@@ -411,6 +411,11 @@ const lateText=t=>relDue(t.due);
 function routineOn(r,d){
   if(!r.active)return false;
   const s=ymd(d);
+  /* An occurrence moved to another day is not due on the day it left, and
+     is due on the day it landed -- before the start and end dates are
+     looked at, because a move is an instruction about this one day. */
+  if(movedOff(r,s))return false;
+  if(ixMovedOnto().has(r.id+"|"+s))return true;
   if(r.start&&s<r.start)return false;
   if(r.end&&s>r.end)return false;
   if(r.freq==="interval"){const n=Math.max(1,r.every||2);return Math.floor((parseD(s)-parseD(r.start||s))/864e5)%n===0;}
@@ -423,6 +428,35 @@ const doneR=(r,s)=>!!S.completions[r.id+"|"+s];
    time, so it goes with backups and Drive without a tenth state key. */
 function skipMap(){return S.prefs.skips||(S.prefs.skips={});}
 const skippedR=(r,s)=>!!skipMap()[r.id+"|"+s];
+/* One occurrence of a routine, moved off its day or its hour: keyed by the
+   day it was *due*, holding the day and time it now sits at. In prefs with
+   the skips, so it travels with backups without a tenth state key.
+
+   Everything that asks whether a routine is due on a day asks routineOn(),
+   so the move is gated there and nothing else has to know: the calendar,
+   the missed lists, the streak walk and the reminders all follow. */
+function rtMoveMap(){return S.prefs.rtMove||(S.prefs.rtMove={});}
+/* The map is keyed by the day an occurrence left, so drawing a day needs
+   the other direction too. Built once per change, like the other lookups.
+   A move within the same day is left out: that day is due as it always
+   was, and only its time changed. */
+const ixMovedOnto=()=>ix("rtOnto",()=>{
+  const m=new Map(),mv=rtMoveMap();
+  for(const k in mv){const i=k.lastIndexOf("|");if(i<1)continue;
+    const id=k.slice(0,i),from=k.slice(i+1),v=mv[k];
+    if(v&&v.d&&v.d!==from)m.set(id+"|"+v.d,{from:from,t:v.t});}
+  return m;
+});
+const movedOff=(r,s)=>{const v=rtMoveMap()[r.id+"|"+s];return v&&v.d&&v.d!==s?v:null;};
+/* The time an occurrence actually sits at: its own if it was moved, the
+   routine's otherwise. */
+function rtTime(r,s){
+  const onto=ixMovedOnto().get(r.id+"|"+s);
+  if(onto&&onto.t)return onto.t;
+  const mv=rtMoveMap()[r.id+"|"+s];
+  if(mv&&mv.t)return mv.t;
+  return r.time||"09:00";
+}
 /* A routine's schedule is a plan, not a rule. It can be ticked on any day,
    and a routine kept on a different day is still kept: it shows on the day it
    was done, counts towards the streak, and makes up for a missed day. */
@@ -733,8 +767,11 @@ function tickBtn(t){return '<button class="tick'+(isDoneT(t)?" on":"")+'" data-a
 function eventsFor(d){
   const s=ymd(d);
   const evs=S.routines.filter(r=>visibleCat(r.cat)&&routineHere(r,d)).map(r=>{
-    const[h,m]=(r.time||"09:00").split(":").map(Number);
-    return {kind:"routine",r:r,start:h*60+m,dur:r.dur||30,date:s,done:doneR(r,s)};
+    const t=rtTime(r,s),[h,m]=t.split(":").map(Number);
+    /* time on the event, not r.time: this occurrence may have been moved,
+       and everything drawing it reads the event. */
+    return {kind:"routine",r:r,time:t,start:h*60+m,dur:r.dur||30,date:s,done:doneR(r,s),
+      moved:!!(movedOff(r,s)||ixMovedOnto().has(r.id+"|"+s)||rtMoveMap()[r.id+"|"+s])};
   });
   /* Time you actually spent, drawn at the hour you spent it. Runs of one task
      close together are one sitting with pauses in it, so they draw as one
@@ -850,7 +887,7 @@ function weekGrid(){
       if(e.kind==="task"){
         const t=e.t,c=cat(t.cat),top=(e.start/60-H0)*PX,ht=Math.max(20,(e.dur/60)*PX-2),clip=Math.max(0,-top);
         const w=100/e._n,left=e._c*w,sm=ht-clip<40,done=isDoneT(t);
-        return '<div class="ev tev'+(done?" done":"")+(isOverdue(t)?" over":"")+(sm?" sm":"")+'" style="--c:'+c.color+';top:'+Math.max(0,top).toFixed(1)+'px;height:'+
+        return '<div class="ev tev'+(done?" done":"")+(isOverdue(t)?" over":"")+(sm?" sm":"")+'" data-move="task" data-mid="'+t.id+'" style="--c:'+c.color+';top:'+Math.max(0,top).toFixed(1)+'px;height:'+
           Math.max(20,ht-clip).toFixed(1)+'px;left:calc('+left+'% + 3px);width:calc('+w+'% - 6px)">'+
           '<button class="tchip-tick" data-act="task-done" data-id="'+t.id+'" role="checkbox" aria-checked="'+done+'" aria-label="'+(done?"Mark not done":"Mark complete")+'">'+icon("i-check")+'</button>'+
           '<button class="tev-body" data-act="task" data-id="'+t.id+'" title="'+esc(t.title+" · "+fmtTaskTime(t))+'"><b>'+esc(t.title)+'</b>'+
@@ -859,7 +896,7 @@ function weekGrid(){
       /* Time marked unavailable: hatched, in the greys, as it is not work. */
       if(e.kind==="away"){
         const a=e.a,top=(e.start/60-H0)*PX,ht=Math.max(18,(e.dur/60)*PX-2),w=100/e._n,left=e._c*w,sm=ht<40,clip=Math.max(0,-top);
-        return '<button class="ev away'+(sm?" sm":"")+'" style="top:'+Math.max(0,top).toFixed(1)+'px;height:'+Math.max(18,ht-clip).toFixed(1)+'px;left:calc('+left+'% + 3px);width:calc('+w+'% - 6px)" data-act="away-open" data-id="'+a.id+'" title="'+esc(a.title+" · "+fmtTime(a.start)+" – "+fmtTime(a.end))+'">'+
+        return '<button class="ev away'+(sm?" sm":"")+'" data-move="away" data-mid="'+a.id+'" style="top:'+Math.max(0,top).toFixed(1)+'px;height:'+Math.max(18,ht-clip).toFixed(1)+'px;left:calc('+left+'% + 3px);width:calc('+w+'% - 6px)" data-act="away-open" data-id="'+a.id+'" title="'+esc(a.title+" · "+fmtTime(a.start)+" – "+fmtTime(a.end))+'">'+
           '<b>'+(sm?"":icon("i-moon","ic-14"))+esc(a.title)+'</b><i class="num">'+esc(sm?fmtTime(a.start):fmtTime(a.start)+" – "+fmtTime(a.end))+'</i></button>';
       }
       if(e.kind==="gcal"){
@@ -898,8 +935,10 @@ function weekGrid(){
              short block it read as a stray bracket. */
           '<b>'+(compact?"":icon("i-timer","ic-14"))+esc(e.t.title)+'</b><i class="num">'+esc(fmtTracked(e.secs))+'</i></button>';
       }
-      const when=compact?fmtTime(e.r.time):fmtRange(e.r.time,e.r.dur);
-      return '<button class="ev'+(e.done?" done":"")+(compact?" sm":"")+'" style="'+pos+'" data-act="routine" data-id="'+e.r.id+'" data-date="'+s+'" title="'+esc(e.r.title+" · "+fmtRange(e.r.time,e.r.dur))+'"><b>'+esc(e.r.title)+'</b><i class="num">'+esc(when)+'</i></button>';}).join("");
+      const when=compact?fmtTime(e.time):fmtRange(e.time,e.r.dur);
+      return '<button class="ev'+(e.done?" done":"")+(compact?" sm":"")+(e.moved?" moved":"")+'" style="'+pos+'" data-act="routine" data-id="'+e.r.id+'" data-date="'+s+'"'+
+        ' data-move="routine" data-mid="'+e.r.id+'" data-mdate="'+s+'"'+
+        ' title="'+esc(e.r.title+" · "+fmtRange(e.time,e.r.dur)+(e.moved?" · moved":""))+'"><b>'+esc(e.r.title)+'</b><i class="num">'+esc(when)+'</i></button>';}).join("");
     let now="";
     if(s===tstr){const n=new Date(),mins=n.getHours()*60+n.getMinutes();
       if(mins>=H0*60&&mins<=H1*60)now='<div class="nowline" style="top:'+(((mins/60)-H0)*PX).toFixed(1)+'px"></div>';}
@@ -956,6 +995,175 @@ document.addEventListener("mouseup",function(){
   const end=Math.min(DG.b,24*60-1);
   qcOpen({date:DG.col.dataset.date,start:m2hm(DG.a),end:m2hm(end)},DG.g);
 });
+
+/* ---- moving a block on the week ----
+   Press one and drag, as in Google Calendar: the block it came from dims,
+   a ghost follows the pointer at the quarter hour it would land on, and
+   letting go puts it there. A press that does not move is still a click,
+   so blocks open as they always did.
+
+   Tasks and unavailable time move outright. A routine repeats, so it asks
+   which of its days the move is for, the way Google asks -- rtMoveModal().
+   Google's own events are not ours to move, and tracked time is a record
+   of what happened, so neither can be picked up. */
+const MV={on:false};
+function colAt(x){
+  const cols=document.querySelectorAll(".daycol");
+  for(let i=0;i<cols.length;i++){const r=cols[i].getBoundingClientRect();
+    if(x>=r.left&&x<=r.right)return cols[i];}
+  return null;
+}
+const minuteIn=(col,y)=>{const r=col.getBoundingClientRect();
+  return Math.max(H0*60,Math.min(H1*60,H0*60+(y-r.top)/PX*60));};
+function mvPaint(){
+  const col=MV.col;if(!col)return;
+  if(MV.g.parentNode!==col)col.appendChild(MV.g);
+  MV.g.style.top=((MV.a/60-H0)*PX).toFixed(1)+"px";
+  MV.g.style.height=Math.max(14,(MV.dur/60)*PX-2).toFixed(1)+"px";
+  MV.g.textContent=fmtRange(m2hm(MV.a),MV.dur);
+}
+document.addEventListener("mousedown",function(e){
+  if(e.button!==0||!e.target.closest)return;
+  const b=e.target.closest("[data-move]");
+  if(!b||!b.closest(".daycol"))return;
+  /* A tick box on a block is a control, not a handle. */
+  if(e.target.closest(".tchip-tick"))return;
+  const kind=b.dataset.move;
+  let dur=30,from=b.closest(".daycol").dataset.date,start=0;
+  if(kind==="task"){const t=taskById(b.dataset.mid);if(!t)return;const sp=tSpan(t);start=sp.start;dur=sp.end-sp.start;}
+  else if(kind==="away"){const a=awayList().filter(x=>x.id===b.dataset.mid)[0];if(!a)return;
+    start=hm2m(a.start);dur=Math.max(15,hm2m(a.end)-hm2m(a.start));}
+  else{const r=routineById(b.dataset.mid);if(!r)return;
+    from=b.dataset.mdate;start=hm2m(rtTime(r,from));dur=Number(r.dur)||30;}
+  e.preventDefault();
+  Object.assign(MV,{on:true,moved:false,el:b,kind:kind,id:b.dataset.mid,from:from,
+    start:start,dur:dur,x0:e.clientX,y0:e.clientY,off:minuteIn(b.closest(".daycol"),e.clientY)-start});
+},true);
+document.addEventListener("mousemove",function(e){
+  if(!MV.on)return;
+  if(!MV.moved){
+    if(Math.abs(e.clientX-MV.x0)<4&&Math.abs(e.clientY-MV.y0)<4)return;
+    MV.moved=true;MV.el.classList.add("mv-from");
+    clearGhosts();
+    MV.g=document.createElement("div");MV.g.className="drag-ghost mv-ghost";MV.g.setAttribute("aria-hidden","true");
+  }
+  MV.col=colAt(e.clientX)||MV.col||MV.el.closest(".daycol");
+  const m=snap15(minuteIn(MV.col,e.clientY)-MV.off);
+  MV.a=Math.max(0,Math.min(H1*60-15,m));
+  mvPaint();
+},true);
+document.addEventListener("mouseup",function(e){
+  if(!MV.on)return;
+  const was=MV;MV.on=false;
+  if(!was.moved)return;
+  if(was.el)was.el.classList.remove("mv-from");
+  clearGhosts();
+  /* The click that ends a drag is not a click on the block. */
+  MV.skip=Date.now()+400;
+  const to=was.col?was.col.dataset.date:was.from,time=m2hm(was.a);
+  if(to===was.from&&was.a===was.start)return;
+  if(was.kind==="task")moveTask(was.id,to,time,was.dur);
+  else if(was.kind==="away")moveAway(was.id,to,time,was.dur);
+  else rtMoveModal(was.id,was.from,to,time);
+},true);
+document.addEventListener("click",function(e){
+  if(MV.skip&&Date.now()<MV.skip&&e.target.closest&&e.target.closest("[data-move]")){
+    e.preventDefault();e.stopPropagation();MV.skip=0;}
+},true);
+function moveTask(id,date,time,dur){
+  const t=taskById(id);if(!t)return;
+  const was=JSON.parse(JSON.stringify(t));
+  t.due=date;t.dueTime=time;t.endTime=m2hm(Math.min(24*60-1,hm2m(time)+dur));
+  logChanges(id,was,t);save("tasks");render();
+  if(V.sheet&&V.sheet.id===id)renderSheet();
+  toast("Moved to "+fmtDate(date)+", "+fmtTime(time));
+}
+function moveAway(id,date,time,dur){
+  const a=awayList().filter(x=>x.id===id)[0];if(!a)return;
+  a.date=date;a.start=time;a.end=m2hm(Math.min(24*60-1,hm2m(time)+dur));
+  save("prefs");render();toast("Moved to "+fmtDate(date)+", "+fmtTime(time));
+}
+
+/* ---- which of a routine's days a move is for ----
+   A routine repeats, so a block dragged off its hour or its day has to say
+   which occurrences it meant, the way Google asks before it saves:
+
+   - This one only    a per-occurrence move (prefs.rtMove), the routine
+                      itself untouched.
+   - This and after   the routine is ended the day before and a copy of it
+                      carries on from this day at the new time. A split, so
+                      the copy starts its own streak -- the same trade
+                      Google makes.
+   - Every one        the routine's own time changes, and its weekday with
+                      it if the day moved.
+
+   The old time is struck through under the new one, so what is about to
+   change is on the page rather than in the head. */
+const MVQ={};
+function rtMoveModal(id,from,to,time){
+  const r=routineById(id);if(!r)return;
+  Object.assign(MVQ,{id:id,from:from,to:to,time:time,scope:MVQ.scope||"one"});
+  rtMoveDraw();
+}
+function rtMoveDraw(){
+  const r=routineById(MVQ.id);if(!r)return;
+  const c=cat(r.cat),dur=Number(r.dur)||30;
+  const sameDay=MVQ.from===MVQ.to;
+  const opt=(v,label,note)=>'<button class="mvopt'+(MVQ.scope===v?" on":"")+'" role="radio" aria-checked="'+(MVQ.scope===v)+'"'+
+    ' data-act="mv-scope" data-v="'+v+'"><i></i><span><b>'+esc(label)+'</b>'+(note?'<small>'+esc(note)+'</small>':"")+'</span></button>';
+  const when=(d,t)=>(sameDay?"":fmtDate(d)+", ")+fmtRange(t,dur);
+  openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Move routine">'+
+    '<div class="mhead2"><span class="ravatar" style="--c:'+c.color+'">'+icon(c.icon,"ic-18")+'</span>'+
+    '<h2>Move \u201c'+esc(r.title)+'\u201d</h2>'+
+    '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+    '<div class="mbody">'+
+      '<div class="mvopts" role="radiogroup" aria-label="Which days to move">'+
+        opt("one","This one only",fmtDate(MVQ.from))+
+        opt("following","This and the ones after it","The routine splits here")+
+        opt("all","Every one",sameDay?"Changes the routine\u2019s time":"Changes the routine\u2019s day and time")+
+      '</div>'+
+      '<div class="mvwhen"><span class="lab">When</span><div><b>'+esc(when(MVQ.to,MVQ.time))+'</b>'+
+        '<s>'+esc(when(MVQ.from,rtTime(r,MVQ.from)))+'</s></div></div>'+
+    '</div>'+
+    '<div class="mfoot"><button class="btn btn-ghost mvdrop" data-act="close">Discard change</button>'+
+    '<div class="spacer" style="flex:1"></div>'+
+    '<button class="btn btn-primary" data-act="mv-save">Save</button></div></div>',{focus:false});
+}
+/* The three ways a move can be meant. */
+function rtMoveApply(){
+  const r=routineById(MVQ.id);if(!r){closeModal();return;}
+  const from=MVQ.from,to=MVQ.to,time=MVQ.time,scope=MVQ.scope;
+  const wd=s=>parseD(s).getDay();
+  const shiftDays=x=>{if(x.freq==="interval"||from===to)return;
+    const days=(x.days||[]).slice(),i=days.indexOf(wd(from));
+    if(i>-1)days.splice(i,1);
+    if(days.indexOf(wd(to))<0)days.push(wd(to));
+    x.days=days.sort((a,b)=>a-b);};
+  if(scope==="one"){
+    /* Two of the same routine cannot share a day: completions are keyed by
+       the day, so the second would have nowhere to live. */
+    if(from!==to&&routineOn(r,parseD(to))){closeModal();toast("It already repeats on "+fmtDate(to));return;}
+    rtMoveMap()[r.id+"|"+from]={d:to,t:time};
+    const k=r.id+"|"+from;
+    if(from!==to&&S.completions[k]){delete S.completions[k];S.completions[r.id+"|"+to]=true;save("completions");}
+    save("prefs");
+  }
+  else if(scope==="all"){
+    r.time=time;shiftDays(r);save("routines");
+  }
+  else{
+    /* Nothing of it comes before this day, so there is nothing to split. */
+    if(ymd(routineFirst(r))>=from){r.time=time;shiftDays(r);save("routines");}
+    else{
+      const c=JSON.parse(JSON.stringify(r));
+      c.id=uid("r");c.start=from;c.end=r.end||"";c.time=time;shiftDays(c);
+      r.end=ymd(addDays(parseD(from),-1));
+      S.routines.splice(S.routines.indexOf(r)+1,0,c);save("routines");
+    }
+  }
+  closeModal();render();
+  toast(scope==="one"?"Moved this one":scope==="all"?"Moved every one":"Moved this one and the ones after it");
+}
 
 /* ---- quick create, from a drag on the week ----
    As Google Calendar does it: a small card beside the stretch just drawn,
@@ -1284,7 +1492,8 @@ function viewDashboard(){
      A routine's dot is its tick; an event's dot is a square and is not,
      because it is Google's to change. */
   const gd=gcalFor(today());
-  const sched=d.routines.map(r=>({kind:"r",r:r,start:r.time?mins(r.time):-1,end:r.time?mins(r.time)+(Number(r.dur)||0):-1}))
+  const sched=d.routines.map(r=>{const rt=r.time?rtTime(r,TODAY()):"";
+      return {kind:"r",r:r,rt:rt,start:rt?mins(rt):-1,end:rt?mins(rt)+(Number(r.dur)||0):-1};})
     .concat(gd.timed.map(x=>({kind:"g",g:x.g,start:x.start,end:x.start+x.dur})))
     .sort((a,b)=>a.start-b.start);
   const agRow=it=>{
@@ -1297,7 +1506,7 @@ function viewDashboard(){
         '<small><i class="cdot"></i>'+esc(e.calName)+'</small></button>'+(isNow?'<span class="dag-now">Now</span>':"")+'</div>';}
     const r=it.r,c=cat(r.cat),done=doneR(r,ts),behind=!done&&it.end>=0&&it.end<nowMin;
     return '<div class="dag-row'+(done?" done":"")+(isNow&&!done?" now":"")+'" style="--c:'+c.color+'">'+
-      '<span class="dag-time num'+(behind?" behind":"")+'">'+(r.time?esc(fmtTime(r.time)):"Any time")+'</span>'+
+      '<span class="dag-time num'+(behind?" behind":"")+'">'+(it.rt?esc(fmtTime(it.rt)):"Any time")+'</span>'+
       '<button class="dag-dot" data-act="routine-done" data-id="'+r.id+'" data-date="'+ts+'" aria-label="'+(done?"Mark not done":"Mark done")+'">'+icon("i-check")+'</button>'+
       '<button class="drow-body" data-act="routine" data-id="'+r.id+'" data-date="'+ts+'"><b>'+esc(r.title)+'</b>'+
       '<small><i class="cdot"></i>'+esc(c.name)+(r.dur?' · '+esc(fmtMins(r.dur)):"")+'</small></button>'+
@@ -1416,7 +1625,7 @@ function timerBtn(t){
 function timedToday(){
   const ts=TODAY(),m=tm=>{const x=tm.split(":").map(Number);return x[0]*60+x[1];};
   return todayItems().routines.filter(r=>r.time&&!doneR(r,ts))
-    .map(r=>({title:r.title,color:cat(r.cat).color,start:m(r.time),end:m(r.time)+(Number(r.dur)||0),
+    .map(r=>({title:r.title,color:cat(r.cat).color,start:m(rtTime(r,ts)),end:m(rtTime(r,ts))+(Number(r.dur)||0),
       act:'data-act="routine" data-id="'+r.id+'" data-date="'+ts+'"'}))
     .concat(gcalTimedToday())
     .sort((a,b)=>a.start-b.start);
@@ -1443,7 +1652,7 @@ function dayStripHtml(){
   const n=new Date(),now=n.getHours()*60+n.getMinutes();
   const m=tm=>{const x=tm.split(":").map(Number);return x[0]*60+x[1];};
   const items=todayItems().routines.filter(r=>r.time).map(r=>({title:r.title,color:cat(r.cat).color,
-      start:m(r.time),end:m(r.time)+Math.max(10,Number(r.dur)||30),done:doneR(r,ts),
+      start:m(rtTime(r,ts)),end:m(rtTime(r,ts))+Math.max(10,Number(r.dur)||30),done:doneR(r,ts),
       act:'data-act="routine" data-id="'+r.id+'" data-date="'+ts+'"'}))
     .concat(gcalFor(today()).timed.map(x=>({title:x.g.title,color:x.g.color,start:x.start,end:x.start+x.dur,done:false,
       act:'data-act="gcal-ev" data-id="'+esc(x.g.id)+'"'})))
@@ -4092,7 +4301,7 @@ function peekModal(date){
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div><div class="mbody">'+
     (gev.length?'<div><div class="sec-label" style="margin-bottom:6px">Events</div>'+gev.map(e=>'<div class="qrow" data-act="gcal-ev" data-id="'+esc(e.id)+'"><span class="gdot" style="--c:'+e.color+'"></span><div class="t"><b>'+esc(e.title)+'</b></div><span class="chip num">'+esc(e.allDay?"All day":fmtTime(pad(new Date(e.st).getHours())+":"+pad(new Date(e.st).getMinutes())))+'</span></div>').join("")+'</div>':"")+
     (ts.length?'<div><div class="sec-label" style="margin-bottom:6px">Tasks</div>'+ts.map(t=>'<div class="qrow" data-act="task" data-id="'+t.id+'">'+tickBtn(t)+'<div class="t"><b>'+esc(t.title)+'</b></div>'+catChip(t.cat)+'</div>').join("")+'</div>':"")+
-    (routines.length?'<div><div class="sec-label" style="margin-bottom:6px">Routines</div>'+routines.map(e=>'<div class="qrow"><button class="tick'+(e.done?" on":"")+'" data-act="routine-done" data-id="'+e.r.id+'" data-date="'+date+'" aria-label="Toggle">'+icon("i-check")+'</button><div class="t"><b>'+esc(e.r.title)+'</b></div><span class="chip num">'+esc(fmtTime(e.r.time))+'</span></div>').join("")+'</div>':"")+
+    (routines.length?'<div><div class="sec-label" style="margin-bottom:6px">Routines</div>'+routines.map(e=>'<div class="qrow"><button class="tick'+(e.done?" on":"")+'" data-act="routine-done" data-id="'+e.r.id+'" data-date="'+date+'" aria-label="Toggle">'+icon("i-check")+'</button><div class="t"><b>'+esc(e.r.title)+'</b></div><span class="chip num">'+esc(fmtTime(e.time))+'</span></div>').join("")+'</div>':"")+
     (tracked.length?'<div><div class="sec-label" style="margin-bottom:6px">Time tracked</div>'+tracked.map(e=>'<div class="qrow">'+icon("i-timer","ic-14")+'<div class="t"><b>'+esc(e.t.title)+'</b></div><span class="chip num">'+esc(fmtTracked(e.secs))+'</span></div>').join("")+'</div>':"")+
     (!ts.length&&!evs.length&&!gev.length?es("day","A free day","Nothing planned yet. Keep it that way, or add a task.",{hue:"var(--amber)"}):"")+
     '</div><div class="mfoot"><button class="btn btn-primary" data-act="new-task" data-date="'+date+'">'+icon("i-plus")+'Add task</button><div class="spacer" style="flex:1"></div><button class="btn" data-act="close">Close</button></div></div>');
@@ -4503,6 +4712,8 @@ document.addEventListener("click",function(e){
     case "routine-delete":if(arm(n,"Delete for good?"))deleteRoutine(id);break;
     case "rt-menu":ctxMenu(routineItems(id,TODAY()),null,n);break;
     case "streak-log":V.slogY=null;streakModal(id);break;
+    case "mv-scope":MVQ.scope=n.dataset.v;rtMoveDraw();break;
+    case "mv-save":rtMoveApply();break;
     case "rt-skip":{const date=n.dataset.date,r=routineById(id);if(!r)break;
       if(!arm(n,"Skip?"))break;
       skipMap()[id+"|"+date]=true;save("prefs");render();
@@ -7228,9 +7439,10 @@ function buildReminders(){
     const d=addDays(today(),i),ds=ymd(d);
     S.routines.forEach(r=>{
       if(!r.time||!routineOn(r,d)||doneR(r,ds))return;
+      const rtm=rtTime(r,ds);
       const m=remindMins(r);if(m===null)return;
-      const start=at(ds,r.time),fire=start-m*60000;if(!keep(fire))return;
-      out.push({id:"r:"+r.id+":"+ds+":"+r.time+":"+m,at:fire,title:r.title,
+      const start=at(ds,rtm),fire=start-m*60000;if(!keep(fire))return;
+      out.push({id:"r:"+r.id+":"+ds+":"+rtm+":"+m,at:fire,title:r.title,
         body:(m?"Starts "+leadText(m)+", at "+clock(start):"Starting now")+" · "+cat(r.cat).name,
         open:{kind:"routine",id:r.id,date:ds}});
     });
