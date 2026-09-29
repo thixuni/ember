@@ -847,7 +847,6 @@ function spaceMenu(btn){
 }
 function renderRail(){
   applyRail();
-  const bs=el("brandSub");if(bs)bs.textContent="Personal planner";
   const wb=el("wsBar");if(wb)wb.innerHTML=wsBarHtml();
   renderMe();
   el("nav").innerHTML=NAV.map(n=>{const a=navAlert(n.id);

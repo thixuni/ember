@@ -514,7 +514,12 @@ its own categories, and categories were the thing that most needed it.
   starts with the same five categories a new planner does, because one
   with no categories has nowhere to put a task. The last one cannot go.
 - **The switcher is at the top of the sidebar**, under the brand
-  (`wsBarHtml()`, `#wsBar`), because everything below it belongs to it.
+  (`wsBarHtml()`, `#wsBar`), because everything below it belongs to it,
+  and it is the biggest thing up there. The brand above it is one slim
+  line -- a 22px mark and the wordmark, no more. It was a 32px tile beside
+  ``ember`` over ``PERSONAL PLANNER``, which is a lot of sidebar spent
+  telling you which app you have open, and it made the workspace under it
+  look like the smaller thing.
   It sat in the Tasks top bar while it was only a board; a workspace is
   not a property of one screen. Switching clears the filters, since a lane
   and a category belong to the workspace they were set in (`wsGo()`).
