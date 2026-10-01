@@ -526,6 +526,13 @@ its own categories, and categories were the thing that most needed it.
   filling the rest with "ember" as its eyebrow so the name is still there
   without a row of its own. They were two bands, one of them a line that
   only said which app you have open.
+  **A tile in this sidebar means something you can press**, which is why
+  the mark is the bare flame in the accent and the workspace tile is the
+  only filled tile in the row. The mark was a filled rounded square the
+  same size as the workspace tile right beside it, and two badges in a row
+  read as two logos -- you had to look twice to work out which one was
+  yours. The miniature app in setup follows, since it is a picture of this
+  sidebar.
 - **The sidebar is two bands**, set off by a hairline: which app and
   workspace, then everything that belongs to the workspace. It was
   one run of rows in three sizes with nothing between them, which is what
