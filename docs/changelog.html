@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Changelog — Ember</title>
+<meta name="description" content="Every version of Ember that has been released, and what changed in it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Gabarito:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="site-head stuck">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <span class="brand-mark"><svg viewBox="0 0 40 58" aria-hidden="true"><path fill-rule="evenodd" d="M20 2c6.4 12 14 18.6 14 30.4A14 14 0 0 1 6 32.4C6 25 10.4 20.4 13.6 13.6c1.4 5 3.6 8.4 6 10.6C21.2 17 21 8.6 20 2ZM20 31c2.8 4.7 4.5 6.8 4.5 10a4.5 4.5 0 0 1-9 0c0-2.8 2.2-5.8 4.5-10Z"/></svg></span>
+      <span class="brand-name">ember</span>
+    </a>
+    <nav class="site-nav">
+      <a class="sm-off" href="./#views">Features</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a class="on" href="changelog.html" aria-current="page">Changelog</a>
+      <a class="btn btn-primary btn-sm" href="./#get">Download</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Changelog</p>
+    <h1>Every version, and what changed in it.</h1>
+    <p>Installed copies update themselves, so you will usually already have the top of this list. Each
+      version number here is one you can still download from
+      <a href="https://github.com/thixuni/ember/releases">the releases page</a>.</p>
+  </div>
+</section>
+
+<section class="band band-tight">
+  <div class="wrap narrow">
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.3.0</span>
+        <time datetime="2026-09-29">Sep 29, 2026</time>
+        <span class="pill">Latest</span>
+      </div>
+      <ul>
+        <li><b>Workspaces.</b> The planner divides into as many as six separate planners — Personal, Studio,
+          whatever you need — each with its own categories, board lanes, tasks, routines, notes, documents
+          and tracked time. Switch and the whole sidebar changes with you.</li>
+        <li><b>An All workspaces view</b>, for when you do want to see the lot at once.</li>
+        <li><b>The dashboard always shows every workspace</b>, and says so, because today does not belong to
+          one part of your life.</li>
+        <li><b>Categories belong to a workspace</b> and are edited where the workspaces are, in
+          Settings, under the workspace they belong to, under the one they belong to.</li>
+        <li><b>A task moves workspace</b> from its panel, taking its lane, its category and its subtasks
+          with it.</li>
+        <li><b>The sidebar is one row at the top</b> — the mark, then the workspace switcher — and names what
+          the pointer is on when it is folded to its icons.</li>
+        <li><b>The dashboard reads as cards</b> rather than ruled columns, with its five sections in five
+          colours.</li>
+        <li>Coloured stripes down the left edge of things are gone from every screen.</li>
+        <li>A planner from 1.2.3 carries over whole: its boards become workspaces and nothing moves.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.2.3</span>
+        <time datetime="2026-09-29">Sep 29, 2026</time>
+      </div>
+      <ul>
+        <li><b>Drag a block on the calendar to another day or hour.</b> Tasks and blocked-out time move
+          outright; a routine asks whether you meant this day only, this day onward, or the whole routine.</li>
+        <li><b>The dashboard became three columns</b> that each scroll inside themselves, so a long schedule
+          can no longer push what is overdue off the bottom of the page.</li>
+        <li><b>Quiet hours, a night at a time.</b> Each night of the week keeps its own window, so weekends
+          can start later than Tuesdays.</li>
+        <li><b>A missed routine day can be let off</b>, so a week away does not end a streak.</li>
+        <li><b>More than one board</b>, each with its own lanes — later replaced by workspaces in 1.3.0.</li>
+        <li><b>Walk back through earlier weeks</b> on a routine’s card, and a cleaner streak log.</li>
+        <li>Enter saves a subtask and opens the next one.</li>
+        <li>The task panel gained a picker for which board a task is on, beside its lane.</li>
+        <li>The Notes guided tour’s first tip came back after the button it pointed at was removed.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.2.2</span>
+        <time datetime="2026-09-29">Sep 29, 2026</time>
+      </div>
+      <ul>
+        <li><b>Streaks with no ceiling.</b> The whole history counts rather than the last year, so a
+          year-old run is no longer capped and a routine due twice a year can still be made up.</li>
+        <li><b>A streak log</b>: the year drawn as twelve calendars, every square a day you can still check
+          off, over four numbers — current run, best ever, times kept, and how many of the days it was due.</li>
+        <li>A streak counts times kept rather than days, so a weekly review reads “28 Fridays”.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.2.1</span>
+        <time datetime="2026-09-24">Sep 24, 2026</time>
+      </div>
+      <ul>
+        <li><b>Light is the default</b>, and only you change it — the planner no longer follows the computer
+          unless you ask it to.</li>
+        <li><b>Backups say whether they worked.</b> A folder that had been moved, renamed or was on a drive
+          that was not plugged in used to fail in silence and still report success.</li>
+        <li><b>Settings &rsaquo; Account &rsaquo; Run setup again</b>, without throwing anything away.</li>
+        <li>Setup’s categories step became chips with the colour and icon opening over the page.</li>
+        <li>One logo everywhere, and it stands still.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.2.0</span>
+        <time datetime="2026-09-23">Sep 23, 2026</time>
+      </div>
+      <ul>
+        <li><b>The planner is called Ember.</b> A flame for a mark, a warm accent, and a wordmark of its
+          own.</li>
+        <li>Setup is a page of its own rather than a dialog, lit by one fire that burns through every step
+          with a live picture of whatever you are answering beside it.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.1.2</span>
+        <time datetime="2026-09-23">Sep 23, 2026</time>
+      </div>
+      <ul>
+        <li><b>A task has one date.</b> The second deadline that sat under it was taken out — people read the
+          two as two deadlines and the wrong one was always the one being looked at.</li>
+        <li><b>Right-click menus</b> on everything: a task anywhere on the page, a routine, a note, a
+          category, a board lane, blocked-out time.</li>
+        <li><b>Guided tips, one short tour per screen</b>, played the first time you open it.</li>
+        <li><b>A folding sidebar</b>, and a list view you can group by date, lane, category, priority or a
+          field of your own.</li>
+        <li>Each board lane scrolls its own cards, so every lane’s heading stays put.</li>
+        <li>US English throughout.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.1.1</span>
+        <time datetime="2026-09-23">Sep 23, 2026</time>
+      </div>
+      <ul>
+        <li><b>Drag down an empty stretch of the calendar to make something there</b>, and a small card opens
+          beside it for a task, a routine or unavailable time.</li>
+        <li><b>Time tracking is drawn as an orbit</b> — in the top bar and in a floating window that stays
+          above everything else, with its controls appearing only on hover.</li>
+        <li><b>The planner’s own colour picker</b>, everywhere a colour can be anything.</li>
+        <li><b>The list view is a table you edit in place</b>, with sortable headings and columns you can
+          size and reorder.</li>
+        <li>The routine window became one short form instead of four tabs.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.1.0</span>
+        <time datetime="2026-09-21">Sep 21, 2026</time>
+      </div>
+      <ul>
+        <li><b>Backups go to a folder you chose</b>, not Downloads — asked for at the end of setup, and
+          repeatable on a schedule.</li>
+        <li><b>How tasks work is yours to set.</b> Switch panel sections off, invent your own fields, choose
+          whether subtasks are full tasks, and name your own lanes.</li>
+        <li><b>Blocked notifications say what to do about it</b>, in plain steps.</li>
+        <li>Five categories to start with instead of ten, and planners on the old ten move across.</li>
+        <li>The foot of the sidebar says who you are, where the planner is kept, and opens Settings.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.0.0</span>
+        <time datetime="2026-09-09">Sep 9, 2026</time>
+      </div>
+      <ul>
+        <li><b>The first release.</b> A dashboard, a calendar, a task board, an Eisenhower matrix, routines
+          with streaks and notes — on Windows, macOS and Linux, plus a single HTML file that runs from a
+          double-click.</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap narrow">
+    <div class="callout">
+      <b>About the numbering.</b> A version number only moves when a release is published, so every number
+      that exists is one you can download and this list reads straight through with no gaps. One exception:
+      the batch first published as 1.2.0 on Sep&nbsp;21 was rebuilt as 1.1.1 the next day, to keep 1.2.0
+      for the rebrand.
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="final">
+      <h2>Get the latest one.</h2>
+      <p>Installed copies update themselves. A fresh one starts here.</p>
+      <div class="ctas">
+        <a class="btn" href="./#get">Download Ember</a>
+        <a class="btn btn-ghost" href="roadmap.html">See what is coming</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <span class="brand-mark"><svg viewBox="0 0 40 58" aria-hidden="true"><path fill-rule="evenodd" d="M20 2c6.4 12 14 18.6 14 30.4A14 14 0 0 1 6 32.4C6 25 10.4 20.4 13.6 13.6c1.4 5 3.6 8.4 6 10.6C21.2 17 21 8.6 20 2ZM20 31c2.8 4.7 4.5 6.8 4.5 10a4.5 4.5 0 0 1-9 0c0-2.8 2.2-5.8 4.5-10Z"/></svg></span>
+      <span class="brand-name">ember</span>
+    </a>
+    <div class="links">
+      <a href="./">Home</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="https://github.com/thixuni/ember">Source</a>
+      <a href="https://github.com/thixuni/ember/releases">All releases</a>
+    </div>
+    <p class="made">A personal planner that runs on your own computer. Free and open source.</p>
+  </div>
+</footer>
+
+</body>
+</html>

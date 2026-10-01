@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roadmap — Ember</title>
+<meta name="description" content="What is being worked on in Ember, what is coming next, and what is only an idea so far. Nothing here is a promise with a date on it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Gabarito:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<header class="site-head stuck">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <span class="brand-mark"><svg viewBox="0 0 40 58" aria-hidden="true"><path fill-rule="evenodd" d="M20 2c6.4 12 14 18.6 14 30.4A14 14 0 0 1 6 32.4C6 25 10.4 20.4 13.6 13.6c1.4 5 3.6 8.4 6 10.6C21.2 17 21 8.6 20 2ZM20 31c2.8 4.7 4.5 6.8 4.5 10a4.5 4.5 0 0 1-9 0c0-2.8 2.2-5.8 4.5-10Z"/></svg></span>
+      <span class="brand-name">ember</span>
+    </a>
+    <nav class="site-nav">
+      <a class="sm-off" href="./#views">Features</a>
+      <a class="on" href="roadmap.html" aria-current="page">Roadmap</a>
+      <a href="changelog.html">Changelog</a>
+      <a class="btn btn-primary btn-sm" href="./#get">Download</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Roadmap</p>
+    <h1>What is being built, and what is only an idea.</h1>
+    <p>Ember is one person’s project, so this is an order of intent rather than a schedule. Nothing below
+      carries a date, and things move backwards as often as forwards. If something you need is missing,
+      <a href="https://github.com/thixuni/ember/issues/new">open an issue</a> — that is the whole voting
+      system, and it works.</p>
+  </div>
+</section>
+
+<section class="band band-tight">
+  <div class="wrap">
+    <div class="board">
+
+      <!-- ---------------- In progress ---------------- -->
+      <div class="col">
+        <div class="col-head"><span class="dot" style="background:var(--amber)"></span> In progress <span class="n">0</span></div>
+        <div class="col-list">
+          <div class="col-empty">Nothing is mid-flight. v1.3.0 shipped on&nbsp;Sep&nbsp;29; whatever is picked up next will appear here.</div>
+        </div>
+      </div>
+
+      <!-- ---------------- Next up ---------------- -->
+      <div class="col">
+        <div class="col-head"><span class="dot" style="background:var(--blue)"></span> Next up <span class="n">4</span></div>
+        <div class="col-list">
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Sign the installers</h3>
+            <p>Windows shows a “protected your PC” box and macOS needs a Terminal command before it will
+              open, because the builds are not code signed. Certificates fix both, and it is the single
+              biggest thing standing between Ember and someone trying it.</p>
+            <div class="tags"><span class="tag b">Rough edge</span><span class="tag">Desktop</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Turn Google sign-in on in the public builds</h3>
+            <p>Calendar sync and Drive backup are written and working, but the downloads ship without the
+              Google application key they need, so both are off. Supplying one to the release build switches
+              them on for everybody.</p>
+            <div class="tags"><span class="tag b">Rough edge</span><span class="tag">Sync</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Recurrence exceptions in the Calendar sync</h3>
+            <p>Moving one occurrence of a routine works inside Ember, but the sync writes the whole series’
+              time, so Google never hears about it. Recurrence exceptions are the proper fix.</p>
+            <div class="tags"><span class="tag a">Known gap</span><span class="tag">Sync</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Tests for the date and recurrence logic</h3>
+            <p>The checks cover conventions and colour contrast thoroughly and the actual logic hardly at
+              all — which is where the bugs have been. Dates, recurrence and filtering need real coverage.</p>
+            <div class="tags"><span class="tag">Under the hood</span></div>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ---------------- Backlog ---------------- -->
+      <div class="col">
+        <div class="col-head"><span class="dot" style="background:var(--muted)"></span> Backlog <span class="n">6</span></div>
+        <div class="col-list">
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Your planner on more than one machine</h3>
+            <p>There is no server, so there is no sync. Backing up to a file and restoring works, but it is
+              not the same thing. The honest options are syncing through a folder you already own, or Drive
+              doing the job properly once sign-in is on.</p>
+            <div class="tags"><span class="tag d">Most asked</span><span class="tag">Sync</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>A layout that actually works on a phone</h3>
+            <p>The page folds down to a narrow screen, but folding is not designing, and without sync there
+              would be nothing on the phone to look at. This waits behind the one above it.</p>
+            <div class="tags"><span class="tag d">Most asked</span><span class="tag">Mobile</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Tasks that repeat</h3>
+            <p>Routines repeat; tasks have one date. A quarterly invoice is neither a habit nor a one-off,
+              and right now it has to be typed again every time.</p>
+            <div class="tags"><span class="tag a">Known gap</span><span class="tag">Tasks</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Choose which Google calendar it writes to</h3>
+            <p>The sync writes into your primary calendar. Anyone keeping work in a second calendar wants to
+              pick, and anyone sharing one definitely does.</p>
+            <div class="tags"><span class="tag">Sync</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Bring a planner in from somewhere else</h3>
+            <p>Starting from an empty planner is a real cost when your tasks are already in Todoist, Notion
+              or a spreadsheet. An importer for a CSV would cover most of it.</p>
+            <div class="tags"><span class="tag">Idea</span></div>
+          </a>
+
+          <a class="item" href="https://github.com/thixuni/ember/issues">
+            <h3>Print a week, or export one</h3>
+            <p>No print stylesheet and no way out to CSV. Some people want the week on paper on a Monday
+              morning, and some want their own data in a spreadsheet.</p>
+            <div class="tags"><span class="tag">Idea</span></div>
+          </a>
+
+        </div>
+      </div>
+
+      <!-- ---------------- Done ---------------- -->
+      <div class="col">
+        <div class="col-head"><span class="dot" style="background:var(--green)"></span> Shipped <span class="n">7</span></div>
+        <div class="col-list">
+
+          <a class="item" href="changelog.html">
+            <h3>Workspaces</h3>
+            <p>Up to six separate planners in one window, each with its own categories, lanes, tasks,
+              routines and notes — plus a view across all of them.</p>
+            <div class="tags"><span class="tag c">v1.3.0</span></div>
+          </a>
+
+          <a class="item" href="changelog.html">
+            <h3>The dashboard reworked</h3>
+            <p>Three columns that each scroll on their own, so a packed schedule can no longer push what is
+              overdue off the bottom of the page.</p>
+            <div class="tags"><span class="tag c">v1.2.3</span></div>
+          </a>
+
+          <a class="item" href="changelog.html">
+            <h3>Drag a calendar block to another day</h3>
+            <p>Pick up a task, a routine or a blocked-out hour and drop it where it belongs. A routine asks
+              which occurrences you meant.</p>
+            <div class="tags"><span class="tag c">v1.2.3</span></div>
+          </a>
+
+          <a class="item" href="changelog.html">
+            <h3>Quiet hours, a night at a time</h3>
+            <p>Each night of the week keeps its own window, so weekends can start later than Tuesdays.</p>
+            <div class="tags"><span class="tag c">v1.2.3</span></div>
+          </a>
+
+          <a class="item" href="changelog.html">
+            <h3>Streaks with no ceiling</h3>
+            <p>The whole history counts, not the last year — with a log that draws your year as twelve
+              calendars, and days you can let off.</p>
+            <div class="tags"><span class="tag c">v1.2.2</span></div>
+          </a>
+
+          <a class="item" href="changelog.html">
+            <h3>Ember</h3>
+            <p>A new name, a flame for a mark, and a warm accent the whole planner is built around. Setup
+              became a page of its own, lit by one fire.</p>
+            <div class="tags"><span class="tag c">v1.2.0</span></div>
+          </a>
+
+          <a class="item" href="changelog.html">
+            <h3>Backups to a folder you chose</h3>
+            <p>Not Downloads. Pick a folder once, by hand or weekly, and Ember says whether the write
+              actually landed.</p>
+            <div class="tags"><span class="tag c">v1.1.0</span></div>
+          </a>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap narrow">
+    <div class="callout">
+      <b>How something gets onto this board.</b> Mostly by someone hitting it and saying so. There is no
+      upvote button here because a static page cannot count votes honestly — so
+      <a href="https://github.com/thixuni/ember/issues">the issue tracker</a> is the board that counts. A
+      thumbs-up on an issue is a vote, and a sentence about what you were trying to do when it got in your
+      way is worth ten of them.
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="final">
+      <h2>Haven’t tried it yet?</h2>
+      <p>The roadmap reads better once you know what is already there.</p>
+      <div class="ctas">
+        <a class="btn" href="./#get">Download Ember</a>
+        <a class="btn btn-ghost" href="changelog.html">Read the changelog</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <span class="brand-mark"><svg viewBox="0 0 40 58" aria-hidden="true"><path fill-rule="evenodd" d="M20 2c6.4 12 14 18.6 14 30.4A14 14 0 0 1 6 32.4C6 25 10.4 20.4 13.6 13.6c1.4 5 3.6 8.4 6 10.6C21.2 17 21 8.6 20 2ZM20 31c2.8 4.7 4.5 6.8 4.5 10a4.5 4.5 0 0 1-9 0c0-2.8 2.2-5.8 4.5-10Z"/></svg></span>
+      <span class="brand-name">ember</span>
+    </a>
+    <div class="links">
+      <a href="./">Home</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="https://github.com/thixuni/ember">Source</a>
+      <a href="https://github.com/thixuni/ember/issues">Report a problem</a>
+    </div>
+    <p class="made">A personal planner that runs on your own computer. Free and open source.</p>
+  </div>
+</footer>
+
+</body>
+</html>
