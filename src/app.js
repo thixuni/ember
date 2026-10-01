@@ -1032,6 +1032,10 @@ function eventsFor(d){
      actually tracked. */
   const dayEnd=addDays(d,1).setHours(0,0,0,0);
   sittings(s).forEach(g=>{
+    /* A sitting belongs to the workspace its task is in. Without this, time
+       tracked against a Studio task drew on the Personal calendar: the
+       routines above were scoped and the sittings were not. */
+    if(!inWs(g.t))return;
     const st=new Date(g.start);
     evs.push({kind:"session",g:g,t:g.t,date:s,secs:g.secs,
       start:st.getHours()*60+st.getMinutes(),
