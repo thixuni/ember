@@ -2977,6 +2977,10 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .rt-sub[hidden]{display:none}
 .rt-every{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
 .rt-every .inp{width:64px;text-align:center}
+/* The day of the month picker says the day in words, so it is wider than
+   the Every-few-days number beside it. */
+#rDomWrap .inp{width:auto;min-width:78px;text-align:left}
+.rt-note{margin:7px 0 0;font-size:11.5px;color:var(--faint);line-height:1.45}
 .rt-more{border-top:1px solid var(--line);padding-top:12px}
 .rt-more summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-2);list-style:none;padding:3px 6px 3px 2px;border-radius:7px}
 .rt-more summary::-webkit-details-marker{display:none}
@@ -3305,3 +3309,22 @@ body.rail-mini .cat-row.off .ic-cat{opacity:.4}
   box-shadow:var(--sh-2)}
 @media (prefers-reduced-motion:no-preference){.railtip{animation:railtip .1s ease-out}}
 @keyframes railtip{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+
+/* ---------- the list opens the steps inside a task ----------
+   A step is drawn under the task it belongs to in the same grid, so every
+   cell still lines up with its heading. It is set in a shade and indented
+   by its own marker rather than by a stripe down its edge. */
+.lrow.lr-sub{background:color-mix(in srgb,var(--ink) 2.5%,var(--surface))}
+.lrow.lr-sub .name{padding-left:16px}
+.lr-sub-dot{width:5px;height:5px;flex:none;border-radius:50%;background:var(--line-2);margin-right:7px}
+.lrow.lr-lite .lr-title.as-text{font-size:13.5px;color:var(--ink-2);padding:0}
+.lrow.lr-lite.done .lr-title.as-text{text-decoration:line-through;color:var(--label-done)}
+/* The count is a button now, so it needs to read as one. */
+.lr-subs{display:inline-flex;align-items:center;gap:3px;border:0;cursor:pointer;
+  background:var(--surface-3);border-radius:20px;padding:1px 7px 1px 4px}
+.lr-subs:hover{background:var(--line)}
+.lr-subs .ic{color:var(--faint)}
+/* The subtask date in the panel sits after the name, before the cross. */
+.sub-when{flex:none}
+.sub-when .pkf{width:auto}
+.sub-when .pk-btn{font-size:12.5px;padding:3px 8px}

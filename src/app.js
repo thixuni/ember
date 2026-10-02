@@ -72,7 +72,7 @@ const BOARD_FEATS=[
  ["Organize",[["category","Category","Which part of life it’s in","i-folder"],["priority","Priority","How urgent and important","i-flag"],["tags","Tags","Labels to find it by","i-tag"],["status","Lane","Which board lane it’s in","i-board"]]],
  ["Effort",[["estimate","Estimate","How long you think it’ll take","i-clock"],["timer","Time tracker","Time how long it really takes","i-timer"]]],
  ["Links and files",[["links","Linked tasks","Tasks it’s connected to","i-link"],["files","Files","Attachments","i-clip"]]],
- ["Content",[["desc","Description","Notes about the task","i-note"],["subtasks","Subtasks","Smaller steps inside it","i-checklist"],["docs","Documents","Longer pages of writing","i-doc"],["comments","Comments","Updates and thoughts","i-chat"],["activity","Activity history","A record of every change","i-chart"]]]];
+ ["Content",[["desc","Description","Notes about the task","i-note"],["subtasks","Subtasks","Smaller steps inside it","i-checklist"],["subdate","Subtask dates","A day of its own on each step","i-calendar"],["docs","Documents","Longer pages of writing","i-doc"],["comments","Comments","Updates and thoughts","i-chat"],["activity","Activity history","A record of every change","i-chart"]]]];
 /* The list view's columns besides the task itself; the first four are on
    to begin with. Custom fields join these as "cf:<id>". */
 /* Which part of the task panel each list column belongs to. */
@@ -198,7 +198,7 @@ const wsRoutines=()=>S.routines.filter(inWs);
 const wsNotes=()=>S.notes.filter(inWs);
 const wsAway=()=>awayList().filter(inWs);
 /* Every part starts on except Created, a date nobody fills in. */
-const FEAT_OFF={created:1};
+const FEAT_OFF={created:1,subdate:1};
 const feat=k=>{const v=board().show[k];return v==null?!FEAT_OFF[k]:v!==false;};
 /* A status from before -- the sample week, an old backup -- lands in the
    nearest lane there is. */
@@ -559,8 +559,16 @@ function routineOn(r,d){
   if(r.start&&s<r.start)return false;
   if(r.end&&s>r.end)return false;
   if(r.freq==="interval"){const n=Math.max(1,r.every||2);return Math.floor((parseD(s)-parseD(r.start||s))/864e5)%n===0;}
+  if(r.freq==="monthly")return d.getDate()===domIn(r.dom,d);
   return (r.days||[]).indexOf(d.getDay())>-1;
 }
+/* The day of the month a monthly routine lands on, for the month a date is
+   in. The 31st does not exist in half the year and the 29th does not exist
+   in most Februaries, so it falls back to the last day of that month --
+   which is what a bill due on the 31st means. Skipping those months
+   instead would quietly drop four payments a year. */
+const daysInMonth=d=>new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+const domIn=(dom,d)=>Math.min(Math.max(1,dom||1),daysInMonth(d));
 const doneR=(r,s)=>!!S.completions[r.id+"|"+s];
 /* A day let off. Not done and not missed either: the day it was due is
    excused, so it does not end a streak, is not counted among the days due,
@@ -668,7 +676,7 @@ function streak(r){return r.active?streakStats(r).cur:0;}
 /* What a streak counts. A run of 38 on something due every day is 38 days;
    a run of 28 on a weekly review is 28 Fridays, near enough six months, and
    calling those days was simply wrong. */
-const streakUnit=r=>(r.freq==="interval"?(r.every||2)===1:(r.days||[]).length===7)?"day":"time";
+const streakUnit=r=>(r.freq==="interval"?(r.every||2)===1:r.freq==="monthly"?false:(r.days||[]).length===7)?"day":"time";
 const streakSays=(r,n)=>n+" "+streakUnit(r)+(n===1?"":"s")+" in a row";
 /* Asked for by the sidebar, the dashboard and the calendar in one redraw, so
    worked out once per change. */
@@ -1392,7 +1400,7 @@ function rtMoveDraw(){
   /* Only a routine on chosen weekdays changes the day it repeats on. One
      that repeats on a gap counts from its start, so its days are not a
      list to be edited: Every one moves the hour and leaves the day alone. */
-  const moves=!sameDay&&r.freq!=="interval";
+  const moves=!sameDay&&r.freq!=="interval"&&r.freq!=="monthly";
   const dayName=s=>parseD(s).toLocaleDateString("en-US",{weekday:"long"});
   /* Moving the whole routine onto a weekday it already repeats on does not
      add a day, it takes the old one away -- so the note says that, rather
@@ -1441,7 +1449,7 @@ function rtMoveApply(){
   const r=routineById(MVQ.id);if(!r){closeModal();return;}
   const from=MVQ.from,to=MVQ.to,time=MVQ.time,scope=MVQ.scope;
   const wd=s=>parseD(s).getDay();
-  const shiftDays=x=>{if(x.freq==="interval"||from===to)return;
+  const shiftDays=x=>{if(x.freq==="interval"||x.freq==="monthly"||from===to)return;
     const days=(x.days||[]).slice(),i=days.indexOf(wd(from));
     if(i>-1)days.splice(i,1);
     if(days.indexOf(wd(to))<0)days.push(wd(to));
@@ -2484,21 +2492,44 @@ function lrWidths(cols){
   cols.forEach(c=>{W[c.k]=saved[c.k]||(parseInt(String(colW(c.k)).replace("minmax(",""),10)||110)+20;});
   return W;
 }
-function lrRow(t,cols,grid){
+const lrSubOpen=id=>!!(V.lsubs&&V.lsubs[id]);
+/* The steps inside a task, drawn under it in the same grid. A full subtask
+   is a task and gets an ordinary row, indented; a checklist step is not a
+   task, so it gets a lighter row with the two things it really has -- its
+   tick and, where the switch is on, its day. Renaming a step stays in the
+   panel, which is where the checklist lives. */
+function lrSubRows(t,cols,grid){
+  if(!lrSubOpen(t.id))return "";
+  const kids=t.id?kidsOf(t.id):NONE;
+  const light=(t.subtasks||[]);
+  if(!kids.length&&!light.length)return "";
+  return kids.map(k=>lrRow(k,cols,grid,true)).join("")+
+    light.map(s=>'<div class="lrow lr-sub lr-lite'+(s.d?" done":"")+'" style="'+grid+'">'+
+      '<span class="lr-lead"><button class="tick'+(s.d?" on":"")+'" data-act="lsub-tick" data-id="'+t.id+'" data-v="'+esc(s.id||"")+'" aria-label="Check off '+esc(s.t)+'">'+icon("i-check")+'</button></span>'+
+      '<span class="name"><span class="lr-sub-dot"></span><span class="lr-title as-text">'+esc(s.t)+'</span></span>'+
+      cols.map(k=>'<span class="lr-cell">'+(k.k==="date"&&feat("subdate")
+        ? dateField('data-act="lsub-date" data-id="'+t.id+'" data-v="'+esc(s.id||"")+'"',s.due||"",{sm:1,ph:"",label:"Subtask date",cls:"lr-f"})
+        : "")+'</span>').join("")+'<span></span></div>').join("");
+}
+function lrRow(t,cols,grid,sub){
   const c=cat(t.cat),sp=subProgress(t),edit=V.lrename===t.id;
   /* The row itself opens nothing. Every cell is edited where it is, and a
      click that missed a control -- or a second click on the name while it is
      being typed in -- used to throw the panel open over the list. Details,
      at the end of the task column, is the way in. */
-  return '<div class="lrow'+(isDoneT(t)?" done":"")+'" style="'+grid+'" data-task="'+t.id+'">'+
+  return '<div class="lrow'+(isDoneT(t)?" done":"")+(sub?" lr-sub":"")+'" style="'+grid+'" data-task="'+t.id+'">'+
     '<span class="lr-lead">'+tickBtn(t)+'</span>'+
     '<span class="name">'+icon(c.icon,"ic-14")+
       (edit?'<input class="lr-in lr-rename" id="lrRename" data-id="'+t.id+'" value="'+esc(t.title)+'" maxlength="200" aria-label="Task name">'
         :'<button type="button" class="lr-title" data-act="lr-rename" data-id="'+t.id+'" title="Click to rename">'+esc(t.title)+'</button>')+
-      (sp.n&&feat("subtasks")?'<span class="sub num">'+sp.d+'/'+sp.n+'</span>':"")+
+      /* The count is the way in: a task with steps inside it opens them
+         under itself rather than making you open the panel to find out
+         there were three. */
+      (sp.n&&feat("subtasks")?'<button type="button" class="sub num lr-subs'+(lrSubOpen(t.id)?" on":"")+'" data-act="lr-subs" data-id="'+t.id+'" aria-expanded="'+lrSubOpen(t.id)+'" title="'+(lrSubOpen(t.id)?"Hide":"Show")+' the steps inside this">'+icon(lrSubOpen(t.id)?"i-chev-d":"i-chev-r","ic-12")+sp.d+'/'+sp.n+'</button>':"")+
       '<span class="lr-acts">'+
         '<button type="button" class="rowbtn lr-det" data-act="sh-open" data-id="'+t.id+'" title="Details" aria-label="Details">Details'+icon("i-chev-r","ic-12")+'</button></span></span>'+
-    cols.map(k=>'<span class="lr-cell">'+lrCell(k.k,t)+'</span>').join("")+'<span></span></div>';
+    cols.map(k=>'<span class="lr-cell">'+lrCell(k.k,t)+'</span>').join("")+'<span></span></div>'+
+    lrSubRows(t,cols,grid);
 }
 function lrCell(k,t){
   const a=v=>'data-act="'+v+'" data-id="'+t.id+'"';
@@ -3265,8 +3296,10 @@ function weekLabel(mon){
   return MONS[a.getMonth()]+" "+a.getDate()+" \u2013 "+
     (a.getMonth()===b.getMonth()?"":MONS[b.getMonth()]+" ")+b.getDate();
 }
+const ORD=n=>n+(n>3&&n<21?"th":["th","st","nd","rd"][n%10]||"th");
 function freqLabel(r){
   if(r.freq==="interval")return "Every "+(r.every||2)+" days";
+  if(r.freq==="monthly")return "Monthly on the "+ORD(Math.max(1,Math.min(31,r.dom||1)));
   const d=r.days||[];
   if(d.length===7)return "Every day";
   if(d.length===5&&[1,2,3,4,5].every(x=>d.indexOf(x)>-1))return "Weekdays";
@@ -4696,9 +4729,15 @@ function quadFromFlags(u,i){
 }
 
 function quadName(t){const q=quadOf(t);return q?QUADS.find(x=>x.id===q).name:"Not prioritized";}
-function subRow(s){return '<div class="sub-row'+(s.d?" done":"")+'" data-sid="'+(s.id||uid("s"))+'">'+
+function subRow(s){const sid=s.id||uid("s");
+  return '<div class="sub-row'+(s.d?" done":"")+'" data-sid="'+sid+'">'+
   '<button class="tick'+(s.d?" on":"")+'" data-act="sub-toggle" aria-label="Toggle subtask">'+icon("i-check")+'</button>'+
   '<span class="t"><input value="'+esc(s.t)+'" placeholder="Subtask"></span>'+
+  /* A step can carry a day of its own, behind the Subtask dates switch. The
+     value rides in a hidden input that readSheetSubs() reads back with the
+     name and the tick, so a date needs no save of its own. */
+  (feat("subdate")?'<span class="sub-when">'+dateField('class="sub-due"',s.due||"",{label:"Subtask date",ph:"Add a day"})+'</span>':
+    '<input type="hidden" class="sub-due" value="'+esc(s.due||"")+'">')+
   '<button class="rowbtn" style="opacity:1" data-act="sub-del" aria-label="Remove subtask">'+icon("i-x","ic-14")+'</button></div>';}
 /* A routine in one short form: its name; its time, length and category as
    three labelled fields; then how it repeats, as one drop-down with the
@@ -4712,7 +4751,8 @@ function routineModal(id,preset){
   const r=id?routineById(id):Object.assign({id:"",title:"",cat:cat0().id,freq:"weekly",days:[1,2,3,4,5],every:2,time:"09:00",dur:30,start:TODAY(),end:"",active:true,note:""},preset||{});
   if(!r)return;
   const days=r.days||[],wk=days.length===5&&[1,2,3,4,5].every(x=>days.indexOf(x)>-1);
-  const rep=r.freq==="interval"?"interval":days.length===7?"daily":wk?"weekdays":"weekly";
+  const rep=r.freq==="interval"?"interval":r.freq==="monthly"?"monthly":days.length===7?"daily":wk?"weekdays":"weekly";
+  const dom=Math.max(1,Math.min(31,r.dom||new Date().getDate()));
   const durs=[5,10,15,20,30,45,60,90,120,180];if(durs.indexOf(r.dur)<0)durs.push(r.dur);durs.sort((a,b)=>a-b);
   openModal('<div class="modal rt-modal" role="dialog" aria-modal="true" aria-label="Routine">'+
     '<div class="mhead2"><h2>'+(id?"Edit routine":"New routine")+'</h2>'+
@@ -4726,11 +4766,19 @@ function routineModal(id,preset){
       field("Category",catSelect('class="inp" id="rCat" aria-label="Category"',r.cat,{ws:r.ws||curSpace().id}))+
     '</div>'+
     '<div class="rt-sec"><div class="rt-rep">'+field("Repeats",'<select class="inp" id="rRep" aria-label="Repeats">'+
-      [["daily","Every day"],["weekdays","Weekdays (Mon – Fri)"],["weekly","On chosen days"],["interval","Every few days"]].map(x=>
+      [["daily","Every day"],["weekdays","Weekdays (Mon – Fri)"],["weekly","On chosen days"],["interval","Every few days"],["monthly","Every month"]].map(x=>
         '<option value="'+x[0]+'"'+(rep===x[0]?" selected":"")+'>'+x[1]+'</option>').join("")+'</select>')+
-      '<div class="rt-sub" id="rDaysWrap"'+(rep==="interval"?" hidden":"")+'><div class="dow-pick" id="rDays" role="group" aria-label="Days">'+
+      '<div class="rt-sub" id="rDaysWrap"'+(rep==="interval"||rep==="monthly"?" hidden":"")+'><div class="dow-pick" id="rDays" role="group" aria-label="Days">'+
         [1,2,3,4,5,6,0].map((d,i)=>'<button type="button" class="'+(days.indexOf(d)>-1?"on":"")+'" data-act="r-day" data-v="'+d+'" aria-pressed="'+(days.indexOf(d)>-1)+'" aria-label="'+DOWS[i]+'">'+DOWS[i][0]+'</button>').join("")+'</div></div>'+
       '<div class="rt-sub rt-every" id="rEveryWrap"'+(rep==="interval"?"":" hidden")+'><span>Every</span><input class="inp" type="number" min="2" max="60" id="rEvery" value="'+Math.max(2,r.every||2)+'" aria-label="Number of days"><span>days</span></div>'+
+      /* The day of the month, said in words rather than as a bare number,
+         because "On the 1st" is what a person calls this and "1" on its own
+         reads as a count of something. */
+      '<div class="rt-sub rt-every" id="rDomWrap"'+(rep==="monthly"?"":" hidden")+'><span>On the</span>'+
+        '<select class="inp" id="rDom" aria-label="Day of the month">'+
+        Array.from({length:31},(_,i)=>i+1).map(n=>'<option value="'+n+'"'+(n===dom?" selected":"")+'>'+ORD(n)+'</option>').join("")+
+        '</select><span>of every month</span></div>'+
+      '<p class="rt-note" id="rDomNote"'+(rep==="monthly"?"":" hidden")+'>A month too short for that day uses its last day instead.</p>'+
     '</div></div>'+
     '<details class="rt-more"><summary>'+icon("i-chev-r","ic-14")+'More options</summary>'+
       '<div class="rt-more-in">'+
@@ -4751,11 +4799,13 @@ function routineModal(id,preset){
 /* How a routine repeats, chosen from the drop-down: the week lights the
    days it means, or gives way to the gap for Every few days. */
 function rtRepeat(v){
-  const M=el("modalRoot");M.dataset.freq=v==="interval"?"interval":"weekly";
+  const M=el("modalRoot");M.dataset.freq=v==="interval"?"interval":v==="monthly"?"monthly":"weekly";
   const days=M.querySelectorAll("#rDays button"),set=b=>{b.setAttribute("aria-pressed",String(b.classList.contains("on")));};
   if(v==="daily")days.forEach(b=>{b.classList.add("on");set(b);});
   if(v==="weekdays")days.forEach(b=>{b.classList.toggle("on",["1","2","3","4","5"].indexOf(b.dataset.v)>-1);set(b);});
-  el("rDaysWrap").hidden=v==="interval";el("rEveryWrap").hidden=v!=="interval";
+  el("rDaysWrap").hidden=v==="interval"||v==="monthly";
+  el("rEveryWrap").hidden=v!=="interval";
+  el("rDomWrap").hidden=v!=="monthly";el("rDomNote").hidden=v!=="monthly";
 }
 /* ---- editing categories ----
    One window, one row a category, changed where it is: drag the handle to
@@ -4959,7 +5009,8 @@ function toggleTaskDone(id){
 function readSheetSubs(){
   const w=el("shSubs");if(!w)return null;
   return Array.prototype.map.call(w.querySelectorAll(".sub-row"),row=>({
-    id:row.dataset.sid,t:row.querySelector("input").value.trim(),
+    id:row.dataset.sid,t:row.querySelector(".t input").value.trim(),
+    due:(row.querySelector(".sub-due")||{}).value||"",
     d:row.querySelector(".tick").classList.contains("on")})).filter(x=>x.t);
 }
 function commitSubs(){
@@ -5051,9 +5102,10 @@ function saveRoutine(id){
   const M=el("modalRoot"),title=el("rTitle").value.trim();
   if(!title){el("rTitle").focus();toast("Give the routine a name first");return;}
   const days=Array.prototype.map.call(M.querySelectorAll("#rDays button.on"),b=>Number(b.dataset.v));
-  const freq=M.dataset.freq==="interval"?"interval":"weekly";
+  const freq=M.dataset.freq==="interval"?"interval":M.dataset.freq==="monthly"?"monthly":"weekly";
   const data={title:title,cat:el("rCat").value,time:el("rTime").value||"09:00",dur:Math.max(5,Number(el("rDur").value)||30),
-    freq:freq,days:freq==="interval"?[]:days,every:Math.max(1,Number(el("rEvery").value)||2),
+    freq:freq,days:freq==="weekly"?days:[],every:Math.max(1,Number(el("rEvery").value)||2),
+    dom:Math.max(1,Math.min(31,Number(el("rDom").value)||1)),
     start:el("rStart").value||TODAY(),end:el("rEnd").value||"",active:el("rPaused")?!el("rPaused").checked:M.dataset.active!=="false",
     remind:(v=>v==="d"?null:v==="off"?false:Number(v))(el("rRemind").value)};
   if(freq==="weekly"&&!days.length){toast("Pick at least one day");return;}
@@ -5165,6 +5217,12 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const tid=n.dataset.tid,t=tid?taskById(tid):sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v,tid);break;}
     case "lg-toggle":V.lshut=V.lshut||{};V.lshut[n.dataset.v]=!V.lshut[n.dataset.v];renderView();break;
+    /* Which tasks have their steps showing is view state, not a setting:
+       you open one to see what is in it, you do not want it open tomorrow. */
+    case "lr-subs":V.lsubs=V.lsubs||{};V.lsubs[id]=!V.lsubs[id];renderView();break;
+    case "lsub-tick":{const t=taskById(id);if(!t)break;
+      const s=(t.subtasks||[]).find(x=>x.id===n.dataset.v);if(!s)break;
+      s.d=!s.d;save("tasks");render();if(V.sheet&&V.sheet.id===id)renderSheet();break;}
     /* The name is edited where it is: the caret lands where the click did,
        nothing is selected, and the panel stays shut. */
     case "lr-rename":{const b=n.getBoundingClientRect(),x=e.clientX-b.left;
@@ -5706,6 +5764,14 @@ document.addEventListener("change",function(e){
     return;
   }
   if(t.dataset&&t.dataset.act==="f"){V.f[t.dataset.k]=t.value;renderView();return;}
+  /* A day set on one step of a task, from the list. The picker writes its
+     hidden input and fires a real change from it, like every other one. */
+  if(t.dataset&&t.dataset.act==="lsub-date"){
+    const task=taskById(t.dataset.id);
+    const s=task&&(task.subtasks||[]).find(x=>x.id===t.dataset.v);
+    if(s){s.due=t.value||"";save("tasks");render();if(V.sheet&&V.sheet.id===task.id)renderSheet();}
+    return;
+  }
   if(t.dataset&&t.dataset.act==="set-accent-hex"){
     setCustomAccent(t.value);save("prefs");syncTimerWindow();render();panels();return;
   }
@@ -8548,12 +8614,23 @@ function taskEvent(t){
 function routineFirst(r){
   let d=parseD(r.start||TODAY());
   if(r.freq==="interval")return d;
+  /* Monthly: the first day on or after the start that is the chosen day of
+     its month -- at most two months away, since a month short of that day
+     uses its last. */
+  if(r.freq==="monthly"){for(let i=0;i<62;i++){if(d.getDate()===domIn(r.dom,d))return d;d=addDays(d,1);}return d;}
   for(let i=0;i<7;i++){if((r.days||[]).indexOf(d.getDay())>-1)return d;d=addDays(d,1);}
   return d;
 }
 function routineRule(r,timed){
   let rule;
   if(r.freq==="interval")rule="RRULE:FREQ=DAILY;INTERVAL="+Math.max(1,r.every||2);
+  else if(r.freq==="monthly"){
+    const n=Math.max(1,Math.min(31,r.dom||1));
+    /* Google skips a month that has no 31st rather than falling back to its
+       last day, so a day past the 28th is written as the last day of the
+       month -- which is what the planner means by it. */
+    rule="RRULE:FREQ=MONTHLY;BYMONTHDAY="+(n>28?"-1":n);
+  }
   else{const days=(r.days||[]).slice().sort();
     rule=days.length===7?"RRULE:FREQ=DAILY":"RRULE:FREQ=WEEKLY;BYDAY="+days.map(x=>BYDAY[x]).join(",");}
   if(r.end)rule+=";UNTIL="+r.end.replace(/-/g,"")+(timed?"T235959Z":"");
@@ -8604,7 +8681,9 @@ function applyRoutineEvent(r,ev){
   const rule=((ev.recurrence||[]).filter(x=>/^RRULE:/.test(x))[0]||"").slice(6);
   if(rule){
     const kv={};rule.split(";").forEach(p=>{const q=p.split("=");kv[q[0]]=q[1];});
-    if(kv.FREQ==="DAILY"&&Number(kv.INTERVAL)>1){r.freq="interval";r.every=Number(kv.INTERVAL);r.days=[];}
+    if(kv.FREQ==="MONTHLY"){const n=Number(kv.BYMONTHDAY);r.freq="monthly";r.days=[];
+      if(n===-1)r.dom=31;else if(n>=1&&n<=31)r.dom=n;}
+    else if(kv.FREQ==="DAILY"&&Number(kv.INTERVAL)>1){r.freq="interval";r.every=Number(kv.INTERVAL);r.days=[];}
     else if(kv.FREQ==="DAILY"){r.freq="weekly";r.days=[0,1,2,3,4,5,6];}
     else if(kv.FREQ==="WEEKLY"&&kv.BYDAY){
       const days=kv.BYDAY.split(",").map(x=>BYDAY.indexOf(x.replace(/^[-+\d]+/,""))).filter(x=>x>-1);
@@ -8630,7 +8709,7 @@ async function gcalSync(){
     if(g.pushTasks)S.tasks.forEach(t=>{
       if(t.due&&!t.parent&&t.status!=="dropped"&&(t.due>=floor||links[t.id]))want[t.id]={kind:"task",item:t,ev:taskEvent(t)};});
     if(g.pushRoutines)S.routines.forEach(r=>{
-      if(r.active&&(r.freq==="interval"||(r.days||[]).length))want[r.id]={kind:"routine",item:r,ev:routineEvent(r)};});
+      if(r.active&&(r.freq==="interval"||r.freq==="monthly"||(r.days||[]).length))want[r.id]={kind:"routine",item:r,ev:routineEvent(r)};});
 
     /* Linked, but no longer wanted: deleted here, undated, dropped, paused,
        or its kind switched off in Settings. The event goes. */
