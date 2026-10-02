@@ -849,7 +849,7 @@ function wsBarHtml(){
     ' data-hint="'+(all?"All workspaces":esc(w.name))+'"'+
     ' title="Switch workspace" aria-label="'+(all?"All workspaces":"Workspace: "+esc(w.name))+'. Switch workspace">'+
     '<span class="ws-ic'+(all?" all":"")+'"'+(all?"":' style="--c:'+w.color+'"')+'>'+icon(all?"i-grid":(w.icon||"i-grid"),"ic-14")+'</span>'+
-    '<span class="ws-t"><em>'+icon('i-ember','ws-fire')+'ember</em><b>'+(all?"All workspaces":esc(w.name))+'</b></span>'+
+    '<span class="ws-t"><b>'+(all?"All workspaces":esc(w.name))+'</b></span>'+
     icon("i-chev-d","ic-14")+'</button>';
 }
 /* Going to a workspace forgets what was filtered in the one before it: a
@@ -925,7 +925,8 @@ function renderRail(){
     (hid?'<button class="txt" data-act="cat-all" title="Show every category">Show all</button>':"");
   el("catList").innerHTML=cats().map(c=>{const off=!visibleCat(c.id);
     return '<button class="cat-row'+(off?" off":"")+'" style="--c:'+c.color+'" data-act="cat-toggle" data-id="'+c.id+'" data-hint="'+esc(c.name)+'" role="switch" aria-checked="'+(!off)+'" title="'+esc(off?"Show":"Hide")+' '+esc(c.name)+'">'+
-      '<span class="cat-box">'+icon("i-check")+'</span>'+icon(c.icon,"ic-14 ic-cat")+'<span class="cname">'+esc(c.name)+'</span></button>';}).join("");
+      icon(c.icon,"ic-cat")+'<span class="cname">'+esc(c.name)+'</span>'+
+      '<span class="cat-box">'+icon("i-check")+'</span></button>';}).join("");
 }
 function topSearch(ph){
   return '<div class="search">'+icon("i-search")+'<input id="q" type="search" placeholder="'+esc(ph)+'" value="'+esc(V.q)+'" aria-label="Search"></div>';
@@ -6328,7 +6329,7 @@ const TIP_TOURS=[
     {sel:".dash-scratch [data-act=\"scratch-task\"]",title:"A scratch pad",
       text:()=>"Jot anything down here. Turn a line into a task, or save the lot as a note."},
     {sel:"#railHead [data-act=\"manage-cats\"]",title:"Your categories",
-      text:()=>"Rename them, change their colors and icons, or add your own. Click a box to hide a category everywhere."},
+      text:()=>"Rename them, change their colors and icons, or add your own. Click a row to hide a category everywhere."},
     {sel:".me",title:"Settings",
       text:()=>"Your account, backups, reminders and how the planner looks are all in here."},
     {sel:"#railMini",title:"More room to work",

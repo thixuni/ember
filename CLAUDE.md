@@ -592,13 +592,50 @@ its own categories, and categories were the thing that most needed it.
 - **The sidebar is two bands**, set off by a hairline: which app and
   workspace, then everything that belongs to the workspace. It was
   one run of rows in three sizes with nothing between them, which is what
-  made the top look unsettled. **Every glyph in it starts at the same
-  22px** -- the mark, the workspace tile, the nav icons, the Categories
-  heading and the category boxes each used to work that out from their own
-  padding and landed at 16, 20 and 22, three ragged columns rather than one
-  edge. The pencil sits against the word it belongs to and
-  **Show all** goes to the far end: the heading used to stretch across the
-  sidebar with the pencil stranded at the opposite edge from what it edits.
+  made the top look unsettled. The pencil sits against the word it belongs
+  to and **Show all** goes to the far end: the heading used to stretch
+  across the sidebar with the pencil stranded at the opposite edge from
+  what it edits.
+- **The whole sidebar is laid out on one grid, and nothing in it works its
+  own columns out from its own padding.** Four variables on `.rail`:
+
+  | | | |
+  |---|---|---|
+  | `--rail-edge` | where a row starts | 12px |
+  | `--rail-in` | a row's own left padding | 10px |
+  | `--rail-lead` | the slot the leading mark sits in | 24px (22 → 46) |
+  | `--rail-gap` | between that slot and the words | 10px (words at 56) |
+
+  Every row -- the brand, the workspace, a nav item, a category, the
+  footer -- uses them, so there is **one glyph column and one label
+  column**. It took three goes to get here: the marks landed at 16, 20 and
+  22, then at 22, 27 and 46 (a nav icon, the glyph inside the workspace
+  tile, a category's icon) with labels at 50, 55 and 69. **A mark is
+  centred in the slot rather than flush to its left**, because the marks
+  are different sizes -- an 18px nav icon, a 24px workspace tile, a 16px
+  category glyph, a 26px avatar -- and it is their centres the eye lines
+  up, not their boxes. A circle gets a touch of overhang (26 in the 24px
+  slot) to look level with the squares above it. Measured: every mark
+  centres on 34, every label starts at 56, every row at 12. A stray
+  `border:1px solid transparent` on the workspace button was enough to put
+  that one row 1px out.
+- **The brand is a slim line of its own** above the workspace
+  (`.rail-brand`): the flame, then `ember` in the wordmark face, quiet and
+  small -- it is the one thing up here nobody needs to read. It was tucked
+  into an eyebrow over the workspace name, sharing its text column, which
+  read as a two-line label for the workspace rather than as the name of the
+  app. Three shapes came before that: a 32px tile beside `ember` over
+  `PERSONAL PLANNER` (a lot of sidebar spent saying which app you have
+  open), a filled mark the same size as the workspace tile beside it (two
+  badges reading as two logos), and a bare flame stranded two elements away
+  from its own word.
+- **A category row is the icon, the name, then the switch at the far end.**
+  It was the switch, the icon and then the name -- two marks before a word,
+  which put the category names in a column of their own 13px right of every
+  other label in the sidebar. The icon leads now, as it does in the folded
+  rail and in every menu, and the box that turns it on and off sits where a
+  switch sits. Folded, the switch goes with the words it needs and the icon
+  is the whole control.
 - **The workspace menu reads widest first**: All workspaces, then the
   workspaces one at a time, then New workspace and Manage -- those two a
   size down and in the quieter grey (`sub` on a `ctxMenu` item), because

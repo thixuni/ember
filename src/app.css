@@ -263,7 +263,31 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 
 /* ---------- shell ---------- */
 .app{height:100dvh;display:grid;grid-template-columns:252px minmax(0,1fr);background:var(--ground)}
-.rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+/* ---------- the sidebar's one grid ----------
+   Every row in the sidebar -- the brand, the workspace, a nav item, a
+   category, the footer -- is laid out on the same two columns, and nothing
+   is allowed to work its own out from its own padding.
+
+     --rail-edge   where a row starts            12px
+     --rail-in     a row's own left padding      10px
+     --rail-lead   the slot the leading mark     24px   (so 22 -> 46)
+                   sits in, whatever its size
+     --rail-gap    between that slot and words   10px   (so words at 56)
+
+   Three glyph columns (22 for a nav icon, 27 for the glyph inside the
+   workspace tile, 46 for a category's icon) and three label columns (50,
+   55 and 69) is what made the top of the sidebar look unsettled. A mark is
+   centred in the slot rather than flush to it, because the marks are
+   different sizes -- an 18px icon, a 24px tile, a 16px category glyph --
+   and it is their centres the eye lines up, not their boxes. */
+.rail{background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;
+  --rail-edge:12px;--rail-in:10px;--rail-lead:24px;--rail-gap:10px}
+/* A leading mark fills the slot however big it is. */
+.rail-brand .rb-fire,.nav-btn > .ic,.cat-row > .ic-cat,.ws-ic,.me-av{
+  flex:none;box-sizing:content-box}
+.rail-brand .rb-fire{width:16px;height:16px;margin:0 4px}
+.nav-btn > .ic{width:18px;height:18px;margin:0 3px}
+.cat-row > .ic-cat{width:16px;height:16px;margin:0 4px}
 /* Three bands, each set off by a hairline: which app, which workspace,
    then everything that belongs to the workspace. It was one run of rows in
    three sizes with nothing between them, which is what made the top look
@@ -274,29 +298,30 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
    boxes each used to work it out from their own padding and landed at 16,
    20 and 22, which reads as three ragged columns rather than one edge. */
 /* One band at the top: the mark, then the workspace. */
-.rail-top{display:flex;align-items:center;gap:7px;padding:10px 12px 10px 14px;flex:none;
-  border-bottom:1px solid var(--line)}
+/* Two rows: the brand, then the workspace it belongs to. The brand line is
+   slim and quiet -- it is the one thing up here nobody needs to read -- and
+   the workspace is a full row like the ones below it. They were one row
+   with "ember" tucked above the workspace name, which read as a two-line
+   label for the workspace rather than as the name of the app. */
+.rail-top{display:flex;flex-direction:column;align-items:stretch;gap:2px;
+  padding:9px var(--rail-edge) 9px;flex:none;border-bottom:1px solid var(--line)}
+.rail-brand{display:flex;align-items:center;gap:var(--rail-gap);
+  padding:2px var(--rail-in) 3px;color:var(--faint)}
+.rail-brand .rb-fire{color:var(--accent)}
+.rail-brand .wordmark{font-family:var(--fw);font-size:12px;font-weight:700;letter-spacing:.01em;
+  text-transform:lowercase;line-height:1}
 /* The mark is not a tile here. It was a filled rounded square the same size
    as the workspace tile sitting right beside it, and two badges in a row
    read as two logos -- you had to look twice to find which one was yours.
    A tile in this sidebar means something you can press: the workspace tile
    opens the switcher, the mark does nothing. So the mark is the bare flame
    in the accent, and the only tile in the row is the one that is a control. */
-/* The flame sits in front of the word it belongs to, inside the eyebrow
-   over the workspace name, which leaves the workspace tile as the first
-   thing on the row and hard against the sidebars own left edge. It was a
-   mark of its own out at the left with the word ember two elements away
-   from it, so the lockup read as a loose glyph beside a badge. */
-.rail-top .brand-mark{display:none}
-.rail-mini .rail-top .brand-mark{display:grid;width:auto;height:auto;border-radius:0;
-  background:none;color:var(--accent)}
-.rail-mini .rail-top .brand-mark .ic{width:19px;height:19px}
-.ws-fire{width:12px;height:12px;flex:none;color:var(--accent);vertical-align:-1px;margin-right:4px}
+
 .brand-mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(150deg,var(--accent),var(--accent-lift));color:var(--on-accent);display:grid;place-items:center;flex:none}
 .brand-mark .ic{width:15px;height:15px;stroke-width:2}
-.rail-scroll{flex:1;overflow-y:auto;padding:10px 12px 16px;min-height:0}
+.rail-scroll{flex:1;overflow-y:auto;padding:10px var(--rail-edge) 16px;min-height:0}
 .nav{display:flex;flex-direction:column;gap:2px;margin-bottom:18px}
-.nav-btn{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-s);color:var(--ink-2);font-weight:500;text-align:left;width:100%;transition:background .15s,color .15s}
+.nav-btn{display:flex;align-items:center;gap:var(--rail-gap);padding:8px var(--rail-in);border-radius:var(--r-s);color:var(--ink-2);font-weight:500;text-align:left;width:100%;transition:background .15s,color .15s}
 .nav-btn:hover{background:var(--surface-3)}
 .nav-btn[aria-current="true"]{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
 /* Something is late. Filled in the danger colour so it is the one thing in
@@ -305,7 +330,7 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .nav-alert{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:20px;display:inline-grid;place-items:center;
   background:var(--danger);color:var(--on-accent);font-size:11px;font-weight:700;
   box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%,transparent)}
-.rail-head{display:flex;align-items:center;gap:3px;padding:0 10px 8px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.rail-head{display:flex;align-items:center;gap:3px;padding:0 var(--rail-in) 8px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
 .rail-head .rh-t{min-width:0;overflow:hidden;white-space:nowrap}
 .rail-head .grow{flex:1;min-width:0}
 .rail-head button{color:var(--faint);display:grid;place-items:center;width:20px;height:20px;border-radius:6px}
@@ -313,25 +338,27 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 .rail-head button.txt{width:auto;padding:0 6px;height:19px;font-size:10px;letter-spacing:.05em;border:1px solid var(--line)}
 .rail-head button.txt:hover{border-color:var(--line-2)}
 .rail-head button > *{pointer-events:none}
-.cat-row{display:flex;align-items:center;gap:9px;padding:5px 10px;border-radius:var(--r-s);width:100%;text-align:left;color:var(--ink-2)}
+.cat-row{display:flex;align-items:center;gap:var(--rail-gap);padding:6px var(--rail-in);border-radius:var(--r-s);width:100%;text-align:left;color:var(--ink-2)}
 .cat-row > *{pointer-events:none}
 .cat-row{-webkit-touch-callout:none;user-select:none}
 body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
 .cat-row:hover{background:var(--surface-3)}
 .cat-row.off{color:var(--faint)}
-.cat-box{width:15px;height:15px;border-radius:5px;flex:none;display:grid;place-items:center;border:1.6px solid var(--c);background:var(--c);transition:background .15s}
+.cat-box{width:15px;height:15px;border-radius:5px;flex:none;margin-left:auto;display:grid;place-items:center;border:1.6px solid var(--c);background:var(--c);transition:background .15s}
 .cat-row.off .cat-box{background:transparent}
 .cat-box .ic{width:11px;height:11px;stroke:var(--on-accent);stroke-width:2.6;opacity:1}
 .cat-row.off .cat-box .ic{opacity:0}
-.cat-row .cname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:500}
+.cat-row .cname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:500}
 .cat-row .ic-cat{color:var(--c)}
 .cat-row.off .ic-cat{color:var(--faint)}
-.rail-foot{border-top:1px solid var(--line);padding:8px}
-.me{width:100%;display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:10px;text-align:left;color:var(--ink)}
+.rail-foot{border-top:1px solid var(--line);padding:8px var(--rail-edge)}
+.me{width:100%;display:flex;align-items:center;gap:var(--rail-gap);padding:7px var(--rail-in);border-radius:10px;text-align:left;color:var(--ink)}
 .me > *{pointer-events:none}
 .me:hover{background:var(--surface-3)}
 .me:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.me-av{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--accent-soft);color:var(--accent-ink)}
+/* A circle needs a touch of overhang to look level with the squares above
+   it, so it is 26 in the 24px slot rather than 24. */
+.me-av{width:26px;height:26px;flex:none;margin:0 -1px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--accent-soft);color:var(--accent-ink)}
 .me-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .me-txt b{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .me-gear{flex:none;color:var(--muted)}
@@ -3173,27 +3200,32 @@ body.rail-mini .rail-head{justify-content:center}
    of plain rows -- three different treatments stacked in 200px, and the box
    read as something to fill in rather than the name of where you are. It is
    the sidebar's heading now: the tile, the name, a chevron, and a hover. */
-.ws-btn{display:flex;align-items:center;gap:9px;width:100%;padding:5px 7px;border-radius:var(--r-s);
-  border:1px solid transparent;background:none;text-align:left;cursor:pointer;
+.ws-btn{display:flex;align-items:center;gap:var(--rail-gap);width:100%;
+  padding:6px var(--rail-in);border-radius:var(--r-s);
+  border:0;background:none;text-align:left;cursor:pointer;
   transition:background .12s}
 .ws-btn:hover{background:var(--surface-3)}
 .ws-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ws-btn > *{pointer-events:none}
-.ws-ic{width:24px;height:24px;flex:none;border-radius:7px;display:grid;place-items:center;
+.ws-ic{width:var(--rail-lead);height:var(--rail-lead);border-radius:7px;display:grid;place-items:center;
   background:color-mix(in srgb,var(--c) 16%,var(--tint-base));color:var(--c)}
 .ws-ic.all{--c:var(--muted);background:var(--surface-3)}
 .ws-t{flex:1;min-width:0}
-.ws-t em{display:flex;align-items:center;font-family:var(--fw);font-size:10px;font-style:normal;font-weight:700;
-  letter-spacing:.02em;text-transform:lowercase;color:var(--faint);line-height:1.2}
-.ws-t b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--ink);line-height:1.25;
+
+.ws-t b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--ink);line-height:1.3;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ws-btn > .ic{flex:none;color:var(--faint)}
 /* Folded to its icons, the tile is the whole control. */
 /* Folded, the two stack and each keeps to the middle. */
-.rail-mini .rail-top{flex-direction:column;gap:8px;padding:10px 0}
+.rail-mini .rail-top{gap:6px;padding:10px 0}
+.rail-mini .rail-brand{justify-content:center;padding:0}
+.rail-mini .rail-brand .wordmark{display:none}
 .rail-mini .ws-bar{display:flex;justify-content:center;width:100%}
 .rail-mini .ws-btn{width:38px;padding:5px;justify-content:center}
 .rail-mini .ws-t,.rail-mini .ws-btn > .ic{display:none}
+/* Folded, a category is its own icon and nothing else -- the switch goes
+   with the words it needs. */
+.rail-mini .cat-row .cat-box{display:none}
 .bd-dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--s)}
 /* Where a search comes up empty here but not everywhere. */
 .bd-else{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 10px;padding:9px 12px;
