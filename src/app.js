@@ -158,7 +158,7 @@ const inWs=x=>wsAll()||spaceOf(x).id===curSpace().id;
    all of them still has to draw its own. */
 const cats=()=>wsAll()?S.categories:S.categories.filter(c=>spaceOf(c).id===curSpace().id);
 const catsOf=wid=>S.categories.filter(c=>spaceOf(c).id===wid);
-const cat0=()=>cats()[0]||S.categories[0]||{id:"",name:"Uncategorised",icon:"i-circle",color:"#7A8A80"};
+const cat0=wid=>(wid?catsOf(wid):cats())[0]||S.categories[0]||{id:"",name:"Uncategorised",icon:"i-circle",color:"#7A8A80"};
 /* A category belongs to one workspace, so a task carried to another needs
    one of that workspace's: the one called the same thing where there is
    one, else its Other, else its first. */
@@ -791,22 +791,36 @@ function renderMe(){
 }
 /* The sidebar can be folded to its icons, and stays as it was left.
    Open is the default. Below 1080px the width decides, not the button. */
+/* One thing decides whether the sidebar is folded, and it is this class.
+   Between 821 and 1080 the width folds it whatever the person chose, and
+   that used to be done by a media query of its own that reached a few of
+   the rules and not the rest: the workspace name squeezed to "Pers..."
+   instead of collapsing to its tile, the Categories pencil was left
+   stranded with nothing beside it, and the hover labels -- which only
+   fire on body.rail-mini -- never came at all. Below 821 the sidebar is a
+   drawer at full width, so it is not folded there. */
+const RAIL_BAND=()=>innerWidth<=1080&&innerWidth>=821;
 function applyRail(){
-  const mini=!!S.prefs.railMini;document.body.classList.toggle("rail-mini",mini);
+  const mini=!!S.prefs.railMini||RAIL_BAND();document.body.classList.toggle("rail-mini",mini);
   const b=el("railMini");if(b){const l=mini?"Expand the sidebar":"Collapse the sidebar";b.setAttribute("aria-label",l);b.title=l;b.setAttribute("aria-expanded",String(!mini));}
 }
+addEventListener("resize",applyRail);
 /* Across all of them there is no workspace to put a new thing in, so
    anything being made asks which one it is for -- once, in front of the
    thing it is making, rather than as a field on every form that would be
    answered already every other time. In a workspace it never asks. */
 const WSQ={run:null};
-function askSpace(what,run){
-  if(!wsAll()){run(curSpace().id);return;}
+function askSpace(what,run,always){
+  /* The dashboard is across every workspace whatever the sidebar says, so
+     what it makes has no workspace to fall into: it asked nothing and put
+     the task wherever the sidebar happened to be pointing. Pass always to
+     make it ask there too. One workspace is still no question. */
+  if(!(wsAll()||(always&&spaces().length>1))){run(curSpace().id);return;}
   WSQ.run=run;
   openModal('<div class="modal narrow" role="dialog" aria-modal="true" aria-label="Choose a workspace">'+
     '<div class="mhead2">'+icon("i-grid","ic-18")+'<h2>Which workspace?</h2>'+
     '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
-    '<div class="mbody"><p class="cz-lead">You are looking across all of them, so '+esc(what)+' needs a home.</p>'+
+    '<div class="mbody"><p class="cz-lead">'+(wsAll()?'You are looking across all of them, so ':'The dashboard shows every workspace, so ')+esc(what)+' needs a home.</p>'+
     '<div class="wspick">'+spaces().map(w=>'<button class="wspick-b" data-act="ws-pick" data-id="'+w.id+'" style="--s:'+w.color+'">'+
       '<span class="wsrow-ic">'+icon(w.icon||"i-grid","ic-14")+'</span><b>'+esc(w.name)+'</b>'+icon("i-chev-r","ic-14")+'</button>').join("")+
     '</div></div></div>',{focus:false});
@@ -827,7 +841,7 @@ function wsBarHtml(){
     ' data-hint="'+(all?"All workspaces":esc(w.name))+'"'+
     ' title="Switch workspace" aria-label="'+(all?"All workspaces":"Workspace: "+esc(w.name))+'. Switch workspace">'+
     '<span class="ws-ic'+(all?" all":"")+'"'+(all?"":' style="--c:'+w.color+'"')+'>'+icon(all?"i-grid":(w.icon||"i-grid"),"ic-14")+'</span>'+
-    '<span class="ws-t"><em>ember</em><b>'+(all?"All workspaces":esc(w.name))+'</b></span>'+
+    '<span class="ws-t"><em>'+icon('i-ember','ws-fire')+'ember</em><b>'+(all?"All workspaces":esc(w.name))+'</b></span>'+
     icon("i-chev-d","ic-14")+'</button>';
 }
 /* Going to a workspace forgets what was filtered in the one before it: a
@@ -1821,7 +1835,7 @@ function viewDashboard(){
      and the add box pinned above. A long schedule used to push everything
      under it -- the whole of Needs your attention among it -- off the foot
      of the page, because Today and that card shared one scrolling column. */
-  const todayCard='<section class="dcard fill dash-today">'+dashHead("i-sun","Today","blue",
+  const todayCard='<section class="dcard fill dash-today">'+dashHead("i-sun","Today","",
       '<small>'+openT+' to do · '+leftR+' in your schedule</small>')+quick+
     '<div class="dcard-body">'+
     dashGroup("To do",openT,d.tasks.map(taskRow).join(""),es("list","Today’s list is clear","Add something above, or enjoy the breathing room.",{mini:1,hue:"var(--blue)"}))+
@@ -1857,7 +1871,7 @@ function viewDashboard(){
     '</div></section>';
 
   /* ---- scratch pad ---- */
-  const scratch='<section class="dcard fill dash-scratch">'+dashHead("i-edit","Scratch pad","violet",'<small>Saves as you type</small>')+
+  const scratch='<section class="dcard fill dash-scratch">'+dashHead("i-edit","Scratch pad","",'<small>Saves as you type</small>')+
     '<div class="rte-bar">'+["bold|B","italic|I","insertUnorderedList|•"].map(x=>{const q=x.split("|");
       return '<button data-act="rte" data-cmd="'+q[0]+'" data-scratch="1" aria-label="'+q[0]+'">'+q[1]+'</button>';}).join("")+
       '<span class="spacer" style="flex:1"></span>'+
@@ -2005,7 +2019,7 @@ function trackedToday(){
 const totalMins=secs=>{const m=Math.floor(secs/60);return m?fmtMins(m):"0m";};
 function timeTodayCard(){
   const d=trackedToday(),max=d.rows.length?d.rows[0].secs:0,r=running();
-  return '<section class="dcard dash-time">'+dashHead("i-timer","Time today","teal",
+  return '<section class="dcard dash-time">'+dashHead("i-timer","Time today","",
       '<span class="dtotal num" id="dashTotal">'+esc(totalMins(d.total))+'</span>')+
     (d.rows.length?'<div class="dtime">'+d.rows.map(x=>{const c=cat(x.t.cat),live=r&&r.task===x.t.id;
       return '<button class="dtrow" data-act="task" data-id="'+x.t.id+'" style="--c:'+c.color+'">'+
@@ -2051,8 +2065,15 @@ function scratchToTask(){
   const p=scratchPick();
   const lines=p?p.text.split(/\n+/).map(x=>x.replace(/^\s*[•\-*]\s*/,"").trim()).filter(Boolean):[];
   if(!lines.length){toast("Select some text in the scratch pad, or click into a line");return;}
+  /* The pad is on the dashboard, which is across every workspace, so a
+     line taken out of it has no workspace of its own to fall into. It used
+     to land in whichever one the sidebar happened to be pointing at --
+     invisible from here, and wrong as often as not. */
+  askSpace(lines.length===1?"that task":"those tasks",ws=>scratchTaskIn(p,lines,ws),true);
+}
+function scratchTaskIn(p,lines,ws){
   const made=lines.map(line=>{
-    const t={id:uid("t"),title:line.slice(0,200),desc:"",due:"",start:"",cat:cat0().id,ws:curSpace().id,status:firstOpen(),
+    const t={id:uid("t"),title:line.slice(0,200),desc:"",due:"",start:"",cat:cat0(ws).id,ws:ws,status:firstOpen(ws),
       urgent:null,important:null,est:0,tags:[],links:[],subtasks:[],attachments:[],created:TODAY(),completedAt:null};
     S.tasks.push(t);logAct(t.id,"created","Created from the scratch pad");return t;});
   p.remove();scratchCommit();save("tasks");
@@ -2072,8 +2093,11 @@ function scratchToNote(){
   const p=scratchAll();
   const text=p?p.text.trim():"";
   if(!text){toast("Write something in the scratch pad first");return;}
+  askSpace("that note",ws=>scratchNoteIn(p,text,ws),true);
+}
+function scratchNoteIn(p,text,ws){
   const title=text.split(/\n/)[0].replace(/^\s*[•\-*]\s*/,"").trim().slice(0,80);
-  const nn={id:uid("n"),ws:curSpace().id,title:title,cat:cat0().id,tags:[],pinned:false,html:p.html,actions:[],updated:Date.now()};
+  const nn={id:uid("n"),ws:ws,title:title,cat:cat0(ws).id,tags:[],pinned:false,html:p.html,actions:[],updated:Date.now()};
   S.notes.unshift(nn);p.remove();scratchCommit();save("notes");render();
   toast("Saved to Notes as “"+title+"”");
 }
@@ -4862,7 +4886,18 @@ function putScroll(root,marks){
     if(k===":root")n=root;
     else if(k[0]==="#")n=root.querySelector(k);
     else if(at>0)n=root.querySelectorAll(k.slice(0,at))[Number(k.slice(at+1))];
-    if(n){n.scrollTop=m[1];n.scrollLeft=m[2];}
+    if(n){
+      n.scrollTop=m[1];n.scrollLeft=m[2];
+      /* The box we just put back IS a scrolled box, so it joins the set in
+         its own right. SCROLLED holds nodes, and a redraw replaces every
+         node in the viewport -- so without this a position survived exactly
+         one redraw (the one straight after you scrolled) and was lost on
+         every redraw after it. Scroll a board lane, change one card's
+         category and it held; change a second card's and the lane jumped to
+         the top, as did anything else that redrew in the meantime: the
+         minute tick on the calendar, a sync landing, reminders rebuilding. */
+      if(n.scrollTop||n.scrollLeft)SCROLLED.add(n);
+    }
   });
 }
 /* The button that was pressed is redrawn too; give the keyboard back to its

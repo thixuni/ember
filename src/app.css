@@ -282,9 +282,16 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
    A tile in this sidebar means something you can press: the workspace tile
    opens the switcher, the mark does nothing. So the mark is the bare flame
    in the accent, and the only tile in the row is the one that is a control. */
-.rail-top .brand-mark{width:auto;height:auto;border-radius:0;background:none;
-  color:var(--accent)}
-.rail-top .brand-mark .ic{width:19px;height:19px}
+/* The flame sits in front of the word it belongs to, inside the eyebrow
+   over the workspace name, which leaves the workspace tile as the first
+   thing on the row and hard against the sidebars own left edge. It was a
+   mark of its own out at the left with the word ember two elements away
+   from it, so the lockup read as a loose glyph beside a badge. */
+.rail-top .brand-mark{display:none}
+.rail-mini .rail-top .brand-mark{display:grid;width:auto;height:auto;border-radius:0;
+  background:none;color:var(--accent)}
+.rail-mini .rail-top .brand-mark .ic{width:19px;height:19px}
+.ws-fire{width:12px;height:12px;flex:none;color:var(--accent);vertical-align:-1px;margin-right:4px}
 .brand-mark{width:26px;height:26px;border-radius:8px;background:linear-gradient(150deg,var(--accent),var(--accent-lift));color:var(--on-accent);display:grid;place-items:center;flex:none}
 .brand-mark .ic{width:15px;height:15px;stroke-width:2}
 .rail-scroll{flex:1;overflow-y:auto;padding:10px 12px 16px;min-height:0}
@@ -1968,28 +1975,30 @@ button.obx-rt-txt > *{pointer-events:none}
    the band out to the card's edge; the padding puts the words back where
    the group's own padding had them. */
 .dcard-body .dgroup h3{position:sticky;top:0;z-index:2;background:var(--surface);margin:0 -8px;padding:8px 16px 6px}
-/* Each card is keyed to a colour, so the page has a rhythm rather than
-   four identical grey boxes: the badge, a wash behind the heading and the
-   rule under it all come off the one --tone. */
-.dcard-h{--tone:var(--accent);--wash:9%;display:flex;align-items:center;gap:10px;padding:14px 16px 10px;
+/* Every card is keyed to the accent, so the whole page follows the colour
+   the person picked: the badge, a wash behind the heading and the rule
+   under it all come off the one --tone, and the cards are told apart by
+   how heavy the wash is rather than by hue. Five different hues came
+   first and were asked for; they were then asked to follow the accent
+   instead, which is what a person means by "my colour". --tone-ink is the
+   same accent as text or as a glyph: --accent on its own tint is the one
+   thing the accent rules forbid. */
+.dcard-h{--tone:var(--accent);--tone-ink:var(--accent-ink);--wash:9%;display:flex;align-items:center;gap:10px;padding:14px 16px 10px;
   border-radius:var(--r-l) var(--r-l) 0 0;
   background:linear-gradient(to bottom,color-mix(in srgb,var(--tone) var(--wash),var(--surface)),var(--surface));
   box-shadow:inset 0 -1px 0 color-mix(in srgb,var(--tone) 16%,transparent)}
-/* A stronger wash on the one card that is about something being wrong, so
-   it reads as red rather than as one more warm tint. */
-.dcard-h.warn{--wash:15%}
+/* A heavier wash on the one card that is about something being wrong. It
+   is the same hue as the rest now, so depth is all it has to stand out
+   with -- which is why this is 17% and not the 15% it was when it also
+   had red to itself. */
+.dcard-h.warn{--wash:17%}
 .dcard-h h2{font-family:var(--fd);font-size:16px;font-weight:600;letter-spacing:-.01em}
 .dcard-h small{margin-left:auto;font-size:11.5px;color:var(--faint)}
-.dcard-h.warn{--tone:var(--danger)}
-.dcard-h.blue{--tone:var(--blue)}
-.dcard-h.note{--tone:var(--amber)}
-.dcard-h.teal{--tone:var(--teal)}
-.dcard-h.violet{--tone:var(--violet)}
 /* The badge is a light wash so the glyph on it clears 3:1 -- an icon is a
    graphical object and has to be seen, and at 18% the amber one measured
    2.7 against its own tile. */
 .dch-ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none;
-  background:color-mix(in srgb,var(--tone) 11%,var(--surface));color:var(--tone)}
+  background:color-mix(in srgb,var(--tone) 11%,var(--surface));color:var(--tone-ink,var(--tone))}
 /* The one card on the page that is about something being wrong says so from
    across the room, and goes quiet again the moment there is nothing in it. */
 /* Something to see to: the card is ringed in the danger colour so it is
@@ -1997,9 +2006,7 @@ button.obx-rt-txt > *{pointer-events:none}
    moment there is nothing in it. Its empty state is a row at the top like
    every other empty state -- centred in a tall column it floated in the
    middle of nowhere. */
-.dash-attn:not(.clear){border-color:color-mix(in srgb,var(--danger) 34%,var(--line))}
-.dch-ic.blue{--tone:var(--blue)}
-.dch-ic.note{--tone:var(--amber)}
+.dash-attn:not(.clear){border-color:color-mix(in srgb,var(--accent) 42%,var(--line))}
 .dgroup{padding:6px 8px 10px}
 .dgroup + .dgroup{border-top:1px solid var(--line-soft);padding-top:12px}
 .dgroup h3{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--faint);
@@ -2857,15 +2864,9 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .rail-scrim{display:none;position:fixed;inset:0;background:var(--scrim);z-index:39;border:0}
 
 /* Tablet: the rail collapses to icons, the matrix stacks. */
+/* The sidebar folds itself here through body.rail-mini (applyRail), so all
+   that is left for this band is what the narrow *view* needs. */
 @media (max-width:1080px) and (min-width:821px){
-  /* Icons only: the alert pins to the corner of the icon. */
-  .nav-btn{position:relative}
-  .nav-alert{position:absolute;top:2px;right:4px;margin:0;min-width:17px;height:17px;padding:0 4px;font-size:10px}
-  .app{grid-template-columns:70px minmax(0,1fr)}
-  .brand-name,.brand-sub,.nav-btn span,.cat-row .cname,.rail-head span,.me-txt,.me-gear{display:none}
-  .me{justify-content:center;padding:7px 0}
-  .nav-btn{justify-content:center}
-  .cat-row{justify-content:center}
   .mx{grid-template-columns:minmax(0,1fr)}
   .notes{grid-template-columns:200px minmax(0,1fr)}
 }
@@ -3033,16 +3034,13 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .rail-mini-btn:hover{color:var(--ink);border-color:var(--line-2)}
 body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 @media (max-width:1080px){.rail-mini-btn{display:none}}
-@media (min-width:1081px){
-  body.rail-mini .app{grid-template-columns:70px minmax(0,1fr)}
-  body.rail-mini .nav-btn{position:relative;justify-content:center}
-  body.rail-mini .nav-alert{position:absolute;top:2px;right:4px;margin:0;min-width:17px;height:17px;padding:0 4px;font-size:10px}
-  body.rail-mini :is(.nav-btn span,.cat-row .cname,.rail-head span,.rail-head .txt,.me-txt,.me-gear){display:none}
-
-  body.rail-mini .me{justify-content:center;padding:7px 0}
-  body.rail-mini .cat-row{justify-content:center}
-  body.rail-mini .rail-head{justify-content:center}
-}
+body.rail-mini .app{grid-template-columns:70px minmax(0,1fr)}
+body.rail-mini .nav-btn{position:relative;justify-content:center}
+body.rail-mini .nav-alert{position:absolute;top:2px;right:4px;margin:0;min-width:17px;height:17px;padding:0 4px;font-size:10px}
+body.rail-mini :is(.nav-btn span,.cat-row .cname,.rail-head span,.rail-head .txt,.me-txt,.me-gear){display:none}
+body.rail-mini .me{justify-content:center;padding:7px 0}
+body.rail-mini .cat-row{justify-content:center}
+body.rail-mini .rail-head{justify-content:center}
 @media (prefers-reduced-motion:no-preference){.app{transition:grid-template-columns .2s ease}}
 
 /* ---------- guided tips ---------- */
@@ -3181,7 +3179,7 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
   background:color-mix(in srgb,var(--c) 16%,var(--tint-base));color:var(--c)}
 .ws-ic.all{--c:var(--muted);background:var(--surface-3)}
 .ws-t{flex:1;min-width:0}
-.ws-t em{display:block;font-family:var(--fw);font-size:10px;font-style:normal;font-weight:700;
+.ws-t em{display:flex;align-items:center;font-family:var(--fw);font-size:10px;font-style:normal;font-weight:700;
   letter-spacing:.02em;text-transform:lowercase;color:var(--faint);line-height:1.2}
 .ws-t b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--ink);line-height:1.25;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -3256,15 +3254,13 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
    shown, faint while it is not, with its name on the hover. The heading
    goes with the words it was made of -- editing categories is a thing you
    do with the sidebar open. */
-@media (min-width:1081px){
-  body.rail-mini .rail-head{display:none}
-  body.rail-mini #catList{padding-top:10px;border-top:1px solid var(--line);margin-top:4px;
-    display:flex;flex-direction:column;align-items:center;gap:2px}
-  body.rail-mini .cat-row{width:38px;height:34px;padding:0;justify-content:center;border-radius:var(--r-s)}
-  body.rail-mini .cat-box{display:none}
-  body.rail-mini .cat-row .ic-cat{width:17px;height:17px}
-  body.rail-mini .cat-row.off .ic-cat{opacity:.4}
-}
+body.rail-mini .rail-head{display:none}
+body.rail-mini #catList{padding-top:10px;border-top:1px solid var(--line);margin-top:4px;
+  display:flex;flex-direction:column;align-items:center;gap:2px}
+body.rail-mini .cat-row{width:38px;height:34px;padding:0;justify-content:center;border-radius:var(--r-s)}
+body.rail-mini .cat-box{display:none}
+body.rail-mini .cat-row .ic-cat{width:17px;height:17px}
+body.rail-mini .cat-row.off .ic-cat{opacity:.4}
 
 /* A menu's housekeeping, under the things it is about: the same rows, a
    size down and in the quieter grey, so the workspaces read first. */
@@ -3293,14 +3289,10 @@ body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
 /* The dashboard is the page you open on, so it is allowed some warmth: a
    card is keyed to a colour at its head, and a row lights in that colour
    when the pointer is on it rather than going the same flat grey. */
-/* Five sections, five colours: the welcome panel is the accent, Today is
-   blue, what needs seeing to is the danger colour, the scratch pad amber
-   and the time tracked teal. A row lights to its own card's colour. */
+/* Every section is the accent, so a row lights to the accent wherever it
+   is. The overdue stamps inside the attention card keep the danger colour:
+   those are words about something being late, not chrome. */
 .dcard-body{--tone:var(--accent)}
-.dash-today .dcard-body{--tone:var(--blue)}
-.dash-attn .dcard-body{--tone:var(--danger)}
-.dash-scratch .dcard-body{--tone:var(--violet)}
-.dash-time .dcard-body{--tone:var(--teal)}
 .drow:hover{background:color-mix(in srgb,var(--tone) 7%,var(--surface))}
 .dag-row:hover{background:color-mix(in srgb,var(--c) 8%,var(--surface))}
 .dcard .es{padding:14px 8px}
