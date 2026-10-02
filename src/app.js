@@ -5044,12 +5044,24 @@ function moveTaskWs(id,bid){
    so it is only the category that has to be found again. */
 function moveThingWs(kind,id,wid){
   const b=spaceById(wid);if(!b)return null;
-  const x=kind==="routine"?routineById(id):noteById(id);
+  const x=kind==="routine"?routineById(id):kind==="note"?noteById(id):awayList().find(a=>a.id===id);
   if(!x||x.ws===wid)return null;
   const was=spaceOf(x).name;
-  x.ws=wid;x.cat=catFor(x.cat,wid);
-  save(kind==="routine"?"routines":"notes");render();
+  x.ws=wid;
+  /* Unavailable time has no category, so there is nothing to find again. */
+  if(kind!=="away")x.cat=catFor(x.cat,wid);
+  save(kind==="routine"?"routines":kind==="note"?"notes":"prefs");render();
   return was;
+}
+/* Everything a workspace holds can be handed to another one, so the item
+   that does it is the same wherever it shows: the other workspaces, one
+   each, after the thing's own actions and before deleting. A workspace on
+   its own has nothing to offer, so nothing is added. */
+function wsMoveItems(kind,id,of){
+  if(spaces().length<2)return [];
+  return spaces().filter(w=>w.id!==spaceOf(of).id).map(w=>({
+    icon:w.icon||"i-grid",label:"Move to "+w.name,
+    run:()=>{const was=moveThingWs(kind,id,w.id);if(was)toast("Moved from "+was+" to "+w.name);}}));
 }
 
 /* Deleting a task takes its history, documents and sessions with it. */
@@ -6483,8 +6495,9 @@ function routineItems(id,date){
       run:()=>{r.active=!r.active;save("routines");render();toast(r.active?"Routine resumed":"Routine paused");}},
     {icon:"i-copy",label:"Duplicate routine",run:()=>{const c=JSON.parse(JSON.stringify(r));c.id=uid("r");c.title=r.title+" (copy)";
       S.routines.splice(S.routines.indexOf(r)+1,0,c);save("routines");render();toast("Routine duplicated");}},
+  ].concat(wsMoveItems("routine",id,r)).concat([
     "sep",
-    {icon:"i-trash",label:"Delete routine",danger:true,arm:"Delete for good?",run:()=>deleteRoutine(id)}];
+    {icon:"i-trash",label:"Delete routine",danger:true,arm:"Delete for good?",run:()=>deleteRoutine(id)}]);
 }
 function noteItems(id){
   const x=noteById(id);if(!x)return [];
@@ -6493,16 +6506,18 @@ function noteItems(id){
     {icon:"i-pin",label:x.pinned?"Unpin":"Pin to the top",run:()=>{x.pinned=!x.pinned;x.updated=Date.now();save("notes");render();}},
     {icon:"i-copy",label:"Duplicate note",run:()=>{const c=JSON.parse(JSON.stringify(x));c.id=uid("n");c.title=(x.title||"Untitled note")+" (copy)";c.updated=Date.now();c.pinned=false;
       S.notes.unshift(c);V.noteId=c.id;save("notes");render();toast("Note duplicated");}},
+  ].concat(wsMoveItems("note",id,x)).concat([
     "sep",
-    {icon:"i-trash",label:"Delete note",danger:true,arm:"Delete note?",run:()=>{S.notes=S.notes.filter(n=>n.id!==id);if(V.noteId===id)V.noteId=null;save("notes");render();toast("Note deleted. Tasks it created stay.");}}];
+    {icon:"i-trash",label:"Delete note",danger:true,arm:"Delete note?",run:()=>{S.notes=S.notes.filter(n=>n.id!==id);if(V.noteId===id)V.noteId=null;save("notes");render();toast("Note deleted. Tasks it created stay.");}}]);
 }
 function awayItems(id,anchor){
   const a=awayList().find(x=>x.id===id);if(!a)return [];
   return [
     {icon:"i-edit",label:"Edit",run:()=>awayOpen(id,anchor)},
     {icon:"i-copy",label:"Duplicate to the next day",run:()=>{awayList().push(Object.assign({},a,{id:uid("a"),date:ymd(addDays(parseD(a.date),1))}));save("prefs");render();toast("Copied to "+fmtDate(ymd(addDays(parseD(a.date),1))));}},
+  ].concat(wsMoveItems("away",id,a)).concat([
     "sep",
-    {icon:"i-trash",label:"Delete",danger:true,arm:"Delete?",run:()=>{S.prefs.away=awayList().filter(x=>x.id!==id);save("prefs");render();toast("Deleted");}}];
+    {icon:"i-trash",label:"Delete",danger:true,arm:"Delete?",run:()=>{S.prefs.away=awayList().filter(x=>x.id!==id);save("prefs");render();toast("Deleted");}}]);
 }
 function catItems(id){
   const c=cat(id);if(!c||c.id!==id)return [];
@@ -6522,7 +6537,12 @@ function laneItems(id){
 }
 document.addEventListener("contextmenu",function(e){
   const t=e.target;if(!t||!t.closest||e.defaultPrevented)return;
-  if(t.closest("input,textarea,[contenteditable='true'],select"))return;
+  /* Text keeps the browser's own menu -- cut, copy, paste, and the
+     spelling suggestions on a word with a red line under it. On the desktop
+     that menu is built in main.js (attachEditMenu), because Electron ships
+     none of its own. :not(false) rather than ='true', since an editable set
+     from script can be spelt either way. */
+  if(t.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))return;
   let items=null;
   const rt=t.closest('[data-act="routine"][data-id],[data-act="routine-done"][data-id]'),rc=t.closest(".rcard[data-rid]");
   const nt=t.closest('[data-act="note-open"][data-id]'),aw=t.closest('[data-act="away-open"][data-id]');

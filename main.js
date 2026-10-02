@@ -62,6 +62,47 @@ function createWindow(){
   });
   win.on('closed', () => { win = null; });
   win.webContents.on('did-finish-load', () => startWatching(readSettings().vault));
+  attachEditMenu(win.webContents);
+}
+
+/* The menu a right-click gets inside a text field.
+
+   spellcheck:true gives the red underline, but Electron ships no context
+   menu of its own -- Chromium's is part of the browser, not of the engine --
+   so right-clicking a misspelled word did nothing at all and there was no
+   way to see what it thought you meant. The app builds it here.
+
+   This only ever fires where the page let the right-click through. The
+   planner's own menus (a task, a routine, a note, a lane) call
+   preventDefault on the DOM event, which stops the renderer asking for a
+   menu at all, so those still win; the page deliberately leaves text fields
+   alone, and that is exactly where this lands. */
+function attachEditMenu(wc){
+  wc.on('context-menu', (_e, p) => {
+    const items = [];
+    if(p.misspelledWord){
+      const list = p.dictionarySuggestions || [];
+      if(list.length) list.forEach(w => items.push({label: w, click: () => wc.replaceMisspelling(w)}));
+      else items.push({label: 'No suggestions', enabled: false});
+      items.push({type: 'separator'});
+      items.push({label: 'Add to dictionary',
+        click: () => wc.session.addWordToSpellCheckerDictionary(p.misspelledWord)});
+      items.push({type: 'separator'});
+    }
+    if(p.isEditable){
+      items.push({role: 'undo'}, {role: 'redo'}, {type: 'separator'},
+        {role: 'cut', enabled: p.editFlags.canCut},
+        {role: 'copy', enabled: p.editFlags.canCopy},
+        {role: 'paste', enabled: p.editFlags.canPaste},
+        {type: 'separator'}, {role: 'selectAll'});
+    }else if(p.selectionText && p.selectionText.trim()){
+      items.push({role: 'copy'});
+    }
+    /* Nothing worth offering: leave the click alone rather than popping an
+       empty box. */
+    if(!items.length) return;
+    Menu.buildFromTemplate(items).popup({window: BrowserWindow.fromWebContents(wc)});
+  });
 }
 
 /* Bring the planner back, wherever it was left. */

@@ -88,6 +88,15 @@ Four things fixed it, and each is guarded by `npm test`:
   once read `scrollTop` from every element, which forces a full layout;
   over a second per redraw. A capturing `scroll` listener notes the boxes
   that have actually scrolled (`SCROLLED`), and only those are asked.
+  **`putScroll()` puts the box it just restored back into that set**, which
+  is honest -- it is a scrolled box. `SCROLLED` holds node references and a
+  redraw replaces every node in the viewport, so without it a position
+  survived exactly one redraw (the one straight after you scrolled) and was
+  lost on every redraw after that: scroll a board lane, change one card's
+  category and it held, change a second card's and the lane jumped to the
+  top, as did anything else that redrew in the meantime -- the minute tick
+  on the calendar, a sync landing, reminders rebuilding. The task panel
+  keeps its own position in `renderSheet()` and does not go through this.
 - **Big lists are looked up, not scanned.** The lookups section keeps each
   list grouped once (`ixTasks`, `ixAct`, `ixDocs`, `ixSess`, `ixSessDay`,
   `ixDay`, `ixBack`, and `overdueItems()`), dropped by `save()` and
@@ -119,14 +128,34 @@ from the rest (it asks twice). The panel has no tabs: Activity history takes
 the details' place with a Back to details link (`V.sheet.tab`).
 
 **Everything else has a right-click menu too** (`ctxMenu(items, at, btn)`,
-the right-click menus section): a routine wherever it shows — its card,
+the right-click menus section): a routine wherever it shows -- its card,
 the calendar, the dashboard (`routineItems()`), a note (`noteItems()`),
 unavailable time (`awayItems()`), a category in the sidebar (`catItems()`)
 and a board lane (`laneItems()`). Items are `{icon, label, run, danger,
-arm}` or `"sep"`; the thing's own actions first, deleting last, asking
-twice. A routine card's ⋯ opens the same list. Text fields keep the
-browser's own menu. Add a new kind of thing to the one `contextmenu`
-listener there.
+arm}` or `"sep"`; the thing's own actions first, then **Move to
+<workspace>** (`wsMoveItems()`), deleting last, asking twice. A routine
+card's ⋯ opens the same list. Add a new kind of thing to the one
+`contextmenu` listener there.
+
+**Text keeps the browser's own menu** -- cut, copy, paste, and the spelling
+suggestions on a word with a red line under it. The listener returns early
+for `input, textarea, select` and any `[contenteditable]` that is not
+`false` (written that way, not `='true'`, because an editable set from
+script can be spelt either way). **On the desktop that menu has to be built
+by the app**: `spellcheck:true` gives Electron the red underline, but
+Electron ships no context menu of its own -- Chromium's is part of the
+browser, not of the engine -- so right-clicking a misspelled word did
+nothing at all and there was no way to see what it thought you meant.
+`attachEditMenu()` in main.js builds it from the `context-menu` event:
+the suggestions, Add to dictionary, then the edit roles. It only ever fires
+where the page let the right-click through, because a `preventDefault()` on
+the DOM event stops the renderer asking for a menu at all -- so the
+planner's own menus still win.
+
+The things that deliberately have **no** menu: tracked time on the calendar
+(a record of what happened, not something to change), Google's own events
+(not ours), a checklist step in the list (it is not a task), and a task
+inside the panel (the ⋯ in its header is the way in).
 
 **Guided tips** (`TIP_TOURS`, `tipCheck()`, the guided tips section): one
 short tour a screen — two to four pointers with Next and a count — played
@@ -297,6 +326,23 @@ and the `r-day` case); Every few days shows its gap instead of the week.
 Reminder, start, end and Paused sit under More options, always closed at
 first. "At 9am For 30m In Personal" as a sentence read as a puzzle, and
 four tabs with nothing under two of them looked broken.
+
+**A routine can repeat monthly**, on a day of the month, which is what a
+bill is. `freq:"monthly"` with `r.dom` (1--31), picked in words ("On the
+1st of every month") rather than as a bare number, since a lone "1" reads
+as a count of something. The one real question a monthly rule asks is what
+to do with a month that has no 31st: `domIn()` uses that month's **last
+day**, because that is what a bill due on the 31st means -- skipping those
+months instead would quietly drop four payments a year. It is gated in
+`routineOn()` like every other rule, so the calendar, the missed lists, the
+streak walk and the reminders follow without knowing it exists, and a
+streak counts times kept, so it reads "12 times". **One occurrence cannot
+be dragged off its day** -- the same restriction Every few days has, and
+for the same reason: there is no weekday to carry. Google gets
+`FREQ=MONTHLY;BYMONTHDAY`, and a day past the 28th is written as
+`BYMONTHDAY=-1`: Google skips a month with no 31st rather than falling back
+to its last day, and -1 is how a calendar says "the last day", which is
+what the planner means.
 
 A routine's schedule is a plan, not a rule. `routineOn(r, d)` says when it
 is *due* — reminders, the calendar's recurring events in Google and the
@@ -486,11 +532,16 @@ its own categories, and categories were the thing that most needed it.
   say which workspace they need (`wsOnlyNote()`), rather than quietly
   editing the first one's.
 - **Creating across all of them asks which workspace** (`askSpace()`,
-  `WSQ`), once, in front of the thing it is making — not as a field on
+  `WSQ`), once, in front of the thing it is making -- not as a field on
   every form that would be answered already every other time. In a
   workspace it never asks. A task added under a workspace table in the
   list skips the question, because the table *is* the answer
-  (`lgPreset("ws", k)`).
+  (`lgPreset("ws", k)`). **The dashboard asks even inside a workspace**
+  (`askSpace(..., always)`), because it is across every workspace whatever
+  the sidebar says: a line taken out of the scratch pad had no workspace to
+  fall into and landed in whichever one the sidebar happened to be pointing
+  at, invisible from there and wrong as often as not. One workspace is
+  still no question.
 - **Lane ids are unique across every workspace**, and so are category ids.
   A task carries its lane id and its category id and nothing else, so
   anything asking what colour that lane is, or whether it counts as
@@ -526,13 +577,18 @@ its own categories, and categories were the thing that most needed it.
   filling the rest with "ember" as its eyebrow so the name is still there
   without a row of its own. They were two bands, one of them a line that
   only said which app you have open.
-  **A tile in this sidebar means something you can press**, which is why
-  the mark is the bare flame in the accent and the workspace tile is the
-  only filled tile in the row. The mark was a filled rounded square the
-  same size as the workspace tile right beside it, and two badges in a row
-  read as two logos -- you had to look twice to work out which one was
-  yours. The miniature app in setup follows, since it is a picture of this
-  sidebar.
+  **The flame sits in front of the word it belongs to**, inside the eyebrow
+  over the workspace name (`.ws-fire`), which leaves the workspace tile as
+  the first thing on the row and hard against the sidebar's own left edge.
+  Two shapes came before it: the mark as a filled rounded square the same
+  size as the workspace tile beside it, which read as two logos -- you had
+  to look twice to find which one was yours -- and then the bare flame as a
+  mark of its own, which left the glyph stranded two elements away from the
+  word `ember`. **A tile in this sidebar means something you can press**,
+  so the workspace tile is the only one. Folded, the flame is a mark of its
+  own again (`.rail-mini .rail-top .brand-mark`), because there is no
+  eyebrow to carry it there. The miniature app in setup follows, since it
+  is a picture of this sidebar.
 - **The sidebar is two bands**, set off by a hairline: which app and
   workspace, then everything that belongs to the workspace. It was
   one run of rows in three sizes with nothing between them, which is what
@@ -557,11 +613,18 @@ its own categories, and categories were the thing that most needed it.
   It sat in the Tasks top bar while it was only a board; a workspace is
   not a property of one screen. Switching clears the filters, since a lane
   and a category belong to the workspace they were set in (`wsGo()`).
-- **A task moves workspace** from the panel's header or its ⋯ menu, both
-  through `moveTaskWs()`: the lane and the category move with it, the
-  subtasks move with the task, and the change is logged (`ws` is in
-  `FIELD_LABEL`, so it reads *Workspace: My workspace → Office*).
-  `moveThingWs()` does the same for a routine or a note.
+- **Everything a workspace holds can be handed to another one.** A task
+  moves from the panel's header or its ⋯ menu, both through
+  `moveTaskWs()`: the lane and the category move with it, the subtasks move
+  with the task, and the change is logged (`ws` is in `FIELD_LABEL`, so it
+  reads *Workspace: My workspace → Office*). `moveThingWs()` does the same
+  for a routine, a note or a block of unavailable time -- none of those has
+  lanes, and unavailable time has no category either, so there is nothing
+  to find again for it. **`wsMoveItems()` builds the menu item**, so it
+  reads the same wherever it shows: the other workspaces, one each, after
+  the thing's own actions and before deleting, and nothing at all when
+  there is only one workspace. `moveThingWs()` existed for a while with no
+  way to reach it -- only tasks offered the move.
 - **The panel header is two drop-downs**, in the order the thing is named:
   the workspace a task is in, then the lane it is in *in that workspace*
   (`.sh-where`). The lane list is `lanesOf(t.ws)` and the category list
@@ -624,6 +687,20 @@ chore.
   it on turns every checklist subtask into one. They live inside their parent
   only: everything that lists tasks reads `tops()`, never `S.tasks`, and
   `kidsOf(id)` finds a task's own. Deleting a task deletes its subtasks.
+- **A checklist subtask can carry a day of its own**, behind the
+  `subdate` switch, off to begin with (`FEAT_OFF`) because a checklist is
+  a list of steps and most of them never want a date. It rides in a hidden
+  input that `readSheetSubs()` reads back beside the name and the tick, so
+  it needs no save of its own and switching the feature off keeps what is
+  already there.
+- **The list opens the steps inside a task.** The count beside a name is a
+  button (`lr-subs`, `V.lsubs`), and it unfolds them underneath in the
+  same grid, so every cell still lines up with its heading
+  (`lrSubRows()`). A full subtask gets an ordinary `lrRow`, indented; a
+  checklist step gets a lighter row with the two things it really has --
+  its tick and, where the switch is on, its day -- both of which work from
+  there. Renaming a step stays in the panel, which is where the checklist
+  lives. Which tasks are open is view state, not a setting.
 - **Fields of their own** are `board().fields` (`CF_TYPES`: text, number,
   date, single- and multi-select with coloured options, checkbox, link,
   rating, progress), their values in `t.cf` by field id. A field is made and
@@ -794,19 +871,21 @@ ruled columns with lines between them. They sit on `--surface` with a
 soft shadow instead, which is what a card is, and the three columns are
 equal thirds.
 
-**Five sections, five colours**, keyed from the head (`--tone` on
-`.dcard-h`, set by the class `dashHead()` puts there): it colours the
-badge, a wash behind the heading, the hairline under it and what a row
-lights up to on hover. The welcome panel is the **accent**, so its
-gradient follows a custom colour the way the date on it does; Today is
-**blue**, what needs seeing to the **danger** colour at a heavier wash
-(`--wash`) so it reads red rather than as one more warm tint, the scratch
-pad **violet** and time tracked **teal** (both tokens added for this --
-amber beside the danger colour read as the same warm beige). It used
-to be a grey box with a coloured sticker on it. Measured in both themes:
-headings 10.5:1 or better on their wash, the small grey 4.98:1 or
-better, and every badge glyph clears 3:1 against its own tile -- which is
-why the tile is an 11% wash and not the 18% it started at.
+**Every section is the accent**, keyed from the head (`--tone` on
+`.dcard-h`): it colours the badge, a wash behind the heading, the hairline
+under it and what a row lights up to on hover. The whole page follows the
+colour the person picked, which is what anyone means by "my colour".
+Sections are told apart by **how heavy the wash is** (`--wash`), not by
+hue: 9% everywhere and 17% on what needs seeing to, which is all that card
+has left to stand out with. Five different hues came first -- blue, danger,
+violet, teal -- and the trouble with them was that four fifths of the page
+ignored the accent entirely. The **overdue stamps inside the attention
+card keep the danger colour**: those are words about something being late,
+not chrome. `--tone-ink` is the same accent as text or as a glyph, because
+`--accent` on its own tint is the one thing the accent rules forbid.
+Measured in both themes: headings 10.5:1 or better on their wash, the small
+grey 4.98:1 or better, and every badge glyph clears 3:1 against its own
+tile -- which is why the tile is an 11% wash and not the 18% it started at.
 
 **The dashboard's columns are `.dash-col`, never `.dcol`.** `.dcol` is
 the week grid's day-column header and it carries a `border-right` and a
@@ -1458,6 +1537,17 @@ collapses to icons. At 820 and below it becomes a drawer over the view, toggled
 by `data-act="rail"`, which adds `rail-open` to `<body>`; `closeRail()` clears it
 when a nav item is picked.
 
+**One thing decides whether the sidebar is folded, and it is
+`body.rail-mini`.** `applyRail()` sets it from `prefs.railMini` *or* the
+821--1080 band (`RAIL_BAND()`, re-run on resize); below 821 it is a drawer
+at full width, so it is not folded there. That band used to fold the rail
+through a media query of its own that reached a few of the rules and not
+the rest: the workspace name squeezed to "Pers..." instead of collapsing to
+its tile, the Categories pencil was left stranded with nothing beside it,
+and the hover labels -- which only fire on `body.rail-mini` -- never came
+at all. Every folded rule is now one `body.rail-mini` selector with no
+width gate; the band's media query holds only what the narrow *view* needs.
+
 Only one rule ever sets the rail's transform — `body:not(.rail-open) .rail` —
 rather than a base rule plus an override. Keep it that way; it is easier to reason
 about and avoids a cascade fight.
@@ -1481,12 +1571,23 @@ The same sources are both the desktop app and a published Claude artifact
 which is the desktop and plain-browser case. Test a change in both if it touches
 saving, downloads or dialogs.
 
-## Gotcha when testing in a headless or hidden browser pane
+## Gotchas when testing in a headless or hidden browser pane
 
 CSS transitions do not advance while the pane is hidden, so a transitioning
 property reads as stuck at its start value and `getComputedStyle` lies about it.
 Check `element.getAnimations()` before concluding a rule is broken, or measure
 with `style.transition = "none"`.
+
+**The pane dispatches no `scroll` events at all** -- not for a wheel, not
+for a `scrollTop` assignment, even though the assignment takes. So
+`SCROLLED` stays empty there and scroll restore looks broken whether it is
+or not. Dispatch `new Event("scroll")` on the box by hand after setting
+`scrollTop`, or the whole mechanism cannot be exercised.
+
+**A screenshot can lag a frame or two behind the DOM.** Measure with
+`javascript_tool` and treat the picture as a second opinion, not the
+first -- more than one "the layout is broken" turned out to be a stale
+frame taken mid-transition.
 
 ## Releasing
 
