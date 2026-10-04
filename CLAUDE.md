@@ -665,12 +665,23 @@ its own categories, and categories were the thing that most needed it.
   `spaceAdd()` refuses anyway, since a button is not a guard.
 - **Workspaces are made and unmade in Settings ▸ Workspaces**
   (`setSpacesPane()`), not in Customize: a workspace is not a setting
-  about tasks, it is where everything lives. A row each — drag to
-  reorder, a tile that opens its colour and its icon, the name typed into,
-  what it holds, Open, and a Remove that asks where its contents go:
-  another workspace, or nowhere, which deletes them. A new workspace
+  about tasks, it is where everything lives. **It is two screens, not one
+  page of folding boxes.** The list says which workspaces there are — a
+  handle, the tile, the name and what it holds as one button, Current or
+  Switch to, and a chevron; opening one (`V.wsOpen`, `wsPage()`) gives it
+  a page of its own with a back link, its name, icon and colour on one
+  row, its categories, and Remove. Remove still asks where its contents
+  go: another workspace, or nowhere, which deletes them. A new workspace
   starts with the same five categories a new planner does, because one
   with no categories has nowhere to put a task. The last one cannot go.
+  **What it replaced was an accordion inside an accordion**: a row per
+  workspace that folded its whole category list inside itself, each
+  category folding open again for its icon and its colour — three deep,
+  where opening anything pushed everything below it down the page and the
+  workspace being worked on could end up off the screen. Drilling in keeps
+  every level flat. The sidebar's pencil still lands straight on the right
+  workspace's page (`catsPane(ws)` sets `V.wsOpen` as well as `V.catWs`;
+  across all of them there is no one workspace, so it opens the list).
   A new planner's one workspace is called **My Workspace** until it is
   renamed. There is no "Across all of them" section in the pane: the
   switcher in the sidebar already has All workspaces in it, and saying it
@@ -1126,10 +1137,28 @@ workspace's writes them back into the places its own occupied
 `S.categories`, as the old code did, would have deleted every category
 belonging to every other workspace.
 
-Categories are edited in one window (`catsModal()`, from the pencil by the
-sidebar's Categories): a row each, dragged by its handle to reorder; the
-icon and colour open their choices under the row (`V.catEdit`), with any
-colour through Custom; the name is typed into. Hide, Show only this and Delete
+Categories are edited on their workspace's page in Settings: a row each,
+dragged by its handle to reorder; the name typed into; and **the icon and
+the colour open as pop-overs against the tile they belong to**
+(`iconMenu()`, `colorMenu()`), with any colour through Custom. They used
+to unfold inside the row, which pushed every row under them down the page
+— the thing that made a column of categories read as an accordion.
+
+**Picking an icon is a box to type in over a grid** (`ICON_LIB`,
+`iconFilter()`, `iconBest()`). There are sixty-odd icons now, each filed
+under the words someone would actually type — "money" finds the wallet,
+"gym" the dumbbell, "sleep" the bed and the moon. Twenty was not enough
+for a planner with fourteen categories: two of them ended up wearing the
+same glyph. **Typing matches the starts of those words, not anywhere
+inside them**: plain substring made "art" bring back the heart, the cart,
+the chart and the rocket (filed under "startup") with the palette lost
+among them. Where nothing starts with what was typed it falls back to
+matching anywhere, so half a word still finds something. **Enter takes
+the best of what is left** — the one whose own name starts with what was
+typed — because "car" quite reasonably leaves the heart ("care"), the
+cart, the card and the car, and the car is plainly the one meant.
+`CAT_ICONS` is the head of that library, twenty long, and is what setup
+offers: a panel to glance at rather than a library to search. Hide, Show only this and Delete
 are behind the row's ⋯, and Delete asks in the row, saying where its
 tasks go. A second window for name, colour and icon, and a Shown label and
 count on every row, were taken out. The sidebar has no "None"; "Show all"

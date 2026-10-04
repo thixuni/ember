@@ -432,6 +432,20 @@ body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
 .cm-find input:focus{outline:none}
 .cm-find input::placeholder{color:var(--faint)}
 .cm-none{padding:10px;text-align:center;font-size:12.5px;color:var(--faint)}
+/* The icon picker: a box to type in over a grid of icons, opened against
+   the button it belongs to rather than unfolded inside its row. Eight to a
+   row keeps a sixty-icon library to a shape that is scanned rather than
+   read, and the grid scrolls while the box stays put. */
+.iconmenu{display:flex;flex-direction:column;overflow:hidden;width:276px;min-width:0;max-height:min(342px,64vh);padding:5px}
+.iconmenu .cm-find{margin-bottom:4px}
+.im-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;overflow-y:auto;min-height:0;
+  padding:2px;scrollbar-width:thin}
+.im-grid .cm-none{grid-column:1/-1}
+.im-ic{width:30px;height:30px;display:grid;place-items:center;border-radius:8px;color:var(--ink-2);
+  border:1px solid transparent}
+.im-ic:hover{background:var(--surface-3);color:var(--ink)}
+.im-ic.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-ink)}
+.im-ic[hidden]{display:none}
 .tmenu{min-width:196px}
 .tmenu .cm-opt .ic{flex:none;color:var(--muted)}
 .tm-sep{height:1px;margin:4px 6px;background:var(--line)}
@@ -1761,15 +1775,17 @@ button.obx-rt-txt > *{pointer-events:none}
 .cm-hid{display:grid;place-items:center;color:var(--muted)}
 .cm-more{width:28px;height:28px;border-color:transparent;background:none;color:var(--muted)}
 .cm-more:hover{background:var(--surface-3);color:var(--ink)}
-.cm-pick{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:8px 4px 4px 26px}
-.cm-dot{width:24px;height:24px;border-radius:50%;background:var(--c);border:2px solid transparent}
-.cm-dot > *{pointer-events:none}
-.cm-dot.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
-.cm-icons{gap:4px}
-.cm-icon{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-2)}
-.cm-icon > *{pointer-events:none}
-.cm-icon:hover{background:var(--surface-3)}
-.cm-icon.on{background:color-mix(in srgb,var(--c) 18%,var(--tint-base));color:var(--c);box-shadow:inset 0 0 0 1.5px var(--c)}
+/* ---------- the colour pop-over ----------
+   The swatches a category, a lane or a workspace can take, opened against
+   the dot rather than unfolded under it. */
+.colormenu{padding:9px;width:auto}
+.km-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.km-dot{width:26px;height:26px;border-radius:50%;background:var(--c);border:2px solid transparent;cursor:pointer}
+.km-dot > *{pointer-events:none}
+.km-dot.on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.km-dot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.km-own{display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:9px;
+  border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
 .cm-new{align-self:flex-start;margin-top:10px}
 /* The browser copy's Google key has run out: one click gets the next. */
 .g-renew{position:fixed;right:20px;bottom:20px;z-index:79;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 40px);padding:8px 8px 8px 14px;border-radius:14px;background:var(--surface);color:var(--ink);border:1px solid var(--line-2);box-shadow:var(--sh-3);font-size:12.5px;font-weight:500;animation:pop .18s ease}
@@ -3331,21 +3347,36 @@ body.rail-mini .rail-head{justify-content:center}
 .wsrow + .wsrow{border-top:1px solid var(--line)}
 .wsrow.on{background:var(--surface-2)}
 .wsrow.dragging{opacity:.45}
-.wsrow-ic{width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;cursor:pointer;
-  background:color-mix(in srgb,var(--s) 16%,var(--tint-base));color:var(--s);border:1px solid transparent}
-.wsrow-ic:hover{border-color:var(--s)}
-.wsrow-t{flex:1;min-width:120px}
-.wsrow-t .cz-name{width:100%;border:1px solid transparent;background:none;font-size:13.5px;font-weight:600;
-  color:var(--ink);padding:2px 5px;border-radius:6px;margin-left:-5px}
-.wsrow-t .cz-name:hover{border-color:var(--line)}
-.wsrow-t .cz-name:focus{border-color:var(--accent);background:var(--surface)}
-.wsrow-t small{display:block;font-size:11.5px;color:var(--faint);padding-left:0}
-.ws-pal{flex-basis:100%;display:flex;flex-direction:column;gap:7px;padding:9px 0 2px;border-top:1px solid var(--line-soft)}
-.ws-pal-row{display:flex;flex-wrap:wrap;gap:6px}
-.ws-pal-row button{width:24px;height:24px;border-radius:7px;border:2px solid transparent;background:var(--c);cursor:pointer}
-.ws-pal-row button.on{border-color:var(--ink)}
-.ws-pal-row.ic button{background:var(--surface-2);color:var(--muted);display:grid;place-items:center;border-color:var(--line)}
-.ws-pal-row.ic button.on{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+/* The whole left of the row is the way into that workspace: its tile, its
+   name and what it holds, as one button. The row no longer unfolds, so
+   nothing here has to leave space for a panel underneath it. */
+.wsrow-go{flex:1;min-width:0;display:flex;align-items:center;gap:11px;padding:3px 6px;margin:-3px -6px;
+  border-radius:var(--r-s);text-align:left;cursor:pointer;background:none}
+.wsrow-go:hover{background:var(--surface-3)}
+.wsrow-go > *{pointer-events:none}
+.wsrow-tile{width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--c) 16%,var(--tint-base));color:var(--c)}
+.wsrow-t{min-width:0;flex:1}
+.wsrow-t b{display:block;font-size:13.5px;font-weight:600;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wsrow-t small{display:block;font-size:11.5px;color:var(--faint)}
+
+/* ---------- one workspace, on its own page ---------- */
+.ws-page-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ws-back{padding-left:6px}
+.ws-page-top .cz-here{margin-left:auto}
+.ws-page-top .btn:not(.ws-back){margin-left:auto}
+.ws-look{display:flex;align-items:center;gap:10px}
+.ws-look-tile{width:38px;height:38px;flex:none;border-radius:11px;display:grid;place-items:center;cursor:pointer;
+  background:color-mix(in srgb,var(--c) 16%,var(--tint-base));color:var(--c);border:1px solid transparent}
+.ws-look-tile:hover{border-color:var(--c)}
+.ws-look-tile > *{pointer-events:none}
+.ws-look-name{flex:1;min-width:0;font-size:14px;font-weight:600}
+.ws-look-dot{width:28px;height:28px;flex:none;border-radius:50%;cursor:pointer;background:var(--c);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.ws-look-dot:hover{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--c)}
+.btn-danger-ghost{color:var(--danger-ink);border-color:var(--line)}
+.btn-danger-ghost:hover:not(:disabled){background:var(--danger-soft);border-color:var(--danger)}
 
 /* ---------- which workspace is this for ----------
    Only ever seen in the view across all of them, where a new thing has no

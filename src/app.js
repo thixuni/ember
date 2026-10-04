@@ -232,7 +232,48 @@ const QUADS=[
  {id:"delegate",name:"Delegate",tag:"Urgent, not important",note:"Hand these to someone else.",cls:"q-delegate",icon:"i-user"},
  {id:"drop",name:"Eliminate",tag:"Neither",note:"Drop or ignore these.",cls:"q-drop",icon:"i-x"}];
 const quadOf=t=>{if(t.urgent==null||t.important==null)return null;if(t.urgent&&t.important)return"do";if(!t.urgent&&t.important)return"decide";if(t.urgent&&!t.important)return"delegate";return"drop";};
-const CAT_ICONS=["i-briefcase","i-laptop","i-home","i-user","i-target","i-heart","i-circle","i-flame","i-paw","i-rocket","i-book","i-star","i-cart","i-music","i-plane","i-dumbbell","i-leaf","i-coffee","i-palette","i-note"];
+/* Every icon a category or a workspace can wear, each with the words it is
+   found by -- the first word is its name, the rest are what someone would
+   actually type looking for it ("money" finds the wallet, "gym" the
+   dumbbell). Twenty was not enough for a planner with fourteen categories:
+   two of them ended up wearing the same glyph. */
+const ICON_LIB=[
+  ["i-briefcase","Work job office briefcase business"],["i-laptop","Laptop computer desk coding tech"],
+  ["i-home","Home house family living"],["i-user","Person me myself self profile"],
+  ["i-target","Goals target aim focus objective"],["i-heart","Health heart love wellbeing care"],
+  ["i-circle","Circle dot general other"],["i-flame","Streak fire energy hot ember"],
+  ["i-paw","Pets paw dog cat animal"],["i-rocket","Side hustle rocket launch startup project"],
+  ["i-book","Reading book study notes learning"],["i-star","Favorites star important special"],
+  ["i-cart","Shopping cart groceries buy errands"],["i-music","Music song audio practice"],
+  ["i-plane","Travel plane trip flight holiday vacation"],["i-dumbbell","Fitness gym workout exercise training"],
+  ["i-leaf","Nature leaf garden plants green growth"],["i-coffee","Coffee break cafe drink morning"],
+  ["i-palette","Art palette paint creative design"],["i-note","Notes note writing journal diary"],
+  ["i-wallet","Money wallet finances budget cash spending"],["i-coin","Savings coin income salary earnings"],
+  ["i-card","Bills card payment bank subscription"],["i-gift","Gifts gift present birthday celebration"],
+  ["i-globe","World globe language international online"],["i-map","Map places directions route trip"],
+  ["i-car","Car driving commute vehicle garage"],["i-tree","Tree outdoors forest park nature"],
+  ["i-mountain","Hiking mountain climbing outdoors adventure"],["i-fork","Food cooking meals recipes dinner eating"],
+  ["i-apple","Healthy eating apple fruit diet nutrition"],["i-grad","Studies school university course education"],
+  ["i-bulb","Ideas lightbulb thinking inspiration brainstorm"],["i-camera","Photography camera photos pictures"],
+  ["i-film","Movies film cinema shows watching"],["i-game","Games gaming play console hobby"],
+  ["i-shirt","Clothes laundry shirt wardrobe fashion"],["i-phone","Phone calls mobile contact"],
+  ["i-mail","Email mail inbox letters post"],["i-trophy","Wins trophy achievement award success"],
+  ["i-shield","Insurance shield security protection admin"],["i-users","People friends family social team"],
+  ["i-scissors","Crafts scissors making diy hobby"],["i-compass","Direction compass exploring planning"],
+  ["i-bed","Sleep bed rest bedroom routine"],["i-key","Keys house rent property moving"],
+  ["i-chart","Charts progress stats tracking numbers"],["i-chat","Chat messages talking conversation"],
+  ["i-clock","Time clock schedule hours"],["i-flag","Priority flag milestone marker"],
+  ["i-bolt","Energy bolt quick fast power"],["i-sparkle","Fun sparkle magic new nice"],
+  ["i-pin","Pinned pin place location"],["i-tag","Tags tag label"],
+  ["i-inbox","Inbox incoming collect sort"],["i-doc","Documents doc paper files admin"],
+  ["i-folder","Folder files storage organize"],["i-grid","Grid all everything general"],
+  ["i-timer","Timer stopwatch focus tracking"],["i-repeat","Routine repeat habit recurring daily"],
+  ["i-bell","Reminders bell alerts notifications"],["i-cloud","Cloud weather backup sync"],
+  ["i-sun","Morning sun day bright weather"],["i-moon","Night moon evening sleep dark"],
+  ["i-pot","Plants pot gardening growing"],["i-sliders","Settings sliders tools config admin"]];
+/* The twenty setup offers, which is a panel to glance at rather than a
+   library to search: the head of the list above, in the same order. */
+const CAT_ICONS=ICON_LIB.slice(0,20).map(x=>x[0]);
 const CAT_COLORS=["#4C6FE0","#7C5CE0","#E0854A","#D95C93","#2F9C86","#D8544E","#7A8A80","#D99A16","#A9713B","#3F8F4F","#2E8BA8","#B0517E"];
 
 /* ============ starting data ============ */
@@ -1053,6 +1094,112 @@ function catSet(kind,id,v){
   save(kind==="routine"?"routines":"notes");render();
 }
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="catFind")catFilter(e.target.value);});
+/* ---- picking an icon ----
+   Sixty-odd icons is past what anyone reads, so the picker is a box to type
+   in over a grid, and it opens against the button as a pop-over rather than
+   unfolding the row it belongs to. A row that grows pushes everything under
+   it down the page, which is what made a column of these read as an
+   accordion inside an accordion. */
+const IM={el:null,btn:null,on:null};
+function iconMenuClose(){
+  if(IM.btn)IM.btn.setAttribute("aria-expanded","false");
+  if(IM.el&&IM.el.parentNode)IM.el.parentNode.removeChild(IM.el);
+  IM.el=null;IM.btn=null;IM.on=null;
+}
+function iconMenu(btn,cur,on){
+  if(IM.btn===btn){iconMenuClose();return;}
+  iconMenuClose();catMenuClose();pkClose();
+  IM.on=on;
+  const m=document.createElement("div");m.className="catmenu iconmenu";
+  m.setAttribute("role","dialog");m.setAttribute("aria-label","Pick an icon");
+  m.innerHTML='<div class="cm-find">'+icon("i-search","ic-14")+
+      '<input type="text" id="icFind" placeholder="Find an icon" autocomplete="off" aria-label="Find an icon"></div>'+
+    '<div class="im-grid">'+ICON_LIB.map(function(x){var nm=x[1].split(" ")[0];
+      return '<button type="button" class="im-ic'+(x[0]===cur?" on":"")+'" data-act="im-pick" data-v="'+x[0]+'" data-name="'+esc(x[1].toLowerCase())+'" title="'+esc(nm)+'" aria-label="'+esc(nm)+'">'+icon(x[0],"ic-18")+'</button>';}).join("")+
+      '<div class="cm-none" hidden>No icon by that name</div></div>';
+  document.body.appendChild(m);IM.el=m;IM.btn=btn;btn.setAttribute("aria-expanded","true");
+  const r=btn.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  let top=r.bottom+6;if(top+h>innerHeight-8)top=Math.max(8,r.top-6-h);
+  m.style.left=Math.round(Math.min(Math.max(8,r.left),innerWidth-w-8))+"px";m.style.top=Math.round(top)+"px";
+  const sel=m.querySelector(".im-ic.on"),box=m.querySelector(".im-grid");
+  if(sel&&box){const o=sel.offsetTop-box.offsetTop;
+    if(o+sel.offsetHeight>box.clientHeight)box.scrollTop=o-box.clientHeight/2+sel.offsetHeight;}
+  const f=m.querySelector("#icFind");if(f)f.focus({preventScroll:true});
+}
+/* The colours, as a pop-over for the same reason the icons are one: a row
+   of swatches unfolded inside a list row pushed everything under it down
+   the page. "Any color you like" hands over to the full picker. */
+const KM={el:null,btn:null,on:null};
+function colorMenuClose(){
+  if(KM.btn)KM.btn.setAttribute("aria-expanded","false");
+  if(KM.el&&KM.el.parentNode)KM.el.parentNode.removeChild(KM.el);
+  KM.el=null;KM.btn=null;KM.on=null;
+}
+function colorMenu(btn,cur,palette,cpKind,id,on){
+  if(KM.btn===btn){colorMenuClose();return;}
+  colorMenuClose();iconMenuClose();catMenuClose();pkClose();
+  KM.on=on;
+  const low=(cur||"").toLowerCase(),own=!palette.some(x=>x.toLowerCase()===low);
+  const m=document.createElement("div");m.className="catmenu colormenu";
+  m.setAttribute("role","dialog");m.setAttribute("aria-label","Pick a color");
+  m.innerHTML='<div class="km-grid">'+palette.map(function(x){
+      return '<button type="button" class="km-dot'+(x.toLowerCase()===low?" on":"")+'" style="--c:'+x+'" data-act="km-pick" data-v="'+x+'" title="'+x+'" aria-label="'+x+'"></button>';}).join("")+'</div>'+
+    '<div class="km-own">'+cpSwatch('data-act="cp-open" data-cp="'+cpKind+'" data-id="'+id+'"',cur,own,"Any color you like")+
+      '<span>Any color you like</span></div>';
+  document.body.appendChild(m);KM.el=m;KM.btn=btn;btn.setAttribute("aria-expanded","true");
+  const r=btn.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  let top=r.bottom+6;if(top+h>innerHeight-8)top=Math.max(8,r.top-6-h);
+  m.style.left=Math.round(Math.min(Math.max(8,r.left),innerWidth-w-8))+"px";m.style.top=Math.round(top)+"px";
+  const first=m.querySelector(".km-dot.on")||m.querySelector(".km-dot");if(first)first.focus({preventScroll:true});
+}
+document.addEventListener("mousedown",function(e){if(KM.el&&!KM.el.contains(e.target)&&!(KM.btn&&KM.btn.contains(e.target))&&!e.target.closest(".cpk"))colorMenuClose();},true);
+document.addEventListener("keydown",function(e){
+  if(KM.el&&e.key==="Escape"){e.preventDefault();const b=KM.btn;colorMenuClose();if(b)b.focus({preventScroll:true});}
+});
+/* Typed words are matched against the *starts* of the words an icon is
+   filed under, not anywhere inside them. Plain substring made "art" bring
+   back the heart, the cart, the chart and the rocket (for "startup") with
+   the palette lost among them -- and since Enter takes the first one left,
+   it took the wrong one. Where nothing starts with what was typed it falls
+   back to matching anywhere, so half a word still finds something rather
+   than nothing. */
+function iconHits(s,starts){
+  let any=0;
+  IM.el.querySelectorAll(".im-ic").forEach(function(b){
+    const words=(b.dataset.name||"").split(" ");
+    const hit=starts?words.some(function(w){return w.indexOf(s)===0;})
+                    :words.some(function(w){return w.indexOf(s)>=0;});
+    b.hidden=!hit;if(hit)any++;});
+  return any;
+}
+function iconFilter(q){
+  if(!IM.el)return;
+  const s=(q||"").trim().toLowerCase();
+  let any;
+  if(!s){any=iconHits("",false);IM.el.querySelectorAll(".im-ic").forEach(function(b){b.hidden=false;});any=1;}
+  else{any=iconHits(s,true);if(!any)any=iconHits(s,false);}
+  const none=IM.el.querySelector(".cm-none");if(none)none.hidden=!!any;
+  const box=IM.el.querySelector(".im-grid");if(box)box.scrollTop=0;
+}
+/* Enter takes the best of what is left, not the first of it: the one whose
+   own name starts with what was typed. "car" leaves the heart (filed under
+   "care"), the cart, the card and the car, in that order, and the car is
+   plainly the one meant. */
+function iconBest(s){
+  const left=[].slice.call(IM.el.querySelectorAll(".im-ic")).filter(function(b){return !b.hidden;});
+  if(!s)return left[0];
+  const named=left.filter(function(b){return (b.dataset.name||"").split(" ")[0].indexOf(s)===0;});
+  return named[0]||left[0];
+}
+document.addEventListener("input",function(e){if(e.target&&e.target.id==="icFind")iconFilter(e.target.value);});
+document.addEventListener("mousedown",function(e){if(IM.el&&!IM.el.contains(e.target)&&!(IM.btn&&IM.btn.contains(e.target)))iconMenuClose();},true);
+document.addEventListener("scroll",function(e){if(IM.el&&!IM.el.contains(e.target))iconMenuClose();},true);
+document.addEventListener("keydown",function(e){
+  if(!IM.el)return;
+  if(e.key==="Escape"){e.preventDefault();const b=IM.btn;iconMenuClose();if(b)b.focus({preventScroll:true});return;}
+  if(e.key==="Enter"&&e.target&&e.target.id==="icFind"){
+    e.preventDefault();const b=iconBest((e.target.value||"").trim().toLowerCase());if(b)b.click();}
+});
 document.addEventListener("mousedown",function(e){if(CM.el&&!CM.el.contains(e.target)&&!(CM.btn&&CM.btn.contains(e.target)))catMenuClose();},true);
 document.addEventListener("scroll",function(e){if(CM.el&&!CM.el.contains(e.target))catMenuClose();},true);
 document.addEventListener("keydown",function(e){
@@ -2907,34 +3054,62 @@ function spaceRemove(id){
   settingsModal();render();renderSheet();
   toast(drop?"Workspace deleted, and everything in it":"Workspace removed \u2014 what was in it moved to "+spaceById(to).name);
 }
+/* ---- Settings > Workspaces ----
+   Two screens, not one page of folding boxes. The list says which
+   workspaces there are; opening one gives it a page of its own with its
+   look and its categories on it.
+
+   It was a row per workspace with its categories folded inside it, and
+   each category folding open again for its icon and its colour -- an
+   accordion inside an accordion, three deep, where opening anything pushed
+   everything below it down the page and the workspace you were working on
+   could end up off the screen. Drilling in keeps every level flat: the
+   icon and colour are pop-overs now (iconMenu, colorMenu), so nothing on
+   either screen grows when you press it. */
 function setSpacesPane(sec,field){
-  const bs=spaces(),at=S.prefs.spaceAt,w=wsState(),del=w.del?spaceById(w.del):null;
-  const rows=bs.map(b=>{const n=wsCounts(b.id),pal=w.pal===b.id,here=b.id===at,catsOpen=V.catWs===b.id;
+  const open=V.wsOpen?spaceById(V.wsOpen):null;
+  if(open)return wsPage(sec,field,open);
+  const bs=spaces(),at=S.prefs.spaceAt;
+  const rows=bs.map(b=>{const n=wsCounts(b.id),here=b.id===at;
     const held=[n.tasks+" task"+(n.tasks===1?"":"s"),n.routines+" routine"+(n.routines===1?"":"s"),
       n.notes+" note"+(n.notes===1?"":"s"),n.cats+" categor"+(n.cats===1?"y":"ies")].join(" \u00b7 ");
     return '<div class="wsrow'+(here?" on":"")+'" draggable="true" data-ws="'+b.id+'" style="--s:'+b.color+'">'+
       '<button type="button" class="cz-grip" data-grip="ws" data-id="'+b.id+'" title="Drag to reorder" aria-label="Move '+esc(b.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
-      '<button class="wsrow-ic" data-act="ws-pal" data-id="'+b.id+'" aria-label="Icon and color of '+esc(b.name)+'" aria-expanded="'+pal+'">'+icon(b.icon||"i-grid","ic-14")+'</button>'+
-      '<span class="wsrow-t"><input class="cz-name" data-act="ws-name" data-id="'+b.id+'" value="'+esc(b.name)+'" maxlength="40" aria-label="Workspace name">'+
-        '<small>'+esc(held)+'</small></span>'+
-      '<button class="btn btn-sm'+(catsOpen?" on":"")+'" data-act="ws-cats" data-id="'+b.id+'" aria-expanded="'+catsOpen+'"'+
-        ' title="Edit this workspace\u2019s categories">'+icon("i-folder","ic-14")+'Categories'+icon(catsOpen?"i-chev-u":"i-chev-d","ic-14")+'</button>'+
+      '<button class="wsrow-go" data-act="ws-page" data-id="'+b.id+'" aria-label="Open '+esc(b.name)+'">'+
+        '<span class="wsrow-tile" style="--c:'+b.color+'">'+icon(b.icon||"i-grid","ic-16")+'</span>'+
+        '<span class="wsrow-t"><b>'+esc(b.name)+'</b><small>'+esc(held)+'</small></span></button>'+
       (here?'<span class="cz-here">Current</span>'
-        :'<button class="btn btn-sm" data-act="ws-open" data-id="'+b.id+'">Open</button>')+
-      '<button class="icon-btn btn-sm cz-del" data-act="ws-del" data-id="'+b.id+'" aria-label="Remove '+esc(b.name)+'"'+(bs.length<2?" disabled":"")+'>'+icon("i-trash","ic-14")+'</button>'+
-      (pal?'<div class="ws-pal">'+
-        '<div class="ws-pal-row">'+LANE_COLORS.map(x=>'<button class="'+(x===b.color?"on":"")+'" style="--c:'+x+'" data-act="ws-color" data-id="'+b.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
-          cpSwatch('data-act="cp-open" data-cp="ws" data-id="'+b.id+'"',b.color,LANE_COLORS.indexOf(b.color)<0,"Any color you like")+'</div>'+
-        '<div class="ws-pal-row ic">'+WS_ICONS.map(x=>'<button class="'+(x===(b.icon||"i-grid")?"on":"")+'" data-act="ws-icon" data-id="'+b.id+'" data-v="'+x+'" aria-label="'+x+'">'+icon(x,"ic-14")+'</button>').join("")+'</div>'+
-        '</div>':"")+
-      (del&&del.id===b.id?wsDelRow(b,n):"")+
-      (catsOpen?catListHtml(b.id):"")+
+        :'<button class="btn btn-sm" data-act="ws-open" data-id="'+b.id+'">Switch to</button>')+
+      '<button class="icon-btn btn-sm" data-act="ws-page" data-id="'+b.id+'" aria-label="Open '+esc(b.name)+'">'+icon("i-chev-r","ic-14")+'</button>'+
       '</div>';}).join("");
   const full=bs.length>=WS_MAX;
   return sec("Your workspaces",
+      '<p class="set-help">Each one keeps its own tasks, routines, notes and categories. Open one to rename it or change what is in it.</p>'+
       '<div class="wslist" id="wsList">'+rows+'</div>'+
       '<button class="btn btn-sm" data-act="ws-add"'+(full?" disabled":"")+'>'+icon("i-plus","ic-14")+'New workspace</button>'+
       (full?'<p class="set-help">Six is the most for now.</p>':""));
+}
+/* One workspace, on its own: what it looks like, then what is in it. */
+function wsPage(sec,field,b){
+  const n=wsCounts(b.id),w=wsState(),here=b.id===S.prefs.spaceAt,last=spaces().length<2;
+  const held=[n.tasks+" task"+(n.tasks===1?"":"s"),n.routines+" routine"+(n.routines===1?"":"s"),
+    n.notes+" note"+(n.notes===1?"":"s")].join(" \u00b7 ");
+  const head='<div class="ws-page-top">'+
+    '<button class="btn btn-sm ws-back" data-act="ws-back">'+icon("i-chev-l","ic-14")+'Your workspaces</button>'+
+    (here?'<span class="cz-here">Current</span>'
+      :'<button class="btn btn-sm" data-act="ws-open" data-id="'+b.id+'">Switch to this one</button>')+'</div>';
+  const look='<div class="ws-look">'+
+    '<button class="ws-look-tile" data-act="ws-icons" data-id="'+b.id+'" style="--c:'+b.color+'" aria-haspopup="dialog" aria-label="Icon for '+esc(b.name)+'">'+icon(b.icon||"i-grid","ic-18")+'</button>'+
+    '<input class="inp ws-look-name" data-act="ws-name" data-id="'+b.id+'" value="'+esc(b.name)+'" maxlength="40" aria-label="Workspace name">'+
+    '<button class="ws-look-dot" data-act="ws-colors" data-id="'+b.id+'" style="--c:'+b.color+'" aria-haspopup="dialog" aria-label="Color of '+esc(b.name)+'"></button>'+
+    '</div><p class="set-help">'+esc(held)+'</p>';
+  const del=w.del===b.id
+    ?wsDelRow(b,n)
+    :'<button class="btn btn-sm btn-danger-ghost" data-act="ws-del" data-id="'+b.id+'"'+(last?" disabled":"")+'>'+icon("i-trash","ic-14")+'Remove this workspace</button>'+
+      (last?'<p class="set-help">The last workspace cannot go.</p>':"");
+  return sec(b.name,head+look)+
+    sec("Categories",catListHtml(b.id))+
+    sec("Remove",del);
 }
 function wsDelRow(b,n){
   const others=spaces().filter(x=>x.id!==b.id);
@@ -5023,33 +5198,35 @@ const cmSpace=()=>spaceById(cmWs())||spaces()[0];
    that meant a popup opening on top of a popup to edit something the
    first popup was already listing. V.catWs is the workspace whose list is
    open, and only one is at a time. */
+/* The way in to a workspace's categories, from the sidebar's pencil as well
+   as from the pane itself. A workspace id opens that workspace's own page,
+   where its categories are; null -- which is what the pencil gives across
+   all of them, since there is no one workspace to edit -- opens the list of
+   workspaces to choose from. */
 function catsPane(ws){
-  if(ws!==undefined)V.catWs=ws;
+  if(ws!==undefined){V.catWs=ws;V.wsOpen=ws||null;}
   V.setTab="spaces";settingsModal();
 }
 /* Anything that changes a category redraws the pane where it is open. */
 function refreshCats(){if(el("modalRoot").querySelector(".modal.settings"))settingsModal();}
 function catListHtml(wid){
   const E=V.catEdit||{},del=E.del?cat(E.del):null;
-  const row=c=>{const open=E.id===c.id?E.part:"",off=!visibleCat(c.id);
+  const row=c=>{const off=!visibleCat(c.id);
     const n=S.tasks.filter(t=>t.cat===c.id).length+S.routines.filter(r=>r.cat===c.id).length;
     const to=catsOf(wid).find(x=>x.id!==c.id);
-    return '<div class="cm-row'+(off?" off":"")+(open?" open":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
+    return '<div class="cm-row'+(off?" off":"")+'" draggable="true" data-cat="'+c.id+'" style="--c:'+c.color+'">'+
       '<button type="button" class="cz-grip" data-grip="cat" data-id="'+c.id+'" title="Drag to reorder" aria-label="Move '+esc(c.name)+': drag, or use the arrow keys">'+icon("i-grip","ic-14")+'</button>'+
-      '<button type="button" class="cm-ic'+(open==="icon"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="icon" aria-label="Icon for '+esc(c.name)+'" aria-expanded="'+(open==="icon")+'">'+icon(c.icon,"ic-16")+'</button>'+
-      '<button type="button" class="cm-sw'+(open==="color"?" on":"")+'" data-act="cm-part" data-id="'+c.id+'" data-v="color" aria-label="Color of '+esc(c.name)+'" aria-expanded="'+(open==="color")+'"></button>'+
+      '<button type="button" class="cm-ic" data-act="cm-icons" data-id="'+c.id+'" aria-label="Icon for '+esc(c.name)+'" aria-haspopup="dialog" aria-expanded="false">'+icon(c.icon,"ic-16")+'</button>'+
+      '<button type="button" class="cm-sw" data-act="cm-colors" data-id="'+c.id+'" aria-label="Color of '+esc(c.name)+'" aria-haspopup="dialog" aria-expanded="false"></button>'+
       '<input class="cm-name" data-act="cm-name" data-id="'+c.id+'" value="'+esc(c.name)+'" maxlength="40" aria-label="Category name" autocomplete="off">'+
       (off?'<span class="cm-hid" title="Hidden from your views">'+icon("i-eye-off","ic-14")+'</span>':"")+
       '<button type="button" class="icon-btn btn-sm cm-more" data-act="cm-more" data-id="'+c.id+'" aria-label="More for '+esc(c.name)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button>'+
-      (open==="color"?'<div class="cm-pick">'+CAT_COLORS.map(x=>'<button type="button" class="cm-dot'+(x.toLowerCase()===c.color.toLowerCase()?" on":"")+'" style="--c:'+x+'" data-act="cm-color" data-id="'+c.id+'" data-v="'+x+'" aria-label="'+x+'"></button>').join("")+
-        cpSwatch('data-act="cp-open" data-cp="cat" data-id="'+c.id+'"',c.color,!CAT_COLORS.some(x=>x.toLowerCase()===c.color.toLowerCase()),"Any color you like")+'</div>':"")+
-      (open==="icon"?'<div class="cm-pick cm-icons">'+CAT_ICONS.map(i=>'<button type="button" class="cm-icon'+(i===c.icon?" on":"")+'" data-act="cm-icon" data-id="'+c.id+'" data-v="'+i+'" aria-label="'+i.replace("i-","")+'">'+icon(i,"ic-16")+'</button>').join("")+'</div>':"")+
       (del&&del.id===c.id?'<div class="cz-delrow"><span>'+(n?'Delete “'+esc(c.name)+'”? '+(n===1?"Its one item moves":"Its "+n+" items move")+' to '+esc(to?to.name:"")+'.':'Delete “'+esc(c.name)+'”?')+'</span>'+
         '<span class="spacer" style="flex:1"></span><button type="button" class="btn btn-sm" data-act="cm-del-no">Keep it</button>'+
         '<button type="button" class="btn btn-sm btn-danger" data-act="cm-del-yes" data-id="'+c.id+'">Delete</button></div>':"")+
       '</div>';};
   return '<div class="ws-cats">'+
-    '<p class="ws-cats-lead">Rename, recolor or reorder them. Drag a handle to move one.</p>'+
+    '<p class="ws-cats-lead">Press a tile to change its icon or its color. Drag a handle to reorder.</p>'+
     '<div class="cat-manage" id="cmList">'+catsOf(wid).map(row).join("")+'</div>'+
     '<button type="button" class="btn btn-sm cm-new" data-act="cm-new">'+icon("i-plus","ic-14")+'New category</button></div>';
 }
@@ -5512,14 +5689,18 @@ document.addEventListener("click",function(e){
     /* From Settings the window edits that workspace's, whichever one the
        sidebar happens to be showing -- that is the whole point of its
        being here rather than only behind the sidebar's pencil. */
-    case "ws-cats":V.catEdit={};catsPane(V.catWs===id?null:id);break;
+    case "ws-page":V.wsOpen=id;V.catEdit={};wsState().del=null;catsPane(id);break;
+    case "ws-back":V.wsOpen=null;V.catEdit={};wsState().del=null;settingsModal();break;
+    case "ws-icons":iconMenu(n,(spaceById(id)||{}).icon||"i-grid",function(v){
+      const b=spaceById(id);if(b){b.icon=v;save("prefs");settingsModal();render();}});break;
+    case "ws-colors":colorMenu(n,(spaceById(id)||{}).color,LANE_COLORS,"ws",id,function(v){
+      const b=spaceById(id);if(b){b.color=v;save("prefs");settingsModal();render();}});break;
     case "ws-open":wsGo(id);if(el("modalRoot").querySelector(".modal.settings"))settingsModal();break;
-    case "ws-pal":wsState().pal=wsState().pal===id?null:id;settingsModal();break;
-    case "ws-color":{const b=spaceById(id);if(b){b.color=n.dataset.v;save("prefs");wsState().pal=null;settingsModal();render();}break;}
-    case "ws-icon":{const b=spaceById(id);if(b){b.icon=n.dataset.v;save("prefs");wsState().pal=null;settingsModal();render();}break;}
+    case "ws-color":{const b=spaceById(id);if(b){b.color=n.dataset.v;save("prefs");settingsModal();render();}break;}
+    case "ws-icon":{const b=spaceById(id);if(b){b.icon=n.dataset.v;save("prefs");settingsModal();render();}break;}
     case "ws-del":wsState().del=id;settingsModal();break;
     case "ws-del-no":wsState().del=null;settingsModal();break;
-    case "ws-del-yes":spaceRemove(id);break;
+    case "ws-del-yes":V.wsOpen=null;spaceRemove(id);break;
     case "ws-move":spaceMove(id,Number(n.dataset.v));break;
     case "cz-lane-pal":V.cz.pal=V.cz.pal===id?null:id;customiseModal();break;
     case "cz-lane-color":{const l=lane(id);if(l){l.color=n.dataset.v;save("prefs");V.cz.pal=null;customiseModal();render();}break;}
@@ -5650,10 +5831,12 @@ document.addEventListener("click",function(e){
       const sel=el("rRep");if(sel)sel.value=on==="0123456"?"daily":on==="12345"?"weekdays":"weekly";break;}
     case "r-active":{const on=M.dataset.active!=="false";M.dataset.active=String(!on);n.classList.toggle("on",on);n.setAttribute("aria-checked",String(on));break;}
     case "manage-cats":V.catEdit={};catsPane(wsAll()?null:curSpace().id);break;
-    case "cm-part":{const E=V.catEdit||{};V.catEdit=(E.id===id&&E.part===n.dataset.v)?{}:{id:id,part:n.dataset.v};refreshCats();
-      const b=document.querySelector('.cm-row[data-cat="'+id+'"] [data-act="cm-part"][data-v="'+n.dataset.v+'"]');if(b)b.focus({preventScroll:true});break;}
     case "cm-color":cmSet(id,{color:n.dataset.v});break;
     case "cm-icon":cmSet(id,{icon:n.dataset.v});break;
+    case "cm-icons":iconMenu(n,(cat(id)||{}).icon,function(v){cmSet(id,{icon:v});});break;
+    case "cm-colors":colorMenu(n,(cat(id)||{}).color,CAT_COLORS,"cat",id,function(v){cmSet(id,{color:v});});break;
+    case "km-pick":{const on=KM.on;colorMenuClose();if(on)on(n.dataset.v);break;}
+    case "im-pick":{const on=IM.on;iconMenuClose();if(on)on(n.dataset.v);break;}
     case "cm-new":{const used=catsOf(cmWs()).map(x=>x.color.toLowerCase()),col=CAT_COLORS.find(x=>used.indexOf(x.toLowerCase())<0)||CAT_COLORS[0],nid=uid("c");
       S.categories.push({id:nid,ws:cmWs(),name:"New category",icon:"i-circle",color:col});V.catEdit={};save("categories");renderRail();refreshCats();
       const i=document.querySelector('.cm-name[data-id="'+nid+'"]');if(i){i.focus();i.select();}break;}
