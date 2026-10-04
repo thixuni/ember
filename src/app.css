@@ -1015,7 +1015,7 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
    A routine's whole history: four numbers, a year of days as a wall of
    weeks, and every run it has ever had. */
 .slog-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.slog-stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:11px 13px}
+.slog-stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:13px 14px 14px}
 .slog-stat b{display:block;font-family:var(--fd);font-size:24px;line-height:1.05;color:var(--ink)}
 .slog-stat span{display:block;margin-top:3px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
 .slog-stat.hot{background:var(--apricot-soft);border-color:color-mix(in srgb,var(--apricot) 32%,var(--line))}
@@ -1025,11 +1025,11 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
    thing that says what the colours mean stays with the colours. The
    negative side margins take it out to the body's own edge, and the solid
    background is what the calendars pass behind. */
-.slog-bar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;
+.slog-bar{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;
   margin:0 -20px;padding:7px 20px 10px;background:var(--surface);border-bottom:1px solid var(--line)}
 /* A sticky child settles below the scrolling box’s own top padding, and
    the stats slid through that 16px band on their way past. This covers it. */
-.slog-bar::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:24px;background:var(--surface)}
+
 .slog-ynav{display:flex;align-items:center;gap:2px;flex:none}
 .slog-ynav .icon-btn{width:28px;height:28px;padding:0;place-items:center}
 .slog-y{font-family:var(--fd);font-size:13.5px;font-weight:700;min-width:44px;text-align:center;color:var(--ink)}
@@ -1037,11 +1037,15 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
    in its own month, with its date on it. */
 /* Six and six rather than as many as fit: twelve months left 5, 5 and 2,
    and the short last row read as something missing. */
-.slog-year{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:15px 16px}
-@media (max-width:760px){.slog-year{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width:560px){.slog-year{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:420px){.slog-year{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.slog-mon > b{display:block;font-family:var(--fd);font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px}
+/* Three months across, held to a width where a day is big enough to read
+   its own date and to press without aiming. */
+.slog-year{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;
+  width:100%;max-width:640px;align-self:center;margin-top:2px}
+@media (max-width:620px){.slog-year{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}}
+@media (max-width:420px){.slog-year{grid-template-columns:1fr}}
+.slog-mon > b{display:flex;align-items:baseline;gap:5px;font-family:var(--fd);font-size:13px;
+  font-weight:700;color:var(--ink);margin-bottom:6px}
+.slog-mon > b span{font-family:var(--ff);font-size:10.5px;font-weight:600;color:var(--faint)}
 .slog-wk,.slog-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
 .slog-wk{margin-bottom:3px}
 .slog-wk span{font-size:9px;font-weight:700;color:var(--faint);text-align:center}
@@ -1666,7 +1670,7 @@ button.obx-rt-txt > *{pointer-events:none}
 .modal.narrow{width:min(460px,100%)}
 /* Wide enough that a whole year of squares fits without scrolling on a
    normal screen; it still scrolls on a narrow one. */
-.modal.slog{width:min(920px,96vw)}
+.modal.slog{width:min(740px,96vw)}
 .mhead2{display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
 .mhead2 h2{font-size:17px;flex:1;min-width:0}
 .mbody{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}

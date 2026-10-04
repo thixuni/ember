@@ -3250,12 +3250,26 @@ function streakModal(id){
   const r=routineById(id);if(!r)return;
   /* A different routine starts on this year rather than wherever the last
      one was left. */
-  if(V.slog!==id)V.slogY=null;
+  if(V.slog!==id)V.slogQ=null;
   V.slog=id;
   const c=cat(r.cat),st=streakStats(r),T=TODAY(),unit=streakUnit(r);
-  const firstY=+st.first.slice(0,4),nowY=+T.slice(0,4);
-  let y=V.slogY==null?nowY:V.slogY;
-  if(y<firstY)y=firstY;if(y>nowY)y=nowY;V.slogY=y;
+  /* Three months at a time, stepped by one control. Twelve calendars at
+     once showed a whole year, which is the thing a streak is about -- but
+     it was a wall, and the first thing anyone said about it was that there
+     was too much of it. Three is enough to see a run in, four steps cover
+     a year, and the history goes back as far as it ever did. Counted in
+     months from the routine's first tick, so stepping never has to think
+     about year ends. */
+  const mFirst=+st.first.slice(0,4)*12+(+st.first.slice(5,7)-1);
+  const mNow=+T.slice(0,4)*12+(+T.slice(5,7)-1);
+  /* The quarters are the routine's own, counted back from the one today is
+     in, so today always sits in the last of three. */
+  const qLast=mNow-2;
+  let qAt=V.slogQ==null?qLast:V.slogQ;
+  if(qAt>qLast)qAt=qLast;
+  if(qAt<mFirst-2)qAt=mFirst-2;
+  V.slogQ=qAt;
+  const show=[0,1,2].map(i=>qAt+i).filter(m=>m>=mFirst-2);
 
   /* The year as twelve calendars. It was one wall of weeks, a column each,
      the way a contribution chart is drawn -- and a column that straddles two
@@ -3263,16 +3277,27 @@ function streakModal(id){
      sat under October and a day ticked on Sep 29 looked like October. Here
      every day is in its own month, under its own weekday, with its date on
      it, and there is nothing left to work out. */
-  const months=MONS.map((name,m)=>{
-    const first=parseD(y+"-"+pad(m+1)+"-01"),len=new Date(y,m+1,0).getDate();
+  /* Which rarer states actually appear in these three months, so the key
+     explains what is on the screen and nothing else. */
+  const seen={};
+  const months=show.map(mi=>{
+    const yy=Math.floor(mi/12),mm=mi%12;
+    const first=parseD(yy+"-"+pad(mm+1)+"-01"),len=new Date(yy,mm+1,0).getDate();
     const lead=(first.getDay()+6)%7;          // Monday-first
     let box="";
     for(let i=0;i<lead;i++)box+='<i class="sq pad"></i>';
-    for(let i=1;i<=len;i++)box+=slogCell(r,y+"-"+pad(m+1)+"-"+pad(i),c);
-    return '<div class="slog-mon"><b>'+name+'</b>'+
+    for(let i=1;i<=len;i++){const s=yy+"-"+pad(mm+1)+"-"+pad(i);
+      const cell=slogCell(r,s,c);
+      if(cell.indexOf('class="sq made')>-1)seen.made=1;
+      if(cell.indexOf('class="sq skip')>-1)seen.skip=1;
+      box+=cell;}
+    return '<div class="slog-mon"><b>'+MONS[mm]+'<span>'+yy+'</span></b>'+
       '<div class="slog-wk">'+["M","T","W","T","F","S","S"].map(x=>'<span>'+x+'</span>').join("")+'</div>'+
       '<div class="slog-days">'+box+'</div></div>';
   }).join("");
+  const span=(()=>{const a=show[0],b=show[show.length-1];
+    const ya=Math.floor(a/12),yb=Math.floor(b/12);
+    return MONS[a%12]+(ya!==yb?" "+ya:"")+" \u2013 "+MONS[b%12]+" "+yb;})();
 
   const pct=st.due?Math.round(st.kept/st.due*100):0;
   const stat=(v,label,cls)=>'<div class="slog-stat'+(cls?" "+cls:"")+'"><b>'+v+'</b><span>'+label+'</span></div>';
@@ -3299,18 +3324,23 @@ function streakModal(id){
          first tick>" used to hold this line and said nothing the calendars
          below do not. */
       '<div class="slog-bar">'+
+        /* Two states are always on a calendar, so they are always named.
+           The other two are rare, and naming them when none is on the
+           screen is five things to read where there were two. "Not
+           scheduled" is not in the key at all: a day a routine was never
+           due is the plain one, and a key entry for the absence of a state
+           reads as a state. Every square says what it is on hover. */
         '<div class="slog-key">'+
           '<span class="k"><i class="sq done" style="--c:'+c.color+'"></i>Kept</span>'+
           '<span class="k"><i class="sq miss"></i>Missed</span>'+
-          '<span class="k"><i class="sq made"></i>Made up later</span>'+
-          '<span class="k"><i class="sq skip"></i>Skipped</span>'+
-          '<span class="k"><i class="sq off"></i>Not scheduled</span>'+
+          (seen.made?'<span class="k"><i class="sq made"></i>Made up later</span>':"")+
+          (seen.skip?'<span class="k"><i class="sq skip"></i>Skipped</span>':"")+
         '</div>'+
         '<span class="k mnone">Press any day to change it</span>'+
         '<div class="slog-ynav">'+
-          '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y-1)+'"'+(y<=firstY?" disabled":"")+' aria-label="Earlier year">'+icon("i-chev-l","ic-14")+'</button>'+
-          '<b class="slog-y">'+y+'</b>'+
-          '<button class="icon-btn btn-sm" data-act="slog-year" data-v="'+(y+1)+'"'+(y>=nowY?" disabled":"")+' aria-label="Later year">'+icon("i-chev-r","ic-14")+'</button>'+
+          '<button class="icon-btn btn-sm" data-act="slog-q" data-v="'+(qAt-3)+'"'+(qAt<=mFirst-2?" disabled":"")+' aria-label="Earlier months">'+icon("i-chev-l","ic-14")+'</button>'+
+          '<b class="slog-y">'+esc(span)+'</b>'+
+          '<button class="icon-btn btn-sm" data-act="slog-q" data-v="'+(qAt+3)+'"'+(qAt>=qLast?" disabled":"")+' aria-label="Later months">'+icon("i-chev-r","ic-14")+'</button>'+
         '</div>'+
       '</div>'+
       '<div class="slog-year">'+months+'</div>'
@@ -3403,7 +3433,7 @@ function viewNotes(){
 }
 
 /* ============ modals ============ */
-function closeModal(){el("modalRoot").innerHTML="";V.peek=null;V.slog=null;V.slogY=null;fvDrop();}
+function closeModal(){el("modalRoot").innerHTML="";V.peek=null;V.slog=null;V.slogQ=null;fvDrop();}
 function openModal(html,opt){
   const root=el("modalRoot"),open=root.querySelector(".scrim > .modal");
   const label=(html.match(/aria-label="([^"]*)"/)||[])[1];
@@ -5446,7 +5476,7 @@ document.addEventListener("click",function(e){
     case "routine-save":saveRoutine(id||null);break;
     case "routine-delete":if(arm(n,"Delete for good?"))deleteRoutine(id);break;
     case "rt-menu":ctxMenu(routineItems(id,TODAY()),null,n);break;
-    case "streak-log":V.slogY=null;streakModal(id);break;
+    case "streak-log":V.slogQ=null;streakModal(id);break;
     /* A night lit gets the window the other nights keep; a night put out
        keeps its times, so turning it back on does not start from scratch. */
     case "quiet-day":{const p=remindPrefs(),wd=Number(n.dataset.v),i=p.quietDays.indexOf(wd);
@@ -5464,7 +5494,7 @@ document.addEventListener("click",function(e){
       V.rweek=V.rweek||{};
       V.rweek[id]=v?Math.min(0,(V.rweek[id]||0)+v):0;
       renderView();break;}
-    case "slog-year":V.slogY=Number(n.dataset.v);if(V.slog)streakModal(V.slog);break;
+    case "slog-q":V.slogQ=Number(n.dataset.v);if(V.slog)streakModal(V.slog);break;
     case "rt-edit":routineModal(id);break;
     case "cx-do":{const x=TMN.items&&TMN.items[Number(n.dataset.i)];if(!x)break;
       if(x.arm&&!arm(n,x.arm))break;taskMenuClose();x.run();break;}
