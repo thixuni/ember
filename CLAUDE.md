@@ -910,7 +910,14 @@ chore.
   date, then status (`lgBy()`). `lgOf(t, g)` says a task's table and
   `lgPreset(g, k)` what a task added under it gets, so it lands there
   (`V.lqa` is the table). A single heading over lane sections was tried and
-  taken back: a group reads on its own. Customize ▸ List view also holds
+  taken back: a group reads on its own.
+  **A column the grouping has already named is left out** (`lgCol(g)`,
+  filtered in `viewList()` and nowhere else, since it is about this view
+  and not about the setting): grouped by category, every row under
+  *Side Hustle* said *Side Hustle* again in its widest cell. **Only an exact
+  grouping counts.** By date the table is a *month* and the cell is the
+  day -- the thing actually being read -- so that column stays, and a date
+  field of one's own is the same. Workspace has no column to leave out. Customize ▸ List view also holds
   the column order, moved out of Task details, as a plain list of the
   columns with a handle each — a strip drawn like the list's own heading
   sat above it and read as a second thing to set. Every cell is edited in place

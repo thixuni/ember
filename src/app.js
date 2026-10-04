@@ -2440,7 +2440,10 @@ function viewList(){
      A heading is clicked to sort: A to Z, Z to A, then back as it was
      (`board().lsort`); a heading is dragged to move it and its edge to
      size it. */
-  const cols=listCols().filter(c=>c.on),W=lrWidths(cols),srt=lrSort();
+  /* What it is grouped by is settled before the columns, because a column
+     the grouping has already named is left out of them. */
+  const g=lgBy();
+  const cols=listCols().filter(c=>c.on&&c.k!==lgCol(g)),W=lrWidths(cols),srt=lrSort();
   const grid='grid-template-columns:40px var(--w-name) '+cols.map(c=>'var(--w-'+lrVar(c.k)+')').join(" ")+' minmax(0,1fr)';
   const vars=Object.keys(W).map(k=>'--w-'+lrVar(k)+':'+W[k]+'px').join(";");
   const hd=(k,label,drag)=>{const on=srt&&srt.k===k,dir=on?srt.dir:"";
@@ -2449,7 +2452,7 @@ function viewList(){
       '<span class="lh-t">'+esc(label)+'</span>'+icon(on&&dir==="desc"?"i-arr-d":"i-arr-u","ic-12 lh-ar")+
       '<i class="lh-rs" data-rs="'+esc(k)+'" title="Drag to resize"></i></span>';};
   const head='<div class="lrow head" style="'+grid+'"><span class="lr-lead"></span>'+hd("name","Task",false)+cols.map(c=>hd(c.k,colLabel(c.k),true)).join("")+'<span></span></div>';
-  const g=lgBy(),groups={},meta={},order=[];
+  const groups={},meta={},order=[];
   list.forEach(t=>{const x=lgOf(t,g),k=x.k;if(!groups[k]){groups[k]=[];meta[k]=x;order.push(k);}groups[k].push(t);});
   order.sort((a,b)=>meta[a].o<meta[b].o?-1:meta[a].o>meta[b].o?1:0);
   const month=g==="date"||(g.indexOf("cf:")===0&&(fieldById(g.slice(3))||{}).type==="date");
@@ -2509,6 +2512,18 @@ function lgBy(){const ok=lgChoices().map(x=>x[0]),g=board().lgroup;
   return g&&ok.indexOf(g)>-1?g:ok[0];}
 const monName=k=>MON[Number(k.slice(5))-1]+" "+k.slice(0,4);
 /* A task's table under grouping g: {k, name, o} (o orders the tables). */
+/* The column the grouping has already said. A table a category names its
+   category in its heading, so the Category cell under it repeats the
+   heading on every row -- and it is the widest thing it repeats.
+   **Only an exact grouping counts.** By date the table is a *month* and the
+   cell is the day, which is the thing you are actually reading, so that
+   column stays; the same goes for a date field of your own. */
+function lgCol(g){
+  if(g==="status"||g==="category"||g==="priority")return g;
+  if(g&&g.indexOf("cf:")===0){const f=fieldById(g.slice(3));
+    return f&&f.type!=="date"?g:"";}
+  return "";
+}
 function lgOf(t,g){
   const month=(v,none)=>v?{k:v.slice(0,7),name:monName(v.slice(0,7)),o:v.slice(0,7)}:{k:"none",name:none,o:"~"};
   if(g==="ws"){const L=spaces(),i=L.findIndex(w=>w.id===t.ws);return {k:t.ws,name:i<0?"No workspace":L[i].name,o:String(1000+(i<0?999:i))};}
