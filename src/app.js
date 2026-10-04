@@ -2538,7 +2538,7 @@ function lrSubRows(t,cols,grid){
   return kids.map(k=>lrRow(k,cols,grid,true)).join("")+
     light.map(s=>'<div class="lrow lr-sub lr-lite'+(s.d?" done":"")+'" style="'+grid+'">'+
       '<span class="lr-lead"><button class="tick'+(s.d?" on":"")+'" data-act="lsub-tick" data-id="'+t.id+'" data-v="'+esc(s.id||"")+'" aria-label="Check off '+esc(s.t)+'">'+icon("i-check")+'</button></span>'+
-      '<span class="name"><span class="lr-sub-dot"></span><span class="lr-title as-text">'+esc(s.t)+'</span></span>'+
+      '<span class="name"><span class="lr-title as-text">'+esc(s.t)+'</span></span>'+
       cols.map(k=>'<span class="lr-cell">'+(k.k==="date"&&feat("subdate")
         ? dateField('data-act="lsub-date" data-id="'+t.id+'" data-v="'+esc(s.id||"")+'"',s.due||"",{sm:1,ph:"",label:"Subtask date",cls:"lr-f"})
         : "")+'</span>').join("")+'<span></span></div>').join("");
