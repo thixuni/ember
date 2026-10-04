@@ -168,6 +168,9 @@ function catFor(id,wid){
   const src=cat(id),same=src&&L.find(c=>c.name.toLowerCase()===src.name.toLowerCase());
   return (same||L.find(c=>c.id==="other"||c.name.toLowerCase()==="other")||L[0]).id;
 }
+/* A lane id is unique across every workspace, so the workspace it belongs
+   to can always be found from the id alone. */
+const laneWs=id=>{const w=spaces().find(s=>(s.lanes||[]).some(l=>l.id===id));return w?w.id:null;};
 const lanesOf=bid=>{const b=spaceById(bid);return b?b.lanes:curSpace().lanes;};
 const lanes=()=>curSpace().lanes;
 /* A lane is looked up across every board, never within one: a task carries
@@ -948,14 +951,8 @@ function renderTopbar(){
     const mine=wsTasks(),mOpen=mine.filter(isOpen),mOver=mine.filter(isOverdue);
     title="Tasks";sub=mine.length?mOpen.length+" open"+(mOver.length?" · "+mOver.length+" overdue":"")+" · "+mine.length+" total":"Nothing on this board yet";
     const fn=activeFilterCount();
-    /* Lanes belong to a workspace, so there is no one board to draw across
-       all of them: two workspaces' To do are two different lanes, and
-       merging them by name would be a guess. The list is honest about it --
-       a table a workspace -- so Board is off rather than lying. */
-    const noBoard=wsAll();
-    right='<div class="seg"><button data-act="task-mode" data-mode="board" aria-pressed="'+(V.taskMode==="board"&&!noBoard)+'"'+
-      (noBoard?' disabled title="Lanes belong to a workspace. Open one to use the board."':"")+'>'+icon("i-board")+'Board</button>'+
-      '<button data-act="task-mode" data-mode="list" aria-pressed="'+(V.taskMode==="list"||noBoard)+'">'+icon("i-list")+'List</button></div>'+
+    right='<div class="seg"><button data-act="task-mode" data-mode="board" aria-pressed="'+(V.taskMode==="board")+'">'+icon("i-board")+'Board</button>'+
+      '<button data-act="task-mode" data-mode="list" aria-pressed="'+(V.taskMode==="list")+'">'+icon("i-list")+'List</button></div>'+
       '<button class="tb-btn'+(V.adv||fn?" on":"")+'" data-act="adv-toggle" aria-expanded="'+!!V.adv+'" title="Filter tasks">'+icon("i-filter")+'<span>Filter</span>'+(fn?'<b class="num">'+fn+'</b>':"")+'</button>'+
       '<button class="tb-btn" data-act="customise" data-tip="customize" title="Customize tasks">'+icon("i-sliders")+'<span>Customize</span></button>'+
       topSearch("Search tasks")+'<button class="btn btn-primary" data-act="new-task">'+icon("i-plus")+'New task</button>';
@@ -2266,13 +2263,41 @@ function colCards(id,items){
   return items.slice(0,shown).map(taskCard).join("")+
     (left>0?'<button class="col-more" data-act="col-more" data-v="'+id+'">Show '+Math.min(left,100)+' more <span class="num">· '+left+' hidden</span></button>':"");
 }
+/* One workspace's lanes, side by side. Every lane carries the workspace it
+   belongs to, because across all of them a lane on screen is not
+   necessarily the one the sidebar is pointing at -- what is dropped into it
+   and what is added at its foot both have to know whose it is. */
+function boardFor(w,list){
+  return '<div class="board">'+lanesOf(w.id).map(s=>{
+    const items=list.filter(t=>t.status===s.id);
+    return '<div class="col" data-col="'+s.id+'" data-ws="'+w.id+'" style="--s:'+s.color+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
+      '<div class="col-list">'+(items.length?colCards(s.id,items):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
+      (V.qa&&V.qa.lane===s.id?qaCard():'<button class="addcard" data-act="qa-open" data-status="'+s.id+'" data-ws="'+w.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>';}).join("")+'</div>';
+}
+/* Across all of them the board is one board a workspace, stacked and each
+   collapsible -- the same shape the list already takes there, where it is a
+   table a workspace. Lanes are never merged by name: two workspaces' To do
+   are two different lanes, and one column holding both would have to guess
+   which one a card dropped in it meant. Stacking guesses nothing, and a
+   card dragged from one workspace's board to another's moves workspace,
+   which is a real thing to want and says so in a toast.
+
+   Each stacked board has a height of its own so its lanes scroll inside it
+   and the page scrolls between them; in a single workspace the board is
+   full height exactly as it always was. */
 function viewBoard(){
   const list=filterTasks("board");
-  return '<div class="task-main">'+filterBar()+elsewhereHtml()+'<div class="board-scroll"><div class="board">'+lanes().map(s=>{
-    const items=list.filter(t=>t.status===s.id);
-    return '<div class="col" data-col="'+s.id+'" style="--s:'+s.color+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
-      '<div class="col-list">'+(items.length?colCards(s.id,items):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
-      (V.qa&&V.qa.lane===s.id?qaCard():'<button class="addcard" data-act="qa-open" data-status="'+s.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>';}).join("")+'</div></div></div>';
+  const head=filterBar()+elsewhereHtml();
+  if(!wsAll())return '<div class="task-main">'+head+'<div class="board-scroll">'+boardFor(curSpace(),list)+'</div></div>';
+  return '<div class="task-main">'+head+'<div class="boards-scroll">'+spaces().map(w=>{
+    const mine=list.filter(t=>spaceOf(t).id===w.id),shut=!!(V.bshut&&V.bshut[w.id]);
+    return '<section class="wsboard">'+
+      '<h3 class="wsb-h"><button class="wsb-head" data-act="wsb-toggle" data-v="'+w.id+'" aria-expanded="'+!shut+'" title="'+(shut?"Show":"Hide")+' '+esc(w.name)+'">'+
+        icon(shut?"i-chev-r":"i-chev-d","ic-14")+
+        '<span class="wsb-ic" style="--c:'+w.color+'">'+icon(w.icon||"i-grid","ic-14")+'</span>'+
+        '<span>'+esc(w.name)+'</span><span class="n num">'+mine.length+'</span></button></h3>'+
+      (shut?"":'<div class="wsb-body">'+boardFor(w,mine)+'</div>')+
+      '</section>';}).join("")+'</div></div>';
 }
 /* ---- adding tasks in a lane ----
    "Add task" at the foot of a lane opens a small card there, kept as plain
@@ -2317,9 +2342,13 @@ function qaMenu(btn,items,cur,pick){
   const on=m.querySelector(".cm-opt.on")||m.querySelector(".cm-opt");if(on)on.focus({preventScroll:true});
 }
 function qaSet(k,v){if(!V.qa)return;V.qa[k]=v;renderView();qaFocus();}
-function qaOpen(lane){
+function qaOpen(lane,ws){
   const keep=V.qa||{};
-  V.qa={lane:lane,title:"",due:keep.due||"",dl:"",est:0,prio:"",cat:keep.cat||""};
+  const w=ws||spaceOf({ws:(lane&&laneWs(lane))||null}).id;
+  /* The category carried over from the last add only fits if it is this
+     workspace's. */
+  const cat0id=keep.ws===w?keep.cat||"":"";
+  V.qa={lane:lane,ws:w,title:"",due:keep.due||"",dl:"",est:0,prio:"",cat:cat0id};
   renderView();qaFocus();
 }
 function qaFocus(){const i=el("qaTitle");if(i){i.focus({preventScroll:true});i.setSelectionRange(i.value.length,i.value.length);
@@ -2343,9 +2372,11 @@ function qaSave(){
   const title=(q.title||"").trim();
   if(!title){toast("Give the task a name");qaFocus();return;}
   const flags={do:[true,true],decide:[false,true],delegate:[true,false],drop:[false,false]}[q.prio]||[null,null];
-  /* No category picked: Other, where there is one. */
-  const fallback=(cats().find(c=>c.id==="other")||cat0()).id;
-  const t=newTask({title:title,status:q.lane,cat:q.cat||fallback,due:q.due||"",est:q.est||0,urgent:flags[0],important:flags[1]});
+  /* No category picked: Other, where there is one -- in the lane's own
+     workspace, which across all of them is not the sidebar's. */
+  const ws=q.ws||curSpace().id;
+  const fallback=(catsOf(ws).find(c=>/^other$/i.test(c.name))||cat0(ws)).id;
+  const t=newTask({title:title,ws:ws,status:q.lane,cat:q.cat||fallback,due:q.due||"",est:q.est||0,urgent:flags[0],important:flags[1]});
   if(isDoneT(t))t.completedAt=TODAY();
   S.tasks.push(t);logAct(t.id,"created","Created this task");save("tasks");
   V.qa=Object.assign({},q,{title:"",prio:"",dl:"",est:0});
@@ -4967,7 +4998,7 @@ function renderView(){
   vp.className="viewport"+(flush?" flush":"");
   if(V.view==="dashboard")vp.innerHTML=viewDashboard();
   else if(V.view==="calendar")vp.innerHTML=viewCalendar();
-  else if(V.view==="tasks")vp.innerHTML=(V.taskMode==="board"&&!wsAll())?viewBoard():viewList();
+  else if(V.view==="tasks")vp.innerHTML=V.taskMode==="board"?viewBoard():viewList();
   else if(V.view==="matrix")vp.innerHTML=viewMatrix();
   else if(V.view==="routines")vp.innerHTML=viewRoutines();
   else vp.innerHTML=viewNotes();
@@ -5230,6 +5261,7 @@ document.addEventListener("click",function(e){
     case "sh-cf-rate":{const tid=n.dataset.tid,t=tid?taskById(tid):sheetTask(),fd=fieldById(n.dataset.k);if(!t||!fd)break;
       const v=Number(n.dataset.v);setCf(fd.id,Number(cfVal(t,fd))===v?"":v,tid);break;}
     case "lg-toggle":V.lshut=V.lshut||{};V.lshut[n.dataset.v]=!V.lshut[n.dataset.v];renderView();break;
+    case "wsb-toggle":V.bshut=V.bshut||{};V.bshut[n.dataset.v]=!V.bshut[n.dataset.v];renderView();break;
     /* Which tasks have their steps showing is view state, not a setting:
        you open one to see what is in it, you do not want it open tomorrow. */
     case "lr-subs":V.lsubs=V.lsubs||{};V.lsubs[id]=!V.lsubs[id];renderView();break;
@@ -5273,10 +5305,10 @@ document.addEventListener("click",function(e){
       break;}
     case "task-menu":taskMenu(id,null,n,false);break;
     case "tm-do":tmDo(n.dataset.v,id,n);break;
-    case "qa-open":qaOpen(n.dataset.status);break;
+    case "qa-open":qaOpen(n.dataset.status,n.dataset.ws);break;
     case "qa-save":qaSave();break;
     case "qa-close":qaClose();break;
-    case "qa-cat":qaMenu(n,[{v:"",label:"No category"}].concat(cats().map(c=>({v:c.id,label:c.name,color:c.color}))),V.qa.cat||"",v=>qaSet("cat",v));break;
+    case "qa-cat":qaMenu(n,[{v:"",label:"No category"}].concat(catsOf(V.qa.ws).map(c=>({v:c.id,label:c.name,color:c.color}))),V.qa.cat||"",v=>qaSet("cat",v));break;
     case "qa-prio":qaMenu(n,[{v:"",label:"No priority"}].concat(QA_PRIO.map(x=>({v:x[0],label:x[1]}))),V.qa.prio||"",v=>qaSet("prio",v));break;
     case "qa-est":qaMenu(n,[{v:0,label:"No estimate"}].concat(QA_EST.map(m=>({v:m,label:fmtMins(m)}))),V.qa.est||0,v=>qaSet("est",v));break;
     case "qa-pick":if(CM.pick&&CM.items){const x=CM.items[Number(n.dataset.i)];if(x)CM.pick(x.v);}break;
@@ -5916,7 +5948,17 @@ document.addEventListener("dragleave",function(e){const col=e.target.closest&&e.
 document.addEventListener("drop",function(e){const col=e.target.closest&&e.target.closest(".col");if(!col||!dragId)return;
   e.preventDefault();col.classList.remove("over");
   const t=taskById(dragId);
-  if(t&&t.status!==col.dataset.col){t.status=col.dataset.col;t.completedAt=isDoneT(t)?TODAY():null;save("tasks");render();}
+  if(t){
+    /* Across all of them a lane may belong to another workspace. Dropping a
+       card there hands the task over -- the category follows by name and
+       the subtasks come too (moveTaskWs) -- and then it lands in the lane
+       it was actually dropped in rather than the nearest one. It is a big
+       move to make by dragging, so it says so. */
+    const to=col.dataset.ws;
+    if(to&&to!==t.ws){const was=moveTaskWs(t.id,to),w=spaceById(to);
+      if(was&&w)toast("Moved from "+was+" to "+w.name);}
+    if(t.status!==col.dataset.col){t.status=col.dataset.col;t.completedAt=isDoneT(t)?TODAY():null;save("tasks");render();}
+  }
   dragId=null;});
 
 /* ============ init ============ */

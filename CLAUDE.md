@@ -524,13 +524,36 @@ its own categories, and categories were the thing that most needed it.
   follows the workspace. `overdueItems()` stays whole for the dashboard
   and the sidebar's late count; `overdueHere()` is the cut-down one the
   calendar's Catch-up panel uses.
-- **Across all of them, the board is off.** Lanes belong to a workspace, so
-  two workspaces' *To do* are two different lanes and merging them by name
-  would be a guess; the list is honest instead — a table a workspace
-  (`lgBy()` forces the `"ws"` grouping there). For the same reason the
-  lane editor and the category window refuse to edit anything there and
-  say which workspace they need (`wsOnlyNote()`), rather than quietly
-  editing the first one's.
+- **Across all of them the board is one board a workspace**, stacked and
+  each collapsible (`viewBoard()` → `boardFor(w, list)`, `.wsboard`,
+  `V.bshut`) — the same shape the list already takes there, where it is a
+  table a workspace (`lgBy()` forces the `"ws"` grouping). **Lanes are
+  never merged by name.** Two workspaces' *To do* are two different lanes,
+  and one column holding both would have to guess which one a card dropped
+  in it meant; worse, Personal's three lanes beside Studio's four would
+  come out as six ragged columns with only *In progress* shared. Stacking
+  guesses nothing and every lane keeps its own workspace's name, colour and
+  order. The board was simply switched off there for a while, which was
+  honest but left Tasks with one of its two modes dead.
+- **A lane on screen is not necessarily the current workspace's**, so
+  `.col` carries `data-ws` and everything that acts on a lane reads it:
+  the quick-add at its foot (`qaOpen(lane, ws)`, so a task lands in that
+  workspace with that workspace's categories offered and its *Other* as
+  the fallback) and the drop handler. `laneWs(id)` finds the workspace
+  from a lane id alone, since lane ids are unique across every workspace.
+- **A card dragged onto another workspace's board moves workspace**
+  (`moveTaskWs()`, so the category follows by name and the subtasks come
+  too), and then lands in the lane it was actually dropped in rather than
+  the nearest one. It is a big move to make by dragging, so it says so in
+  a toast. Within one board nothing changed.
+- **Each stacked board has a height of its own** (`.wsb-body`,
+  `min(430px, 58vh)`) so its lanes scroll inside it and the page scrolls
+  between boards; one long lane never stretches the whole page. In a single
+  workspace the board is full height exactly as it always was
+  (`.board-scroll`), and `viewBoard()` takes that path unchanged.
+- The lane editor and the category window still refuse to edit anything
+  across all of them and say which workspace they need (`wsOnlyNote()`),
+  rather than quietly editing the first one's.
 - **Creating across all of them asks which workspace** (`askSpace()`,
   `WSQ`), once, in front of the thing it is making -- not as a field on
   every form that would be answered already every other time. In a
