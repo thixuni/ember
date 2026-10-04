@@ -305,3 +305,41 @@ test('the stylesheet has no half rules left behind', () => {
     for (const ch of l) { if (ch === '{') d++; if (ch === '}') d--; }
   });
 });
+
+/* A redraw must not lose your place, and this has broken twice in ways that
+   showed up nowhere except on screen. Both causes are guarded here.
+
+   First: SCROLLED holds node references, and a redraw replaces every node in
+   the viewport, so a box put back has to join the set again or its position
+   survives exactly one redraw.
+
+   Second: a box whose children are content-visibility:auto -- a board lane's
+   cards are -- measures as empty for a frame or two after its HTML lands, so
+   scrollTop clamps to 0 and the assignment is silently lost. It has to be
+   tried again on later frames.
+
+   Neither is visible to a unit test, so what is checked is that the
+   machinery is still wired the way it has to be. */
+test('a redraw puts scrolled boxes back, and keeps trying', () => {
+  const js = read('src/app.js');
+
+  const set = js.match(/function setScroll\([^)]*\)\s*\{[\s\S]*?\n\}/);
+  assert.ok(set, 'setScroll() is gone; putScroll must go through it');
+  const body = set[0];
+  assert.ok(/SCROLLED\.add\(/.test(body),
+    'setScroll() must put the box back into SCROLLED, or its position lasts one redraw');
+  assert.ok(/requestAnimationFrame\(/.test(body),
+    'setScroll() must try again on a later frame, or a content-visibility box clamps to 0');
+  assert.ok(/isConnected/.test(body),
+    'the retry must stop once the box has gone');
+  assert.ok(/tries\s*<\s*\d/.test(body),
+    'the retry must be bounded, or a list that really got shorter never stops asking');
+
+  const put = js.match(/function putScroll\([^)]*\)\s*\{[\s\S]*?\n\}/);
+  assert.ok(put && /setScroll\(/.test(put[0]), 'putScroll() must go through setScroll()');
+
+  assert.ok(/addEventListener\("scroll",[\s\S]{0,120}SCROLLED\.add/.test(js),
+    'the capturing scroll listener that fills SCROLLED is gone');
+  assert.ok(/marks\s*=\s*same\s*\?\s*scrollMarks\(vp\)/.test(js) && /if\(marks\)putScroll\(vp,marks\)/.test(js),
+    'renderView() must still take marks before drawing and put them back after');
+});
