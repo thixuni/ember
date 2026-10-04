@@ -4968,19 +4968,34 @@ function putScroll(root,marks){
     if(k===":root")n=root;
     else if(k[0]==="#")n=root.querySelector(k);
     else if(at>0)n=root.querySelectorAll(k.slice(0,at))[Number(k.slice(at+1))];
-    if(n){
-      n.scrollTop=m[1];n.scrollLeft=m[2];
-      /* The box we just put back IS a scrolled box, so it joins the set in
-         its own right. SCROLLED holds nodes, and a redraw replaces every
-         node in the viewport -- so without this a position survived exactly
-         one redraw (the one straight after you scrolled) and was lost on
-         every redraw after it. Scroll a board lane, change one card's
-         category and it held; change a second card's and the lane jumped to
-         the top, as did anything else that redrew in the meantime: the
-         minute tick on the calendar, a sync landing, reminders rebuilding. */
-      if(n.scrollTop||n.scrollLeft)SCROLLED.add(n);
-    }
+    if(n)setScroll(n,m[1],m[2],0);
   });
+}
+/* Putting a box back where it was, and making it stick.
+
+   Two things conspire against a straight assignment:
+
+   - SCROLLED holds nodes, and a redraw replaces every node in the viewport,
+     so a box put back has to join the set again in its own right or its
+     position survives exactly one redraw. Scroll a board lane, change one
+     card's category and it held; change a second card's and the lane jumped
+     to the top, as did anything else that redrew in between -- the minute
+     tick on the calendar, a sync landing, reminders rebuilding.
+
+   - A box whose children are content-visibility:auto -- a board lane's
+     cards are -- measures as empty for a frame or two after its HTML
+     lands, because the browser has not laid the skipped children out yet.
+     scrollTop then clamps to 0 and the assignment is silently lost.
+     Measured on a stacked board: scrollHeight came back 165 against a
+     clientHeight of 165 straight after innerHTML, and 317 a moment later.
+     So it is tried again on the next frames, up to five, which is enough
+     for the layout to settle and few enough that a list that really did
+     get shorter stops asking. */
+function setScroll(n,top,left,tries){
+  n.scrollTop=top;n.scrollLeft=left;
+  if(n.scrollTop||n.scrollLeft)SCROLLED.add(n);
+  if(tries<5&&top&&n.scrollTop<top)
+    requestAnimationFrame(()=>{if(n.isConnected&&n.scrollTop<top)setScroll(n,top,left,tries+1);});
 }
 /* The button that was pressed is redrawn too; give the keyboard back to its
    replacement, so a keyboard user does not start again from the top. */
