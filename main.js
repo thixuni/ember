@@ -43,6 +43,9 @@ function createWindow(){
     icon: iconPath(),
     webPreferences: {
       contextIsolation: true, nodeIntegration: false, spellcheck: true,
+      /* Chromium's built-in PDF viewer is a plugin; without this an
+         attached PDF renders as an empty box in the viewer. */
+      plugins: true,
       preload: path.join(__dirname, 'preload.js')
     }
   });
@@ -410,6 +413,26 @@ ipcMain.on('file:save', (e, req) => {
   }catch(err){ e.returnValue = null; }
 });
 ipcMain.on('file:open', (e, p) => { if(p) shell.openPath(p); });
+ipcMain.on('file:reveal', (e, p) => { if(p) shell.showItemInFolder(p); });
+
+/* The bytes of an attachment, so the planner can show it rather than hand
+   it to whatever the system would open it with. The page turns these into a
+   blob and views it there. Big files are refused instead of being copied
+   through IPC -- the page offers the system's own app for those. */
+const VIEW_MAX = 40 * 1024 * 1024;
+ipcMain.handle('file:read', (e, p) => {
+  try{
+    if(!p) return {ok: false, error: 'No file'};
+    const st = fs.statSync(p);
+    if(!st.isFile()) return {ok: false, error: 'Not a file'};
+    if(st.size > VIEW_MAX) return {ok: false, error: 'too-big', size: st.size};
+    const b = fs.readFileSync(p);
+    return {ok: true, size: st.size,
+      data: b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)};
+  }catch(err){
+    return {ok: false, error: err && err.code === 'ENOENT' ? 'missing' : String(err && err.message || err)};
+  }
+});
 
 /* ------------------------------------------------------- backup / restore */
 

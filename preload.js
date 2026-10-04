@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld('orbit', {
   /* ---- attachments ---- */
   saveFile: p => { try{ return ipcRenderer.sendSync('file:save', p); }catch(e){ return null; } },
   openFile: p => ipcRenderer.send('file:open', p),
+  revealFile: p => ipcRenderer.send('file:reveal', p),
+  readFile: p => ipcRenderer.invoke('file:read', p),
 
   /* ---- automatic backups ---- */
   chooseBackupDir: () => ipcRenderer.invoke("backup:dir"),

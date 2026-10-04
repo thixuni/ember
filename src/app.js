@@ -3403,7 +3403,7 @@ function viewNotes(){
 }
 
 /* ============ modals ============ */
-function closeModal(){el("modalRoot").innerHTML="";V.peek=null;V.slog=null;V.slogY=null;}
+function closeModal(){el("modalRoot").innerHTML="";V.peek=null;V.slog=null;V.slogY=null;fvDrop();}
 function openModal(html,opt){
   const root=el("modalRoot"),open=root.querySelector(".scrim > .modal");
   const label=(html.match(/aria-label="([^"]*)"/)||[])[1];
@@ -5374,7 +5374,12 @@ document.addEventListener("click",function(e){
       if(other&&t.id&&Array.isArray(other.links)&&other.links.indexOf(t.id)>-1){other.links=other.links.filter(x=>x!==t.id);save("tasks");}
       patchCurrent({links:(Array.isArray(t.links)?t.links:[]).filter(x=>x!==n.dataset.v)});break;}
     case "sh-file-add":pickAttachment();break;
-    case "sh-file-open":{const t=sheetTask(),o=desktop();if(!t||!o||!o.openFile)break;
+    case "sh-file-open":fileModal(n.dataset.v);break;
+    case "fv-open":{const t=sheetTask(),o=desktop(),f=t&&tFiles(t).find(x=>x.id===FV.id);
+      if(f&&f.path&&o&&o.openFile)o.openFile(f.path);break;}
+    case "fv-reveal":{const t=sheetTask(),o=desktop(),f=t&&tFiles(t).find(x=>x.id===FV.id);
+      if(f&&f.path&&o&&o.revealFile)o.revealFile(f.path);break;}
+    case "sh-file-open-system":{const t=sheetTask(),o=desktop();if(!t||!o||!o.openFile)break;
       const f=tFiles(t).find(x=>x.id===n.dataset.v);
       if(f&&f.path)o.openFile(f.path);break;}
     case "sh-file-del":{const t=sheetTask();if(!t)break;
@@ -7245,13 +7250,93 @@ function sheetLinks(t,isNew){
     '</div>';
 }
 
+/* ---- the file viewer ----
+   An attachment used to be handed straight to the system: clicking its name
+   called shell.openPath and Preview or Acrobat took over, which is a long
+   way to go to check what is in a PDF you attached a minute ago. It opens
+   here now, and the system's own app is a button inside rather than the
+   only way.
+
+   The bytes come back from the main process (file:read) and become a blob
+   on the page, because a file:// iframe inside a file:// page is blocked
+   and a data: URI of a 20MB PDF is not a thing to put in the DOM. The blob
+   is revoked when the viewer closes, so nothing is held open. */
+const FV={url:null,id:null};
+const FV_IMG=/\.(png|jpe?g|gif|webp|bmp|avif|ico)$/i;
+const FV_TXT=/\.(txt|md|markdown|csv|tsv|json|ya?ml|xml|html?|css|js|ts|jsx|tsx|py|rb|go|rs|java|c|h|cpp|sh|sql|ini|conf|log)$/i;
+const FV_PDF=/\.pdf$/i;
+function fvKind(f){
+  const n=f.name||"",ty=f.type||"";
+  if(FV_PDF.test(n)||ty==="application/pdf")return "pdf";
+  if(FV_IMG.test(n)||/^image\//.test(ty))return "image";
+  if(FV_TXT.test(n)||/^text\//.test(ty))return "text";
+  return "other";
+}
+const FV_MIME={pdf:"application/pdf"};
+function fvDrop(){if(FV.url){try{URL.revokeObjectURL(FV.url);}catch(e){}FV.url=null;}FV.id=null;}
+/* What the file is, in words, for the row that cannot be shown. */
+function fvWhat(f){
+  const m=(f.name||"").match(/\.([a-z0-9]+)$/i);
+  return m?m[1].toUpperCase()+" file":"File";
+}
+function fileModal(fid){
+  const t=sheetTask();if(!t)return;
+  const f=tFiles(t).find(x=>x.id===fid);if(!f)return;
+  fvDrop();FV.id=fid;
+  fvRender(f,{state:"loading"});
+  if(!f.path||!hasDesktop()){fvRender(f,{state:"nofile"});return;}
+  const o=desktop();
+  if(!o||!o.readFile){fvRender(f,{state:"nofile"});return;}
+  Promise.resolve(o.readFile(f.path)).then(res=>{
+    /* The viewer may have been closed, or another file opened, meanwhile. */
+    if(FV.id!==fid)return;
+    if(!res||!res.ok)return fvRender(f,{state:"err",err:res&&res.error,size:res&&res.size});
+    const kind=fvKind(f);
+    if(kind==="text"){
+      const txt=new TextDecoder().decode(new Uint8Array(res.data));
+      return fvRender(f,{state:"ok",kind:"text",text:txt});
+    }
+    const mime=FV_MIME[kind]||f.type||"application/octet-stream";
+    FV.url=URL.createObjectURL(new File([res.data],f.name,{type:mime}));
+    fvRender(f,{state:"ok",kind:kind,url:FV.url});
+  }).catch(e=>{if(FV.id===fid)fvRender(f,{state:"err",err:String(e&&e.message||e)});});
+}
+function fvBody(f,o){
+  if(o.state==="loading")return '<div class="fv-wait">'+esc(f.name)+'</div>';
+  if(o.state==="nofile")
+    return fvFallback(f,"This file is not on this computer","Attachments are kept beside the planner on the machine they were added to. Open that planner to see it.");
+  if(o.state==="err"){
+    if(o.err==="too-big")
+      return fvFallback(f,"Too big to show here",'It is '+esc(fmtBytes(o.size||0))+'. Open it in the app your computer uses for this kind of file.');
+    if(o.err==="missing")
+      return fvFallback(f,"The file has gone","It was moved or deleted after it was attached. Remove the row, or attach it again.");
+    return fvFallback(f,"Could not read it",esc(o.err||"Something went wrong opening the file."));
+  }
+  if(o.kind==="image")return '<div class="fv-img"><img src="'+o.url+'" alt="'+esc(f.name)+'"></div>';
+  if(o.kind==="pdf")return '<iframe class="fv-frame" src="'+o.url+'" title="'+esc(f.name)+'"></iframe>';
+  if(o.kind==="text")return '<pre class="fv-text">'+esc(o.text)+'</pre>';
+  return fvFallback(f,"Nothing to show for a "+fvWhat(f).toLowerCase(),"Ember shows images, PDFs and plain text. Open it in the app your computer uses for this one.");
+}
+function fvFallback(f,title,text){
+  return '<div class="fv-none">'+icon("i-clip","ic-18")+'<b>'+esc(title)+'</b><p>'+text+'</p></div>';
+}
+function fvRender(f,o){
+  const can=hasDesktop()&&f.path;
+  openModal('<div class="modal wide fv" role="dialog" aria-modal="true" aria-label="File">'+
+    '<div class="mhead2 fv-head">'+icon("i-clip","ic-18")+
+      '<h2 title="'+esc(f.name)+'">'+esc(f.name)+'</h2>'+
+      '<span class="fv-size num">'+esc(f.size||"")+'</span>'+
+      (can?'<button class="btn btn-sm" data-act="fv-open" title="Open in the app your computer uses">'+icon("i-pop","ic-14")+'Open</button>'+
+           '<button class="btn btn-sm" data-act="fv-reveal" title="Show where it is kept">'+icon("i-folder","ic-14")+'Show in folder</button>':"")+
+      '<button class="icon-btn" data-act="close" aria-label="Close">'+icon("i-x")+'</button></div>'+
+    '<div class="mbody fv-body">'+fvBody(f,o)+'</div></div>',{focus:false});
+}
 function sheetFiles(t,isNew){
   if(isNew)return '<span class="mnone">Available once the task exists</span>';
   const files=tFiles(t);
   return '<div class="filebox">'+
     files.map(f=>'<div class="filerow">'+icon("i-clip","ic-14")+
-      (f.path?'<button class="fname lk-inline" data-act="sh-file-open" data-v="'+esc(f.id)+'" title="Open">'+esc(f.name)+'</button>'
-             :'<span class="fname">'+esc(f.name)+'</span>')+
+      '<button class="fname lk-inline" data-act="sh-file-open" data-v="'+esc(f.id)+'" title="View it here">'+esc(f.name)+'</button>'+
       '<span class="fsize num">'+esc(f.size)+'</span>'+
       '<button class="rowx" data-act="sh-file-del" data-v="'+f.id+'" aria-label="Remove">'+icon("i-x","ic-14")+'</button></div>').join("")+
     (hasDesktop()

@@ -218,6 +218,7 @@ test('everything reaching the shell goes through the preload bridge', () => {
   // The agreed surface. Adding a bridge call means adding it in all three.
   const surface = {
     pathFor: null, saveFile: 'file:save', openFile: 'file:open',
+    revealFile: 'file:reveal', readFile: 'file:read',
     chooseVault: 'vault:choose', forgetVault: 'vault:forget',
     openVault: 'vault:open', useVault: 'vault:use',
     writeDoc: 'doc:write', deleteDoc: 'doc:delete', onVaultChange: 'vault:changed',

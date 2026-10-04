@@ -248,6 +248,40 @@ right document. The loop is broken on both sides: the main process ignores
 file events for two seconds after its own write, and `applyVaultChange()`
 never writes back to the vault.
 
+**An attachment opens in the planner** (`fileModal()`, `FV`, the file
+viewer section). Clicking its name used to call `shell.openPath` and hand
+it to Preview or Acrobat, which is a long way to go to check what is in a
+PDF you attached a minute ago. The system's own app is a button inside the
+viewer now rather than the only way, beside **Show in folder**.
+
+- **The bytes come through the bridge**, not through a URL: `file:read` in
+  main.js returns the file as an ArrayBuffer and the page makes a blob of
+  it. A `file://` iframe inside a `file://` page is blocked, and a data URI
+  of a 20MB PDF is not a thing to put in the DOM. It is a `File`, not a
+  plain `Blob`, so the viewer's own download button saves it under the name
+  it was attached with.
+- **`plugins: true` is on the window** (main.js). Chromium's PDF viewer is
+  a plugin and Electron leaves plugins off, so a PDF in an iframe rendered
+  as an empty box without it.
+- **Three kinds are shown and the rest say so**: a PDF in an iframe (which
+  brings Chromium's own page nav, zoom, print and download), an image
+  centred on the panel grey, plain text as it is (`FV_PDF`, `FV_IMG`,
+  `FV_TXT`, by extension or mime). Anything else -- a .docx, a
+  spreadsheet, an archive -- gets a line naming the kind and pointing at
+  the system's app. So do a file that has been moved or deleted since it
+  was attached, one too big to copy through IPC (over 40MB), and one whose
+  planner is open on a different computer from the one it was attached on.
+- **The height is on the modal**, not on each kind of body: giving the
+  bodies their own heights inside a flex column that already had a
+  `max-height` collapsed the iframe to a sliver. `.mbody` does not grow on
+  its own either, so `.fv-body` carries `flex:1`.
+- **The blob is revoked when the viewer closes** (`fvDrop()` from
+  `closeModal()`), and a read that lands after the viewer has moved on is
+  dropped (`FV.id`).
+- Adding a bridge call means adding it in **three** places -- preload.js,
+  main.js and the `surface` map in `test/smoke.test.js` -- and the test
+  fails until all three agree.
+
 Tracked time is drawn on the calendar rather than summarised elsewhere:
 `eventsFor()` returns routines and tracked time together, and the week grid
 lays them out side by side. Tracked time is drawn as *sittings*, not runs:
