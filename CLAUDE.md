@@ -856,6 +856,21 @@ chore.
 - **A category pill is a button** where it belongs to a task or routine
   (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
   list of categories (`catMenu()`) and changes it in place.
+  **Past `CAT_FIND` (8) categories the menu gets a box to type in**
+  (`.cm-find`, `catFilter()`): a planner with fourteen of them meant
+  opening the menu at whatever the top happened to be and scrolling to the
+  bottom to find the one you wanted, every time. With the box the menu
+  itself stops scrolling and `.cm-list` inside it does, so what you type
+  stays put while the list narrows. Enter takes the first match left, and
+  the arrows walk only what the filter has left (`cmShown()`).
+  **The menu opens where you already are**: the category it is on is
+  brought into view by setting `.cm-list`'s own `scrollTop`, never with
+  `scrollIntoView`, which would scroll the page behind the menu too.
+- **Assigning a hidden category says so.** A category switched off in the
+  sidebar takes the thing off the screen the moment it is assigned, which
+  reads as the task having been lost rather than filed. `catSet()` toasts
+  "Moved to X, which is hidden in the sidebar" instead of leaving you
+  hunting for it.
 - **A lane scrolls its own cards.** The board scrolls sideways only; each
   lane is full height and its card list scrolls inside it (`.col-list`),
   so every lane's heading and its Add task stay where they are however

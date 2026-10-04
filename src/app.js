@@ -999,31 +999,68 @@ function catChip(id,kind,of,plain){const c=cat(id);
 const CM={el:null,btn:null};
 function catMenuClose(){CM.pick=null;CM.items=null;if(CM.el){CM.el.remove();CM.el=null;}if(CM.btn){CM.btn.setAttribute("aria-expanded","false");CM.btn=null;}}
 function catOf(kind,id){const x=kind==="task"?taskById(id):kind==="routine"?S.routines.find(r=>r.id===id):S.notes.find(n=>n.id===id);return x||null;}
+/* Past this many, the list is long enough that reading it is slower than
+   typing at it. A planner with fourteen categories meant opening the menu
+   at whatever the top happened to be and scrolling to the bottom to find
+   the one you wanted, every time. */
+const CAT_FIND=8;
 function catMenu(btn){
   if(CM.btn===btn){catMenuClose();return;}
   catMenuClose();pkClose();
   const x=catOf(btn.dataset.kind,btn.dataset.id);if(!x)return;
-  const m=document.createElement("div");m.className="catmenu";m.setAttribute("role","menu");
-  m.innerHTML=(x&&x.ws?catsOf(x.ws):cats()).map(c=>'<button type="button" role="menuitemradio" aria-checked="'+(x.cat===c.id)+'" class="cm-opt'+(x.cat===c.id?" on":"")+'" style="--c:'+c.color+'" data-act="cat-set" data-kind="'+btn.dataset.kind+'" data-id="'+btn.dataset.id+'" data-v="'+c.id+'">'+
-    '<i></i><span>'+esc(c.name)+'</span>'+(x.cat===c.id?icon("i-check","ic-14"):"")+'</button>').join("");
+  const list=(x&&x.ws?catsOf(x.ws):cats()),many=list.length>CAT_FIND;
+  const m=document.createElement("div");m.className="catmenu"+(many?" has-find":"");m.setAttribute("role","menu");
+  m.innerHTML=(many?'<div class="cm-find">'+icon("i-search","ic-14")+
+      '<input type="text" id="catFind" placeholder="Find a category" autocomplete="off" aria-label="Find a category"></div>':"")+
+    '<div class="cm-list">'+list.map(c=>'<button type="button" role="menuitemradio" aria-checked="'+(x.cat===c.id)+'" class="cm-opt'+(x.cat===c.id?" on":"")+'" style="--c:'+c.color+'" data-act="cat-set" data-kind="'+btn.dataset.kind+'" data-id="'+btn.dataset.id+'" data-v="'+c.id+'" data-name="'+esc((c.name||"").toLowerCase())+'">'+
+    '<i></i><span>'+esc(c.name)+'</span>'+(x.cat===c.id?icon("i-check","ic-14"):"")+'</button>').join("")+'</div>';
   document.body.appendChild(m);CM.el=m;CM.btn=btn;btn.setAttribute("aria-expanded","true");
   const r=btn.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
   let top=r.bottom+6;if(top+h>innerHeight-8)top=Math.max(8,r.top-6-h);
   m.style.left=Math.round(Math.min(Math.max(8,r.left),innerWidth-w-8))+"px";m.style.top=Math.round(top)+"px";
-  const on=m.querySelector(".cm-opt.on")||m.querySelector(".cm-opt");if(on)on.focus({preventScroll:true});
+  /* Open where you already are: the one it is on, brought into view inside
+     the menu -- never through scrollIntoView, which would scroll the page
+     behind it as well. */
+  const on=m.querySelector(".cm-opt.on"),box=m.querySelector(".cm-list");
+  if(on&&box){const o=on.offsetTop-box.offsetTop;
+    if(o+on.offsetHeight>box.clientHeight)box.scrollTop=o-box.clientHeight/2+on.offsetHeight;}
+  const f=m.querySelector("#catFind");
+  if(f)f.focus({preventScroll:true});
+  else{const first=on||m.querySelector(".cm-opt");if(first)first.focus({preventScroll:true});}
+}
+/* Typing narrows the list. The arrows and Enter below walk what is left. */
+const cmShown=()=>CM.el?[...CM.el.querySelectorAll(".cm-opt")].filter(o=>!o.hidden):[];
+function catFilter(q){
+  if(!CM.el)return;
+  const s=(q||"").trim().toLowerCase();
+  CM.el.querySelectorAll(".cm-opt").forEach(o=>{o.hidden=!!s&&(o.dataset.name||"").indexOf(s)<0;});
+  let none=CM.el.querySelector(".cm-none");
+  const any=cmShown().length;
+  if(!any&&!none){none=document.createElement("div");none.className="cm-none";none.textContent="No category by that name";
+    CM.el.querySelector(".cm-list").appendChild(none);}
+  if(any&&none)none.remove();
+  const box=CM.el.querySelector(".cm-list");if(box)box.scrollTop=0;
 }
 function catSet(kind,id,v){
   const x=catOf(kind,id);catMenuClose();if(!x||x.cat===v)return;
+  /* Assigning a category that is switched off in the sidebar takes the
+     thing off the screen, which reads as it having been lost. Say what
+     happened. */
+  if(!visibleCat(v)){const c=cat(v);
+    setTimeout(()=>toast("Moved to "+c.name+", which is hidden in the sidebar"),0);}
   if(kind==="task"){patchTask(id,{cat:v});return;}
   x.cat=v;if(kind==="note")x.updated=Date.now();
   save(kind==="routine"?"routines":"notes");render();
 }
+document.addEventListener("input",function(e){if(e.target&&e.target.id==="catFind")catFilter(e.target.value);});
 document.addEventListener("mousedown",function(e){if(CM.el&&!CM.el.contains(e.target)&&!(CM.btn&&CM.btn.contains(e.target)))catMenuClose();},true);
 document.addEventListener("scroll",function(e){if(CM.el&&!CM.el.contains(e.target))catMenuClose();},true);
 document.addEventListener("keydown",function(e){
   if(!CM.el)return;
   if(e.key==="Escape"){e.preventDefault();e.stopPropagation();const b=CM.btn;catMenuClose();if(b&&b.isConnected)b.focus();return;}
-  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const o=[...CM.el.querySelectorAll(".cm-opt")],i=o.indexOf(document.activeElement);
+  if(e.key==="Enter"&&e.target&&e.target.id==="catFind"){
+    e.preventDefault();const first=cmShown()[0];if(first)first.click();return;}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const o=cmShown(),i=o.indexOf(document.activeElement);
     const n=o[(i+(e.key==="ArrowDown"?1:-1)+o.length)%o.length];if(n)n.focus();}
   if(e.key==="Tab")catMenuClose();
 },true);
