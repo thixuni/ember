@@ -239,3 +239,59 @@ details.q .a p + p{margin-top:10px}
 .rel li{font-size:14.5px;color:var(--ink-2)}
 .rel li b{color:var(--ink);font-weight:600}
 @media (max-width:720px){.rel{grid-template-columns:1fr;gap:12px}}
+
+/* ---------- asking for something, on the board ----------
+   The Requested column and both buttons are drawn only once requests.js
+   has somewhere to send to, which it signals with .req-on on the body. A
+   board that offers a form that cannot send is worse than one that does
+   not offer it. */
+.col-req,.req-cta,.req-add{display:none}
+body.req-on .col-req{display:block}
+body.req-on .req-cta{display:block;margin-top:20px}
+body.req-on .req-add{display:flex}
+body.req-on .board{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:1240px){body.req-on .board{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:1000px){body.req-on .board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){body.req-on .board{grid-template-columns:1fr}}
+
+/* The button at the foot of the column, where a board usually puts "add". */
+.req-add{align-items:center;justify-content:center;gap:7px;width:100%;margin-top:11px;
+  padding:11px;border:1px dashed var(--line-2);border-radius:var(--r-m);background:none;
+  color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:border-color .15s,color .15s,background .15s}
+.req-add:hover{border-color:var(--accent);color:var(--accent-2);background:var(--accent-soft)}
+.req-add svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+
+/* A request card: the count is the control, the words are the point. */
+.req .req-row{display:flex;gap:11px;align-items:flex-start}
+.req .req-row p{margin:0;flex:1;min-width:0;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.req-vote{flex:none;width:40px;padding:5px 0;border:1px solid var(--line);border-radius:9px;
+  background:var(--surface-2);color:var(--muted);cursor:pointer;font:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:1px;transition:border-color .15s,background .15s,color .15s}
+.req-vote svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.req-vote b{font-size:12.5px;font-weight:700;line-height:1}
+.req-vote:hover{border-color:var(--line-2);color:var(--ink)}
+.req-vote.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-2)}
+.req-vote.on{cursor:default}
+
+/* ---------- the form ---------- */
+.req-dlg{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px}
+.req-dlg[hidden]{display:none}
+.req-scrim{position:absolute;inset:0;border:0;padding:0;cursor:default;
+  background:color-mix(in srgb,var(--ink) 42%,transparent)}
+.req-card{position:relative;width:min(520px,100%);background:var(--surface);
+  border-radius:var(--r-l);box-shadow:var(--sh-3);padding:26px 26px 22px}
+.req-card h2{font-size:21px;line-height:1.15}
+.req-lead{margin:9px 0 18px;font-size:13.5px;line-height:1.55;color:var(--muted)}
+.req-card label{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.req-card label span{font-weight:500;color:var(--faint)}
+.req-card textarea,.req-card input{width:100%;box-sizing:border-box;font:inherit;font-size:14px;
+  color:var(--ink);background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-s);
+  padding:10px 12px;margin-bottom:15px;resize:vertical}
+.req-card textarea:focus,.req-card input:focus{outline:2px solid var(--accent);outline-offset:1px;
+  border-color:transparent;background:var(--surface)}
+.req-card textarea::placeholder,.req-card input::placeholder{color:var(--faint)}
+.req-say{margin:0 0 12px;min-height:18px;font-size:12.5px;color:var(--muted)}
+.req-say.bad{color:var(--accent-2);font-weight:600}
+.req-foot{display:flex;justify-content:flex-end;gap:10px}
+body.req-open{overflow:hidden}

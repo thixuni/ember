@@ -33,14 +33,29 @@
     <h1>What is being built, and what is only an idea.</h1>
     <p>Ember is one person’s project, so this is an order of intent rather than a schedule. Nothing below
       carries a date, and things move backwards as often as forwards. If something you need is missing,
-      <a href="https://github.com/thixuni/ember/issues/new">open an issue</a> — that is the whole voting
-      system, and it works.</p>
+      <b>ask for it here</b> — it appears on this board, and anyone who wants the same thing can say so.</p>
+    <p class="req-cta"><button class="btn btn-primary" data-act="req-open">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Ask for something</button></p>
   </div>
 </section>
 
 <section class="band band-tight">
   <div class="wrap">
     <div class="board">
+
+      <!-- ---------------- Requested ----------------
+           Drawn from the requests table; hidden entirely when the board has
+           nowhere to send to, so the page never offers a form that cannot
+           send. -->
+      <div class="col col-req">
+        <div class="col-head"><span class="dot" style="background:var(--violet)"></span> Requested <span class="n" id="reqCount">0</span></div>
+        <div class="col-list" id="reqList">
+          <div class="col-empty">Loading…</div>
+        </div>
+        <button class="req-add" data-act="req-open">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ask for something
+        </button>
+      </div>
 
       <!-- ---------------- In progress ---------------- -->
       <div class="col">
@@ -268,5 +283,33 @@
   </div>
 </footer>
 
+<!-- The request form. Hidden until asked for, and the whole feature stays
+     dark until EMBER_REQUESTS below carries somewhere to send. -->
+<div class="req-dlg" id="reqDlg" hidden>
+  <button class="req-scrim" data-act="req-close" aria-label="Close"></button>
+  <div class="req-card" role="dialog" aria-modal="true" aria-labelledby="reqTitle">
+    <h2 id="reqTitle">Ask for something</h2>
+    <p class="req-lead">It goes straight onto the board, where anyone who wants the same thing can add their
+      name to it. No account, no sign-up.</p>
+    <label for="reqBody">What would you like Ember to do?</label>
+    <textarea id="reqBody" rows="4" maxlength="600" placeholder="Repeating tasks, not just routines…"></textarea>
+    <label for="reqMail">Your email <span>optional, so I can tell you when it ships</span></label>
+    <input id="reqMail" type="email" autocomplete="email" placeholder="you@example.com">
+    <p class="req-say" id="reqSay"></p>
+    <div class="req-foot">
+      <button class="btn" data-act="req-close">Cancel</button>
+      <button class="btn btn-primary" id="reqSend">Send it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------------------------------------------------------------
+     Where requests go. The anon key is public by design — it is the one
+     the browser is meant to carry, and the table's policies are what
+     actually decide what it can do. Leave these empty and the Requested
+     column and both buttons are not drawn at all.
+     --------------------------------------------------------------------- -->
+<script>window.EMBER_REQUESTS = { url: "", key: "", table: "requests" };</script>
+<script src="requests.js"></script>
 </body>
 </html>
