@@ -313,12 +313,21 @@ test('the stylesheet has no half rules left behind', () => {
    the viewport, so a box put back has to join the set again or its position
    survives exactly one redraw.
 
-   Second: a box whose children are content-visibility:auto -- a board lane's
-   cards are -- measures as empty for a frame or two after its HTML lands, so
-   scrollTop clamps to 0 and the assignment is silently lost. It has to be
-   tried again on later frames.
+   Second: a box can measure shorter than it really is for a frame or two
+   after its HTML lands, so scrollTop clamps and the assignment is silently
+   lost. It has to be tried again on later frames.
 
-   Neither is visible to a unit test, so what is checked is that the
+   content-visibility:auto was what used to make that happen, and it could
+   not be retried out of: a skipped child is never laid out until something
+   scrolls, which is the very thing being put back. Measured on a lane of 40
+   cards, scrollHeight was 3720 before the redraw and 1273 straight after,
+   so a scrollTop of 3218 landed at 771 and the card you were looking at
+   went off the screen. On a list table of 1,500 rows it measured 656
+   against a real 63,164, so the view could not be scrolled at all. So the
+   rule is gone and the layout is bounded by drawing fewer things instead;
+   the last check below keeps it gone.
+
+   None of this is visible to a unit test, so what is checked is that the
    machinery is still wired the way it has to be. */
 test('a redraw puts scrolled boxes back, and keeps trying', () => {
   const js = read('src/app.js');
@@ -337,6 +346,16 @@ test('a redraw puts scrolled boxes back, and keeps trying', () => {
 
   const put = js.match(/function putScroll\([^)]*\)\s*\{[\s\S]*?\n\}/);
   assert.ok(put && /setScroll\(/.test(put[0]), 'putScroll() must go through setScroll()');
+
+  // Nothing may skip its own layout inside a box whose place is put back:
+  // scrollHeight becomes the sum of the guesses and the write is clamped to
+  // it. What keeps these quick is drawing fewer of them.
+  assert.doesNotMatch(read('src/app.css'), /content-visibility\s*:\s*auto/,
+    'content-visibility:auto makes scrollHeight a guess, so putScroll() is clamped and the lane jumps up; bound the layout with COL_SHOWN / LIST_SHOWN instead');
+  // Both of the long lists are bounded, so there is nothing to skip.
+  assert.match(js, /const COL_SHOWN=\d+/, 'a board lane no longer caps the cards it draws');
+  assert.match(js, /const LIST_SHOWN=\d+/, 'a list table no longer caps the rows it draws');
+  assert.match(js, /lrRows\(k,items,cols,grid\)/, 'viewList() draws every row of a group again');
 
   assert.ok(/addEventListener\("scroll",[\s\S]{0,120}SCROLLED\.add/.test(js),
     'the capturing scroll listener that fills SCROLLED is gone');

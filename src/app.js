@@ -2458,13 +2458,26 @@ function viewList(){
     const name=meta[k].name;
     return '<section class="lgroup">'+
       '<h3 class="lg-h"><button class="lg-head" data-act="lg-toggle" data-v="'+k+'" aria-expanded="'+!shut+'" title="'+(shut?"Show":"Hide")+' '+esc(name)+'">'+icon(shut?"i-chev-r":"i-chev-d","ic-14")+esc(name)+'<span class="n num">'+items.length+'</span></button></h3>'+
-      (shut?"":'<div class="ltable">'+head+items.map(t=>lrRow(t,cols,grid)).join("")+
+      (shut?"":'<div class="ltable">'+head+lrRows(k,items,cols,grid)+
         (V.lqa===k?'<div class="lrow lr-add" style="'+grid+'"><span class="lr-lead"></span><span class="name"><input id="lqaTitle" class="lr-in" placeholder="Task name, then press Enter" maxlength="200" autocomplete="off" aria-label="New task in '+esc(name)+'">'+
             (month&&k!=="none"?'<span class="lr-when">'+esc(pkDateText(lqaDate(k)))+'</span>':"")+'</span></div>'
           :'<div class="lrow lr-add" style="'+grid+'"><span class="lr-lead"></span><button class="lr-addbtn" data-act="lqa-open" data-v="'+k+'">'+icon("i-plus","ic-14")+'Add task</button></div>')+
       '</div>')+
       '</section>';}).join("");
   return '<div class="task-main">'+filterBar()+elsewhereHtml()+'<div class="list-scroll lr-root" style="'+vars+'"><div class="lr-sheet">'+body+'</div></div></div>';
+}
+/* A table draws its first LIST_SHOWN rows and offers the rest on a button,
+   the way a lane does. It is not only about speed: content-visibility on the
+   table was what used to keep it quick, and that made the view's
+   scrollHeight a guess, so a long list could not be scrolled to its own foot
+   (see the note in app.css). With the rows bounded there is nothing to skip
+   and the measurement is honest again. */
+const LIST_SHOWN=60;
+function lrRows(k,items,cols,grid){
+  const more=(V.lgMore&&V.lgMore[k])||0,shown=LIST_SHOWN+more,left=items.length-shown;
+  return items.slice(0,shown).map(t=>lrRow(t,cols,grid)).join("")+
+    (left>0?'<div class="lrow lr-add lr-more" style="'+grid+'"><span class="lr-lead"></span>'+
+      '<button class="lr-addbtn" data-act="lg-more" data-v="'+esc(k)+'">Show '+Math.min(left,200)+' more <span class="num">· '+left+' hidden</span></button></div>':"");
 }
 /* A task added under a month is dated in it, or it would vanish from where it
    was typed: today in this month, otherwise the month's first day. */
@@ -5298,6 +5311,7 @@ document.addEventListener("click",function(e){
     case "task-mode":V.taskMode=n.dataset.mode;renderTopbar();renderView();break;
     case "quick":V.f.quick=n.dataset.v;V.colMore={};renderView();break;
     case "col-more":V.colMore=V.colMore||{};V.colMore[n.dataset.v]=(V.colMore[n.dataset.v]||0)+100;renderView();break;
+    case "lg-more":V.lgMore=V.lgMore||{};V.lgMore[n.dataset.v]=(V.lgMore[n.dataset.v]||0)+200;renderView();break;
     case "rail-mini":S.prefs.railMini=!S.prefs.railMini;save("prefs");applyRail();tipHide();break;
     case "tip-ok":tipNext();break;
     case "tip-skip":tipEnd();break;
@@ -5372,7 +5386,7 @@ document.addEventListener("click",function(e){
       if(!e.detail){const h=document.querySelector('.lh[data-act="lr-sort"][data-v="'+CSS.escape(k)+'"]');if(h)h.focus({preventScroll:true});}break;}
     case "customise":V.cz={tab:"lanes"};customiseModal();break;
     case "cz-open-list":closeModal();V.view="tasks";V.taskMode="list";render();break;
-    case "cz-lgroup":board().lgroup=n.dataset.v;V.lshut={};save("prefs");customiseModal();render();break;
+    case "cz-lgroup":board().lgroup=n.dataset.v;V.lshut={};V.lgMore={};save("prefs");customiseModal();render();break;
     case "cp-done":cpClose(false);break;
     case "cp-drop":if(window.EyeDropper){new EyeDropper().open().then(r=>{if(r&&r.sRGBHex&&CPK.el)cpSet(hexToHsv(r.sRGBHex));}).catch(()=>{});}break;
     case "cp-open":{const k=n.dataset.cp,id=n.dataset.id;

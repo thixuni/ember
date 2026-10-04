@@ -705,11 +705,24 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .col-list::-webkit-scrollbar-thumb{background:transparent;border:0;border-radius:6px}
 .col:hover .col-list::-webkit-scrollbar-thumb,.col-list:focus-within::-webkit-scrollbar-thumb{background:var(--line-2)}
 .col-head,.col .addcard,.col .qa{flex:none}
-/* Long lists: a card or row off screen is not laid out or painted until it
-   scrolls near. The intrinsic size keeps the scrollbar honest meanwhile. */
-.col-list > .tcard{content-visibility:auto;contain-intrinsic-size:auto 92px}
-.lgroup{content-visibility:auto;contain-intrinsic-size:auto 600px}
-.nlist-body > .nitem{content-visibility:auto;contain-intrinsic-size:auto 96px}
+/* Long lists: a row off screen is not laid out or painted until it scrolls
+   near. The intrinsic size keeps the scrollbar honest meanwhile.
+
+   NOTHING INSIDE A BOX WHOSE SCROLL POSITION IS PUT BACK MAY HAVE THIS.
+   A skipped child is not laid out, so the box's scrollHeight is the sum of
+   the guesses above rather than its real height, and putScroll()'s write is
+   silently clamped to that smaller maximum -- the lane jumps up and, parked
+   at the foot of it, the last card goes off the screen. Measured on a lane
+   of 40 cards: scrollHeight 3720 before the redraw, 1273 straight after it,
+   so a scrollTop of 3218 landed at 771. The retry in setScroll() cannot
+   save it, because the browser has no reason to lay those cards out until
+   something scrolls, which is the very thing being restored. That is why a
+   board lane's cards and a note in the list no longer carry it, and neither
+   does a list table: a group of 1,500 rows measured 656px against a real
+   63,164px, so the list view of a heavy planner could not be scrolled past
+   its first screen at all. What keeps these quick instead is drawing fewer
+   of them -- COL_SHOWN in a lane, LIST_SHOWN in a table -- which bounds the
+   layout without lying about its height. */
 .col-more{margin:2px 0;padding:9px 10px;border:1px dashed var(--line-2);border-radius:var(--r-s);font-size:12.5px;font-weight:600;color:var(--ink-2);text-align:center}
 .col-more:hover{background:var(--surface);color:var(--ink)}
 .col-more .num{font-weight:500;color:var(--muted)}
@@ -897,6 +910,9 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .lr-sheet .lrow > .lr-addbtn{display:inline-flex;justify-self:start;align-self:center}
 .lr-addbtn > *{pointer-events:none}
 .lr-addbtn:hover{color:var(--ink);background:var(--surface-3)}
+/* The row that offers the rest of a long table, drawn as its "Add task" row
+   is so it lines up with it, in the plain ink because it is the way on. */
+.lr-more .lr-addbtn{font-weight:600;color:var(--ink-2)}
 
 .lrow{display:grid;grid-template-columns:26px minmax(0,1fr) 30px;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;width:100%}
 .lrow:last-child{border-bottom:0}

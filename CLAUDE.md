@@ -107,10 +107,32 @@ Four things fixed it, and each is guarded by `npm test`:
   the same moment into one write 250ms later (`saveLocalNow()`), and
   `flushLocal()` writes at once on `pagehide`, `beforeunload` and the page
   being hidden. A test reading storage straight after a change must wait.
-- **Long lists draw what can be seen.** A board column draws `COL_SHOWN`
-  (50) cards and offers the rest on "Show more" (`V.colMore`); off-screen
-  cards, list groups and note items use `content-visibility: auto`.
-  `fitMonth()` measures every cell in one pass and changes them in another.
+- **Long lists draw fewer things, and never skip their own layout.** A
+  board column draws `COL_SHOWN` (50) cards and a list table `LIST_SHOWN`
+  (60) rows, each offering the rest on "Show more" (`V.colMore`,
+  `V.lgMore`, `lrRows()`). `fitMonth()` measures every cell in one pass
+  and changes them in another.
+
+  **`content-visibility: auto` must never go inside a box whose scroll
+  position is put back**, and a test now fails on it anywhere in
+  `app.css`. It was on a lane's cards, a list table and a note row, and it
+  is the whole of the glitch that was reported four times: a skipped child
+  is not laid out, so the box's `scrollHeight` is the sum of the guesses
+  rather than its real height, and `putScroll()`'s write is silently
+  **clamped down to that smaller maximum** — the lane jumps up, and parked
+  at its foot the card you were looking at goes off the screen. Measured on
+  a lane of 40 cards: `scrollHeight` 3720 before the redraw, **1273**
+  straight after it, so a `scrollTop` of 3218 landed at 771. The retry in
+  `setScroll()` cannot save it — the browser has no reason to lay those
+  cards out until something scrolls, which is the very thing being
+  restored — so the retry is a guard against a slow measurement, not
+  against this. On a list table it was worse than a glitch: 1,500 rows
+  measured 656px against a real 63,164px, so a heavy planner's list view
+  could not be scrolled past its first screen at all. Bounding the rows
+  replaced it and is **faster as well as correct** — on 1,500 tasks a
+  redraw went from 760ms plus 384ms of layout to 71–83ms plus under 10ms,
+  and the board to 32–39ms, with the position holding to the pixel at the
+  foot of a lane, a pixel into it and everywhere between.
 
 Search redraws once typing pauses (`V.qTimer`), and nothing live redraws
 while the window is hidden — except the floating timer's second, which may be
