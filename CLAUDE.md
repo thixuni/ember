@@ -1170,6 +1170,35 @@ writes the running task's clock and today's total into `data-live` and
 `data-live-total` nodes directly. A full `render()` there would throw the
 caret out of whatever is being typed.
 
+**The note editor's own formatting.** It is a plain `contenteditable`
+kept as HTML, so what it can do has to live in the note itself rather
+than in Markdown.
+
+- **The bullet button is a split control** (`.rte-split`): pressing it
+  makes a bulleted list with the marker last used, and the chevron beside
+  it picks the marker -- Dot, Circle or Square (`RTE_BULLETS`,
+  `rteUl()`), each with an icon of its own so the menu is read at a
+  glance. The marker is `list-style-type` on the `ul`, which is in the
+  note's HTML, so it travels with the note; `V.rteBullet` is only the
+  last one picked. The old button carried `i-list` -- three lines with
+  1.7px dots that disappeared at 14px, so it read as an alignment
+  control. `i-bullets` has real filled dots.
+- **A highlight is a `<mark>` with a class**, never a colour written into
+  the note (`RTE_HL`, `rteMark()`): Yellow, Green, Blue, Pink and Remove
+  highlight. `hiliteColor` and `backColor` would put a literal yellow
+  into the note and carry it into dark mode for ever; a class is mixed
+  from a hue the theme already owns and follows both. Inside a highlight
+  already, picking a colour is a **class swap** -- unwrapping and wrapping
+  again left nothing selected to wrap.
+- **Both run from a menu, and a menu item is a button**, so the press
+  takes the keyboard out of the note and `execCommand` on an editable
+  without it quietly does nothing -- the highlight would not come off at
+  all. `rteReady()` gives the note the keyboard back and then the
+  selection before anything is asked of it, and taking a highlight off
+  falls back to lifting the words out of the mark by hand where
+  `execCommand` still refuses. Every one of these buttons is in the
+  `mousedown` guard that calls `saveSel()`.
+
 "Make task" in the scratch pad works on the selection, or on the line the
 caret is in; "Save as note" on the selection, or with nothing selected the
 whole pad, formatting kept (taking only the caret's line once lost

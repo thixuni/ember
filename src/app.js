@@ -3471,10 +3471,12 @@ function viewNotes(){
     '<button data-act="rte" data-cmd="formatBlock" data-v="h3" title="Subheading">H3</button>'+
     '<button data-act="rte" data-cmd="formatBlock" data-v="p" title="Body text">¶</button>'+
     '<span class="rte-sep"></span>'+
-    '<button data-act="rte" data-cmd="insertUnorderedList" title="Bulleted list">'+icon("i-list","ic-14")+'</button>'+
+    '<span class="rte-split"><button data-act="rte-ul" title="Bulleted list">'+icon("i-bullets","ic-14")+'</button>'+
+      '<button class="rte-caret" data-act="rte-bullet" title="Bullet style" aria-haspopup="menu" aria-label="Bullet style">'+icon("i-chev-d","ic-14")+'</button></span>'+
     '<button data-act="rte" data-cmd="insertOrderedList" title="Numbered list">1.</button>'+
     '<button data-act="rte" data-cmd="formatBlock" data-v="blockquote" title="Quote">&ldquo;</button>'+
     '<span class="rte-sep"></span>'+
+    '<button data-act="rte-hl" title="Highlight" aria-haspopup="menu" aria-label="Highlight">'+icon("i-highlight","ic-14")+'</button>'+
     '<button data-act="rte-link" title="Add link" style="width:auto;padding:0 9px;font-size:12px;font-weight:600">Link</button>'+
     '<button data-act="rte" data-cmd="removeFormat" title="Clear formatting">'+icon("i-x","ic-14")+'</button>'+
     '<span class="spacer" style="flex:1"></span>'+
@@ -3531,6 +3533,73 @@ function arm(btn,label){
       btn.style.width="";btn.style.padding="";btn.style.fontSize="";btn.style.fontWeight="";btn.style.color="";btn.style.background="";}
   },3500);
   return false;
+}
+/* ---- the note editor's lists and its highlighter ----
+   A note is kept as HTML, so both of these live in the note itself: a list
+   carries its own marker and a highlight is a <mark>, coloured by the
+   stylesheet so it follows the theme. Nothing here writes a colour into the
+   note. */
+const RTE_BULLETS=[["disc","Dot","i-bul-disc"],["circle","Circle","i-bul-circle"],["square","Square","i-bul-square"]];
+const RTE_HL=[["","Yellow"],["hl-teal","Green"],["hl-blue","Blue"],["hl-pink","Pink"]];
+const rteBox=()=>el("rte");
+/* Both of these run from a menu, and a menu item is a button: pressing it
+   takes the keyboard out of the note, and execCommand on an editable that
+   does not have it quietly does nothing at all -- the highlight simply
+   would not come off. So the note is given the keyboard back, and then the
+   selection, before anything is asked of it. */
+function rteReady(){const b=rteBox();if(!b)return false;b.focus();restoreSel();return true;}
+/* The list, or the <mark>, the caret is inside -- found by walking up to the
+   note and no further, so nothing outside the editor is ever touched. */
+function rteUp(test){
+  const box=rteBox(),s=getSelection();
+  if(!box||!s||!s.rangeCount)return null;
+  let n=s.getRangeAt(0).startContainer;
+  while(n&&n!==box){if(n.nodeType===1&&test(n))return n;n=n.parentNode;}
+  return null;
+}
+const rteList=()=>rteUp(n=>n.tagName==="UL"||n.tagName==="OL");
+const rteMarkAt=()=>rteUp(n=>n.tagName==="MARK");
+function rteSave(){const x=noteById(V.noteId);const box=rteBox();
+  if(x&&box){x.html=box.innerHTML;x.updated=Date.now();save("notes");}}
+/* The button makes a bulleted list with the marker last picked; the menu
+   beside it picks the marker, and changes the list already there. */
+function rteUl(kind){
+  if(!rteReady())return;
+  const had=rteList();
+  if(!had||had.tagName!=="UL")document.execCommand("insertUnorderedList");
+  const ul=rteList();
+  if(ul&&ul.tagName==="UL")ul.style.listStyleType=kind||V.rteBullet||"disc";
+  if(kind)V.rteBullet=kind;
+  rteSave();
+}
+/* Already inside a highlight, a colour is a change of class and nothing
+   else -- no unwrapping and wrapping again, which lost the caret and left
+   nothing selected to wrap. Taking it off is the only case that rebuilds
+   the words, and it puts them back exactly as they were. */
+function rteMark(cls){
+  if(!rteReady())return;
+  const had=rteMarkAt();
+  if(had){
+    if(cls===null){
+      const s=getSelection(),r=document.createRange();
+      r.selectNode(had);s.removeAllRanges();s.addRange(r);
+      document.execCommand("insertHTML",false,had.innerHTML||"&#8203;");
+      /* execCommand is tried first so Ctrl+Z takes it back; where it
+         refuses, the words are lifted out of the mark by hand rather than
+         the highlight staying put. */
+      if(had.isConnected&&had.parentNode){const p=had.parentNode;
+        while(had.firstChild)p.insertBefore(had.firstChild,had);
+        p.removeChild(had);p.normalize();}
+    }else had.className=cls;
+    rteSave();return;
+  }
+  if(cls===null)return;
+  const s=getSelection();if(!s||!s.rangeCount)return;
+  const d=document.createElement("div");d.appendChild(s.getRangeAt(0).cloneContents());
+  const inner=d.innerHTML;
+  if(!inner){toast("Select the words you want to highlight first");return;}
+  document.execCommand("insertHTML",false,'<mark'+(cls?' class="'+cls+'"':"")+'>'+inner+'</mark>&#8203;');
+  rteSave();
 }
 let savedRange=null;
 function saveSel(){try{const s=window.getSelection();if(s&&s.rangeCount)savedRange=s.getRangeAt(0).cloneRange();}catch(e){}}
@@ -5721,6 +5790,10 @@ document.addEventListener("click",function(e){
     case "rte":document.execCommand(n.dataset.cmd,false,n.dataset.v||null);
       if(n.dataset.scratch){S.prefs.scratch=el("scratchPad").innerHTML;save("prefs");}
       else{const x=noteById(V.noteId);if(x){x.html=el("rte").innerHTML;x.updated=Date.now();save("notes");}}break;
+    case "rte-ul":rteUl("");break;
+    case "rte-bullet":ctxMenu(RTE_BULLETS.map(b=>({icon:b[2],label:b[1],run:()=>rteUl(b[0])})),null,n);break;
+    case "rte-hl":ctxMenu(RTE_HL.map(h=>({icon:"i-highlight",label:h[1],run:()=>rteMark(h[0])}))
+      .concat([{icon:"i-x",label:"Remove highlight",run:()=>rteMark(null)}]),null,n);break;
     case "rte-link":linkBar(n.closest(".rte-bar"));break;
     case "rte-link-cancel":closeLinkBar();break;
     case "rte-link-apply":{const u=(el("linkUrl").value||"").trim();closeLinkBar();
@@ -5798,7 +5871,7 @@ document.addEventListener("mousedown",function(e){
   const t=e.target;if(!t||!t.closest)return;
   if(docOpen()&&richTick(e))return;
   if(t.closest('[data-act="doc-tool"]')){richKeep();e.preventDefault();return;}
-  const b=t.closest('[data-act="rte"],[data-act="rte-link"],[data-act="scratch-task"],[data-act="scratch-note"]');
+  const b=t.closest('[data-act="rte"],[data-act="rte-ul"],[data-act="rte-bullet"],[data-act="rte-hl"],[data-act="rte-link"],[data-act="scratch-task"],[data-act="scratch-note"]');
   if(b){saveSel();e.preventDefault();}
 });
 document.addEventListener("selectionchange",function(){
