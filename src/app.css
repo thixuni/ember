@@ -298,18 +298,31 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
    boxes each used to work it out from their own padding and landed at 16,
    20 and 22, which reads as three ragged columns rather than one edge. */
 /* One band at the top: the mark, then the workspace. */
-/* Two rows: the brand, then the workspace it belongs to. The brand line is
-   slim and quiet -- it is the one thing up here nobody needs to read -- and
-   the workspace is a full row like the ones below it. They were one row
-   with "ember" tucked above the workspace name, which read as a two-line
-   label for the workspace rather than as the name of the app. */
-.rail-top{display:flex;flex-direction:column;align-items:stretch;gap:2px;
-  padding:9px var(--rail-edge) 9px;flex:none;border-bottom:1px solid var(--line)}
+/* Two rows: the brand with the fold button, then the workspace in a box of
+   its own. The workspace is the one thing up here you press, so it is drawn
+   as a control -- a border, a fill, a label over the name -- rather than as
+   one more row among the rows. Four shapes came before it, and each failed
+   the same way: the brand and the workspace competed at the top and you had
+   to look twice to tell which was which. Naming the row "Workspace" over
+   the name settles it in words, so nothing rests on the drawing alone.
+   There is no hairline under this band: the box is its own edge, and a rule
+   as well read as two separators in 90px. */
+.rail-top{display:flex;flex-direction:column;align-items:stretch;gap:10px;
+  padding:10px var(--rail-edge) 12px;flex:none}
 .rail-brand{display:flex;align-items:center;gap:var(--rail-gap);
-  padding:2px var(--rail-in) 3px;color:var(--faint)}
+  padding:0 var(--rail-in);color:var(--ink)}
 .rail-brand .rb-fire{color:var(--accent)}
-.rail-brand .wordmark{font-family:var(--fw);font-size:12px;font-weight:700;letter-spacing:.01em;
+.rail-brand .wordmark{font-family:var(--fw);font-size:15px;font-weight:700;letter-spacing:-.01em;
   text-transform:lowercase;line-height:1}
+/* The fold button sits at the end of the brand line rather than on the
+   rail's outer edge. It was a round button hanging off the border, shown
+   only on hover, which is a lot of hiding for the control that changes the
+   whole shape of the sidebar -- and it left the brand line with nothing on
+   its right. */
+.rail-fold{margin-left:auto;flex:none;width:24px;height:24px;border-radius:7px;
+  display:grid;place-items:center;color:var(--faint)}
+.rail-fold > *{pointer-events:none}
+.rail-fold:hover{background:var(--surface-3);color:var(--ink)}
 /* The mark is not a tile here. It was a filled rounded square the same size
    as the workspace tile sitting right beside it, and two badges in a row
    read as two logos -- you had to look twice to find which one was yours.
@@ -3058,13 +3071,9 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 
 /* ---------- the sidebar, folded ---------- */
 .rail{position:relative;z-index:3}
-.rail-mini-btn{position:absolute;top:22px;right:-12px;z-index:5;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--surface);
-  color:var(--muted);display:grid;place-items:center;box-shadow:var(--sh-1);opacity:0;transition:opacity .15s}
-.rail-mini-btn > *{pointer-events:none}
-.rail:hover .rail-mini-btn,.rail-mini-btn:focus-visible{opacity:1}
-.rail-mini-btn:hover{color:var(--ink);border-color:var(--line-2)}
-body.rail-mini .rail-mini-btn .ic{transform:rotate(180deg)}
-@media (max-width:1080px){.rail-mini-btn{display:none}}
+body.rail-mini .rail-fold .ic{transform:scaleX(-1)}
+/* Below 1080 the width decides, so there is nothing to press. */
+@media (max-width:1080px){.rail-fold{display:none}}
 body.rail-mini .app{grid-template-columns:70px minmax(0,1fr)}
 body.rail-mini .nav-btn{position:relative;justify-content:center}
 body.rail-mini .nav-alert{position:absolute;top:2px;right:4px;margin:0;min-width:17px;height:17px;padding:0 4px;font-size:10px}
@@ -3086,7 +3095,7 @@ body.rail-mini .rail-head{justify-content:center}
 .tip[data-side="down"] .tip-arrow{bottom:-7px;margin-left:-6px;border-left:0;border-top:0}
 .tip[data-side="left"] .tip-arrow{left:-7px;margin-top:-6px;border-top:0;border-right:0}
 .tip-on{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent);outline-offset:3px;border-radius:8px}
-.rail-mini-btn.tip-on{opacity:1;outline-offset:2px;border-radius:50%}
+.rail-fold.tip-on{outline-offset:2px}
 .wordmark{font-family:var(--fw);font-weight:700;letter-spacing:-.02em;text-transform:lowercase}
 
 .obx-ember.soft{filter:blur(1.5px);opacity:0}
@@ -3201,27 +3210,37 @@ body.rail-mini .rail-head{justify-content:center}
    read as something to fill in rather than the name of where you are. It is
    the sidebar's heading now: the tile, the name, a chevron, and a hover. */
 .ws-btn{display:flex;align-items:center;gap:var(--rail-gap);width:100%;
-  padding:6px var(--rail-in);border-radius:var(--r-s);
-  border:0;background:none;text-align:left;cursor:pointer;
-  transition:background .12s}
-.ws-btn:hover{background:var(--surface-3)}
+  padding:7px 9px;border-radius:10px;box-sizing:border-box;
+  border:1px solid var(--line-2);background:var(--surface-2);text-align:left;cursor:pointer;
+  transition:background .12s,border-color .12s}
+.ws-btn:hover{background:var(--surface-3);border-color:var(--muted)}
 .ws-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ws-btn > *{pointer-events:none}
-.ws-ic{width:var(--rail-lead);height:var(--rail-lead);border-radius:7px;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--c) 16%,var(--tint-base));color:var(--c)}
-.ws-ic.all{--c:var(--muted);background:var(--surface-3)}
+/* Solid, not a tint: the tile is the workspace's colour, and the glyph on
+   it is the on-accent ink. --solid-mix pulls any colour far enough toward
+   the theme's own ink that white reads on it, which a pale workspace colour
+   would not have done. */
+.ws-ic{width:var(--rail-lead);height:var(--rail-lead);border-radius:8px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));color:var(--on-accent)}
+.ws-ic.all{--c:var(--muted)}
 .ws-t{flex:1;min-width:0}
 
-.ws-t b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em;color:var(--ink);line-height:1.3;
+.ws-t em{display:block;font-size:9.5px;font-style:normal;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--faint);line-height:1.3}
+.ws-t b{display:block;font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--ink);line-height:1.3;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ws-btn > .ic{flex:none;color:var(--faint)}
 /* Folded to its icons, the tile is the whole control. */
 /* Folded, the two stack and each keeps to the middle. */
-.rail-mini .rail-top{gap:6px;padding:10px 0}
-.rail-mini .rail-brand{justify-content:center;padding:0}
+/* Folded, the brand line stacks: the mark, then the button that brings the
+   words back. */
+.rail-mini .rail-top{gap:8px;padding:10px 0}
+.rail-mini .rail-brand{flex-direction:column;gap:7px;padding:0}
 .rail-mini .rail-brand .wordmark{display:none}
+.rail-mini .rail-fold{margin-left:0}
 .rail-mini .ws-bar{display:flex;justify-content:center;width:100%}
-.rail-mini .ws-btn{width:38px;padding:5px;justify-content:center}
+.rail-mini .ws-btn{width:40px;padding:6px;justify-content:center;border-color:transparent;background:none}
+.rail-mini .ws-btn:hover{background:var(--surface-3)}
 .rail-mini .ws-t,.rail-mini .ws-btn > .ic{display:none}
 /* Folded, a category is its own icon and nothing else -- the switch goes
    with the words it needs. */

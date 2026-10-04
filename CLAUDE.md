@@ -572,25 +572,40 @@ its own categories, and categories were the thing that most needed it.
   renamed. There is no "Across all of them" section in the pane: the
   switcher in the sidebar already has All workspaces in it, and saying it
   twice made the pane look like it had two subjects.
-- **The brand and the workspace are one row** (`.rail-top`): the mark on
-  the left, since it is the app and not a control, then the switcher
-  filling the rest with "ember" as its eyebrow so the name is still there
-  without a row of its own. They were two bands, one of them a line that
-  only said which app you have open.
-  **The flame sits in front of the word it belongs to**, inside the eyebrow
-  over the workspace name (`.ws-fire`), which leaves the workspace tile as
-  the first thing on the row and hard against the sidebar's own left edge.
-  Two shapes came before it: the mark as a filled rounded square the same
-  size as the workspace tile beside it, which read as two logos -- you had
-  to look twice to find which one was yours -- and then the bare flame as a
-  mark of its own, which left the glyph stranded two elements away from the
-  word `ember`. **A tile in this sidebar means something you can press**,
-  so the workspace tile is the only one. Folded, the flame is a mark of its
-  own again (`.rail-mini .rail-top .brand-mark`), because there is no
-  eyebrow to carry it there. The miniature app in setup follows, since it
-  is a picture of this sidebar.
-- **The sidebar is two bands**, set off by a hairline: which app and
-  workspace, then everything that belongs to the workspace. It was
+- **The top of the sidebar is a brand line and a workspace control**
+  (`.rail-top`), and they are told apart by being different *kinds* of
+  thing rather than by arrangement. **Five arrangements were drawn and
+  compared side by side before this one was picked**, because four goes at
+  rearranging the same two elements had each ended the same way: the brand
+  and the workspace competed at the top and you had to look twice to tell
+  which was which. The ones not taken were worth the drawing: the workspace
+  alone with no wordmark anywhere; the brand moved out to a top bar across
+  the window; and a narrow strip of workspace tiles beside a panel of the
+  open one. Any of them would still work if this stops reading.
+- **The workspace is drawn as a control** (`.ws-btn`): a `--line-2`
+  border, a `--surface-2` fill, a 10px radius, and the word **Workspace**
+  as an eyebrow over the name. It is the one thing up here you press, so it
+  looks pressable -- and naming it in words settles it outright, so nothing
+  rests on the drawing alone. Its tile is the workspace's colour **solid**,
+  not a tint, with an `--on-accent` glyph on it: `--solid-mix` pulls any
+  colour far enough toward the theme's ink that white reads on it, which a
+  pale workspace colour would not have done at a 16% tint.
+- **There is no hairline under that band.** The box is its own edge, and a
+  rule as well read as two separators inside 90px.
+- **The fold button sits at the end of the brand line** (`.rail-fold`,
+  `i-panel`), not on the rail's outer edge. It was a round button hanging
+  off the border, shown only on hover, which is a lot of hiding for the
+  control that changes the whole shape of the sidebar -- and it left the
+  brand line with nothing on its right. It keeps `#railMini` and
+  `data-act="rail-mini"`, so the handler, `applyRail()` and the guided tip
+  that points at it all still work; below 1080px it is hidden, because
+  there the width decides. Folded, the brand line stacks: the mark, then
+  the button that brings the words back.
+- **The box does not break the grid.** Its 1px border plus 9px of padding
+  land the tile on 22 like every other leading mark, and its text on 56
+  like every other label -- checked by measurement, not by eye.
+- **The sidebar is two bands**: which app and workspace, then everything
+  that belongs to the workspace. It was
   one run of rows in three sizes with nothing between them, which is what
   made the top look unsettled. The pencil sits against the word it belongs
   to and **Show all** goes to the far end: the heading used to stretch
@@ -619,16 +634,17 @@ its own categories, and categories were the thing that most needed it.
   centres on 34, every label starts at 56, every row at 12. A stray
   `border:1px solid transparent` on the workspace button was enough to put
   that one row 1px out.
-- **The brand is a slim line of its own** above the workspace
-  (`.rail-brand`): the flame, then `ember` in the wordmark face, quiet and
-  small -- it is the one thing up here nobody needs to read. It was tucked
-  into an eyebrow over the workspace name, sharing its text column, which
-  read as a two-line label for the workspace rather than as the name of the
-  app. Three shapes came before that: a 32px tile beside `ember` over
+- **The brand is a line of its own** above the workspace (`.rail-brand`):
+  the flame, `ember` at 15px in the wordmark face and the theme's ink, and
+  the fold button at the end. It is a title, not a label -- which is what
+  keeps it from reading as something belonging to the workspace under it.
+  Four shapes came before: a 32px tile beside `ember` over
   `PERSONAL PLANNER` (a lot of sidebar spent saying which app you have
-  open), a filled mark the same size as the workspace tile beside it (two
-  badges reading as two logos), and a bare flame stranded two elements away
-  from its own word.
+  open); a filled mark the same size as the workspace tile beside it (two
+  badges reading as two logos); a bare flame stranded two elements away
+  from its own word; and the flame and word tucked into an eyebrow over the
+  workspace name, sharing its text column, which read as a two-line label
+  for the workspace.
 - **A category row is the icon, the name, then the switch at the far end.**
   It was the switch, the icon and then the name -- two marks before a word,
   which put the category names in a column of their own 13px right of every

@@ -849,7 +849,7 @@ function wsBarHtml(){
     ' data-hint="'+(all?"All workspaces":esc(w.name))+'"'+
     ' title="Switch workspace" aria-label="'+(all?"All workspaces":"Workspace: "+esc(w.name))+'. Switch workspace">'+
     '<span class="ws-ic'+(all?" all":"")+'"'+(all?"":' style="--c:'+w.color+'"')+'>'+icon(all?"i-grid":(w.icon||"i-grid"),"ic-14")+'</span>'+
-    '<span class="ws-t"><b>'+(all?"All workspaces":esc(w.name))+'</b></span>'+
+    '<span class="ws-t"><em>Workspace</em><b>'+(all?"All workspaces":esc(w.name))+'</b></span>'+
     icon("i-chev-d","ic-14")+'</button>';
 }
 /* Going to a workspace forgets what was filtered in the one before it: a
