@@ -42,9 +42,38 @@
 
     <div class="rel">
       <div class="rel-when">
-        <span class="v">1.3.2</span>
+        <span class="v">1.3.3</span>
         <time datetime="2026-10-04">Oct 4, 2026</time>
         <span class="pill">Latest</span>
+      </div>
+      <ul>
+        <li><b>A swimlane stays exactly where you left it.</b> Scroll down a lane, change a card's
+          category, and the lane used to slide up a little — and if you were at the last task, that task
+          disappeared off the bottom. The cause was a speed trick that let the page skip measuring cards
+          you could not see, which meant it did not know how tall the lane really was and put you back in
+          the wrong place. It is gone, and the position now holds to the pixel wherever you are parked.</li>
+        <li><b>The list view scrolls properly on a big planner.</b> The same trick meant a long list
+          thought it was one screen tall, so it could not be scrolled past the first dozen rows at all.
+          A long table now draws its first 60 rows and offers the rest on a <b>Show more</b> button, the
+          way a board lane already did.</li>
+        <li><b>Tasks is faster with it.</b> On a planner with 1,500 tasks, a change that redraws the list
+          went from well over a second to under a tenth of one; the board now redraws in about three
+          hundredths of a second.</li>
+        <li><b>Find a category by typing.</b> Once you have more than eight, the category menu gets a box
+          at the top — start typing and the list narrows, Enter takes the first match. It used to open
+          wherever the list happened to sit and leave you scrolling to the bottom every time.</li>
+        <li><b>Assigning a hidden category tells you.</b> Filing something into a category you have
+          switched off in the sidebar makes it vanish from the screen, which reads as losing it. Now it
+          says where it went.</li>
+        <li><b>Ask for something on the roadmap page itself</b>, instead of being sent to GitHub. Requests
+          show in their own column and can be voted on.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.3.2</span>
+        <time datetime="2026-10-04">Oct 4, 2026</time>
       </div>
       <ul>
         <li><b>Attachments open in the planner.</b> Click a file's name and it shows here rather than being
