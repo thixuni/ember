@@ -1741,6 +1741,17 @@ Then it raises the version, commits, tags, and pushes. The workflow takes over
 from the tag and publishes the installers, the single-file build, and the
 `latest.yml` metadata that installed copies read.
 
+**Write the changelog before running it, not after.** `docs/changelog.html`
+gets an entry for the version about to go out, as part of the same commit as
+any last change, so the release contains its own notes. Run it after, and the
+page lags a version behind and nobody notices until someone asks what changed.
+It has already happened once: 1.3.1 shipped and the page still ended at 1.3.0.
+The entry is written for the person using the planner -- what is different
+when they open it -- not a list of commit subjects, and the **Latest** pill
+moves to the new one. `docs/roadmap.html` is checked at the same time: a card
+sitting in Next up or Backlog that has just shipped moves to Shipped with its
+version, and the empty In progress line names the version that just went out.
+
 Renumbering a release is the one exception, and it has happened once: the
 batch published as 1.2.0 on 21 September was rebuilt as 1.1.1 the next day
 and the 1.2.0 release deleted, to keep 1.2.0 for the rebrand to Ember. It

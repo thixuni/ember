@@ -42,9 +42,59 @@
 
     <div class="rel">
       <div class="rel-when">
+        <span class="v">1.3.2</span>
+        <time datetime="2026-10-04">Oct 4, 2026</time>
+        <span class="pill">Latest</span>
+      </div>
+      <ul>
+        <li><b>Attachments open in the planner.</b> Click a file's name and it shows here rather than being
+          handed to whatever your computer would open it with: PDFs with page navigation, zoom and print;
+          images; plain text; and <b>spreadsheets as a table</b>, with their sheets as tabs, dates read
+          properly and a formula's result shown. Opening it in your own app is a button, not the only way.
+          Anything Ember cannot show says so and points you at the app that can.</li>
+        <li><b>The board works across all workspaces.</b> It used to be switched off there. Now it is one
+          board per workspace, stacked and each collapsible, so no two workspaces' lanes are ever merged by
+          name. Adding a task at a lane's foot lands in that lane's workspace, and dragging a card onto
+          another workspace's board moves it there, category and subtasks included.</li>
+        <li><b>A board lane keeps its place.</b> Changing a card's category, ticking one, or anything else
+          that redrew the page used to throw a scrolled lane back to the top. Checked across thirteen
+          different things that cause a redraw, on both kinds of board.</li>
+        <li><b>The streak log shows three months</b>, stepped by one control, instead of a whole year at
+          once — and its key now names only what is actually on the screen, usually two things rather than
+          five. The numbers above it are no longer clipped as you scroll.</li>
+        <li><b>A step inside a task reads as a step</b> in the list: smaller, set in, and without the fill
+          and the marker that made five steps look like five more tasks.</li>
+        <li><b>The workspace at the top of the sidebar is drawn as a control</b> — a box, with the word
+          Workspace over its name — because it is the one thing up there you press.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
+        <span class="v">1.3.1</span>
+        <time datetime="2026-10-04">Oct 4, 2026</time>
+      </div>
+      <ul>
+        <li><b>Routines can repeat monthly</b>, on a day of the month — which is what a bill is. A month
+          with no 31st uses its last day, so nothing is quietly skipped.</li>
+        <li><b>Subtasks can carry a day of their own</b> (switch it on in Customize ▸ Task details), and the
+          list opens the steps inside a task underneath it.</li>
+        <li><b>The dashboard follows your accent colour.</b> All five sections take the colour you picked
+          instead of four of them ignoring it, and are told apart by weight rather than by hue.</li>
+        <li><b>Right-clicking a misspelled word shows the suggestions.</b> It did nothing at all before —
+          Electron ships no menu of its own, so the app had to build one.</li>
+        <li><b>Routines, notes and blocked-out time can move workspace</b>, the way tasks already could.</li>
+        <li><b>Quiet hours, the sidebar and the folded sidebar</b> all tidied: one grid behind every row, the
+          brand on its own line, and hover labels that now work at every width rather than only some.</li>
+        <li>Tracked time against a task in one workspace no longer draws on another workspace's calendar.</li>
+        <li>A new download page, a public roadmap and this changelog.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-when">
         <span class="v">1.3.0</span>
         <time datetime="2026-09-29">Sep 29, 2026</time>
-        <span class="pill">Latest</span>
       </div>
       <ul>
         <li><b>Workspaces.</b> The planner divides into as many as six separate planners — Personal, Studio,
@@ -54,7 +104,7 @@
         <li><b>The dashboard always shows every workspace</b>, and says so, because today does not belong to
           one part of your life.</li>
         <li><b>Categories belong to a workspace</b> and are edited where the workspaces are, in
-          Settings, under the workspace they belong to, under the one they belong to.</li>
+          Settings, under the workspace they belong to.</li>
         <li><b>A task moves workspace</b> from its panel, taking its lane, its category and its subtasks
           with it.</li>
         <li><b>The sidebar is one row at the top</b> — the mark, then the workspace switcher — and names what
