@@ -263,14 +263,38 @@ viewer now rather than the only way, beside **Show in folder**.
 - **`plugins: true` is on the window** (main.js). Chromium's PDF viewer is
   a plugin and Electron leaves plugins off, so a PDF in an iframe rendered
   as an empty box without it.
-- **Three kinds are shown and the rest say so**: a PDF in an iframe (which
+- **Four kinds are shown and the rest say so**: a PDF in an iframe (which
   brings Chromium's own page nav, zoom, print and download), an image
-  centred on the panel grey, plain text as it is (`FV_PDF`, `FV_IMG`,
-  `FV_TXT`, by extension or mime). Anything else -- a .docx, a
-  spreadsheet, an archive -- gets a line naming the kind and pointing at
-  the system's app. So do a file that has been moved or deleted since it
-  was attached, one too big to copy through IPC (over 40MB), and one whose
-  planner is open on a different computer from the one it was attached on.
+  centred on the panel grey, plain text as it is, and a **spreadsheet** as
+  a table (`FV_PDF`, `FV_IMG`, `FV_TXT`, `FV_XL`, `FV_CSV`, by extension
+  or mime). Anything else -- a .docx, an archive -- gets a line naming the
+  kind and pointing at the system's app. So do a file that has been moved
+  or deleted since it was attached, one too big to copy through IPC (over
+  40MB), and one whose planner is open on a different computer from the one
+  it was attached on. A file of a kind the viewer *does* read that will not
+  read says something different ("This one would not open"), because that
+  is a different thing from a kind it never reads.
+- **A spreadsheet is read with nothing installed.** An `.xlsx` is a zip of
+  XML, and `DecompressionStream("deflate-raw")` inflates it (`unzip()`,
+  `inflateRaw()`) while `DOMParser` -- already here for pasted HTML --
+  reads it. So it needs no 400KB library and does not break the no-bundler
+  rule. Only the parts asked for are inflated. **Zip64 and encrypted
+  archives are not handled**; they fall through to "This one would not
+  open", which is honest. The same machinery would read a `.docx`, which
+  is the same kind of archive, and that is the obvious next one.
+- **What `readXlsx()` resolves**: shared strings (`xl/sharedStrings.xml`),
+  inline strings, booleans as TRUE/FALSE, a formula's **cached value**
+  (never the formula), and **serial dates** -- a cell whose style carries a
+  date number format is a day, not 46023, worked out from
+  `xl/styles.xml`'s `cellXfs` and `numFmt`. Sheets come in the book's own
+  order through `xl/_rels/workbook.xml.rels`, and a tab each shows where
+  there is more than one. **No formatting, no charts, no formulas, no
+  editing** -- it is a reader.
+- **It is drawn as a spreadsheet**: lettered columns across, numbered rows
+  down, both pinned while you scroll, gaps in the row numbers kept so row 6
+  is row 6. A big sheet is cut at `XL_ROWS` (400) and `XL_COLS` (40) with a
+  line saying how much is not shown. A `.csv` goes through the same table
+  (`readCsv()`, quoted fields and all), because a grid is what it is.
 - **The height is on the modal**, not on each kind of body: giving the
   bodies their own heights inside a flex column that already had a
   `max-height` collapsed the iframe to a sliver. `.mbody` does not grow on

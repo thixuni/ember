@@ -5379,6 +5379,8 @@ document.addEventListener("click",function(e){
       if(f&&f.path&&o&&o.openFile)o.openFile(f.path);break;}
     case "fv-reveal":{const t=sheetTask(),o=desktop(),f=t&&tFiles(t).find(x=>x.id===FV.id);
       if(f&&f.path&&o&&o.revealFile)o.revealFile(f.path);break;}
+    case "fv-sheet":{const t=sheetTask(),f=t&&tFiles(t).find(x=>x.id===FV.id);
+      if(f&&FV.wb){FV.sheet=Number(n.dataset.v)||0;fvRender(f,{state:"ok",kind:"sheet"});}break;}
     case "sh-file-open-system":{const t=sheetTask(),o=desktop();if(!t||!o||!o.openFile)break;
       const f=tFiles(t).find(x=>x.id===n.dataset.v);
       if(f&&f.path)o.openFile(f.path);break;}
@@ -7261,19 +7263,179 @@ function sheetLinks(t,isNew){
    on the page, because a file:// iframe inside a file:// page is blocked
    and a data: URI of a 20MB PDF is not a thing to put in the DOM. The blob
    is revoked when the viewer closes, so nothing is held open. */
-const FV={url:null,id:null};
+const FV={url:null,id:null,wb:null,sheet:0};
+
+/* ---- reading a zip, with nothing to install ----
+   An .xlsx is a zip of XML, and so is a .docx. DecompressionStream does
+   the inflating, DOMParser (already here for pasted HTML) does the
+   reading, so a spreadsheet can be shown without a 400KB library and
+   without breaking the no-bundler rule. Only what is asked for is
+   inflated. Zip64 and encrypted archives are not handled; they fall
+   through to "nothing to show", which is honest. */
+async function inflateRaw(bytes){
+  const s=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+async function unzip(buf,want){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),dec=new TextDecoder();
+  let eocd=-1;
+  for(let i=u8.length-22;i>=0&&i>u8.length-22-65536;i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}}
+  if(eocd<0)throw new Error("not a zip");
+  const n=dv.getUint16(eocd+10,true);let p=dv.getUint32(eocd+16,true);
+  const out={};
+  for(let k=0;k<n&&p+46<=u8.length;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true);
+    const nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true);
+    const lho=dv.getUint32(p+42,true);
+    const name=dec.decode(u8.subarray(p+46,p+46+nl));
+    p+=46+nl+el+cl;
+    if(want&&!want(name))continue;
+    /* The local header's own name and extra lengths, not the central
+       directory's -- they differ often enough to matter. */
+    const lnl=dv.getUint16(lho+26,true),lel=dv.getUint16(lho+28,true);
+    const at=lho+30+lnl+lel,raw=u8.subarray(at,at+csize);
+    out[name]=method===0?raw:await inflateRaw(raw);
+  }
+  return out;
+}
+
+/* ---- a spreadsheet, read into rows ---- */
+const XP=s=>new DOMParser().parseFromString(s,"application/xml");
+/* "AB12" -> 27. A cell without a reference falls in after the last one. */
+function colOf(ref){
+  let n=0;for(let i=0;i<ref.length;i++){const c=ref.charCodeAt(i);
+    if(c<65||c>90)break;n=n*26+(c-64);}
+  return n-1;
+}
+/* Excel keeps a date as days since 1900, with a leap day that never was;
+   counting from 1899-12-30 absorbs it for every date after Feb 1900. */
+function xlDate(n){
+  const ms=Math.round((n-25569)*86400000);
+  const d=new Date(ms);if(isNaN(d))return String(n);
+  const day=MONS[d.getUTCMonth()]+" "+d.getUTCDate()+", "+d.getUTCFullYear();
+  const frac=n-Math.floor(n);
+  if(frac<1/1440)return day;
+  const mins=Math.round(frac*1440),h=Math.floor(mins/60),m=mins%60;
+  return day+" "+fmtTime(pad(h)+":"+pad(m));
+}
+const xlNum=v=>{const n=Number(v);return isFinite(n)?String(Math.round(n*1e10)/1e10):v;};
+async function readXlsx(buf){
+  const f=await unzip(buf,n=>n==="xl/workbook.xml"||n==="xl/_rels/workbook.xml.rels"||
+    n==="xl/sharedStrings.xml"||n==="xl/styles.xml"||n.indexOf("xl/worksheets/")===0);
+  const dec=new TextDecoder(),txt=k=>f[k]?dec.decode(f[k]):null;
+  if(!txt("xl/workbook.xml"))throw new Error("not a workbook");
+
+  /* Shared strings: every cell of text in the book, by index. */
+  const ss=[],sst=txt("xl/sharedStrings.xml");
+  if(sst)Array.prototype.forEach.call(XP(sst).getElementsByTagName("si"),si=>{
+    let s="";Array.prototype.forEach.call(si.getElementsByTagName("t"),t=>{
+      if(!t.parentNode||t.parentNode.nodeName!=="rPh")s+=t.textContent;});
+    ss.push(s);});
+
+  /* Which style numbers mean a date, so 45292 reads as a day. */
+  const dates=new Set(),st=txt("xl/styles.xml");
+  if(st){const d=XP(st),custom={};
+    Array.prototype.forEach.call(d.getElementsByTagName("numFmt"),x=>{
+      custom[x.getAttribute("numFmtId")]=x.getAttribute("formatCode")||"";});
+    const isDate=(id,code)=>{const n=Number(id);
+      if((n>=14&&n<=22)||(n>=45&&n<=47))return true;
+      const c=String(code||"").replace(/\[[^\]]*\]/g,"").replace(/"[^"]*"/g,"");
+      return /[dy]/i.test(c)&&/[dmy]/i.test(c);};
+    const xfs=d.getElementsByTagName("cellXfs")[0];
+    if(xfs)Array.prototype.forEach.call(xfs.children,(xf,i)=>{
+      const id=xf.getAttribute("numFmtId")||"0";
+      if(xf.getAttribute("applyNumberFormat")!=="0"&&isDate(id,custom[id]))dates.add(i);});}
+
+  /* Sheet names, in the book's own order, each pointed at its file. */
+  const rels={},rx=txt("xl/_rels/workbook.xml.rels");
+  if(rx)Array.prototype.forEach.call(XP(rx).getElementsByTagName("Relationship"),r=>{
+    rels[r.getAttribute("Id")]=String(r.getAttribute("Target")||"").replace(/^\/?xl\//,"");});
+  const sheets=[];
+  Array.prototype.forEach.call(XP(txt("xl/workbook.xml")).getElementsByTagName("sheet"),(sh,i)=>{
+    const rid=sh.getAttribute("r:id")||sh.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id");
+    const target=(rid&&rels[rid])||("worksheets/sheet"+(i+1)+".xml");
+    const key="xl/"+target;
+    if(f[key])sheets.push({name:sh.getAttribute("name")||("Sheet"+(i+1)),rows:sheetRows(dec.decode(f[key]),ss,dates)});});
+  if(!sheets.length)throw new Error("no sheets");
+  return sheets;
+}
+function sheetRows(xml,ss,dates){
+  const d=XP(xml),rows=[];let wide=0;
+  Array.prototype.forEach.call(d.getElementsByTagName("row"),r=>{
+    const at=Number(r.getAttribute("r"))||rows.length+1,cells=[];
+    let next=0;
+    Array.prototype.forEach.call(r.getElementsByTagName("c"),c=>{
+      const ref=c.getAttribute("r")||"",col=ref?colOf(ref):next;next=col+1;
+      const ty=c.getAttribute("t")||"n",sIdx=Number(c.getAttribute("s")||-1);
+      let v="";
+      if(ty==="inlineStr"){Array.prototype.forEach.call(c.getElementsByTagName("t"),t=>{v+=t.textContent;});}
+      else{const vn=c.getElementsByTagName("v")[0],raw=vn?vn.textContent:"";
+        if(raw===""){v="";}
+        else if(ty==="s")v=ss[Number(raw)]||"";
+        else if(ty==="b")v=raw==="1"?"TRUE":"FALSE";
+        else if(ty==="e"||ty==="str")v=raw;
+        else v=dates.has(sIdx)?xlDate(Number(raw)):xlNum(raw);}
+      cells[col]=v;if(col+1>wide)wide=col+1;});
+    rows[at-1]=cells;});
+  for(let i=0;i<rows.length;i++)if(!rows[i])rows[i]=[];
+  return {rows:rows,wide:wide};
+}
+/* A csv read the same way, so it lands in the same table. */
+function readCsv(text){
+  const rows=[];let row=[],cell="",q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=c;}
+    else if(c==='"')q=true;
+    else if(c===","||c==="\t"){row.push(cell);cell="";}
+    else if(c==="\n"){row.push(cell);cell="";rows.push(row);row=[];}
+    else if(c!=="\r")cell+=c;
+  }
+  if(cell!==""||row.length){row.push(cell);rows.push(row);}
+  const wide=rows.reduce((m,r)=>Math.max(m,r.length),0);
+  return [{name:"Sheet",rows:{rows:rows,wide:wide}}];
+}
+/* A spreadsheet drawn as one: lettered columns, numbered rows, and a tab a
+   sheet where there is more than one. It is a reader, not an editor --
+   nothing here writes back. */
+const XL_ROWS=400,XL_COLS=40;
+const colName=i=>{let s="";i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=(i-m-1)/26;}return s;};
+function xlTable(sheets,at){
+  const sh=sheets[Math.min(at||0,sheets.length-1)];
+  const all=sh.rows.rows,wide=Math.min(sh.rows.wide,XL_COLS);
+  const rows=all.slice(0,XL_ROWS);
+  const more=(all.length>XL_ROWS?all.length-XL_ROWS:0),cut=(sh.rows.wide>XL_COLS?sh.rows.wide-XL_COLS:0);
+  let h='<div class="xl-wrap"><table class="xl"><thead><tr><th class="xl-n"></th>';
+  for(let c=0;c<wide;c++)h+='<th>'+colName(c)+'</th>';
+  h+='</tr></thead><tbody>';
+  rows.forEach((r,i)=>{
+    h+='<tr><th class="xl-n">'+(i+1)+'</th>';
+    for(let c=0;c<wide;c++){const v=r[c];
+      h+='<td'+(v!==undefined&&v!==""&&!isNaN(Number(v))&&!/^0\d/.test(v)?' class="xl-num"':"")+'>'+esc(v===undefined?"":v)+'</td>';}
+    h+='</tr>';});
+  h+='</tbody></table></div>';
+  const note=[more?more+" more row"+(more===1?"":"s"):"",cut?cut+" more column"+(cut===1?"":"s"):""].filter(Boolean).join(" and ");
+  return (sheets.length>1?'<div class="xl-tabs" role="tablist">'+sheets.map((s,i)=>
+      '<button role="tab" class="xl-tab'+(i===(at||0)?" on":"")+'" aria-selected="'+(i===(at||0))+'" data-act="fv-sheet" data-v="'+i+'">'+esc(s.name)+'</button>').join("")+'</div>':"")+
+    h+(note?'<p class="xl-more">Showing the first '+Math.min(all.length,XL_ROWS)+' rows — '+esc(note)+' not shown. Open it in a spreadsheet app for the rest.</p>':"");
+}
 const FV_IMG=/\.(png|jpe?g|gif|webp|bmp|avif|ico)$/i;
-const FV_TXT=/\.(txt|md|markdown|csv|tsv|json|ya?ml|xml|html?|css|js|ts|jsx|tsx|py|rb|go|rs|java|c|h|cpp|sh|sql|ini|conf|log)$/i;
+const FV_TXT=/\.(txt|md|markdown|json|ya?ml|xml|html?|css|js|ts|jsx|tsx|py|rb|go|rs|java|c|h|cpp|sh|sql|ini|conf|log)$/i;
+const FV_XL=/\.xlsx$/i;
+const FV_CSV=/\.(csv|tsv)$/i;
 const FV_PDF=/\.pdf$/i;
 function fvKind(f){
   const n=f.name||"",ty=f.type||"";
   if(FV_PDF.test(n)||ty==="application/pdf")return "pdf";
   if(FV_IMG.test(n)||/^image\//.test(ty))return "image";
+  if(FV_XL.test(n))return "sheet";
+  if(FV_CSV.test(n))return "csv";
   if(FV_TXT.test(n)||/^text\//.test(ty))return "text";
   return "other";
 }
 const FV_MIME={pdf:"application/pdf"};
-function fvDrop(){if(FV.url){try{URL.revokeObjectURL(FV.url);}catch(e){}FV.url=null;}FV.id=null;}
+function fvDrop(){if(FV.url){try{URL.revokeObjectURL(FV.url);}catch(e){}FV.url=null;}FV.id=null;FV.wb=null;FV.sheet=0;}
 /* What the file is, in words, for the row that cannot be shown. */
 function fvWhat(f){
   const m=(f.name||"").match(/\.([a-z0-9]+)$/i);
@@ -7296,6 +7458,16 @@ function fileModal(fid){
       const txt=new TextDecoder().decode(new Uint8Array(res.data));
       return fvRender(f,{state:"ok",kind:"text",text:txt});
     }
+    if(kind==="csv"){
+      FV.wb=readCsv(new TextDecoder().decode(new Uint8Array(res.data)));FV.sheet=0;
+      return fvRender(f,{state:"ok",kind:"sheet"});
+    }
+    if(kind==="sheet"){
+      return readXlsx(res.data).then(sheets=>{
+        if(FV.id!==fid)return;
+        FV.wb=sheets;FV.sheet=0;fvRender(f,{state:"ok",kind:"sheet"});
+      }).catch(()=>{if(FV.id===fid)fvRender(f,{state:"ok",kind:"other",broke:1});});
+    }
     const mime=FV_MIME[kind]||f.type||"application/octet-stream";
     FV.url=URL.createObjectURL(new File([res.data],f.name,{type:mime}));
     fvRender(f,{state:"ok",kind:kind,url:FV.url});
@@ -7315,7 +7487,11 @@ function fvBody(f,o){
   if(o.kind==="image")return '<div class="fv-img"><img src="'+o.url+'" alt="'+esc(f.name)+'"></div>';
   if(o.kind==="pdf")return '<iframe class="fv-frame" src="'+o.url+'" title="'+esc(f.name)+'"></iframe>';
   if(o.kind==="text")return '<pre class="fv-text">'+esc(o.text)+'</pre>';
-  return fvFallback(f,"Nothing to show for a "+fvWhat(f).toLowerCase(),"Ember shows images, PDFs and plain text. Open it in the app your computer uses for this one.");
+  if(o.kind==="sheet"&&FV.wb)return '<div class="fv-sheet">'+xlTable(FV.wb,FV.sheet)+'</div>';
+  if(o.broke)return fvFallback(f,"This one would not open",
+    "Ember could not read it. It may be protected, or saved in an older format. Open it in the app your computer uses for this kind of file.");
+  return fvFallback(f,"Nothing to show for a "+fvWhat(f).toLowerCase(),
+    "Ember shows images, PDFs, spreadsheets and plain text. Open it in the app your computer uses for this one.");
 }
 function fvFallback(f,title,text){
   return '<div class="fv-none">'+icon("i-clip","ic-18")+'<b>'+esc(title)+'</b><p>'+text+'</p></div>';
