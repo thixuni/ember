@@ -88,6 +88,17 @@
   --accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));
   --apricot-soft:color-mix(in srgb,var(--apricot) 16%,var(--surface));
   --danger-soft:color-mix(in srgb,var(--danger) 15%,var(--surface));
+  /* The highlighter. Each is a mix of a hue the theme already owns, named
+     once here because two things draw it: the words in the note and the
+     swatch in the picker. They are mixed toward transparent rather than
+     toward a background, so a highlight reads the same on the page, in a
+     note in the list and on the swatch itself. */
+  --hl-yellow:color-mix(in srgb,var(--amber) 34%,transparent);
+  --hl-teal:color-mix(in srgb,var(--teal) 30%,transparent);
+  --hl-blue:color-mix(in srgb,var(--blue) 30%,transparent);
+  --hl-pink:color-mix(in srgb,var(--danger) 26%,transparent);
+  --hl-violet:color-mix(in srgb,var(--violet) 30%,transparent);
+  --hl-apricot:color-mix(in srgb,var(--apricot) 32%,transparent);
   --amber-soft:color-mix(in srgb,var(--amber) 16%,var(--surface));
   --blue-soft:color-mix(in srgb,var(--blue) 14%,var(--surface));
 
@@ -1153,7 +1164,7 @@ button.sq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .rte-split:hover{background:var(--surface-3)}
 .rte-split button:hover{background:none}
 .rte-bar .rte-split > button:first-child{border-radius:8px 0 0 8px}
-.rte-bar .rte-caret{width:17px;border-radius:0 8px 8px 0;border-left:1px solid var(--line);color:var(--faint)}
+.rte-bar .rte-caret{width:15px;border-radius:0 8px 8px 0;color:var(--faint)}
 .rte-bar .rte-caret .ic{width:11px;height:11px}
 .rte-split:hover .rte-caret{color:var(--ink-2)}
 .link-bar{display:flex;gap:7px;align-items:center;padding:9px 20px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
@@ -2887,13 +2898,38 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .doc-rich h4{font-size:16px}.doc-rich h5{font-size:14.5px}.doc-rich h6{font-size:13px;color:var(--muted)}
 .doc-rich p{margin:0 0 12px}
 .doc-rich a{color:var(--accent-ink);text-decoration:underline;text-underline-offset:2px}
-.doc-rich mark,.act-body mark,.rte mark,.nitem mark{background:color-mix(in srgb,var(--amber) 34%,transparent);color:var(--ink);padding:0 2px;border-radius:3px}
+.doc-rich mark,.act-body mark,.rte mark,.nitem mark{background:var(--hl-yellow);color:var(--ink);padding:0 2px;border-radius:3px}
 /* A highlight is a <mark> with a class, never a colour written into the
    note: the note is kept as HTML and would carry a literal yellow into dark
    mode for ever. Each one is a mix of a hue the theme already owns. */
-mark.hl-teal{background:color-mix(in srgb,var(--teal) 30%,transparent)}
-mark.hl-blue{background:color-mix(in srgb,var(--blue) 30%,transparent)}
-mark.hl-pink{background:color-mix(in srgb,var(--danger) 26%,transparent)}
+mark.hl-teal{background:var(--hl-teal)}
+mark.hl-blue{background:var(--hl-blue)}
+mark.hl-pink{background:var(--hl-pink)}
+mark.hl-violet{background:var(--hl-violet)}
+mark.hl-apricot{background:var(--hl-apricot)}
+
+/* ---------- picking a highlight ----------
+   The colours themselves, not their names. A list reading Yellow, Green,
+   Blue, Pink made you read a word to find out what a colour was, which is
+   the one thing a colour does not need. Six swatches on one row, then the
+   way to take a highlight off under them. */
+.hlmenu{padding:9px;width:auto}
+.hl-row{display:flex;gap:6px}
+.hl-sw{width:30px;height:30px;border-radius:9px;cursor:pointer;background:var(--hl-yellow);
+  border:2px solid transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 11%,transparent)}
+.hl-sw > *{pointer-events:none}
+.hl-sw:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 20%,transparent)}
+.hl-sw.on{border-color:var(--ink)}
+.hl-sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hl-sw.hl-teal{background:var(--hl-teal)}
+.hl-sw.hl-blue{background:var(--hl-blue)}
+.hl-sw.hl-pink{background:var(--hl-pink)}
+.hl-sw.hl-violet{background:var(--hl-violet)}
+.hl-sw.hl-apricot{background:var(--hl-apricot)}
+.hl-off{display:flex;align-items:center;gap:8px;width:100%;margin-top:9px;padding:7px 4px 2px;
+  border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);cursor:pointer;background:none}
+.hl-off:hover{color:var(--ink)}
+.hl-off > *{pointer-events:none}
 .doc-rich ul,.doc-rich ol{margin:0 0 12px;padding-left:26px}
 .doc-rich li{margin:3px 0}
 .doc-rich li[style*="--lv"]{margin-left:calc(var(--lv,0) * 22px)}

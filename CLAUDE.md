@@ -1218,6 +1218,18 @@ caret out of whatever is being typed.
 kept as HTML, so what it can do has to live in the note itself rather
 than in Markdown.
 
+- **The toolbar is four groups, divided by what the buttons do to**, and
+  the hairlines (`.rte-sep`) fall between them and nowhere else: what a
+  run of words looks like (bold, italic, underline, **highlight**), what
+  a line is (the two headings, body text, quote), lists (bulleted with
+  its marker, numbered), then the rest (link, clear formatting). The
+  separators used to land after underline, after body text and after the
+  quote, which split the lists from each other, left the quote in with
+  the lists it is not one of, and put the highlighter in with Link.
+  There was a fourth line nobody asked for **inside** the bullet split
+  button, between it and its own chevron, which made one control read as
+  two.
+
 - **The bullet button is a split control** (`.rte-split`): pressing it
   makes a bulleted list with the marker last used, and the chevron beside
   it picks the marker -- Dot, Circle or Square (`RTE_BULLETS`,
@@ -1228,12 +1240,23 @@ than in Markdown.
   1.7px dots that disappeared at 14px, so it read as an alignment
   control. `i-bullets` has real filled dots.
 - **A highlight is a `<mark>` with a class**, never a colour written into
-  the note (`RTE_HL`, `rteMark()`): Yellow, Green, Blue, Pink and Remove
-  highlight. `hiliteColor` and `backColor` would put a literal yellow
-  into the note and carry it into dark mode for ever; a class is mixed
-  from a hue the theme already owns and follows both. Inside a highlight
-  already, picking a colour is a **class swap** -- unwrapping and wrapping
-  again left nothing selected to wrap.
+  the note (`RTE_HL`, `rteMark()`): six of them -- Yellow, Green, Blue,
+  Pink, Purple and Orange. `hiliteColor` and `backColor` would put a
+  literal yellow into the note and carry it into dark mode for ever; a
+  class is mixed from a hue the theme already owns and follows both.
+  Inside a highlight already, picking a colour is a **class swap** --
+  unwrapping and wrapping again left nothing selected to wrap.
+- **The picker shows the colours, not their names** (`hlMenu()`): six
+  swatches on a row and *Remove highlight* under them, greyed while there
+  is no highlight to remove. It was a list reading Yellow, Green, Blue,
+  Pink with the same pencil beside each one, which made you read a word
+  to find out what a colour was -- the one thing a colour never needs.
+  Each highlight's colour is named once, as `--hl-*` on `:root`, because
+  two things draw it: the words on the page and the swatch in the picker,
+  and the two must not drift apart. The mixes go toward **transparent**
+  rather than toward a background, so a highlight looks the same on the
+  page, in a note in the list, and on the swatch. It shares the colour
+  pop-over's state (`KM`), since only ever one of them is open.
 - **Both run from a menu, and a menu item is a button**, so the press
   takes the keyboard out of the note and `execCommand` on an editable
   without it quietly does nothing -- the highlight would not come off at

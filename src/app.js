@@ -1135,6 +1135,27 @@ function colorMenuClose(){
   if(KM.el&&KM.el.parentNode)KM.el.parentNode.removeChild(KM.el);
   KM.el=null;KM.btn=null;KM.on=null;
 }
+/* The highlighter's own picker. It shows the colours rather than naming
+   them -- a list reading Yellow, Green, Blue, Pink made you read a word to
+   learn what a colour was, which is the one thing a colour does not need.
+   The swatches are the same mixes the words on the page get, so what you
+   pick is what you see. It shares the colour pop-over's state, because
+   only ever one of them is open. */
+function hlMenu(btn){
+  if(KM.btn===btn){colorMenuClose();return;}
+  colorMenuClose();iconMenuClose();catMenuClose();pkClose();
+  const had=rteMarkAt(),cur=had?(had.className||""):null;
+  const m=document.createElement("div");m.className="catmenu hlmenu";
+  m.setAttribute("role","dialog");m.setAttribute("aria-label","Pick a highlight");
+  m.innerHTML='<div class="hl-row">'+RTE_HL.map(function(h){
+      return '<button type="button" class="hl-sw '+h[0]+(cur!==null&&cur===h[0]?" on":"")+'" data-act="hl-pick" data-v="'+h[0]+'" title="'+esc(h[1])+'" aria-label="'+esc(h[1])+'"></button>';}).join("")+'</div>'+
+    '<button type="button" class="hl-off" data-act="hl-none"'+(had?"":" disabled")+'>'+icon("i-x","ic-14")+'Remove highlight</button>';
+  document.body.appendChild(m);KM.el=m;KM.btn=btn;KM.on=null;btn.setAttribute("aria-expanded","true");
+  const r=btn.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  let top=r.bottom+6;if(top+h>innerHeight-8)top=Math.max(8,r.top-6-h);
+  m.style.left=Math.round(Math.min(Math.max(8,r.left),innerWidth-w-8))+"px";m.style.top=Math.round(top)+"px";
+  const first=m.querySelector(".hl-sw.on")||m.querySelector(".hl-sw");if(first)first.focus({preventScroll:true});
+}
 function colorMenu(btn,cur,palette,cpKind,id,on){
   if(KM.btn===btn){colorMenuClose();return;}
   colorMenuClose();iconMenuClose();catMenuClose();pkClose();
@@ -3641,17 +3662,17 @@ function viewNotes(){
     :es("page","A blank page","Write down anything worth keeping. Action items you add become tasks.",{actions:'<button class="btn btn-sm btn-primary" data-act="new-note">'+icon("i-plus","ic-14")+'Start a note</button>'}))+'</div></div>';
   const tools=[["bold","B","Bold"],["italic","I","Italic"],["underline","U","Underline"]];
   const bar='<div class="rte-bar">'+tools.map(t=>'<button data-act="rte" data-cmd="'+t[0]+'" title="'+t[2]+'" style="font-family:var(--fd)">'+t[1]+'</button>').join("")+
+    '<button data-act="rte-hl" title="Highlight" aria-haspopup="dialog" aria-label="Highlight">'+icon("i-highlight","ic-14")+'</button>'+
     '<span class="rte-sep"></span>'+
     '<button data-act="rte" data-cmd="formatBlock" data-v="h2" title="Heading">H2</button>'+
     '<button data-act="rte" data-cmd="formatBlock" data-v="h3" title="Subheading">H3</button>'+
     '<button data-act="rte" data-cmd="formatBlock" data-v="p" title="Body text">¶</button>'+
+    '<button data-act="rte" data-cmd="formatBlock" data-v="blockquote" title="Quote">&ldquo;</button>'+
     '<span class="rte-sep"></span>'+
     '<span class="rte-split"><button data-act="rte-ul" title="Bulleted list">'+icon("i-bullets","ic-14")+'</button>'+
       '<button class="rte-caret" data-act="rte-bullet" title="Bullet style" aria-haspopup="menu" aria-label="Bullet style">'+icon("i-chev-d","ic-14")+'</button></span>'+
     '<button data-act="rte" data-cmd="insertOrderedList" title="Numbered list">1.</button>'+
-    '<button data-act="rte" data-cmd="formatBlock" data-v="blockquote" title="Quote">&ldquo;</button>'+
     '<span class="rte-sep"></span>'+
-    '<button data-act="rte-hl" title="Highlight" aria-haspopup="menu" aria-label="Highlight">'+icon("i-highlight","ic-14")+'</button>'+
     '<button data-act="rte-link" title="Add link" style="width:auto;padding:0 9px;font-size:12px;font-weight:600">Link</button>'+
     '<button data-act="rte" data-cmd="removeFormat" title="Clear formatting">'+icon("i-x","ic-14")+'</button>'+
     '<span class="spacer" style="flex:1"></span>'+
@@ -3715,7 +3736,8 @@ function arm(btn,label){
    stylesheet so it follows the theme. Nothing here writes a colour into the
    note. */
 const RTE_BULLETS=[["disc","Dot","i-bul-disc"],["circle","Circle","i-bul-circle"],["square","Square","i-bul-square"]];
-const RTE_HL=[["","Yellow"],["hl-teal","Green"],["hl-blue","Blue"],["hl-pink","Pink"]];
+const RTE_HL=[["","Yellow"],["hl-teal","Green"],["hl-blue","Blue"],["hl-pink","Pink"],
+  ["hl-violet","Purple"],["hl-apricot","Orange"]];
 const rteBox=()=>el("rte");
 /* Both of these run from a menu, and a menu item is a button: pressing it
    takes the keyboard out of the note, and execCommand on an editable that
@@ -5975,8 +5997,9 @@ document.addEventListener("click",function(e){
       else{const x=noteById(V.noteId);if(x){x.html=el("rte").innerHTML;x.updated=Date.now();save("notes");}}break;
     case "rte-ul":rteUl("");break;
     case "rte-bullet":ctxMenu(RTE_BULLETS.map(b=>({icon:b[2],label:b[1],run:()=>rteUl(b[0])})),null,n);break;
-    case "rte-hl":ctxMenu(RTE_HL.map(h=>({icon:"i-highlight",label:h[1],run:()=>rteMark(h[0])}))
-      .concat([{icon:"i-x",label:"Remove highlight",run:()=>rteMark(null)}]),null,n);break;
+    case "rte-hl":hlMenu(n);break;
+    case "hl-pick":{const v=n.dataset.v;colorMenuClose();rteMark(v||"");break;}
+    case "hl-none":colorMenuClose();rteMark(null);break;
     case "rte-link":linkBar(n.closest(".rte-bar"));break;
     case "rte-link-cancel":closeLinkBar();break;
     case "rte-link-apply":{const u=(el("linkUrl").value||"").trim();closeLinkBar();
