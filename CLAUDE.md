@@ -735,9 +735,12 @@ its own categories, and categories were the thing that most needed it.
   | `--rail-lead` | the slot the leading mark sits in | 24px (22 → 46) |
   | `--rail-gap` | between that slot and the words | 10px (words at 56) |
 
-  Every row -- the brand, the workspace, a nav item, a category, the
+  Every row of *content* -- the workspace, a nav item, a category, the
   footer -- uses them, so there is **one glyph column and one label
-  column**. It took three goes to get here: the marks landed at 16, 20 and
+  column**. **The brand line is the one exception**, and a deliberate one:
+  it is the app's own title bar over the top of the list rather than an
+  item in it, so it spans the panel instead (see the next bullet). It took
+  three goes to get the rest here: the marks landed at 16, 20 and
   22, then at 22, 27 and 46 (a nav icon, the glyph inside the workspace
   tile, a category's icon) with labels at 50, 55 and 69. **A mark is
   centred in the slot rather than flush to its left**, because the marks
@@ -752,6 +755,18 @@ its own categories, and categories were the thing that most needed it.
   the flame, `ember` at 15px in the wordmark face and the theme's ink, and
   the fold button at the end. It is a title, not a label -- which is what
   keeps it from reading as something belonging to the workspace under it.
+  **It is the one row that does not sit on the glyph grid.** The mark goes
+  out to the sidebar's own left edge and the fold button to its right
+  (`margin:0 calc(8px - var(--rail-edge))`, so `--rail-edge` is taken back
+  and 8px put back as the breathing room a mark needs against an edge),
+  because a title bar spans its panel while the list under it keeps its
+  margins. The grid below is untouched by this -- measured, the workspace
+  tile and every nav icon still centre on 34.
+  **The flame and the wordmark are one lockup**, 6px apart: the 10px grid
+  gap plus the mark's own 4px slot padding left 14px between the flame and
+  the "e", which read as two things standing near each other rather than
+  as a logo. Folded, the line stacks and goes back inside the rail's own
+  padding -- there is no width to span and no wordmark to sit beside.
   Four shapes came before: a 32px tile beside `ember` over
   `PERSONAL PLANNER` (a lot of sidebar spent saying which app you have
   open); a filled mark the same size as the workspace tile beside it (two

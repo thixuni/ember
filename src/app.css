@@ -309,9 +309,20 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
    as well read as two separators in 90px. */
 .rail-top{display:flex;flex-direction:column;align-items:stretch;gap:10px;
   padding:10px var(--rail-edge) 12px;flex:none}
-.rail-brand{display:flex;align-items:center;gap:var(--rail-gap);
-  padding:0 var(--rail-in);color:var(--ink)}
-.rail-brand .rb-fire{color:var(--accent)}
+/* The brand line is the one row that does NOT sit on the sidebar's glyph
+   grid, and it is deliberate. Everything below it is a row of content --
+   a nav item, a category -- and those line up with each other. This is the
+   app's own title bar over the top of them: the mark goes out to the
+   sidebar's left edge and the fold button to its right, so the line spans
+   the panel instead of sitting inside the same margins as the list under
+   it. --rail-edge is taken back by the negative margin and 8px put back,
+   which is the breathing room a mark needs against an edge.
+   The flame and the wordmark are one lockup, so they sit tight together --
+   the 10px grid gap plus the mark's own 4px slot padding left 14px between
+   the flame and the "e", which read as two things rather than a logo. */
+.rail-brand{display:flex;align-items:center;gap:6px;
+  margin:0 calc(8px - var(--rail-edge));padding:0;color:var(--ink)}
+.rail-brand .rb-fire{color:var(--accent);margin:0}
 .rail-brand .wordmark{font-family:var(--fw);font-size:15px;font-weight:700;letter-spacing:-.01em;
   text-transform:lowercase;line-height:1}
 /* The fold button sits at the end of the brand line rather than on the
@@ -3319,7 +3330,9 @@ body.rail-mini .rail-head{justify-content:center}
 /* Folded, the brand line stacks: the mark, then the button that brings the
    words back. */
 .rail-mini .rail-top{gap:8px;padding:10px 0}
-.rail-mini .rail-brand{flex-direction:column;gap:7px;padding:0}
+/* Folded, the line stacks and goes back inside the rail's own padding:
+   there is no width to span and no wordmark to sit beside. */
+.rail-mini .rail-brand{flex-direction:column;gap:7px;padding:0;margin:0}
 .rail-mini .rail-brand .wordmark{display:none}
 .rail-mini .rail-fold{margin-left:0}
 .rail-mini .ws-bar{display:flex;justify-content:center;width:100%}
