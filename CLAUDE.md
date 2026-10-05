@@ -1119,11 +1119,16 @@ because it is on the page once already; showing it twice would make one
 piece of work look like two. Missed routines fold away past `MISS_SHOWN`:
 they are the least actionable thing there, and ten of them buried the rest.
 
-The sidebar carries one number, and only when something is late: overdue
+The sidebar carries **one dot**, and only when something is late: overdue
 tasks, on Dashboard, in the danger colour (`navAlert()`). Counts on every
 section were inventory, and a number that is always there stops being seen.
-What is due today is a plan, not an alarm. The badge is a `<b>`, not a
-`<span>`, because the icon-only rail hides every span in a nav button.
+What is due today is a plan, not an alarm. It carried the count itself for
+a while, and a figure that changes every time you look at it is read every
+time -- while all it ever has to say is *something is late*, and the
+Dashboard it sits on names them the moment you open it. The number is
+still on the hover and still read out (`title` and `aria-label`), so
+nothing is lost by not printing it. The badge is a `<b>`, not a `<span>`,
+because the icon-only rail hides every span in a nav button.
 
 The foot of the sidebar is one button to Settings (`renderMe()`): a letter,
 the person's name, and under it where the planner is kept (`saveWhere()`,
@@ -1138,6 +1143,18 @@ redraw it). They had a window of their own, and from Settings that meant
 a popup opening on top of the popup that was already listing them. The
 sidebar's pencil goes to the same place, with that workspace's list
 already open.
+
+**Folded, every glyph in the rail centres on the same line**, and for a
+while they did not: the nav icons and the category icons sat 5px left of
+the flame, the workspace tile and the avatar. Nothing was mis-centred.
+They are centred inside `.rail-scroll`, whose scrollbar takes 10px off
+its right-hand side, so its middle is 5px left of the rail's -- while the
+brand, the switcher and the footer sit outside that box and centre on the
+rail itself. `scrollbar-gutter: stable both-edges` reserves the gutter on
+both edges and puts the box's middle back on the rail's. It is scoped to
+`body.rail-mini` on purpose: open, the same rule would push the whole
+glyph column 5px right and every label with it. Measured folded, every
+glyph is on 34.5 in a 70px rail.
 
 **Folded to its icons, the sidebar names what the pointer is on**
 (`data-hint`, `railHintShow()`, `.railtip`). It is drawn into `<body>`

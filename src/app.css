@@ -362,9 +362,13 @@ h1,h2,h3,h4{margin:0;font-family:var(--fd);font-weight:600;letter-spacing:-.01em
 /* Something is late. Filled in the danger colour so it is the one thing in
    the sidebar that catches the eye, which only works because nothing else
    there carries a number. */
-.nav-alert{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:20px;display:inline-grid;place-items:center;
-  background:var(--danger);color:var(--on-accent);font-size:11px;font-weight:700;
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%,transparent)}
+/* One dot, not a number. The count was there to say how far behind you
+   are, but a figure that changes every time you look at it is read every
+   time, and what it has to say is only ever "something is late" -- the
+   Dashboard it sits on names them the moment you open it. The number is
+   still on the hover and still read out, so nothing is actually lost. */
+.nav-alert{margin-left:auto;flex:none;width:8px;height:8px;border-radius:50%;
+  background:var(--danger);box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%,transparent)}
 .rail-head{display:flex;align-items:center;gap:3px;padding:0 var(--rail-in) 8px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
 .rail-head .rh-t{min-width:0;overflow:hidden;white-space:nowrap}
 .rail-head .grow{flex:1;min-width:0}
@@ -3207,7 +3211,18 @@ body.rail-mini .rail-fold .ic{transform:scaleX(-1)}
 @media (max-width:1080px){.rail-fold{display:none}}
 body.rail-mini .app{grid-template-columns:70px minmax(0,1fr)}
 body.rail-mini .nav-btn{position:relative;justify-content:center}
-body.rail-mini .nav-alert{position:absolute;top:2px;right:4px;margin:0;min-width:17px;height:17px;padding:0 4px;font-size:10px}
+/* **Everything in the folded rail centres on the same line**, and it did
+   not: the nav icons and the category icons sat 5px left of the flame, the
+   workspace tile and the avatar. Nothing was mis-centred -- they are
+   centred in .rail-scroll, whose scrollbar takes 10px off its right, so
+   its middle is 5px left of the rail's. The brand, the switcher and the
+   footer are outside that box and centre on the rail itself. Reserving the
+   gutter on both edges puts the box's middle back on the rail's middle.
+   Measured folded: every glyph on 34.5 in a 70px rail. It is scoped to the
+   folded rail on purpose -- open, the same rule would push the whole glyph
+   column 5px right and every label with it. */
+body.rail-mini .rail-scroll{scrollbar-gutter:stable both-edges}
+body.rail-mini .nav-alert{position:absolute;top:6px;right:auto;left:calc(50% + 5px);margin:0}
 body.rail-mini :is(.nav-btn span,.cat-row .cname,.rail-head span,.rail-head .txt,.me-txt,.me-gear){display:none}
 body.rail-mini .me{justify-content:center;padding:7px 0}
 body.rail-mini .cat-row{justify-content:center}

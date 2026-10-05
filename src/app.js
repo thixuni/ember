@@ -957,7 +957,7 @@ function renderRail(){
       icon(n.icon,"ic-18")+'<span>'+esc(n.name)+'</span>'+
       /* <b>, not <span>: the icon-only rail hides every span in a nav button,
          and an alert has to survive that. */
-      (a?'<b class="nav-alert num" aria-label="'+esc(a.label)+'">'+a.n+'</b>':'')+'</button>';}).join("");
+      (a?'<b class="nav-alert" aria-label="'+esc(a.label)+'" title="'+esc(a.label)+'"></b>':'')+'</button>';}).join("");
   const hid=hiddenCats().length;
   /* The pencil belongs to the word, so it sits against it; Show all is a
      different thing and goes to the far end. It was the other way round,
