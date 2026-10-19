@@ -3394,14 +3394,11 @@ function czLaneList(){
 function czFocus(){
   const on=focusOn();
   return '<div class="cz-sec"><h3 class="cz-sh">Focus time</h3>'+
-    '<p class="cz-lead">A short list of what you’re actually doing today, in a panel beside your board. '+
-      'Drag a few cards onto it and it adds up how long they should take, against the hours you have '+
-      'left today once your routines, your blocked-out time and your calendar are taken out — so you '+
-      'can see whether the day will really take them. Press <b>Start focus</b> and it times the first '+
-      'one for you. Dragging a card in doesn’t move it out of its lane.</p>'+
+    '<p class="cz-lead">Drag a few cards onto the panel beside your board and it weighs what you picked '+
+      'against the hours you have left today. <b>Start focus</b> times the first one.</p>'+
     '<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon("i-timer","ic-14")+'</span>'+
       '<span class="cz-row-t"><b>Show the focus panel</b>'+
-        '<small>On the right of Tasks, in Board and List. Switch it off and it’s hidden — what you picked today is kept.</small></span>'+
+        '<small>On the right of Tasks, in Board and List. Off, it’s hidden — today’s picks are kept.</small></span>'+
       '<label class="switch cz-rsw"><input type="checkbox" data-act="cz-focus"'+(on?" checked":"")+' aria-label="Show the focus panel"><span></span></label></div>'+
     '</div>';
 }
