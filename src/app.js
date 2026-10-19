@@ -3394,8 +3394,8 @@ function czLaneList(){
 function czFocus(){
   const on=focusOn();
   return '<div class="cz-sec"><h3 class="cz-sh">Focus time</h3>'+
-    '<p class="cz-lead">Drag a few cards onto the panel beside your board and it weighs what you picked '+
-      'against the hours you have left today. <b>Start focus</b> times the first one.</p>'+
+    '<p class="cz-lead">Drag a few cards onto the panel beside your board to line up today. It tells you '+
+      'whether they fit in the hours you have left, and <b>Start focus</b> times the first one.</p>'+
     '<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon("i-timer","ic-14")+'</span>'+
       '<span class="cz-row-t"><b>Show the focus panel</b>'+
         '<small>On the right of Tasks, in Board and List. Off, it’s hidden — today’s picks are kept.</small></span>'+
