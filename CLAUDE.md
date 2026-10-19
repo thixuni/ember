@@ -926,6 +926,22 @@ chore.
   task whose lane has gone is not finished, and `fixTasks()` gives it one.
   Never test `t.status==="completed"` — a test fails on it. A status a lane no longer has (the sample week, an old
   backup) is moved to the nearest one by `fixTasks()` via `laneFor()`.
+- **A lane marked Done reads newest first, by the day it was done**
+  (`doneNewest`, applied in `boardFor()`). Everywhere else the board
+  orders by the date a task is due, which is the right question right
+  up until the moment it is answered -- a due date on finished work is
+  not information any more. Worse, it was the one thing the card was
+  **not** showing: a finished card prints the day it was done, so a
+  Completed lane read Oct 14, Oct 2, Oct 9 while quietly sorting on due
+  dates nobody could see, and a task with no date at all went to the
+  foot of a lane a dozen deep. Checking something off from the focus
+  panel therefore looked like it had done nothing at all. It sorts in
+  `boardFor()` rather than in `filterTasks()` because only there is the
+  lane known -- a comparator that switched keys on whether a pair
+  happened to be finished is **not a total order** (done A before done
+  C by completion, C before open B by due, B before A by due) and
+  `Array.sort` is entitled to anything it likes with one. An explicit
+  sort is still the person’s, so it only applies to the default.
 - **The task panel's parts** can be switched off (`BOARD_FEATS`: key, name, a
   line on what it is for, icon; read with `feat(k)`); hidden parts keep their
   data, and cards and the list follow. The Task details tab is the one place

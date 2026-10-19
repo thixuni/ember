@@ -2487,9 +2487,29 @@ function colCards(id,items){
    belongs to, because across all of them a lane on screen is not
    necessarily the one the sidebar is pointing at -- what is dropped into it
    and what is added at its foot both have to know whose it is. */
+/* A lane marked Done reads newest first, by the day the task was finished.
+   Everywhere else the board orders by the date a task is due, which is the
+   right question right up until the moment it is answered -- a due date on
+   finished work is not information any more. Worse, it was the one thing
+   the card was NOT showing: a finished card prints the day it was done, so
+   a Completed lane said Oct 14, Oct 2 while quietly sorting on due dates
+   nobody could see, and a task with no date at all went to the foot of a
+   lane a dozen deep. Checking something off from the focus panel therefore
+   looked like it had done nothing. It sorts here rather than in
+   filterTasks() because only here is the lane known: a comparator that
+   switched keys on whether a pair happened to be finished is not a total
+   order and Array.sort is entitled to anything it likes with one. An
+   explicit sort is still the person's, so this only applies to the default. */
+const doneNewest=(a,b)=>{
+  const x=a.completedAt||"",y=b.completedAt||"";
+  if(x===y)return 0;
+  if(!x)return 1;if(!y)return -1;      /* no day it was done: last, as undated always is */
+  return x<y?1:-1;
+};
 function boardFor(w,list){
   return '<div class="board">'+lanesOf(w.id).map(s=>{
-    const items=list.filter(t=>t.status===s.id);
+    let items=list.filter(t=>t.status===s.id);
+    if(s.done&&V.f.sort==="due")items=items.slice().sort(doneNewest);
     return '<div class="col" data-col="'+s.id+'" data-ws="'+w.id+'" style="--s:'+s.color+'"><div class="col-head"><span class="sw" style="--s:'+s.color+'"></span><h3>'+esc(s.name)+'</h3><span class="n num">'+items.length+'</span></div>'+
       '<div class="col-list">'+(items.length?colCards(s.id,items):'<div class="col-empty" style="--h:'+s.color+'">'+esc(COL_EMPTY[s.id]||"Nothing here")+'</div>')+'</div>'+
       (V.qa&&V.qa.lane===s.id?qaCard():'<button class="addcard" data-act="qa-open" data-status="'+s.id+'" data-ws="'+w.id+'">'+icon("i-plus","ic-14")+'Add task</button>')+'</div>';}).join("")+'</div>';
