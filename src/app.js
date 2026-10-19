@@ -2684,7 +2684,12 @@ function focusPanel(){
     body+='</div><div class="fp-list">'+s.list.map(focusRow).join("")+
       '<div class="fp-drop">Drop a task here</div></div>';
   }
-  const holds=s.holds.filter(h=>h.end>s.from);
+  /* What the day already holds is only shown while nothing is picked. It
+     is there to say where the free time went before you have spent any of
+     it; once there are cards in the panel the number above them has
+     already taken those hours out, and the list underneath repeated it
+     without being something you could act on. */
+  const holds=s.list.length?NONE:s.holds.filter(h=>h.end>s.from);
   if(holds.length)body+='<div class="fp-hold"><h4>What the day already holds</h4>'+
     holds.slice(0,6).map(h=>'<div class="fp-hrow" style="--c:'+(h.color||"var(--muted)")+'">'+
       icon(FOCUS_HOLD_IC[h.kind]||"i-clock","ic-12")+'<b>'+esc(h.title||"Busy")+'</b>'+

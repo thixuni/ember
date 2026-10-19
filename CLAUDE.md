@@ -1091,6 +1091,11 @@ question it answers belongs to neither.
   scoped by `inWs` -- the same reason the dashboard is across all of them.
   Switching the sidebar to Office does not change what you picked this
   morning.
+- **What the day already holds is only shown while nothing is picked.**
+  It is there to say where the free time went before you have spent any
+  of it; once there are cards in the panel the number above them has
+  already taken those hours out, and the list underneath repeated it
+  without being something you could act on.
 - **The free time is worked out, not asked for.** `focusFree()` counts the
   minutes between now and the end of the day that nothing is already
   sitting in: `dayHolds()` is the routines still to come, the hours
