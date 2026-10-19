@@ -1063,6 +1063,74 @@ chore.
   `"cf:<id>"`), read through `listCols()`, which sets `on` from the panel; the row grid is built from them,
   so a hidden column takes no room.
 
+### Focus time
+
+**Today's shortlist, drawn against the hours the day actually has left.**
+A panel against the right edge of Tasks (`focusPanel()`, the focus time
+section) that cards are dragged onto. It is **the Catch-up panel's own
+shape**, taken from the calendar rather than invented, so the two sides of
+the planner that keep a column fold and read the same way: 312px, a 46px
+rail when shut, the same border, the same `--surface-2`, the same
+`.18s ease` width, the head stacking and the title and body going away
+exactly as Catch-up's do. It shows in both Board and List, since the
+question it answers belongs to neither.
+
+- **Dragging in does not change a task's lane.** Focus is a mark on the
+  task, not a stage -- the card stays in the lane it came from, which is
+  what makes taking it out again cost nothing. A lane is where work
+  stands; this is what you are doing next, and they are different
+  questions. A board card wearing the mark says so with a small `i-timer`
+  in its top corner (`.tc-f`), so the board and the panel agree without
+  either having to be read twice.
+- **It lives in `prefs.focus`**, `{date, ids}` -- with the skips, the
+  moves and unavailable time, so it goes with backups and Drive without a
+  tenth entry in `KEYS`. **Keyed by the day it was picked for**, so
+  tomorrow starts empty on its own and nothing has to sweep it
+  (`focusData()` clears it when the date no longer matches).
+- **It is a day's list, not a workspace's**, so `focusTasks()` is not
+  scoped by `inWs` -- the same reason the dashboard is across all of them.
+  Switching the sidebar to Office does not change what you picked this
+  morning.
+- **The free time is worked out, not asked for.** `focusFree()` counts the
+  minutes between now and the end of the day that nothing is already
+  sitting in: `dayHolds()` is the routines still to come, the hours
+  blocked out and the Google events shown, merged as they are subtracted
+  so two things at the same hour do not take the hour twice. **Tasks are
+  not in it** -- a task is the thing being found room for, so counting it
+  as busy would count it twice. Unavailable time is taken from every
+  workspace, because an hour blocked out in Office is an hour gone.
+- **When your day ends, quiet hours already say** (`dayEndsAt()`): the
+  night's start is the hour you stop, so the planner asks itself rather
+  than asking again, and falls back to ten o'clock where there are none.
+- **A task with no estimate counts as nothing and the panel says so.**
+  Guessing half an hour for it would make the one number on the panel a
+  number nobody can trust.
+- **Over, it names the card to pull**: the first task whose own estimate
+  crosses the line is the one that tips it, which is the useful half of
+  "you are over". Under, it says what is spare.
+- **The bar is the picked time in its tasks' own colours against the free
+  time as the track**, and the mark where the day runs out keeps a
+  hairline of the panel's own fill on each side -- measured against the
+  slices it crosses, bare danger was 1.25:1 and could not be seen on the
+  one thing the mark exists to show. The slices keep their colours past
+  the mark: recolouring them would lose which task is which at the one
+  moment that matters.
+- **Two departures from Catch-up, both deliberate.** The bar turns on its
+  side and runs down the shut rail, because it is the one thing this panel
+  exists for and a 9px column of it still reads at a glance -- Catch-up
+  shows only its icon and count. And the count is the **accent**, not the
+  danger red: four tasks picked is not four things late.
+- **Start focus is Ember's own timer** on the first thing still open, so
+  the time it counts lands on the calendar like any other run, and the
+  task moves to the lane for work in hand exactly as `startTimer()`
+  always moves it.
+- **The order is the order Start works through**, so a row dropped on
+  another row moves in the queue (`focusAdd(id, before)`, which moves
+  rather than adding twice). Picking also happens from a task's menu
+  anywhere it shows, which is how the list view adds without a drag.
+- Narrow, it stacks under Tasks as Catch-up stacks under the calendar, the
+  bar lies back down and the shut strip's head is a row again.
+
 ### When a task happens
 
 Put the way Google Calendar puts it. A task has a **date** — stored as

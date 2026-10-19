@@ -685,6 +685,80 @@ body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
 .od-item .t small{color:var(--danger);font-size:11px;font-weight:600}
 .od-item .t small.mut{color:var(--muted)}
 
+/* ---------- focus time ---------- */
+/* The same column Catch-up is, on the other side of the planner: 312px
+   against the right edge of Tasks, folding to a 46px rail on the same
+   border, the same fill and the same transition. Everything here that
+   differs from .overdue differs on purpose -- the bar on the rail, and
+   the accent on the count. */
+.tasks-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;height:100%;min-height:0}
+.focusp{width:312px;border-left:1px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;min-height:0;transition:width .18s ease}
+.focusp.collapsed{width:46px}
+.focusp.over{background:color-mix(in srgb,var(--accent) 9%,var(--surface-2))}
+.fp-head{display:flex;align-items:center;gap:8px;padding:13px 12px;border-bottom:1px solid var(--line)}
+.fp-head h3{font-size:13.5px;flex:1;min-width:0;overflow:hidden;white-space:nowrap}
+.fp-count{background:var(--accent);color:var(--on-accent);font-size:11px;font-weight:700;border-radius:20px;padding:1px 7px;min-width:20px;text-align:center}
+.focusp.collapsed .fp-head{flex-direction:column;padding:12px 8px;gap:10px}
+.focusp.collapsed .fp-head h3,.focusp:not(.collapsed) .fp-rail{display:none}
+.focusp.collapsed .fp-body,.focusp.collapsed .fp-foot{display:none}
+.fp-rail{flex:1;display:flex;flex-direction:column;align-items:center;gap:11px;padding:12px 0 14px;min-height:0}
+.fp-rail-gap{flex:1}
+.fp-body{flex:1;overflow-y:auto;padding:12px 12px 18px;display:flex;flex-direction:column;gap:14px}
+.fp-top{display:flex;flex-direction:column;gap:8px}
+
+/* The bar: the picked time in its tasks' own colours, the day's free time
+   as the track behind it. Turned on its side it is the whole of the shut
+   rail, which is the one thing this panel keeps when it folds. */
+.fp-bar{position:relative;display:flex;height:9px;border-radius:9px;background:var(--line-2);overflow:hidden}
+.fp-bar.v{flex-direction:column;width:9px;height:auto;flex:1;min-height:60px}
+.fp-seg{width:var(--p);background:var(--c)}
+.fp-bar.v .fp-seg{width:100%;height:var(--p)}
+/* Where the day runs out. The slices keep their colours past it -- recolouring
+   them would lose which task is which at the one moment that matters. The
+   line carries a hairline of the panel's own fill on each side: measured
+   against the slices it crosses, bare danger was 1.25:1 and simply could
+   not be seen on the one thing the mark exists to show. */
+.fp-mark{position:absolute;top:-1px;bottom:-1px;left:var(--p);width:2px;background:var(--danger);box-shadow:0 0 0 1px var(--surface-2)}
+.fp-bar.v .fp-mark{left:-1px;right:-1px;top:var(--p);bottom:auto;width:auto;height:2px}
+
+.fp-sum{font-size:12.5px;color:var(--muted);line-height:1.45}
+.fp-sum b{color:var(--ink);font-weight:700}
+.fp-warn{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;line-height:1.5;color:var(--danger-ink)}
+.fp-warn svg{flex:none;margin-top:1px;color:var(--danger)}
+.fp-warn b{font-weight:700}
+.fp-spare{font-size:11.5px;color:var(--faint)}
+.fp-none{font-size:11px;color:var(--faint)}
+
+.fp-list{display:flex;flex-direction:column;gap:6px}
+.fp-item{display:flex;gap:8px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-s);padding:8px 9px}
+.fp-item.dragging{opacity:.4}
+.fp-item.before{box-shadow:inset 0 2px 0 0 var(--accent)}
+.fp-item .tick{margin-top:1px}
+.fp-t{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit}
+.fp-t b{display:block;font-size:12.5px;font-weight:600;line-height:1.3}
+.fp-t small{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:11px;color:var(--faint)}
+.fp-item.done .fp-t b{text-decoration:line-through;color:var(--label-done)}
+.fp-x{opacity:0}
+.fp-item:hover .fp-x,.fp-x:focus-visible{opacity:1}
+.fp-drop{display:grid;place-items:center;padding:11px;border-radius:var(--r-s);border:1.5px dashed var(--line-2);color:var(--faint);font-size:11.5px;font-weight:600}
+.focusp.over .fp-drop{border-color:var(--accent);color:var(--accent-ink)}
+
+.fp-hold h4{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.fp-hrow{display:flex;align-items:center;gap:7px;padding:5px 0;font-size:11.5px;color:var(--muted)}
+.fp-hrow svg{flex:none;color:var(--c)}
+.fp-hrow b{flex:1;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-hrow span{flex:none;font-variant-numeric:tabular-nums;color:var(--faint)}
+.fp-more{font-size:11px;color:var(--faint);margin-top:4px}
+
+.fp-foot{padding:10px 12px 12px;border-top:1px solid var(--line)}
+.fp-start{width:100%;justify-content:center}
+.fp-go{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;border:0;cursor:pointer}
+.fp-go:hover{background:var(--accent-hover)}
+.fp-start:disabled,.fp-go:disabled{opacity:.45;cursor:default}
+/* The card says it is picked, so the board and the panel agree without
+   either having to be read twice. */
+.tc-f{flex:none;color:var(--accent-ink);display:grid;place-items:center;margin-top:1px}
+
 /* ---------- board ---------- */
 /* Tasks sits on white with a bar across the top, the same shape as the
    calendar, so moving between the two does not change the furniture. */
@@ -3199,6 +3273,15 @@ mark.hl-apricot{background:var(--hl-apricot)}
   .viewport.flush{overflow:auto}
   .cal-wrap{grid-template-columns:minmax(0,1fr);height:auto;min-height:100%}
   .overdue,.overdue.collapsed{width:auto;border-left:0;border-top:1px solid var(--line)}
+  .tasks-wrap{grid-template-columns:minmax(0,1fr);height:auto;min-height:100%}
+  .focusp,.focusp.collapsed{width:auto;border-left:0;border-top:1px solid var(--line)}
+  .fp-bar.v{flex-direction:row;width:auto;height:9px;min-height:0;flex:1}
+  .fp-bar.v .fp-seg{width:var(--p);height:100%}
+  .focusp.collapsed .fp-rail{flex-direction:row;padding:10px 12px}
+  /* Stacked, the panel is a strip across the page rather than a column
+     against an edge, so its head is a row again and keeps its title. */
+  .focusp.collapsed .fp-head{flex-direction:row;padding:13px 12px;gap:8px}
+  .focusp.collapsed .fp-head h3{display:block}
 }
 
 @media (max-width:560px){

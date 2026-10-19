@@ -800,7 +800,7 @@ const COL_EMPTY={todo:"Nothing to do yet",backlog:"Park ideas here",planned:"Not
   review:"Nothing waiting on anyone",completed:"Finished work lands here",dropped:"Nothing dropped"};
 
 /* ============ view state ============ */
-const V={view:"dashboard",calMode:"week",anchor:today(),taskMode:"board",q:"",odOpen:true,adv:false,sheet:null,range:"week",
+const V={view:"dashboard",calMode:"week",anchor:today(),taskMode:"board",q:"",odOpen:true,focusOpen:true,adv:false,sheet:null,range:"week",
   f:{quick:"all",status:"",cat:"",quad:"",from:"",to:"",sort:"due"},noteId:null,noteTag:""};
 
 /* Google Calendar's working state. In memory only: events are Google's data,
@@ -2468,6 +2468,7 @@ function taskCard(t){
   const label=Q?esc(t.title)+" \u2014 "+Q.name+", "+Q.tag.toLowerCase():esc(t.title);
   return '<div class="tcard'+(done?" done":dropped?" dropped":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
     '<div class="top">'+tickBtn(t)+'<span class="ttl">'+esc(t.title)+'</span>'+
+      (inFocus(t.id)?'<span class="tc-f" title="In today\u2019s focus" aria-label="In today\u2019s focus">'+icon("i-timer","ic-12")+'</span>':"")+
       (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-12")+'</span>':"")+'</div>'+
     '<div class="tc-meta">'+bits.join('<span class="tc-sep">\u00b7</span>')+'</div>'+
     (cfs.length?'<div class="tc-cf">'+cfs.join("")+'</div>':"")+
@@ -2517,6 +2518,188 @@ function viewBoard(){
         '<span>'+esc(w.name)+'</span><span class="n num">'+mine.length+'</span></button></h3>'+
       (shut?"":'<div class="wsb-body">'+boardFor(w,mine)+'</div>')+
       '</section>';}).join("")+'</div></div>';
+}
+/* ---- focus time ----
+   Today's shortlist, drawn against the hours the day actually has left.
+   A panel against the right edge of Tasks that cards are dragged onto;
+   it is the Catch-up panel's own shape, taken from the calendar rather
+   than invented, so the two sides of the planner that keep a column fold
+   and read the same way -- 312px, a 46px rail when shut, the same border,
+   the same fill, the same width transition, the head stacking and the
+   title and body going away exactly as Catch-up's do.
+
+   Two departures from Catch-up, both deliberate. The capacity bar turns
+   on its side and runs down the shut rail, because the bar is the one
+   thing this panel exists for and a 9px column of it still reads at a
+   glance. And the count is the accent, not the danger red: four tasks
+   picked is not four things late.
+
+   DRAGGING IN DOES NOT CHANGE A TASK'S LANE. Focus is a mark on the task,
+   not a stage -- the card stays in the lane it came from, which is what
+   makes taking it out again cost nothing. A board lane is where work
+   stands; this is what you are doing next, and those are different
+   questions.
+
+   It is a day's list, not a workspace's, so it is NOT scoped by inWs --
+   the same reason the dashboard is across all of them. Switching the
+   sidebar to Office does not change what you picked this morning.
+
+   WHERE IT LIVES: prefs.focus, {date, ids} -- in prefs with the skips,
+   the moves and unavailable time, so it goes with backups and Drive
+   without a tenth entry in KEYS. Keyed by the day it was picked for, so
+   tomorrow starts empty on its own and nothing has to sweep it. */
+const FOCUS_END=22*60;
+function focusData(){
+  const p=S.prefs;
+  let f=p.focus;
+  if(!f||typeof f!=="object"||Array.isArray(f))f=p.focus={date:TODAY(),ids:[]};
+  if(!Array.isArray(f.ids))f.ids=[];
+  if(f.date!==TODAY()){f.date=TODAY();f.ids=[];}
+  return f;
+}
+const inFocus=id=>focusData().ids.indexOf(id)>=0;
+/* In the order they were picked, which is the order Start works through
+   them. A task deleted or dropped since simply falls out. */
+function focusTasks(){return focusData().ids.map(taskById).filter(t=>t&&t.status!=="dropped");}
+function focusSet(ids){focusData().ids=ids;save("prefs");}
+/* Picking something already picked moves it rather than adding it twice,
+   which is what makes dropping one row onto another reorder the list. */
+function focusAdd(id,before){
+  if(!taskById(id))return false;
+  const ids=focusData().ids.filter(x=>x!==id);
+  const at=before&&before!==id?ids.indexOf(before):-1;
+  if(at<0)ids.push(id);else ids.splice(at,0,id);
+  focusSet(ids);return true;
+}
+function focusDrop(id){focusSet(focusData().ids.filter(x=>x!==id));}
+/* When your day ends. Quiet hours already say it -- the night's start is
+   the hour you stop -- so the planner asks itself rather than asking you
+   again, and falls back to ten o'clock where there are none. */
+function dayEndsAt(){
+  const r=remindPrefs(),w=new Date().getDay();
+  if(r.quiet&&(r.quietDays||[]).indexOf(w)>=0){
+    const q=(r.quietAt||{})[w];
+    if(q&&q.from){const m=hm2m(q.from);if(m>8*60)return m;}
+  }
+  return FOCUS_END;
+}
+/* What the day already holds: the routines still to come, the hours you
+   have blocked out, and anything on the Google calendars you show. Not
+   tasks -- a task is the thing being found room for, so counting it as
+   busy would be counting it twice. Unavailable time is taken from every
+   workspace, because an hour blocked out in Office is an hour gone from
+   the day whichever list you are looking at. */
+const FOCUS_HOLD_IC={routine:"i-repeat",away:"i-moon",gcal:"i-calendar"};
+function dayHolds(){
+  const ts=TODAY(),out=[];
+  todayItems().routines.filter(r=>r.time&&!doneR(r,ts)).forEach(r=>{
+    const s=hm2m(rtTime(r,ts));
+    out.push({kind:"routine",title:r.title,color:cat(r.cat).color,start:s,end:s+Math.max(10,Number(r.dur)||30)});
+  });
+  awayList().filter(a=>a.date===ts&&a.start&&a.end).forEach(a=>
+    out.push({kind:"away",title:a.title||"Blocked out",color:"",start:hm2m(a.start),end:hm2m(a.end)}));
+  gcalFor(today()).timed.forEach(x=>
+    out.push({kind:"gcal",title:x.g.title,color:x.g.color,start:x.start,end:x.start+x.dur}));
+  return out.sort((a,b)=>a.start-b.start||a.end-b.end);
+}
+/* The minutes between now and the end of the day that nothing is already
+   sitting in. Overlapping blocks are merged as they are subtracted -- two
+   things at the same hour must not take the hour twice. */
+function focusFree(){
+  const n=new Date(),end=dayEndsAt(),from=Math.min(n.getHours()*60+n.getMinutes(),end);
+  let free=Math.max(0,end-from),at=from;
+  const holds=dayHolds();
+  holds.forEach(b=>{
+    const s=Math.max(b.start,at),e=Math.min(b.end,end);
+    if(e>s){free-=e-s;at=e;}
+  });
+  return {free:Math.max(0,free),from:from,to:end,holds:holds};
+}
+/* Everything the panel draws, worked out once: a card, a bar slice, the
+   sentence and the warning all read the same numbers. A task with no
+   estimate is counted as nothing and SAID so -- guessing half an hour for
+   it would make the one number on the panel a number nobody can trust. */
+function focusSums(){
+  const list=focusTasks(),open=list.filter(isOpen),f=focusFree();
+  let mins=0,none=0;
+  open.forEach(t=>{const e=Number(t.est)||0;if(e)mins+=e;else none++;});
+  return {list:list,open:open,mins:mins,none:none,free:f.free,from:f.from,to:f.to,holds:f.holds,
+    over:Math.max(0,mins-f.free)};
+}
+/* The picked time as slices in their categories' colours, against the free
+   time as the track. Over it, a mark where the day runs out -- the slices
+   keep their own colours past it, because recolouring them would lose
+   which task is which at the one moment that matters. */
+function focusBar(s,vert){
+  const scale=Math.max(s.mins,s.free,1);
+  const segs=s.open.filter(t=>Number(t.est)>0).map(t=>
+    '<i class="fp-seg" style="--c:'+cat(t.cat).color+';--p:'+(Number(t.est)/scale*100).toFixed(2)+'%"'+
+    ' title="'+esc(t.title)+' · '+esc(fmtMins(Number(t.est)))+'"></i>').join("");
+  return '<div class="fp-bar'+(vert?" v":"")+'" role="img" aria-label="'+
+    esc(s.mins?fmtMins(s.mins):"Nothing")+' picked against '+esc(fmtMins(s.free))+' free">'+segs+
+    (s.over?'<i class="fp-mark" style="--p:'+(s.free/scale*100).toFixed(2)+'%"></i>':"")+'</div>';
+}
+function focusRow(t){
+  const c=cat(t.cat),e=Number(t.est)||0,done=isDoneT(t);
+  return '<div class="fp-item'+(done?" done":"")+'" draggable="true" data-fid="'+t.id+'" style="--c:'+c.color+'">'+
+    tickBtn(t)+
+    '<button class="fp-t" data-act="task" data-id="'+t.id+'" title="Open task"><b>'+esc(t.title)+'</b>'+
+      '<small><i class="cdot"></i>'+esc(c.name)+' · '+(e?esc(fmtMins(e)):"no estimate")+'</small></button>'+
+    '<button class="rowbtn fp-x" data-act="focus-drop" data-id="'+t.id+'" title="Take out of focus"'+
+      ' aria-label="Take '+esc(t.title)+' out of focus">'+icon("i-x","ic-14")+'</button></div>';
+}
+function focusPanel(){
+  const s=focusSums(),n=s.open.length;
+  const head='<div class="fp-head">'+
+    '<button class="icon-btn" data-act="focus-toggle" title="'+(V.focusOpen?"Collapse":"Expand")+' focus panel" aria-label="Toggle focus panel">'+
+      icon(V.focusOpen?"i-chev-r":"i-panel")+'</button>'+
+    '<h3>Focus</h3>'+(n?'<span class="fp-count num">'+n+'</span>':"")+'</div>';
+  const go=lbl=>'<button class="fp-go" data-act="focus-start"'+(n?"":" disabled")+' title="'+lbl+'" aria-label="'+lbl+'">'+
+    icon("i-play","ic-14")+'</button>';
+  if(!V.focusOpen)return '<aside class="focusp collapsed">'+head+
+    '<div class="fp-rail">'+(s.list.length?focusBar(s,true):'<span class="fp-rail-gap"></span>')+go("Start focus")+'</div></aside>';
+
+  let body="";
+  if(!s.list.length){
+    body=es("timer","Nothing picked yet",
+      "Drag a card from the board onto this panel to line up what you are actually doing today, and it will say whether the day has room for it.",
+      {hue:"var(--accent)"});
+  }else{
+    /* The sentence first, because it is the answer; the bar is the picture
+       of it. "none" is fmtMins' word for nothing and reads wrong here. */
+    body+='<div class="fp-top">'+focusBar(s)+
+      '<p class="fp-sum"><b>'+esc(s.mins?fmtMins(s.mins):"Nothing")+'</b> picked into <b>'+esc(fmtMins(s.free))+
+        '</b> free before '+esc(fmtTime(m2hm(s.to)))+'</p>';
+    if(s.over){
+      /* Which card to pull is the useful half of "you are over": the first
+         one whose own estimate crosses the line is the one that tips it. */
+      let run=0,tip=null;
+      s.open.forEach(t=>{const e=Number(t.est)||0;if(tip||!e)return;if(run+e>s.free)tip=t;run+=e;});
+      body+='<p class="fp-warn">'+icon("i-alert","ic-14")+'<span><b>'+esc(fmtMins(s.over))+' over.</b> '+
+        (tip?esc(tip.title)+' is the one that tips it.':'Something has to come out, or wait for tomorrow.')+'</span></p>';
+    }else if(s.free-s.mins>=15){
+      body+='<p class="fp-spare">'+esc(fmtMins(s.free-s.mins))+' spare — room for one more.</p>';
+    }
+    if(s.none)body+='<p class="fp-none">'+s.none+' with no estimate, so '+(s.none===1?"it is":"they are")+' not counted.</p>';
+    body+='</div><div class="fp-list">'+s.list.map(focusRow).join("")+
+      '<div class="fp-drop">Drop a task here</div></div>';
+  }
+  const holds=s.holds.filter(h=>h.end>s.from);
+  if(holds.length)body+='<div class="fp-hold"><h4>What the day already holds</h4>'+
+    holds.slice(0,6).map(h=>'<div class="fp-hrow" style="--c:'+(h.color||"var(--muted)")+'">'+
+      icon(FOCUS_HOLD_IC[h.kind]||"i-clock","ic-12")+'<b>'+esc(h.title||"Busy")+'</b>'+
+      '<span>'+esc(fmtTime(m2hm(h.start)))+'</span></div>').join("")+
+    (holds.length>6?'<p class="fp-more">and '+(holds.length-6)+' more</p>':"")+'</div>';
+
+  return '<aside class="focusp">'+head+'<div class="fp-body">'+body+'</div>'+
+    '<div class="fp-foot"><button class="btn btn-primary fp-start" data-act="focus-start"'+(n?"":" disabled")+'>'+
+      icon("i-play","ic-14")+'Start focus</button></div></aside>';
+}
+/* Board and list share the panel, so Tasks is drawn as one thing: the mode
+   on the left, the day's shortlist against the right edge. */
+function viewTasks(){
+  return '<div class="tasks-wrap'+(V.focusOpen?"":" shut")+'">'+
+    (V.taskMode==="board"?viewBoard():viewList())+focusPanel()+'</div>';
 }
 /* ---- adding tasks in a lane ----
    "Add task" at the foot of a lane opens a small card there, kept as plain
@@ -5543,7 +5726,7 @@ function renderView(){
   vp.className="viewport"+(flush?" flush":"");
   if(V.view==="dashboard")vp.innerHTML=viewDashboard();
   else if(V.view==="calendar")vp.innerHTML=viewCalendar();
-  else if(V.view==="tasks")vp.innerHTML=V.taskMode==="board"?viewBoard():viewList();
+  else if(V.view==="tasks")vp.innerHTML=viewTasks();
   else if(V.view==="matrix")vp.innerHTML=viewMatrix();
   else if(V.view==="routines")vp.innerHTML=viewRoutines();
   else vp.innerHTML=viewNotes();
@@ -5757,6 +5940,14 @@ document.addEventListener("click",function(e){
     case "cal-today":V.anchor=today();renderTopbar();renderView();break;
     case "cal-mode":V.calMode=n.dataset.mode;V.anchor=today();renderTopbar();renderView();break;
     case "od-toggle":V.odOpen=!V.odOpen;renderView();break;
+    case "focus-toggle":V.focusOpen=!V.focusOpen;renderView();break;
+    case "focus-drop":focusDrop(id);render();break;
+    /* Start is Ember's own timer on the first thing still open, so the
+       time it counts lands on the calendar like any other run. */
+    case "focus-start":{
+      const next=focusTasks().filter(isOpen)[0];
+      if(!next){toast("Nothing picked to start");break;}
+      startTimer(next.id);render();break;}
     case "peek":peekModal(n.dataset.date);break;
     case "task-mode":V.taskMode=n.dataset.mode;renderTopbar();renderView();break;
     case "quick":V.f.quick=n.dataset.v;V.colMore={};renderView();break;
@@ -6503,16 +6694,45 @@ document.addEventListener("change",function(e){
   if(t.id==="noteCat"){const x=noteById(V.noteId);if(x){x.cat=t.value;x.updated=Date.now();save("notes");render();}return;}
   if(t.id==="noteTags"){const x=noteById(V.noteId);if(x){x.tags=t.value.split(",").map(s=>s.trim().replace(/^#/,"")).filter(Boolean);x.updated=Date.now();save("notes");renderView();}return;}
 });
-let dragId=null;
-document.addEventListener("dragstart",function(e){const c=e.target.closest&&e.target.closest(".tcard");if(!c)return;
+let dragId=null,fDrag=null;
+/* The focus panel takes the same drags the lanes do -- a card dropped on
+   it is picked for today, and a row inside it dropped on another row
+   moves in the queue, since the order is the order Start works through.
+   Clearing the marks is its own call because three listeners end a drag. */
+function fpClear(){document.querySelectorAll(".focusp.over").forEach(x=>x.classList.remove("over"));
+  document.querySelectorAll(".fp-item.before").forEach(x=>x.classList.remove("before"));}
+document.addEventListener("dragstart",function(e){
+  const row=e.target.closest&&e.target.closest(".fp-item");
+  if(row){fDrag=row.dataset.fid;row.classList.add("dragging");e.dataTransfer.effectAllowed="move";
+    try{e.dataTransfer.setData("text/plain",fDrag);}catch(_){}return;}
+  const c=e.target.closest&&e.target.closest(".tcard");if(!c)return;
   dragId=c.dataset.id;c.classList.add("dragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",dragId);}catch(_){}});
-document.addEventListener("dragend",function(e){const c=e.target.closest&&e.target.closest(".tcard");if(c)c.classList.remove("dragging");
-  document.querySelectorAll(".col.over").forEach(x=>x.classList.remove("over"));dragId=null;});
-document.addEventListener("dragover",function(e){const col=e.target.closest&&e.target.closest(".col");if(!col||!dragId)return;
+document.addEventListener("dragend",function(e){const c=e.target.closest&&(e.target.closest(".tcard")||e.target.closest(".fp-item"));if(c)c.classList.remove("dragging");
+  document.querySelectorAll(".col.over").forEach(x=>x.classList.remove("over"));fpClear();dragId=null;fDrag=null;});
+document.addEventListener("dragover",function(e){
+  const fp=e.target.closest&&e.target.closest(".focusp");
+  if(fp&&(dragId||fDrag)){e.preventDefault();e.dataTransfer.dropEffect="move";
+    fp.classList.add("over");
+    const row=e.target.closest(".fp-item"),at=row&&row.dataset.fid;
+    document.querySelectorAll(".fp-item.before").forEach(x=>{if(x!==row)x.classList.remove("before");});
+    if(row&&at!==(fDrag||dragId))row.classList.add("before");
+    return;}
+  const col=e.target.closest&&e.target.closest(".col");if(!col||!dragId)return;
   e.preventDefault();e.dataTransfer.dropEffect="move";col.classList.add("over");});
 document.addEventListener("dragleave",function(e){const col=e.target.closest&&e.target.closest(".col");
-  if(col&&!col.contains(e.relatedTarget))col.classList.remove("over");});
-document.addEventListener("drop",function(e){const col=e.target.closest&&e.target.closest(".col");if(!col||!dragId)return;
+  if(col&&!col.contains(e.relatedTarget))col.classList.remove("over");
+  const fp=e.target.closest&&e.target.closest(".focusp");
+  if(fp&&!fp.contains(e.relatedTarget))fpClear();});
+document.addEventListener("drop",function(e){
+  const fp=e.target.closest&&e.target.closest(".focusp");
+  if(fp&&(dragId||fDrag)){
+    e.preventDefault();
+    const row=e.target.closest(".fp-item"),id=fDrag||dragId;
+    fpClear();
+    const was=inFocus(id);
+    if(focusAdd(id,row&&row.dataset.fid)&&!was)toast("Added to today\u2019s focus");
+    render();dragId=null;fDrag=null;return;}
+  const col=e.target.closest&&e.target.closest(".col");if(!col||!dragId){fDrag=null;return;}
   e.preventDefault();col.classList.remove("over");
   const t=taskById(dragId);
   if(t){
@@ -6875,6 +7095,7 @@ function taskMenu(id,at,btn,fromCard){
   if(fromCard)items.push(["open","i-panel","Open task"]);
   if(feat("subtasks")&&!t.parent)items.push(["sub","i-checklist","Add subtask"]);
   if(feat("timer"))items.push(["time",going?"i-pause":"i-play",going?"Pause the timer":"Track time"]);
+  items.push(["focus","i-timer",inFocus(id)?"Take out of today\u2019s focus":"Add to today\u2019s focus"]);
   if(feat("files"))items.push(["files","i-clip","Attach files"]);
   if(feat("links"))items.push(["link","i-link","Link task"]);
   items.push(["dup","i-copy","Duplicate task"]);
@@ -6902,6 +7123,10 @@ function tmDo(v,id,n){
     return;
   }
   taskMenuClose();
+  if(v==="focus"){
+    if(inFocus(id)){focusDrop(id);toast("Taken out of focus");}
+    else{focusAdd(id);toast("Added to today\u2019s focus");}
+    render();return;}
   if(v==="dup"){duplicateTask(id);return;}
   if(v==="time"){toggleTimer(id);renderSheet();return;}
   if(!V.sheet||V.sheet.id!==id)openSheet(id);
