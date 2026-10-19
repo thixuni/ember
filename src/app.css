@@ -1099,6 +1099,23 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .rs-nm{flex:999 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
 .rs-w{flex:none;font-size:11.5px;color:var(--faint)}
 .rs-n{flex:none;font-size:12.5px;font-weight:700;color:var(--accent-ink);white-space:nowrap}
+/* Today in the order it happens: the hours the grid has nowhere to put.
+   One column for the time so the names start on one edge, a tick that
+   works from here, and a line for now. */
+.rs-day h4{margin-bottom:3px}
+.rs-drow{display:flex;align-items:center;gap:9px;padding:5px 0}
+.rs-dt{flex:none;width:52px;font-size:11.5px;color:var(--faint);text-align:right}
+.rs-dtick{flex:none;width:17px;height:17px;border-radius:50%;border:1.7px solid var(--line-2);
+  background:var(--surface);display:grid;place-items:center;color:var(--on-accent)}
+.rs-dtick:hover{border-color:var(--c)}
+.rs-dtick.done{background:var(--c);border-color:var(--c)}
+.rs-dtick.late{border-color:color-mix(in srgb,var(--danger) 45%,var(--tint-base))}
+.rs-dn{flex:999 1 auto;min-width:0;font-size:12.5px;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs-drow.done .rs-dn{color:var(--muted);text-decoration:line-through}
+.rs-now{display:flex;align-items:center;gap:7px;padding:3px 0}
+.rs-now .num{flex:none;width:52px;text-align:right;font-size:10.5px;font-weight:700;color:var(--danger-ink)}
+.rs-now i{flex:1;height:1.5px;border-radius:2px;background:color-mix(in srgb,var(--danger) 42%,var(--tint-base))}
 @media (max-width:760px){
   .rw-row{grid-template-columns:minmax(0,1fr) repeat(7,38px) 54px}
   .rw-c{width:26px;height:26px}

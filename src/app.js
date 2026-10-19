@@ -3533,6 +3533,31 @@ function viewRoutines(){
       '<p class="rs-big">'+(dueToday?"All done":"Nothing due")+'</p>'+
       '<p class="rs-sub">'+(dueToday?"Every routine due today is checked off.":"No routine falls on today.")+'</p></div>';
 
+  /* Today in the order it actually happens. The grid answers how the week
+     is going; this answers what the shape of the day is, which a column of
+     squares cannot say -- the hours are nowhere in it. Shown by
+     routineHere(), so a routine ticked on a day it was not due still
+     appears, exactly as it does on the calendar and the dashboard. */
+  const clock=mn=>fmtTime(pad(Math.floor(mn/60)%24)+":"+pad(mn%60));
+  const dayList=list.filter(r=>r.active&&routineHere(r,today()))
+    .map(r=>({r:r,at:mins(rtTime(r,T)),done:doneR(r,T)})).sort((a,b)=>a.at-b.at);
+  /* The now line goes in once, before the first thing still to come, and
+     only where there is something on both sides of it. */
+  let putNow=dayList.some(x=>x.at>=now)&&dayList.some(x=>x.at<now);
+  const dayCard=dayList.length
+    ?'<div class="rs-card rs-day"><h4>Today</h4>'+dayList.map(x=>{
+      let line="";
+      if(putNow&&x.at>=now){putNow=false;
+        line='<div class="rs-now"><span class="num">'+esc(clock(now))+'</span><i></i></div>';}
+      const late=!x.done&&x.at<now&&routineOn(x.r,today())&&!skippedR(x.r,T);
+      return line+'<div class="rs-drow'+(x.done?" done":"")+'" style="--c:'+cat(x.r.cat).color+'">'+
+        '<span class="rs-dt num">'+esc(fmtTime(rtTime(x.r,T)))+'</span>'+
+        '<button class="rs-dtick'+(x.done?" done":late?" late":"")+'" data-act="routine-done" data-id="'+x.r.id+'" data-date="'+T+'"'+
+          ' aria-pressed="'+x.done+'" aria-label="'+esc((x.done?"Undo ":"Check off ")+x.r.title)+'">'+
+          (x.done?icon("i-check","ic-12"):"")+'</button>'+
+        '<span class="rs-dn">'+esc(x.r.title)+'</span></div>';}).join("")+'</div>'
+    :"";
+
   const offToday=list.filter(r=>r.active&&!routineOn(r,today())&&!doneR(r,T))
     .map(r=>({r:r,next:rwNextDue(r)})).slice(0,6);
   const offCard=offToday.length
@@ -3557,7 +3582,7 @@ function viewRoutines(){
       '<div class="rw-scroll"><div class="rw-grid">'+head+rows+'</div></div>'+
       '<p class="rw-key">Filled is done \u00b7 outlined is due \u00b7 a dot is a day off</p>'+
     '</div>'+
-    '<div class="rside">'+upCard+offCard+bestCard+'</div>'+
+    '<div class="rside">'+upCard+dayCard+offCard+bestCard+'</div>'+
   '</div>';
 }
 /* ---- the streak log ----

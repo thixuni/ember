@@ -541,6 +541,14 @@ column grafted on.
   carries a *Check it off* button, because a thing sitting beside a grid
   you can already click reads as broken if you cannot press it. With
   nothing left the card says so instead.
+- **Today** is the day in the order it actually happens: the time, a
+  tick, the name, and a line for now sitting before the first thing still
+  to come (only where there is something on both sides of it). The grid
+  answers how the week is going; **the hours are nowhere in it**, which is
+  what this says instead, and it was the one thing the column had no
+  answer for. It is drawn by `routineHere()`, so a routine ticked on a day
+  it was not due appears here exactly as it does on the calendar and the
+  dashboard, and its tick is a real `routine-done` button like every other.
 - **Not due today** lists what falls on another day, with the next day it
   does (`rwNextDue()`, bounded at a year — a monthly bill is a long way
   off and a guess is worse than nothing).
