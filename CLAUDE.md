@@ -1998,6 +1998,18 @@ show everything). The matrix quadrants (`QUAD_EMPTY`) and board columns
 
 - **Icons and labels inside a clickable row need `pointer-events: none`.** Clicks
   landing on an inner SVG were breaking the category toggles.
+- **`.icon-btn` carries `padding: 0`, and that is load-bearing.** It is a
+  fixed square centring its glyph on a grid, so a text button’s side
+  padding has no business on it -- and nearly every one of them is written
+  `class="icon-btn btn-sm"`, which brings `.btn-sm`’s own `0 10px` along.
+  At 34px that was a pixel of overflow each side and went unnoticed for a
+  long time. It matters the moment a square is made smaller: the routines
+  week nav shrinks its arrows to 24px, and `.rw-nav .btn-sm` (meant for the
+  **Today** button beside them) set `2px 8px` on all three. The two
+  selectors weigh the same, so the later one won, and the chevron measured
+  9px from the left edge and 1px from the right. Hence `:not(.icon-btn)` on
+  that rule as well. A new icon button needs no padding of its own, and a
+  rule meant for the text buttons beside one has to say so.
 - **Never use `confirm()`, `prompt()` or `alert()`.** They are blocked when the
   page runs inside the artifact sandbox and fail silently. Destructive actions use
   `arm(button, label)`, which requires a second click. The note editor's link

@@ -439,7 +439,12 @@ body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
 .btn-danger{color:var(--danger)}
 .btn-danger:hover{background:var(--danger-soft);border-color:var(--danger-soft)}
 .btn-sm{height:29px;padding:0 10px;font-size:12.5px}
-.icon-btn{width:34px;height:34px;border-radius:var(--r-s);display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink-2)}
+/* padding:0 is load-bearing. An icon button is a fixed square centring its
+   glyph on a grid, so a text button's side padding has no business on it --
+   and nearly every one of them is written "icon-btn btn-sm", which brings
+   .btn-sm's own 0 10px along. At 34px that was 1px of overflow each side and
+   went unnoticed; the rule below it is what makes it matter. */
+.icon-btn{width:34px;height:34px;border-radius:var(--r-s);display:grid;place-items:center;padding:0;border:1px solid var(--line);background:var(--surface);color:var(--ink-2)}
 .icon-btn:hover{background:var(--surface-2);border-color:var(--line-2)}
 .viewport{flex:1;min-height:0;overflow:auto;padding:18px 22px 28px}
 .viewport.flush{padding:0;overflow:hidden}
@@ -1145,8 +1150,12 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .rw-when h3{font-size:13.5px;font-weight:700;white-space:nowrap}
 .rw-when .num{font-size:12px;color:var(--muted);white-space:nowrap}
 .rw-nav{display:inline-flex;align-items:center;gap:2px;margin-left:2px}
-.rw-nav .icon-btn{width:24px;height:24px;padding:0}
-.rw-nav .btn-sm{padding:2px 8px;font-size:11.5px}
+.rw-nav .icon-btn{width:24px;height:24px}
+/* :not(.icon-btn) because the arrows carry both classes, the two selectors
+   weigh the same, and the later one won -- so Today's 8px of side padding
+   landed on a 24px square and shoved the chevron off centre. Measured, the
+   glyph sat 9px from the left edge and 1px from the right. */
+.rw-nav .btn-sm:not(.icon-btn){padding:2px 8px;font-size:11.5px}
 .rw-d{text-align:center;padding:2px 0;border-radius:8px}
 .rw-d small{display:block;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--faint)}
 .rw-d b{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-top:1px}
