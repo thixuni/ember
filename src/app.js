@@ -3454,14 +3454,6 @@ function rwCell(r,s,c){
     ' aria-label="'+esc(r.title+" \u2014 "+say)+'">'+
     (done?icon("i-check","ic-12"):kind==="off"||kind==="skip"?'<i class="rw-off"></i>':"")+'</button>';
 }
-/* What is not due today, and when it next is. A routine can be due a long
-   way off (a monthly bill, a yearly thing), so the walk is bounded and
-   gives up quietly rather than guessing. */
-function rwNextDue(r){
-  for(let i=1;i<=370;i++){const d=addDays(today(),i);
-    if(routineOn(r,d)&&!skippedR(r,ymd(d)))return i<7?DOWS[(d.getDay()+6)%7]:fmtDate(ymd(d));}
-  return "";
-}
 function viewRoutines(){
   const q=V.q.toLowerCase();
   const list=wsRoutines().filter(r=>visibleCat(r.cat)&&(!q||r.title.toLowerCase().indexOf(q)>-1||cat(r.cat).name.toLowerCase().indexOf(q)>-1));
@@ -3503,7 +3495,7 @@ function viewRoutines(){
     const cells=[0,1,2,3,4,5,6].map(i=>rwCell(r,ymd(addDays(wkStart,i)),c)).join("");
     return '<div class="rw-row rwrow'+(r.active?"":" paused")+'" data-rid="'+r.id+'" style="--c:'+c.color+'">'+
       '<div class="rw-n">'+
-        '<i class="rw-dot"></i>'+
+        '<span class="rw-ic">'+icon(c.icon,"ic-14")+'</span>'+
         '<button class="rw-name" data-act="rt-edit" data-id="'+r.id+'" title="'+esc(r.title)+'">'+esc(r.title)+'</button>'+
         '<span class="rw-t num">'+esc(fmtTime(r.time))+'</span>'+
         '<button class="icon-btn btn-sm rw-more" data-act="rt-menu" data-id="'+r.id+'" title="More" aria-label="More for '+esc(r.title)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button>'+
@@ -3533,47 +3525,93 @@ function viewRoutines(){
       '<p class="rs-big">'+(dueToday?"All done":"Nothing due")+'</p>'+
       '<p class="rs-sub">'+(dueToday?"Every routine due today is checked off.":"No routine falls on today.")+'</p></div>';
 
-  /* Today in the order it actually happens. The grid answers how the week
-     is going; this answers what the shape of the day is, which a column of
-     squares cannot say -- the hours are nowhere in it. Shown by
-     routineHere(), so a routine ticked on a day it was not due still
-     appears, exactly as it does on the calendar and the dashboard. */
+  /* ---- the day as a rail ----
+     **The gaps are the point.** A list of times one under the other says
+     what is on today but not what today is *shaped* like: 11:30 to 2pm and
+     2pm to 4pm read as the same distance when one is two and a half hours
+     and the other is two. So the rail is drawn to scale -- RS_PXH pixels
+     an hour -- and the empty stretches are left empty, with the big ones
+     labelled: an hour and a half of nothing says "1h 30m free" on the
+     rail. That is the one thing neither the grid nor a plain list can
+     tell you, and it is what the column is for.
+
+     Two things keep it honest. Nothing is closer than RS_MIN apart, so a
+     pile-up at 4pm is still readable (the scale stretches, it never
+     overlaps); and the now line is interpolated between the two items it
+     falls between rather than from the raw clock, so it always sits where
+     the eye expects it after that stretching.
+
+     There is no tick here. Everything on this rail is a square in the grid
+     two inches to its left, and two ways to check the same thing off on
+     one screen is one too many -- it is a reference, and the name opens
+     the routine. */
   const clock=mn=>fmtTime(pad(Math.floor(mn/60)%24)+":"+pad(mn%60));
-  const dayList=list.filter(r=>r.active&&routineHere(r,today()))
+  const RS_PXH=30,RS_MIN=30,RS_ROW=22,RS_NOW=19;
+  const dayItems=list.filter(r=>r.active&&routineHere(r,today()))
     .map(r=>({r:r,at:mins(rtTime(r,T)),done:doneR(r,T)})).sort((a,b)=>a.at-b.at);
-  /* The now line goes in once, before the first thing still to come, and
-     only where there is something on both sides of it. */
-  let putNow=dayList.some(x=>x.at>=now)&&dayList.some(x=>x.at<now);
-  const dayCard=dayList.length
-    ?'<div class="rs-card rs-day"><h4>Today</h4>'+dayList.map(x=>{
-      let line="";
-      if(putNow&&x.at>=now){putNow=false;
-        line='<div class="rs-now"><span class="num">'+esc(clock(now))+'</span><i></i></div>';}
+  let dayCard="";
+  if(dayItems.length){
+    const lo=dayItems[0].at,hi=dayItems[dayItems.length-1].at,span=hi-lo;
+    /* To scale once there is a day worth drawing; evenly spaced when there
+       are only one or two things, where a scale would say nothing. */
+    const toScale=dayItems.length>2&&span>=90;
+    /* The now line needs a gap of its own. Which pair it falls between is
+       settled before anything is placed, so that pair is given room for
+       it -- without this the line was drawn across whatever item happened
+       to be at the minimum spacing, which at 10:17 meant straight through
+       the ten o'clock one. */
+    let nk=-1;
+    if(now>=lo&&now<=hi){nk=0;while(nk<dayItems.length&&dayItems[nk].at<now)nk++;}
+    /* A push carries. Where two things are too close to draw, the pair is
+       opened to the minimum and *everything after it moves down with
+       them* -- otherwise the next item stays at its true position and the
+       gap after the push is the one that pays, which is how 11:30 to 2pm
+       came out shorter than 2pm to 4pm. Shifting keeps every later gap at
+       true scale and only costs a slightly longer rail. */
+    let last=-RS_MIN,shift=0;
+    const ys=dayItems.map((x,i)=>{
+      let y=(toScale?Math.round((x.at-lo)/60*RS_PXH):i*RS_MIN)+shift;
+      const need=RS_MIN+(i===nk&&i>0?RS_NOW:0);
+      if(y<last+need){shift+=last+need-y;y=last+need;}
+      last=y;return y;});
+    const H=last+RS_ROW;
+    /* Where now sits between the two items it falls between, so it lands
+       where the eye expects after the spacing has been stretched. */
+    let nowY=-1;
+    if(nk>=0){
+      if(nk===0)nowY=ys[0]-11;
+      else if(nk>=dayItems.length)nowY=ys[ys.length-1]+RS_ROW+9;
+      else{const a0=dayItems[nk-1].at,a1=dayItems[nk].at;
+        const f=a1===a0?0:(now-a0)/(a1-a0);
+        nowY=Math.round(ys[nk-1]+(ys[nk]-ys[nk-1])*f);
+        /* and kept inside the gap it was given, so it never lies over a
+           row even where the scale pushed things about. */
+        nowY=Math.max(ys[nk-1]+RS_ROW+4,Math.min(ys[nk]-5,nowY));}
+    }
+    const left=dayItems.filter(x=>!x.done).length;
+    const marks=dayItems.map((x,i)=>{
       const late=!x.done&&x.at<now&&routineOn(x.r,today())&&!skippedR(x.r,T);
-      return line+'<div class="rs-drow'+(x.done?" done":"")+'" style="--c:'+cat(x.r.cat).color+'">'+
-        '<span class="rs-dt num">'+esc(fmtTime(rtTime(x.r,T)))+'</span>'+
-        '<button class="rs-dtick'+(x.done?" done":late?" late":"")+'" data-act="routine-done" data-id="'+x.r.id+'" data-date="'+T+'"'+
-          ' aria-pressed="'+x.done+'" aria-label="'+esc((x.done?"Undo ":"Check off ")+x.r.title)+'">'+
-          (x.done?icon("i-check","ic-12"):"")+'</button>'+
-        '<span class="rs-dn">'+esc(x.r.title)+'</span></div>';}).join("")+'</div>'
-    :"";
-
-  const offToday=list.filter(r=>r.active&&!routineOn(r,today())&&!doneR(r,T))
-    .map(r=>({r:r,next:rwNextDue(r)})).slice(0,6);
-  const offCard=offToday.length
-    ?'<div class="rs-card"><h4>Not due today</h4>'+offToday.map(x=>
-      '<div class="rs-row" style="--c:'+cat(x.r.cat).color+'"><i class="rw-dot"></i>'+
-      '<span class="rs-nm">'+esc(x.r.title)+'</span>'+
-      '<span class="rs-w">'+esc(x.next)+'</span></div>').join("")+'</div>'
-    :"";
-
-  const best=list.filter(r=>r.active&&streakStats(r).cur)
-    .sort((a,b)=>streakStats(b).cur-streakStats(a).cur).slice(0,3);
-  const bestCard=best.length
-    ?'<div class="rs-card"><h4>Longest runs</h4>'+best.map(r=>{const n=streakStats(r).cur;
-      return '<div class="rs-row"><span class="rs-nm">'+esc(r.title)+'</span>'+
-        '<b class="rs-n">'+n+' '+esc(streakUnit(r))+(n===1?"":"s")+'</b></div>';}).join("")+'</div>'
-    :"";
+      const c=cat(x.r.cat);
+      return '<div class="rs-it'+(x.done?" done":"")+(late?" late":"")+'" style="top:'+ys[i]+'px;--c:'+c.color+'">'+
+        '<span class="rs-tm num">'+esc(fmtTime(rtTime(x.r,T)))+'</span>'+
+        '<i class="rs-node"></i>'+
+        '<button class="rs-lbl" data-act="rt-edit" data-id="'+x.r.id+'" title="'+esc(x.r.title)+'">'+esc(x.r.title)+'</button>'+
+        '</div>';}).join("");
+    /* A stretch of nothing says how long it is, but only where it is long
+       enough to be worth knowing and tall enough to carry the words. */
+    const gaps=dayItems.map((x,i)=>{
+      if(i===dayItems.length-1)return "";
+      const mGap=dayItems[i+1].at-x.at,pGap=ys[i+1]-ys[i];
+      if(mGap<75||pGap<58)return "";
+      return '<span class="rs-gap" style="top:'+Math.round(ys[i]+pGap/2)+'px">'+esc(fmtMins(mGap))+' free</span>';}).join("");
+    dayCard='<div class="rs-card rs-day">'+
+      '<div class="rs-dhead"><h4>Today</h4>'+
+        '<span class="rs-left">'+(left?left+' to go':'all done')+'</span></div>'+
+      '<div class="rs-tl" style="height:'+H+'px">'+
+        '<i class="rs-rail"></i>'+gaps+marks+
+        (nowY>=0?'<div class="rs-nowl" style="top:'+nowY+'px"><span class="num">'+esc(clock(now))+'</span><i></i></div>':"")+
+      '</div></div>';
+  }
 
   return '<div class="rwrap">'+
     '<div class="rmain">'+
@@ -3582,7 +3620,7 @@ function viewRoutines(){
       '<div class="rw-scroll"><div class="rw-grid">'+head+rows+'</div></div>'+
       '<p class="rw-key">Filled is done \u00b7 outlined is due \u00b7 a dot is a day off</p>'+
     '</div>'+
-    '<div class="rside">'+upCard+dayCard+offCard+bestCard+'</div>'+
+    '<div class="rside">'+upCard+dayCard+'</div>'+
   '</div>';
 }
 /* ---- the streak log ----

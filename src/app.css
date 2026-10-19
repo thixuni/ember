@@ -1053,7 +1053,12 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .rwrow:hover{background:var(--surface-2)}
 .rwrow.paused .rw-name{color:var(--muted)}
 .rw-n{display:flex;align-items:center;gap:9px;min-width:0;padding-right:12px}
-.rw-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c)}
+/* A row leads with the category's own icon in its own tint, the way the
+   sidebar, the menus and the category list all do. It was an 8px dot,
+   which said the colour and nothing else. */
+.rw-ic{flex:none;width:23px;height:23px;border-radius:7px;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--c) 15%,var(--tint-base));color:var(--c)}
+.rw-ic > *{pointer-events:none}
 .rw-name{flex:999 1 auto;min-width:0;text-align:left;font-size:13px;font-weight:500;color:var(--ink);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 0}
 .rw-name:hover{color:var(--accent-ink)}
@@ -1099,23 +1104,42 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .rs-nm{flex:999 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
 .rs-w{flex:none;font-size:11.5px;color:var(--faint)}
 .rs-n{flex:none;font-size:12.5px;font-weight:700;color:var(--accent-ink);white-space:nowrap}
-/* Today in the order it happens: the hours the grid has nowhere to put.
-   One column for the time so the names start on one edge, a tick that
-   works from here, and a line for now. */
-.rs-day h4{margin-bottom:3px}
-.rs-drow{display:flex;align-items:center;gap:9px;padding:5px 0}
-.rs-dt{flex:none;width:52px;font-size:11.5px;color:var(--faint);text-align:right}
-.rs-dtick{flex:none;width:17px;height:17px;border-radius:50%;border:1.7px solid var(--line-2);
-  background:var(--surface);display:grid;place-items:center;color:var(--on-accent)}
-.rs-dtick:hover{border-color:var(--c)}
-.rs-dtick.done{background:var(--c);border-color:var(--c)}
-.rs-dtick.late{border-color:color-mix(in srgb,var(--danger) 45%,var(--tint-base))}
-.rs-dn{flex:999 1 auto;min-width:0;font-size:12.5px;color:var(--ink-2);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rs-drow.done .rs-dn{color:var(--muted);text-decoration:line-through}
-.rs-now{display:flex;align-items:center;gap:7px;padding:3px 0}
-.rs-now .num{flex:none;width:52px;text-align:right;font-size:10.5px;font-weight:700;color:var(--danger-ink)}
-.rs-now i{flex:1;height:1.5px;border-radius:2px;background:color-mix(in srgb,var(--danger) 42%,var(--tint-base))}
+/* ---------- today, drawn to scale ----------
+   The rail is the day itself: items sit at their real hour, so the space
+   between two of them IS the time between them, and a long empty stretch
+   carries how long it is. A list of evenly spaced rows cannot say that --
+   11:30 to 2pm and 2pm to 4pm looked identical on it.
+
+   Positions come from the view, which stretches anything closer than its
+   minimum apart; everything here is placed against that, never against
+   the raw clock. */
+.rs-dhead{display:flex;align-items:baseline;gap:8px}
+.rs-dhead h4{flex:999 1 auto;min-width:0}
+.rs-left{flex:none;font-size:11px;font-weight:700;color:var(--accent-ink)}
+.rs-tl{position:relative;margin:12px 0 2px}
+.rs-rail{position:absolute;left:56px;top:4px;bottom:4px;width:1.5px;border-radius:2px;
+  background:var(--line-2);transform:translateX(-50%)}
+.rs-it{position:absolute;left:0;right:0;height:22px;display:flex;align-items:center}
+.rs-tm{flex:none;width:46px;text-align:right;font-size:11px;color:var(--faint);white-space:nowrap}
+.rs-node{position:absolute;left:56px;width:9px;height:9px;border-radius:50%;
+  transform:translateX(-50%);border:1.8px solid var(--c);background:var(--surface);box-sizing:border-box}
+.rs-it.done .rs-node{background:var(--c)}
+.rs-it.late .rs-node{border-color:var(--danger)}
+.rs-lbl{margin-left:22px;flex:999 1 auto;min-width:0;text-align:left;font-size:12.5px;
+  color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0}
+.rs-lbl:hover{color:var(--accent-ink)}
+.rs-it.done .rs-lbl{color:var(--muted);text-decoration:line-through}
+.rs-it.late .rs-lbl{color:var(--danger-ink)}
+/* An empty stretch says how long it is, which is the whole reason the
+   rail is to scale. */
+.rs-gap{position:absolute;left:56px;transform:translate(-50%,-50%);padding:2px 7px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
+  background:var(--surface-3);color:var(--faint)}
+.rs-nowl{position:absolute;left:0;right:0;height:0;display:flex;align-items:center;gap:6px}
+.rs-nowl .num{flex:none;width:46px;text-align:right;font-size:10px;font-weight:700;color:var(--danger-ink)}
+.rs-nowl i{flex:1;height:1.5px;border-radius:2px;margin-left:4px;
+  background:color-mix(in srgb,var(--danger) 55%,var(--tint-base));
+  box-shadow:-4px 0 0 0 var(--danger)}
 @media (max-width:760px){
   .rw-row{grid-template-columns:minmax(0,1fr) repeat(7,38px) 54px}
   .rw-c{width:26px;height:26px}

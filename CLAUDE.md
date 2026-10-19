@@ -524,6 +524,9 @@ column grafted on.
   forward stops at this week, where the days to come say nothing you can
   act on. `weekLabel()` names the week, and the date range is spelled out
   only on *this* week, where the label does not already say it.
+- **A row leads with its category's icon** in that category's own tint,
+  the way the sidebar, the menus and the category list all do. It was an
+  8px dot, which said the colour and nothing else.
 - **`rwCell()` holds everything a square means**, in one order that
   matters: done beats all, then a day let off, then a day still to come,
   then today, then a day that was due and went by — made up later, or
@@ -541,17 +544,33 @@ column grafted on.
   carries a *Check it off* button, because a thing sitting beside a grid
   you can already click reads as broken if you cannot press it. With
   nothing left the card says so instead.
-- **Today** is the day in the order it actually happens: the time, a
-  tick, the name, and a line for now sitting before the first thing still
-  to come (only where there is something on both sides of it). The grid
-  answers how the week is going; **the hours are nowhere in it**, which is
-  what this says instead, and it was the one thing the column had no
-  answer for. It is drawn by `routineHere()`, so a routine ticked on a day
-  it was not due appears here exactly as it does on the calendar and the
-  dashboard, and its tick is a real `routine-done` button like every other.
-- **Not due today** lists what falls on another day, with the next day it
-  does (`rwNextDue()`, bounded at a year — a monthly bill is a long way
-  off and a guess is worse than nothing).
+- **Today is a rail drawn to scale**, `RS_PXH` (30) pixels an hour, and
+  **the gaps are the point**: a stretch with nothing in it is left empty
+  and, past 75 minutes, says how long it is — *2h 30m free*. A list of
+  evenly spaced rows could not, because on one of those 11:30-to-2pm and
+  2pm-to-4pm look identical when one is half an hour longer. That is the
+  one thing neither the grid nor a plain list can tell you, and it is
+  what the column is for. It is drawn by `routineHere()`, so a routine
+  ticked on a day it was not due appears exactly as it does on the
+  calendar and the dashboard.
+- **Three things keep the rail honest.** Nothing sits closer than
+  `RS_MIN` (30px), so a pile-up at 4pm is still readable. **A push
+  carries**: when a pair is opened to that minimum, everything after it
+  moves down with them (`shift`) — without that the next item stays at
+  its true position and the gap *after* the push is the one that pays,
+  which is how 11:30→2pm first came out shorter on screen than 2pm→4pm
+  despite being half an hour longer. And the pair the now line falls
+  between is given `RS_NOW` (19px) of room **before** anything is placed,
+  because otherwise the line is drawn straight through whichever row
+  happens to be at the minimum — at 10:17 that was the ten o'clock one.
+- **There is no tick on the rail.** Everything on it is a square in the
+  grid a few inches to its left, and two ways to check the same thing off
+  on one screen is one too many. It is a reference; the name opens the
+  routine.
+- **Not due today and Longest runs were taken out.** The first repeated
+  the grid, which already shows those routines with a dot in today's
+  column; the second was a leaderboard next to a page whose whole right
+  edge is already streak numbers.
 - The grid scrolls sideways in its own box on a narrow window rather than
   squeezing the squares, and under about 640px the column stacks beneath
   it.
