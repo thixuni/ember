@@ -3415,72 +3415,150 @@ function viewMatrix(){
 }
 
 /* ============ routines ============ */
+/* ---- the routines page ----
+   **One week, drawn once, with today's own column beside it.** It was a
+   card per routine, each carrying its own "This week", its own pair of
+   arrows and its own row of seven squares -- so fourteen routines meant
+   fourteen week headers, fourteen nav controls and seven columns that
+   lined up with nothing. You could not read down a day, only across a
+   routine, which is the opposite of what a habit tracker is for.
+
+   Now the week header is drawn once (\`V.rwk\`, one offset for the page
+   rather than one per routine), every routine is a row, and its seven
+   squares sit in real columns under the weekday they belong to. Beside it
+   a column answers the three things the grid cannot: what is next, what is
+   not due at all today, and which runs are longest.
+
+   Everything a square means is in \`rwCell()\`, and it goes through the same
+   \`routine-done\` handler a card's square always did, so ticking from here,
+   from the streak log and from the dashboard are one code path. */
+function rwCell(r,s,c){
+  const d=parseD(s),T=TODAY();
+  const done=doneR(r,s),skip=skippedR(r,s),sched=routineOn(r,d)&&!skip,later=s>T,isT=s===T;
+  /* The order matters: done beats everything, then a day let off, then a
+     day still to come, then today, then a day that was due and went by --
+     made up later or missed outright. Anything else is a day off. */
+  const kind=done?"done":skip?"skip":later?(sched?"soon":"off")
+    :isT?(sched?"now":"off"):sched?(madeUp(r,d)?"made":"miss"):"off";
+  const when=fmtDate(s);
+  const say=done?"Kept on "+when
+    :kind==="skip"?when+" \u2014 skipped"
+    :kind==="soon"?"Due "+when
+    :kind==="now"?"Due today \u2014 press to check it off"
+    :kind==="made"?when+" \u2014 missed, made up later"
+    :kind==="miss"?when+" \u2014 missed"
+    :when+" \u2014 a day off, press to count it anyway";
+  return '<button class="rw-c '+kind+'" data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'"'+
+    ' aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
+    ' style="--c:'+c.color+'" title="'+esc(say)+'"'+
+    ' aria-label="'+esc(r.title+" \u2014 "+say)+'">'+
+    (done?icon("i-check","ic-12"):kind==="off"||kind==="skip"?'<i class="rw-off"></i>':"")+'</button>';
+}
+/* What is not due today, and when it next is. A routine can be due a long
+   way off (a monthly bill, a yearly thing), so the walk is bounded and
+   gives up quietly rather than guessing. */
+function rwNextDue(r){
+  for(let i=1;i<=370;i++){const d=addDays(today(),i);
+    if(routineOn(r,d)&&!skippedR(r,ymd(d)))return i<7?DOWS[(d.getDay()+6)%7]:fmtDate(ymd(d));}
+  return "";
+}
 function viewRoutines(){
   const q=V.q.toLowerCase();
   const list=wsRoutines().filter(r=>visibleCat(r.cat)&&(!q||r.title.toLowerCase().indexOf(q)>-1||cat(r.cat).name.toLowerCase().indexOf(q)>-1));
   if(!list.length)return '<div class="card es-card">'+(S.routines.length
-    ?es("filter","No routines match",q?"Nothing fits “"+esc(V.q)+"”. Try another word.":"Their categories are hidden. Check them in the sidebar to see them.",{hue:"var(--apricot)"})
+    ?es("filter","No routines match",q?"Nothing fits \u201c"+esc(V.q)+"\u201d. Try another word.":"Their categories are hidden. Check them in the sidebar to see them.",{hue:"var(--apricot)"})
     :es("routine","Build a rhythm","Stand-ups, workouts, a weekly review: pick the days, check them off, and watch your streak grow.",
       {actions:'<button class="btn btn-primary" data-act="new-routine">'+icon("i-plus")+'New routine</button>'}))+'</div>';
-  const nowWk=startOfWeek(today());
-  return '<div class="rgrid">'+list.map(r=>{
-    const c=cat(r.cat),st=streak(r);
-    /* Which week this card is showing. Kept per routine, and not saved: you
-       step back to fill something in, and the next time you open the page
-       you are on this week again, where the work is. */
-    const off=(V.rweek&&V.rweek[r.id])||0,wkStart=addDays(nowWk,off*7);
-    const days='<div class="week-dots">'+[0,1,2,3,4,5,6].map(i=>{
-      const d=addDays(wkStart,i),s=ymd(d),skip=skippedR(r,s),sched=routineOn(r,d)&&!skip,done=doneR(r,s),isT=s===TODAY(),later=s>TODAY();
-      /* One tile a day, carrying its weekday and its date: the letters were
-         a row of their own above the squares, which left three stacked
-         things per day and a letter that could drift off its square. Every
-         day up to today can be checked off, the days off the schedule
-         included; days still to come wait for their day. */
-      return '<button class="rday'+(sched?" sched":" off")+(skip?" skip":"")+(done?" done":"")+(isT?" today":"")+(later?" later":"")+'"'+
-        ' data-act="routine-done" data-id="'+r.id+'" data-date="'+s+'" aria-pressed="'+done+'"'+(later&&!done?' aria-disabled="true"':"")+
-        ' aria-label="'+esc(r.title)+' on '+esc(fmtDate(s))+(sched?"":", not a scheduled day")+'"'+
-        ' title="'+esc(fmtDate(s))+' \u2014 '+(done?(later?"checked off ahead of time, press to undo":"done"):later?"still to come":skip?"skipped":sched?"press to mark done":"not scheduled, but you can still mark it done")+'" style="--c:'+c.color+'">'+
-        '<small>'+DOWS[(d.getDay()+6)%7][0]+'</small><b>'+d.getDate()+'</b></button>';}).join("")+'</div>';
-    /* Stepping back has no floor -- a routine you are filling in after the
-       fact may go back further than the day it was made -- and forward
-       stops at this week, because a week of days still to come says
-       nothing you can act on. */
-    /* The week named on the left and everything that moves it together on
-       the right, the way a calendar's toolbar is laid out. The arrows were
-       either side of the label with Today after them, which left the
-       forward arrow stranded in the middle of the row. */
-    const wkNav='<div class="rweek">'+
-      '<span class="rweek-l'+(off?"":" now")+'">'+esc(weekLabel(wkStart))+'</span>'+
-      (off?'<button class="rweek-now" data-act="rt-week" data-id="'+r.id+'" data-v="0">Today</button>':"")+
-      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="-1" aria-label="The week before">'+icon("i-chev-l","ic-14")+'</button>'+
-      '<button class="icon-btn btn-sm" data-act="rt-week" data-id="'+r.id+'" data-v="1"'+(off>=0?" disabled":"")+' aria-label="The week after">'+icon("i-chev-r","ic-14")+'</button>'+
-      '</div>';
-    /* Every card is the same four rows, each one line high: the name and
-       its streak, when (time, length, how often), the week, and a foot
-       carrying the category. A reminder once sat in the second line and
-       pushed that card's week lower than its neighbours'; it then spent a
-       while in the foot and is now only in the routine's own window. */
-    return '<article class="rcard'+(r.active?"":" paused")+'" style="--c:'+c.color+'" data-rid="'+r.id+'">'+
-      '<div class="rtop"><span class="ravatar">'+icon(c.icon,"ic-18")+'</span>'+
-      '<div class="rhead"><h3 title="'+esc(r.title)+'">'+esc(r.title)+'</h3>'+
-        '<div class="rsub" title="'+esc(fmtTime(r.time)+" · "+fmtMins(r.dur)+" · "+freqLabel(r))+'">'+icon("i-clock","ic-14")+'<span class="num">'+esc(fmtTime(r.time))+' · '+esc(fmtMins(r.dur))+'</span><span class="rdot">·</span><span class="rfreq">'+esc(freqLabel(r))+'</span></div></div>'+
-      /* The streak is a button: the number says where you are, pressing it
-         opens the whole history. It is there at nought too, so the way in
-         does not appear only once you are already going. */
-      (!r.active?'<span class="rpaused">'+icon("i-pause","ic-12")+'Paused</span>'
-        :'<button class="streak'+(st?"":" none")+'" data-act="streak-log" data-id="'+r.id+'"'+
-         ' title="View streak log"'+
-         ' aria-label="View streak log for '+esc(r.title)+' \u2014 '+esc(streakSays(r,st))+'">'+
-         icon("i-flame","ic-14")+st+'</button>')+'</div>'+
-      '<div class="rwk">'+wkNav+days+'</div>'+
-      /* The reminder is set in the routine's own window and read there. On
-         the card it was a line of small print on every one of them saying
-         the same thing -- 30 min before is the default nobody changes --
-         next to the category, which is the thing you do change from here. */
-      '<div class="rfoot">'+catChip(r.cat,"routine",r.id)+
-        '<div class="spacer" style="flex:1"></div>'+
-        '<button class="icon-btn btn-sm" data-act="rt-menu" data-id="'+r.id+'" title="More" aria-label="More for '+esc(r.title)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button></div>'+
-      '</article>';}).join("")+'</div>';
+
+  const T=TODAY(),off=V.rwk||0,wkStart=addDays(startOfWeek(today()),off*7);
+
+  /* Today, counted once for the header: what was due and what of it is
+     done. A day let off is not due, so it is in neither number. */
+  let dueToday=0,doneToday=0;
+  list.forEach(r=>{if(!r.active)return;
+    const on=routineOn(r,today())&&!skippedR(r,T);
+    if(on){dueToday++;if(doneR(r,T))doneToday++;}});
+  const pct=dueToday?Math.round(doneToday/dueToday*100):0;
+
+  /* ---- the week, drawn once ---- */
+  const days=[0,1,2,3,4,5,6].map(i=>{const d=addDays(wkStart,i),s=ymd(d);
+    return '<div class="rw-d'+(s===T?" today":"")+(s>T?" later":"")+'">'+
+      '<small>'+DOWS[(d.getDay()+6)%7][0]+'</small><b>'+d.getDate()+'</b></div>';}).join("");
+
+  const head='<div class="rw-row rw-head">'+
+    '<div class="rw-when">'+
+      '<h3>'+esc(weekLabel(wkStart))+'</h3>'+
+      /* weekLabel() already names the dates on any week but this one, so
+         the range is spelled out only where the label does not. */
+      (off?"":'<span class="num">'+esc(MONS[wkStart.getMonth()]+" "+wkStart.getDate())+' \u2013 '+esc(fmtDate(ymd(addDays(wkStart,6))).replace(/^[A-Za-z]+ /,""))+'</span>')+
+      '<span class="rw-nav">'+
+        '<button class="icon-btn btn-sm" data-act="rt-week" data-v="-1" aria-label="The week before">'+icon("i-chev-l","ic-14")+'</button>'+
+        (off?'<button class="btn btn-sm" data-act="rt-week" data-v="0">Today</button>':"")+
+        '<button class="icon-btn btn-sm" data-act="rt-week" data-v="1"'+(off>=0?" disabled":"")+' aria-label="The week after">'+icon("i-chev-r","ic-14")+'</button>'+
+      '</span></div>'+
+    days+
+    '<div class="rw-sh">STREAK</div></div>';
+
+  const rows=list.map(r=>{const c=cat(r.cat),st=streakStats(r);
+    const cells=[0,1,2,3,4,5,6].map(i=>rwCell(r,ymd(addDays(wkStart,i)),c)).join("");
+    return '<div class="rw-row rwrow'+(r.active?"":" paused")+'" data-rid="'+r.id+'" style="--c:'+c.color+'">'+
+      '<div class="rw-n">'+
+        '<i class="rw-dot"></i>'+
+        '<button class="rw-name" data-act="rt-edit" data-id="'+r.id+'" title="'+esc(r.title)+'">'+esc(r.title)+'</button>'+
+        '<span class="rw-t num">'+esc(fmtTime(r.time))+'</span>'+
+        '<button class="icon-btn btn-sm rw-more" data-act="rt-menu" data-id="'+r.id+'" title="More" aria-label="More for '+esc(r.title)+'" aria-haspopup="menu">'+icon("i-more","ic-14")+'</button>'+
+      '</div>'+cells+
+      (r.active
+        ?'<button class="rw-s'+(st.cur?"":" none")+'" data-act="streak-log" data-id="'+r.id+'" title="View streak log"'+
+          ' aria-label="View streak log for '+esc(r.title)+' \u2014 '+esc(streakSays(r,st.cur))+'">'+(st.cur||"\u2014")+'</button>'
+        :'<span class="rw-s none" title="Paused">'+icon("i-pause","ic-12")+'</span>')+
+      '</div>';}).join("");
+
+  /* ---- the column beside it ---- */
+  const mins=tm=>{const x=(tm||"0:0").split(":").map(Number);return x[0]*60+x[1];};
+  const now=new Date().getHours()*60+new Date().getMinutes();
+  const todayLeft=list.filter(r=>r.active&&routineOn(r,today())&&!skippedR(r,T)&&!doneR(r,T))
+    .map(r=>({r:r,at:mins(rtTime(r,T))})).sort((a,b)=>a.at-b.at);
+  const up=todayLeft.filter(x=>x.at>=now)[0]||todayLeft[0];
+  const upCard=up
+    ?'<div class="rs-card rs-next">'+
+      '<h4>Up next</h4>'+
+      '<p class="rs-big">'+esc(up.r.title)+'</p>'+
+      '<p class="rs-sub num">'+esc(fmtTime(rtTime(up.r,T)))+
+        (up.at>=now?' \u00b7 in '+esc(inMins(up.at-now)):' \u00b7 earlier today')+
+        (Number(up.r.dur)?' \u00b7 '+esc(fmtMins(up.r.dur)):"")+'</p>'+
+      '<button class="btn btn-sm btn-primary" data-act="routine-done" data-id="'+up.r.id+'" data-date="'+T+'">'+
+        icon("i-check","ic-14")+'Check it off</button></div>'
+    :'<div class="rs-card rs-done"><h4>Today</h4>'+
+      '<p class="rs-big">'+(dueToday?"All done":"Nothing due")+'</p>'+
+      '<p class="rs-sub">'+(dueToday?"Every routine due today is checked off.":"No routine falls on today.")+'</p></div>';
+
+  const offToday=list.filter(r=>r.active&&!routineOn(r,today())&&!doneR(r,T))
+    .map(r=>({r:r,next:rwNextDue(r)})).slice(0,6);
+  const offCard=offToday.length
+    ?'<div class="rs-card"><h4>Not due today</h4>'+offToday.map(x=>
+      '<div class="rs-row" style="--c:'+cat(x.r.cat).color+'"><i class="rw-dot"></i>'+
+      '<span class="rs-nm">'+esc(x.r.title)+'</span>'+
+      '<span class="rs-w">'+esc(x.next)+'</span></div>').join("")+'</div>'
+    :"";
+
+  const best=list.filter(r=>r.active&&streakStats(r).cur)
+    .sort((a,b)=>streakStats(b).cur-streakStats(a).cur).slice(0,3);
+  const bestCard=best.length
+    ?'<div class="rs-card"><h4>Longest runs</h4>'+best.map(r=>{const n=streakStats(r).cur;
+      return '<div class="rs-row"><span class="rs-nm">'+esc(r.title)+'</span>'+
+        '<b class="rs-n">'+n+' '+esc(streakUnit(r))+(n===1?"":"s")+'</b></div>';}).join("")+'</div>'
+    :"";
+
+  return '<div class="rwrap">'+
+    '<div class="rmain">'+
+      '<div class="rw-prog"><span class="rw-bar"><i style="width:'+pct+'%"></i></span>'+
+        '<span class="rw-pn num">'+doneToday+' of '+dueToday+' done today</span></div>'+
+      '<div class="rw-scroll"><div class="rw-grid">'+head+rows+'</div></div>'+
+      '<p class="rw-key">Filled is done \u00b7 outlined is due \u00b7 a dot is a day off</p>'+
+    '</div>'+
+    '<div class="rside">'+upCard+offCard+bestCard+'</div>'+
+  '</div>';
 }
 /* ---- the streak log ----
    A routine's whole history on one page: where the streak stands, the best
@@ -5828,9 +5906,12 @@ document.addEventListener("click",function(e){
       if(!arm(n,"Skip?"))break;
       skipMap()[id+"|"+date]=true;save("prefs");render();
       toast("Skipped "+fmtDate(date)+" \u2014 undo it from the routine's menu");break;}
+    /* One offset for the whole page now the week is drawn once. Back has
+       no floor -- a routine filled in after the fact may go further back
+       than the day it was made -- and forward stops at this week, where
+       the days to come say nothing you can act on. */
     case "rt-week":{const v=Number(n.dataset.v);
-      V.rweek=V.rweek||{};
-      V.rweek[id]=v?Math.min(0,(V.rweek[id]||0)+v):0;
+      V.rwk=v?Math.min(0,(V.rwk||0)+v):0;
       renderView();break;}
     case "slog-q":V.slogQ=Number(n.dataset.v);if(V.slog)streakModal(V.slog);break;
     case "rt-edit":routineModal(id);break;
@@ -6798,12 +6879,12 @@ const TIP_TOURS=[
     {sel:".unsorted .uq-set",title:"Place it in one click",
       text:()=>"Tasks without a priority wait here. Pick a box to give one, and the task moves into it."}]},
   {id:"routines",where:()=>V.view==="routines",steps:[
-    {sel:".rcard .week-dots",title:"Check off a day",
-      text:()=>"Click a day’s square to mark the routine done. Any day up to today counts toward your streak, even one that wasn’t scheduled."},
-    {sel:".rcard .streak,.rcard .rpaused",title:"How it is going",
-      text:()=>"A flame counts how many in a row you have kept. Press it to open the whole streak log."},
-    {sel:'.rcard [data-act="rt-menu"]',title:"Edit, pause or delete",
-      text:()=>"This button, or a right-click anywhere on the card, opens everything you can do to a routine."}]},
+    {sel:".rw-grid",title:"One week, every routine",
+      text:()=>"Each row is a routine and each column a day. Click a square to mark it done — any day up to today counts toward your streak, even one that wasn’t scheduled."},
+    {sel:".rw-s",title:"How it is going",
+      text:()=>"The number at the end of a row is how many you have kept in a row. Press it to open the whole streak log."},
+    {sel:'.rwrow [data-act="rt-menu"]',title:"Edit, pause or delete",
+      text:()=>"This button, or a right-click anywhere on the row, opens everything you can do to a routine."}]},
   {id:"notes",where:()=>V.view==="notes",steps:[
     /* The top bar's, which is on the screen whether or not there are any
        notes or any tags -- the one in the list's head is gone and the one
@@ -6984,7 +7065,7 @@ document.addEventListener("contextmenu",function(e){
      from script can be spelt either way. */
   if(t.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))return;
   let items=null;
-  const rt=t.closest('[data-act="routine"][data-id],[data-act="routine-done"][data-id]'),rc=t.closest(".rcard[data-rid]");
+  const rt=t.closest('[data-act="routine"][data-id],[data-act="routine-done"][data-id]'),rc=t.closest(".rwrow[data-rid]");
   const nt=t.closest('[data-act="note-open"][data-id]'),aw=t.closest('[data-act="away-open"][data-id]');
   const cr=t.closest('.cat-row[data-id]'),ln=t.closest('.col[data-col]');
   if(rt)items=routineItems(rt.dataset.id,rt.dataset.date||TODAY());

@@ -1007,64 +1007,107 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .tgl.on.warn{background:var(--amber);border-color:var(--amber)}
 
 /* ---------- routines ---------- */
-.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
-.rcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-m);padding:14px;display:flex;flex-direction:column;gap:11px}
-.rcard .rtop{display:flex;align-items:center;gap:10px}
+/* ---------- the routines page ----------
+   One week over every routine, and a column beside it. It was a card per
+   routine, each with its own week header and its own pair of arrows, so
+   fourteen routines drew fourteen of each and no two weeks lined up. The
+   grid is one set of columns now: a row reads across as a routine, a
+   column reads down as a day.
+
+   The grid is a real CSS grid -- name, seven days, streak -- so the day
+   columns are the same seven positions on every row. Narrow, it scrolls
+   sideways in its own box (the standing rule for a wide table) rather
+   than squeezing the squares. */
+.rwrap{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.rmain{flex:999 1 620px;min-width:0;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-m);overflow:hidden}
+.rside{flex:1 1 262px;min-width:0;display:flex;flex-direction:column;gap:12px}
+
+.rw-prog{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px solid var(--line);
+  background:var(--panel)}
+.rw-bar{flex:1;max-width:220px;height:7px;border-radius:7px;background:var(--line-2);overflow:hidden}
+.rw-bar i{display:block;height:100%;background:var(--accent);border-radius:7px;transition:width .2s}
+.rw-pn{font-size:12.5px;font-weight:700;color:var(--ink-2)}
+
+.rw-scroll{overflow-x:auto;scrollbar-width:thin}
+.rw-grid{min-width:560px}
+.rw-row{display:grid;grid-template-columns:minmax(0,1fr) repeat(7,42px) 64px;align-items:center;
+  padding:0 14px;border-bottom:1px solid var(--line-soft)}
+.rw-row:last-child{border-bottom:0}
+.rw-head{padding-top:9px;padding-bottom:8px;background:var(--panel);border-bottom:1px solid var(--line)}
+.rw-when{display:flex;align-items:center;gap:9px;min-width:0;padding-right:12px}
+.rw-when h3{font-size:13.5px;font-weight:700;white-space:nowrap}
+.rw-when .num{font-size:12px;color:var(--muted);white-space:nowrap}
+.rw-nav{display:inline-flex;align-items:center;gap:2px;margin-left:2px}
+.rw-nav .icon-btn{width:24px;height:24px;padding:0}
+.rw-nav .btn-sm{padding:2px 8px;font-size:11.5px}
+.rw-d{text-align:center;padding:2px 0;border-radius:8px}
+.rw-d small{display:block;font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--faint)}
+.rw-d b{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-top:1px}
+.rw-d.later b{color:var(--faint)}
+.rw-d.today{background:var(--accent-soft)}
+.rw-d.today small,.rw-d.today b{color:var(--accent-ink)}
+.rw-sh{text-align:right;font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--faint)}
+
+.rwrow{min-height:42px}
+.rwrow:hover{background:var(--surface-2)}
+.rwrow.paused .rw-name{color:var(--muted)}
+.rw-n{display:flex;align-items:center;gap:9px;min-width:0;padding-right:12px}
+.rw-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--c)}
+.rw-name{flex:999 1 auto;min-width:0;text-align:left;font-size:13px;font-weight:500;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 0}
+.rw-name:hover{color:var(--accent-ink)}
+.rw-t{flex:none;font-size:11.5px;color:var(--faint);white-space:nowrap}
+.rw-more{flex:none;width:24px;height:24px;padding:0;opacity:0}
+.rwrow:hover .rw-more,.rw-more:focus-visible{opacity:1}
+
+/* A square says one of six things, and they are told apart by fill and
+   edge rather than by hue alone: filled is kept, a ring is due, a dot is
+   a day off. Only a missed day borrows the danger colour. */
+.rw-c{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;justify-self:center;
+  border:1.5px solid var(--line-2);background:var(--surface);color:var(--on-accent)}
+.rw-c:hover{border-color:var(--c)}
+.rw-c.done{background:var(--c);border-color:var(--c)}
+.rw-c.now{border:2px solid var(--c);background:color-mix(in srgb,var(--c) 9%,var(--tint-base))}
+.rw-c.soon{border-style:dashed;border-color:var(--line-2)}
+.rw-c.miss{border-color:color-mix(in srgb,var(--danger) 36%,var(--tint-base));
+  background:color-mix(in srgb,var(--danger) 7%,var(--tint-base))}
+.rw-c.made{border-color:var(--line-2);background:var(--surface-2)}
+.rw-c.off,.rw-c.skip{border-color:transparent;background:var(--surface-2)}
+.rw-c.skip{background:var(--surface-3)}
+.rw-off{width:4px;height:4px;border-radius:50%;background:var(--line-2)}
+
+.rw-s{justify-self:end;font-size:12.5px;font-weight:700;color:var(--accent-ink);
+  font-variant-numeric:tabular-nums;padding:3px 4px;border-radius:7px}
+.rw-s:hover{background:var(--accent-soft)}
+.rw-s.none{color:var(--faint)}
+.rw-key{padding:10px 16px 12px;font-size:11.5px;color:var(--faint)}
+
+/* The column beside it: what is next, what is not due at all today, and
+   the runs worth knowing about. */
+.rs-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);padding:13px 15px}
+.rs-card h4{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.rs-big{font-size:15px;font-weight:600;color:var(--ink);margin:7px 0 2px;line-height:1.3}
+.rs-sub{font-size:12.5px;color:var(--muted);margin:0}
+.rs-next{background:var(--accent-soft);border-color:var(--accent-line)}
+.rs-next h4{color:var(--accent-ink)}
+.rs-next .rs-big{color:var(--accent-ink)}
+.rs-next .rs-sub{color:var(--accent-ink);opacity:.85}
+.rs-next .btn{margin-top:11px}
+.rs-row{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:13px}
+.rs-card h4 + .rs-row{margin-top:6px}
+.rs-nm{flex:999 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+.rs-w{flex:none;font-size:11.5px;color:var(--faint)}
+.rs-n{flex:none;font-size:12.5px;font-weight:700;color:var(--accent-ink);white-space:nowrap}
+@media (max-width:760px){
+  .rw-row{grid-template-columns:minmax(0,1fr) repeat(7,38px) 54px}
+  .rw-c{width:26px;height:26px}
+}
+/* What the routine window wears: the rest of the old card’s rules went
+   with the card, which is a row in the week grid above now. */
 .rhead{flex:1;min-width:0}
-.rcard h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rcard .rhead .rsub{flex-wrap:nowrap;white-space:nowrap;overflow:hidden}
-.rcard .rsub .ic{flex:none}
 .rfreq{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.rpaused{display:inline-flex;align-items:center;gap:4px;flex:none;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:var(--surface-3);color:var(--muted)}
-.rcard.paused{border-style:dashed}
-.rfoot{display:flex;align-items:center;gap:8px;min-width:0;height:28px}
-.rfoot .chip{flex:0 1 auto;min-width:0;overflow:hidden}
 .ravatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 14%,var(--tint-base));color:var(--c);flex:none}
-.rcard h3{font-size:14px;line-height:1.25}
-.rcard .rsub{font-size:11.5px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-/* The week, and the way back through the others, as one block: the week
-   named on the left, everything that moves it together on the right. */
-.rwk{display:flex;flex-direction:column;gap:7px}
-.rweek{display:flex;align-items:center;gap:4px;min-width:0}
-/* .icon-btn carries "padding:0 10px" for the wide ones, which pushed the
-   chevron 11px from one edge and 1px from the other once the button was
-   made square. */
-.rweek .icon-btn{width:28px;height:28px;flex:none;padding:0;place-items:center}
-.rweek-l{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--ink-2);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rweek-l.now{color:var(--muted)}
-.rweek-now{flex:none;margin-right:2px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;
-  background:var(--accent-soft);color:var(--accent-ink);transition:background .12s}
-.rweek-now:hover{background:color-mix(in srgb,var(--accent) 26%,var(--tint-base))}
-/* Seven equal columns across the card, each one whole day: its weekday over
-   its date, in one tile that fills the column. The letters were a row of
-   their own above a row of squares -- three stacked things per day, and a
-   32px square centred in a 51px column left 24px of air between days that
-   read as seven islands rather than a week. */
-.week-dots{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
-.rday{display:grid;gap:2px;place-items:center;min-width:0;padding:6px 2px;
-  border-radius:10px;border:1.6px solid var(--line);background:var(--surface);
-  cursor:pointer;transition:border-color .12s,background .12s,transform .12s}
-.rday > *{pointer-events:none}
-.rday small{font-size:9.5px;font-weight:700;letter-spacing:.03em;line-height:1;color:var(--faint)}
-.rday b{font-size:12.5px;font-weight:700;line-height:1;color:var(--ink-2)}
-.rday.sched{border-color:color-mix(in srgb,var(--c) 42%,var(--line));
-  background:color-mix(in srgb,var(--c) 8%,var(--tint-base))}
-/* Any day can be checked off, so each one answers the pointer. */
-.rday:not(.later):hover{border-color:color-mix(in srgb,var(--c) 72%,var(--line));transform:translateY(-1px)}
-/* Still to come: there, but not yet tickable. */
-/* A day let off: there, plainly not counted, and not shouting about it. */
-.rday.skip{border-style:dashed;background:none}
-.rday.skip small,.rday.skip b{color:var(--faint)}
-.rday.skip b{text-decoration:line-through;text-decoration-thickness:1px}
-.rday.later{border-style:dashed;background:transparent;cursor:default}
-.rday.later small,.rday.later b{color:var(--faint)}
-.rday.today{box-shadow:0 0 0 2px var(--accent-soft)}
-.rday.today small{color:var(--accent-ink)}
-/* Done last, so a day that is both today and kept reads as kept. */
-.rday.done{background:color-mix(in srgb,var(--c) var(--solid-mix),var(--ink));border-color:transparent}
-.rday.done small{color:var(--on-accent);opacity:.7}
-.rday.done b{color:var(--on-accent)}
 /* The streak is a button, so it answers the pointer; at nought it is quiet
    but still there, because the way into the log should not appear only once
    you are already going. */

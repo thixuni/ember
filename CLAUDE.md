@@ -501,34 +501,57 @@ year could not be made up at all. The only limit left is a guard against a
 date that cannot be real. Nothing prunes `S.completions` by age, so a
 planner that has been running for years counts all of it.
 
-**The card shows one week, and you can walk back through the others.**
-`V.rweek[r.id]` is how many weeks back that card is, kept per routine and
-not saved: you step back to fill something in, and next time the page opens
-it is on this week, where the work is. `weekLabel()` says "This week" while
-you are on it and the days it covers otherwise, naming the month twice only
-when the week straddles two. Stepping back has no floor, because a routine
-can be filled in long after it was made, while forward stops at this week,
-where the days still to come say nothing you can act on.
+### The routines page
 
-**The week is one block** (`.rwk`): the week named on the left, Today and
-the two arrows together on the right the way a calendar toolbar is laid
-out, then seven equal columns (`grid-template-columns:repeat(7,1fr)`) so
-the weekday and its square sit on one centre line and the row ends where
-the card does, **each column one whole day**: its weekday over its date in
-a single tile (`.rday`) that fills the column. Three shapes came before
-it. The arrows were either side of the label with Today after them, which
-stranded the forward arrow in the middle of the row. The columns were a
-fixed 30px in a flex row, which left a ragged edge no card lined up with.
-And the weekday letters were a row of their own above a row of squares --
-three stacked things per day, and a 32px square centred in a 51px column
-left 24px of air between days that read as seven islands rather than a
-week. `.rweek .icon-btn` sets `padding:0`: the base `.icon-btn` carries
-`padding:0 10px` for the wide ones, which pushed the chevron 11px from one
-edge and 1px from the other once the button was made square.
+**One week, drawn once, over every routine — and a column beside it.**
+`viewRoutines()` is a grid (`.rw-grid`): a row a routine, a column a day,
+one week header with one pair of arrows. Beside it (`.rside`) sit the
+three things the grid cannot say — what is **Up next**, what is **Not due
+today**, and the **Longest runs**.
+
+**It was a card per routine**, each carrying its own "This week", its own
+arrows and its own row of seven squares. Fourteen routines therefore drew
+fourteen week headers and fourteen nav controls, and — the real cost —
+**no two weeks lined up**, so you could read across a routine but never
+down a day, which is the one thing a habit tracker is for. Five layouts
+were drawn and compared before this one: today as a list with the rest
+quiet underneath, the day as a timeline, folded category groups, and a
+page showing only what is left. This is the grid with the timeline's
+column grafted on.
+
+- **One offset for the page**, `V.rwk`, not one per routine. Back has no
+  floor, because a routine can be filled in long after it was made;
+  forward stops at this week, where the days to come say nothing you can
+  act on. `weekLabel()` names the week, and the date range is spelled out
+  only on *this* week, where the label does not already say it.
+- **`rwCell()` holds everything a square means**, in one order that
+  matters: done beats all, then a day let off, then a day still to come,
+  then today, then a day that was due and went by — made up later, or
+  missed. Anything else is a day off. Six looks, told apart by **fill and
+  edge rather than hue**: filled is kept, a ring is due, a dot is a day
+  off, and only a missed day borrows the danger colour.
+- **Every square is still a `routine-done` button**, so ticking from the
+  grid, from the streak log and from the dashboard are one code path, and
+  a day off can be counted anyway exactly as it always could.
+- **The row is the thing you right-click** (`.rwrow[data-rid]`), and its
+  ⋯ shows on hover. The name opens the routine's window; the number at
+  the end opens its streak log and is there at nought too.
+- **Up next** is the next routine due today that is not done, by
+  `rtTime()`, falling back to the earliest one still outstanding; it
+  carries a *Check it off* button, because a thing sitting beside a grid
+  you can already click reads as broken if you cannot press it. With
+  nothing left the card says so instead.
+- **Not due today** lists what falls on another day, with the next day it
+  does (`rwNextDue()`, bounded at a year — a monthly bill is a long way
+  off and a guess is worse than nothing).
+- The grid scrolls sideways in its own box on a narrow window rather than
+  squeezing the squares, and under about 640px the column stacks beneath
+  it.
 
 **The streak log** (`streakModal(id)`, `V.slog`) is the rest of the
-history. It opens from the streak on the card — a button, there at nought
-too, so the way in does not appear only once you are already going — and
+history. It opens from the number at the end of a routine's row — a
+button, there at nought too, so the way in does not appear only once you
+are already going — and
 from **View streak log** in a routine's menu anywhere it shows. Inside:
 four numbers, then **the year as twelve calendars**, every day under its own
 weekday in its own month with its date on it. Over them, one bar
