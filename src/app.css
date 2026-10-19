@@ -86,6 +86,11 @@
 
   /* Derived once, so nothing below needs a light and a dark spelling. */
   --accent-soft:color-mix(in srgb,var(--accent) 13%,var(--surface));
+  /* The hairline round an accent-tinted box. Two rules asked for this by
+     name and nothing ever defined it, so both fell back to currentColor
+     and drew a hard near-black edge: Up next on the routines page, and a
+     chosen icon in the icon picker. */
+  --accent-line:color-mix(in srgb,var(--accent) 34%,var(--surface));
   --apricot-soft:color-mix(in srgb,var(--apricot) 16%,var(--surface));
   --danger-soft:color-mix(in srgb,var(--danger) 15%,var(--surface));
   /* The highlighter. Each is a mix of a hue the theme already owns, named
@@ -1228,9 +1233,23 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .rs-knob{position:absolute;left:6px;width:7px;height:7px;border-radius:50%;background:var(--accent);
   transform:translate(-50%,-50%);box-shadow:0 0 0 2.5px var(--surface)}
 .rs-it{position:absolute;left:0;right:0;height:22px;display:flex;align-items:center;gap:9px}
+/* The nodes are the rail's own colour, not their categories'. A dozen
+   category hues threaded onto one accent-coloured line is a dozen hues
+   fighting at 9px, and the pairing changes every time the accent does --
+   whatever colour someone picks, something on the rail clashed with it.
+   They are told apart the way the week squares are, by fill and edge: a
+   ring is still to come, filled is kept, and only a missed one borrows a
+   hue. The category is on the row a few inches to the left, with its
+   icon, which is where it is actually being read. Both have to be seen at
+   9px: the ring takes the board card's middot recipe, since --line-2 on
+   white measured 1.23:1 and a ring that faint is not a control, and kept
+   is the accent at full strength, which accentTrio() has already clamped
+   to read on this surface whatever colour was picked. The knob stays the
+   thing it is by its halo and by sitting between rows, not by being the
+   only accent. */
 .rs-node{flex:none;margin-left:2px;width:9px;height:9px;border-radius:50%;box-sizing:border-box;
-  border:1.8px solid var(--c);background:var(--surface)}
-.rs-it.done .rs-node{background:var(--c)}
+  border:1.8px solid color-mix(in srgb,var(--faint) 80%,var(--surface));background:var(--surface)}
+.rs-it.done .rs-node{background:var(--accent);border-color:var(--accent)}
 .rs-it.late .rs-node{border-color:var(--danger)}
 .rs-lbl{flex:999 1 auto;min-width:0;text-align:left;font-size:12.5px;color:var(--ink-2);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0}

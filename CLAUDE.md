@@ -569,6 +569,21 @@ column grafted on.
   red rule with the time written on it, which was the loudest thing in
   the column — and not news, since Up next directly above already says
   how long you have. Danger is for lateness, which now is not.
+- **A node on the rail is not its category’s colour.** A dozen category
+  hues threaded onto one accent-coloured line is a dozen hues fighting at
+  9px, and the pairing changes every time the accent does -- whatever
+  colour someone picks, something on the rail clashed with it. The nodes
+  are told apart the way the week squares are, **by fill and edge**: a
+  ring is still to come, filled is kept, and only a missed one borrows a
+  hue. The category is on the row a few inches to its left, with its
+  icon, which is where it is read. Both have to be seen at 9px, so the
+  ring takes the board card’s middot recipe (`--line-2` measured 1.23:1,
+  and a ring that faint is not a control) and kept is `--accent` at full
+  strength, which `accentTrio()` has already clamped to read on this
+  surface whatever was picked -- measured 3.93:1 even for the lightest
+  colour the picker allows, in both themes. The knob stays the thing it
+  is by its halo and by sitting between rows, not by being the only
+  accent.
 - **The hour sits at the end of a row**, right aligned and tabular, so
   every name begins on one edge. A column of times *before* the node came
   out ragged, because "9am" and "11:30am" are not the same width, and it
@@ -1898,6 +1913,14 @@ alone can take 4.50 to 4.49.
 `--accent-2` used to be the dark shade in both themes and every use of it was
 text, which is why it is gone. A pressed primary button is `--accent-hover`,
 moved away from the text on it in either theme.
+
+**The hairline round an accent-tinted box is `--accent-line`**, and for a
+while nothing defined it. Two rules asked for it by name; an unresolved
+`var()` makes `border-color` invalid at computed-value time, and the value
+it falls back to is the property’s initial one, `currentColor` -- so Up
+next on the routines page and a chosen icon in the icon picker each drew a
+hard near-black edge round a soft tinted card. A token that is used has to
+exist.
 
 **Every other hue used as text has an `-ink` too** — `--amber-ink`,
 `--apricot-ink`, `--danger-ink`, `--blue-ink` — half hue, half the theme's

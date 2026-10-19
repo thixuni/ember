@@ -3828,8 +3828,8 @@ function viewRoutines(){
        in for the sake of its widest member. */
     const marks=dayItems.map((x,i)=>{
       const late=!x.done&&x.at<now&&routineOn(x.r,today())&&!skippedR(x.r,T);
-      const c=cat(x.r.cat);
-      return '<div class="rs-it'+(x.done?" done":"")+(late?" late":"")+'" style="top:'+ys[i]+'px;--c:'+c.color+'">'+
+      /* No category colour on the node: see .rs-node. */
+      return '<div class="rs-it'+(x.done?" done":"")+(late?" late":"")+'" style="top:'+ys[i]+'px">'+
         '<i class="rs-node"></i>'+
         '<button class="rs-lbl" data-act="rt-edit" data-id="'+x.r.id+'" title="'+esc(x.r.title)+'">'+esc(x.r.title)+'</button>'+
         '<span class="rs-tm num">'+esc(fmtTime(rtTime(x.r,T)))+'</span>'+
