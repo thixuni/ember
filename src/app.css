@@ -766,7 +766,19 @@ body.cat-sweep,body.cat-sweep *{cursor:grabbing;user-select:none}
 /* The board scrolls sideways only: each lane keeps its own height and
    scrolls its cards inside itself, so the heading and Add task of every
    lane stay where they are however long one lane gets. */
-.board-scroll{flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;padding:16px 18px 18px}
+.board-scroll{flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;padding:16px 0 18px}
+/* The side gutters go on the flex row, not on the box that scrolls it. A
+   scroll container's padding-right is left out of its scrollWidth, so
+   scrolled to the end the last lane sat flush against whatever is beside
+   it -- measured, 18px of air on the left and 0 on the right, with the
+   focus panel's border landing on the edge of the Completed lane's cards.
+   On .board both gutters are part of the scrolled content and both
+   measure 18. The row also has to be told to be as wide as its lanes
+   (width:max-content): left to size itself it takes the scroll box's own
+   width, its lanes overflow it, and its padding-right goes the same way
+   the scroll box's did. Scoped to this box because the stacked boards
+   scroll inside .boards-scroll, which pads them already. */
+.board-scroll > .board{padding:0 18px;width:max-content;min-width:100%}
 .list-scroll{flex:1;min-height:0;overflow:auto;padding:16px 18px 24px}
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--canvas)}
 .filter-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink-2)}

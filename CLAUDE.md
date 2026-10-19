@@ -1010,6 +1010,18 @@ chore.
   long one lane gets. Its scrollbar sits inside the lane, level with the
   heading’s own edge, with the cards stopping 10px short of it, and is
   drawn only while the pointer is on the lane.
+  **The board's side gutters belong to `.board`, not to `.board-scroll`.**
+  A scroll container's `padding-right` is left out of its `scrollWidth`,
+  so scrolled to the end the last lane sat flush against whatever was
+  beside it -- measured, 18px of air on the left and **0** on the right,
+  with the focus panel's border landing on the edge of the last lane's
+  cards. The row itself also has to be told to be as wide as its lanes
+  (`width: max-content`): left to size itself it takes the scroll box's
+  width, its lanes overflow it, and its own `padding-right` goes the
+  same way. Both gutters measure 18 now, at every width. The stacked
+  boards are not affected: they scroll inside `.wsb-body`, whose own
+  edges are already inset by `.boards-scroll`, which scrolls down
+  rather than across.
 - **The list view** (`viewList()`) is a table per group, each a card with
   its own headings and its own + Add task. What it groups by is the
   person's, in Customize ▸ List view (`board().lgroup`, `lgChoices()`):
