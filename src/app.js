@@ -3394,12 +3394,17 @@ function czLaneList(){
 function czFocus(){
   const on=focusOn();
   return '<div class="cz-sec"><h3 class="cz-sh">Focus time</h3>'+
-    '<p class="cz-lead">Drag a few cards onto the panel beside your board to line up today. It tells you '+
-      'whether they fit in the hours you have left, and <b>Start focus</b> times the first one.</p>'+
-    '<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon("i-timer","ic-14")+'</span>'+
+    '<p class="cz-lead">A short list of the tasks you plan to get done today, in a panel on the right '+
+      'of Tasks. Drag cards onto it to add them, and it shows how much time they need against how much '+
+      'of the day is left. Press <b>Start focus</b> to begin timing the first one.</p>'+
+    /* In a cz-group like every other switch row in this window: the icon
+       tile is --surface, so outside one it sits on the modal's own white
+       and the glyph reads as floating loose beside the words. */
+    '<div class="cz-group"><div class="cz-row'+(on?"":" off")+'">'+
+      '<span class="cz-row-ic">'+icon("i-timer","ic-14")+'</span>'+
       '<span class="cz-row-t"><b>Show the focus panel</b>'+
-        '<small>On the right of Tasks, in Board and List. Off, it’s hidden — today’s picks are kept.</small></span>'+
-      '<label class="switch cz-rsw"><input type="checkbox" data-act="cz-focus"'+(on?" checked":"")+' aria-label="Show the focus panel"><span></span></label></div>'+
+        '<small>Switch it off and the panel is hidden — today’s picks are kept.</small></span>'+
+      '<label class="switch cz-rsw"><input type="checkbox" data-act="cz-focus"'+(on?" checked":"")+' aria-label="Show the focus panel"><span></span></label></div></div>'+
     '</div>';
 }
 function czDelRow(l,n){
