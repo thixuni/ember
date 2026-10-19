@@ -563,6 +563,17 @@ column grafted on.
   between is given `RS_NOW` (19px) of room **before** anything is placed,
   because otherwise the line is drawn straight through whichever row
   happens to be at the minimum — at 10:17 that was the ten o'clock one.
+- **Now is the rail, not a line across it.** The filled part of the rail
+  runs to this minute and the light part after it, with one small knob
+  where they meet: the day as a progress bar, read at a glance. It was a
+  red rule with the time written on it, which was the loudest thing in
+  the column — and not news, since Up next directly above already says
+  how long you have. Danger is for lateness, which now is not.
+- **The hour sits at the end of a row**, right aligned and tabular, so
+  every name begins on one edge. A column of times *before* the node came
+  out ragged, because "9am" and "11:30am" are not the same width, and it
+  set every name 68px in to suit its longest member — names start at 20px
+  now and have half as much again to run in.
 - **There is no tick on the rail.** Everything on it is a square in the
   grid a few inches to its left, and two ways to check the same thing off
   on one screen is one too many. It is a reference; the name opens the

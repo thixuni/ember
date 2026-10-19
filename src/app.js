@@ -3545,8 +3545,7 @@ function viewRoutines(){
      two inches to its left, and two ways to check the same thing off on
      one screen is one too many -- it is a reference, and the name opens
      the routine. */
-  const clock=mn=>fmtTime(pad(Math.floor(mn/60)%24)+":"+pad(mn%60));
-  const RS_PXH=30,RS_MIN=30,RS_ROW=22,RS_NOW=19;
+  const RS_PXH=30,RS_MIN=30,RS_ROW=22,RS_NOW=13;
   const dayItems=list.filter(r=>r.active&&routineHere(r,today()))
     .map(r=>({r:r,at:mins(rtTime(r,T)),done:doneR(r,T)})).sort((a,b)=>a.at-b.at);
   let dayCard="";
@@ -3589,13 +3588,18 @@ function viewRoutines(){
         nowY=Math.max(ys[nk-1]+RS_ROW+4,Math.min(ys[nk]-5,nowY));}
     }
     const left=dayItems.filter(x=>!x.done).length;
+    /* The rail runs down the far left and the hour sits at the end of the
+       row, right aligned and tabular, so the names all start on one edge.
+       It was a column of times before the node -- ragged, because "9am"
+       and "11:30am" are different widths, and it pushed every name 68px
+       in for the sake of its widest member. */
     const marks=dayItems.map((x,i)=>{
       const late=!x.done&&x.at<now&&routineOn(x.r,today())&&!skippedR(x.r,T);
       const c=cat(x.r.cat);
       return '<div class="rs-it'+(x.done?" done":"")+(late?" late":"")+'" style="top:'+ys[i]+'px;--c:'+c.color+'">'+
-        '<span class="rs-tm num">'+esc(fmtTime(rtTime(x.r,T)))+'</span>'+
         '<i class="rs-node"></i>'+
         '<button class="rs-lbl" data-act="rt-edit" data-id="'+x.r.id+'" title="'+esc(x.r.title)+'">'+esc(x.r.title)+'</button>'+
+        '<span class="rs-tm num">'+esc(fmtTime(rtTime(x.r,T)))+'</span>'+
         '</div>';}).join("");
     /* A stretch of nothing says how long it is, but only where it is long
        enough to be worth knowing and tall enough to carry the words. */
@@ -3607,9 +3611,17 @@ function viewRoutines(){
     dayCard='<div class="rs-card rs-day">'+
       '<div class="rs-dhead"><h4>Today</h4>'+
         '<span class="rs-left">'+(left?left+' to go':'all done')+'</span></div>'+
+      /* **Now is the rail itself, not a line across the page.** A red rule
+         with the time on it was the loudest thing in the column and it is
+         not news -- Up next, right above, already says how long you have.
+         So the rail is filled to this minute and empty after it: the day
+         as a progress bar, read at a glance, with one small knob where
+         the two meet. */
       '<div class="rs-tl" style="height:'+H+'px">'+
-        '<i class="rs-rail"></i>'+gaps+marks+
-        (nowY>=0?'<div class="rs-nowl" style="top:'+nowY+'px"><span class="num">'+esc(clock(now))+'</span><i></i></div>':"")+
+        '<i class="rs-rail"></i>'+
+        (nowY>=0?'<i class="rs-rail-on" style="height:'+nowY+'px"></i><i class="rs-knob" style="top:'+nowY+'px"></i>'
+          :now>hi?'<i class="rs-rail-on" style="height:100%"></i>':"")+
+        gaps+marks+
       '</div></div>';
   }
 

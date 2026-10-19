@@ -1021,7 +1021,7 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .rwrap{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
 .rmain{flex:999 1 620px;min-width:0;background:var(--surface);border:1px solid var(--line);
   border-radius:var(--r-m);overflow:hidden}
-.rside{flex:1 1 262px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.rside{flex:1 1 290px;min-width:0;display:flex;flex-direction:column;gap:12px}
 
 .rw-prog{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px solid var(--line);
   background:var(--panel)}
@@ -1116,30 +1116,40 @@ body.lr-resizing,body.lr-resizing *{cursor:col-resize!important;user-select:none
 .rs-dhead{display:flex;align-items:baseline;gap:8px}
 .rs-dhead h4{flex:999 1 auto;min-width:0}
 .rs-left{flex:none;font-size:11px;font-weight:700;color:var(--accent-ink)}
-.rs-tl{position:relative;margin:12px 0 2px}
-.rs-rail{position:absolute;left:56px;top:4px;bottom:4px;width:1.5px;border-radius:2px;
-  background:var(--line-2);transform:translateX(-50%)}
-.rs-it{position:absolute;left:0;right:0;height:22px;display:flex;align-items:center}
-.rs-tm{flex:none;width:46px;text-align:right;font-size:11px;color:var(--faint);white-space:nowrap}
-.rs-node{position:absolute;left:56px;width:9px;height:9px;border-radius:50%;
-  transform:translateX(-50%);border:1.8px solid var(--c);background:var(--surface);box-sizing:border-box}
+.rs-tl{position:relative;margin:13px 0 3px}
+/* The rail is the day, and how much of it has gone: filled to this
+   minute, light after it. That replaced a red rule with the time on it
+   drawn across the whole column -- the loudest thing on the page, for
+   news Up next had already given. */
+.rs-rail{position:absolute;left:5px;top:3px;bottom:3px;width:2px;border-radius:2px;background:var(--line)}
+.rs-rail-on{position:absolute;left:5px;top:3px;width:2px;border-radius:2px;
+  background:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.rs-knob{position:absolute;left:6px;width:7px;height:7px;border-radius:50%;background:var(--accent);
+  transform:translate(-50%,-50%);box-shadow:0 0 0 2.5px var(--surface)}
+.rs-it{position:absolute;left:0;right:0;height:22px;display:flex;align-items:center;gap:9px}
+.rs-node{flex:none;margin-left:2px;width:9px;height:9px;border-radius:50%;box-sizing:border-box;
+  border:1.8px solid var(--c);background:var(--surface)}
 .rs-it.done .rs-node{background:var(--c)}
 .rs-it.late .rs-node{border-color:var(--danger)}
-.rs-lbl{margin-left:22px;flex:999 1 auto;min-width:0;text-align:left;font-size:12.5px;
-  color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0}
+.rs-lbl{flex:999 1 auto;min-width:0;text-align:left;font-size:12.5px;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0}
 .rs-lbl:hover{color:var(--accent-ink)}
 .rs-it.done .rs-lbl{color:var(--muted);text-decoration:line-through}
 .rs-it.late .rs-lbl{color:var(--danger-ink)}
+/* The hour, at the end of the row: right aligned and tabular so the
+   names all begin on one edge. A column of times before the node was
+   ragged -- "9am" and "11:30am" are not the same width -- and it set
+   every name 68px in to suit its longest member. */
+.rs-tm{flex:none;font-size:10.5px;font-weight:600;color:var(--faint);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.rs-it.late .rs-tm{color:var(--danger-ink)}
 /* An empty stretch says how long it is, which is the whole reason the
-   rail is to scale. */
-.rs-gap{position:absolute;left:56px;transform:translate(-50%,-50%);padding:2px 7px;border-radius:20px;
-  font-size:10px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
+   rail is drawn to scale. It starts where the names start, not centred on
+   the rail: the rail sits 6px from the card's edge now, so a chip centred
+   on it hung half its width outside the card. */
+.rs-gap{position:absolute;left:20px;transform:translateY(-50%);padding:2px 8px;border-radius:20px;
+  font-size:9.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap;
   background:var(--surface-3);color:var(--faint)}
-.rs-nowl{position:absolute;left:0;right:0;height:0;display:flex;align-items:center;gap:6px}
-.rs-nowl .num{flex:none;width:46px;text-align:right;font-size:10px;font-weight:700;color:var(--danger-ink)}
-.rs-nowl i{flex:1;height:1.5px;border-radius:2px;margin-left:4px;
-  background:color-mix(in srgb,var(--danger) 55%,var(--tint-base));
-  box-shadow:-4px 0 0 0 var(--danger)}
 @media (max-width:760px){
   .rw-row{grid-template-columns:minmax(0,1fr) repeat(7,38px) 54px}
   .rw-c{width:26px;height:26px}
