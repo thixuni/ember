@@ -962,9 +962,33 @@ chore.
   category; Esc or a click away from an empty card closes it. Files creates
   the task first (a file needs a task to belong to). `renderView()` puts
   the caret back (`qaRefocus()`). The side panel is the detail and edit view.
+- **A board card is the name, then one quiet line** (`taskCard()`): the
+  tick and the title first and biggest, and under it the category, when
+  it is due and what hangs off it, read as one sentence with middots
+  between. It was four stacked rows to carry a single line of text — a
+  filled category pill with the date opposite it, the tick and the name,
+  the marks, then a progress bar — **95px a card, so a lane showed six of
+  a twenty-four deep backlog**. 62px now, and eleven. Five layouts were
+  drawn and compared before this one: one line a task, lanes stacked down
+  the page, lanes sized by attention, and status across with category
+  down.
+  Three things went. **The pill is a dot and its name**, which is as much
+  as a category needs to say and stops a column reading as a wall of
+  colour. **The date comes down to join it** rather than holding a row of
+  its own. And **the bar is gone**, because `3/5` on the line above said
+  it already and a bar cannot say *which* three. A finished card shows
+  the day it was done in that line's place, with no word "Done" — the
+  tick beside its struck-through name has said so.
+  **The middot has to be seen**: at `--line-2` it measured 1.45:1 on the
+  card and the line read as run-on words held apart by nothing. Mixed
+  back toward the grey it is 3.3:1, clearly under the words it divides.
+  Measured in both themes: title 15.5:1 and 12.6:1, the line 6.2:1 and
+  5.9:1.
 - **A category pill is a button** where it belongs to a task or routine
   (`catChip(id, kind, of)`, the board card's `.tc-cat`): it opens a short
-  list of categories (`catMenu()`) and changes it in place.
+  list of categories (`catMenu()`) and changes it in place. **It is a dot
+  and a name on a board card** rather than a filled pill, but it is still
+  that button — a category on a task changes where it is seen.
   **Past `CAT_FIND` (8) categories the menu gets a box to type in**
   (`.cm-find`, `catFilter()`): a planner with fourteen of them meant
   opening the menu at whatever the top happened to be and scrolling to the

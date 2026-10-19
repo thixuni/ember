@@ -767,26 +767,42 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .col-more:hover{background:var(--surface);color:var(--ink)}
 .col-more .num{font-weight:500;color:var(--muted)}
 /* No coloured edge and no wash: a plain card a step above its column, with
-   a fine border, as ClickUp draws them. The category is the pill in the top
-   row. */
-.tcard{position:relative;border:1px solid var(--line);border-radius:var(--r-m);padding:11px 12px 12px;box-shadow:var(--sh-1);
-  cursor:grab;display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;
+   a fine border, as ClickUp draws them.
+
+   **The name first, everything else on one quiet line under it.** It was
+   four stacked rows for one line of text -- a filled category pill with
+   the date opposite it, the tick and the name, the marks, then a progress
+   bar -- 95px a card, so a lane showed six of a twenty-four deep backlog.
+   56px now, and eleven. */
+.tcard{position:relative;border:1px solid var(--line);border-radius:var(--r-m);padding:9px 11px 10px;box-shadow:var(--sh-1);
+  cursor:grab;display:flex;flex-direction:column;gap:6px;text-align:left;width:100%;
   background:var(--surface)}
 .tcard:hover{border-color:var(--line-2);box-shadow:var(--sh-2)}
 .tcard.dragging{opacity:.4}
-.tcard .top{display:flex;align-items:flex-start;gap:7px}
-.tcard .ttl{font-size:13.5px;font-weight:600;line-height:1.4;flex:1;min-width:0}
-
-.tc-head{display:flex;align-items:center;gap:8px;min-width:0}
-/* The pill takes the calendar's label recipe, so its text clears AA on its
-   own tint in either theme; the icon wears the same colour. */
-.tc-cat{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:65%;height:22px;padding:0 9px 0 7px;border-radius:20px;
-  font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  background:color-mix(in srgb,var(--c) 14%,var(--tint-base));color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
-.tc-cat .ic{flex:none;width:13px;height:13px}
-.tc-right{margin-left:auto;display:inline-flex;align-items:center;gap:7px;flex:none;font-size:11.5px;font-weight:500;color:var(--muted)}
-.tc-q{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--qs);color:var(--qt)}
-.tc-q .ic{width:12px;height:12px;stroke-width:2.2}
+.tcard .top{display:flex;align-items:flex-start;gap:8px}
+.tcard .ttl{font-size:13px;font-weight:600;line-height:1.38;flex:1;min-width:0}
+/* The line under the name: the category, when it is due, and what hangs
+   off it, read as one sentence with middots between. It lines up with the
+   name rather than the tick, so the card has one left edge for words. */
+.tc-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding-left:25px;
+  font-size:11px;color:var(--faint);min-width:0}
+/* The middot has to be seen or it is not doing anything: at --line-2 it
+   measured 1.45:1 on the card and the line read as run-on words held
+   apart by nothing but their gaps. Mixed back toward the grey it is
+   quiet but present, and clearly below the words it separates. */
+.tc-sep{color:color-mix(in srgb,var(--faint) 72%,var(--surface))}
+/* The category is a dot and its name. It was a filled pill, which made it
+   the loudest thing on a card it has the least to say on -- and a column
+   of them read as a wall of colour. Still a button: a category on a task
+   changes in place, which is a standing rule. */
+.tc-cat{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:62%;padding:0;border-radius:5px;
+  font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  color:color-mix(in srgb,var(--c) var(--ev-label),var(--ink))}
+.tc-cat i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--c)}
+.tc-cat:hover{color:var(--accent-ink)}
+.tc-q{width:17px;height:17px;border-radius:50%;display:grid;place-items:center;flex:none;
+  margin-top:1px;background:var(--qs);color:var(--qt)}
+.tc-q .ic{width:11px;height:11px;stroke-width:2.4}
 /* Finished and dropped cards step back: a little transparent, flat, their
    title struck through, and a word saying which -- but they keep their
    category colour, so a done column still reads by category. Hovering one
@@ -798,21 +814,20 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xm
 .tcard.dropped{border-style:dashed;background:var(--surface)}
 .tcard.done .ttl,.tcard.dropped .ttl{text-decoration:line-through;color:var(--ink-2)}
 .tcard.done .tc-cat,.tcard.dropped .tc-cat{color:color-mix(in srgb,var(--c) calc(var(--ev-label) * .45),var(--ink))}
-.tcard.done .marks,.tcard.dropped .marks{color:var(--ink-2)}
-.tc-state{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;white-space:nowrap}
-.tc-state .ic{width:13px;height:13px;stroke-width:2.4}
+.tcard.done .tc-meta,.tcard.dropped .tc-meta{color:var(--ink-2)}
+.tc-state{white-space:nowrap;font-weight:600}
 .tc-state.done{color:color-mix(in srgb,var(--accent-ink) 70%,var(--ink))}
 .tc-state.dropped{color:var(--ink-2)}
 .m-due.soon{color:var(--amber-ink);font-weight:600}
 .m-due.over{color:var(--danger-ink);font-weight:600}
 .m-subs{color:var(--faint)}
-/* What is attached to the task: subtasks, comments, documents, files, links.
-   Only the ones that exist are drawn, so a bare task stays bare. */
-.marks{display:flex;flex-wrap:wrap;gap:4px 11px;align-items:center;padding-left:25px;font-size:11px;color:var(--faint)}
-.m-mark{display:inline-flex;align-items:center;gap:4px}
+/* What is attached to the task: subtasks, comments, documents, files,
+   links. Only the ones that exist are drawn, so a bare task stays bare.
+   The progress bar that used to sit under these went with them: "3/5"
+   on the line above already said it, and a bar cannot say which three. */
+.m-mark{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.m-mark .ic{flex:none}
 .m-mark .num{font-weight:600}
-.bar{height:4px;border-radius:4px;background:var(--surface-3);overflow:hidden}
-.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
 .qa{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:var(--r-m);background:var(--surface);border:1.5px solid var(--accent);box-shadow:var(--sh-2)}
 .qa-name{display:flex;align-items:center;gap:8px}
 .qa-dot{width:18px;height:18px;flex:none;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line-2);color:transparent}
@@ -2878,7 +2893,7 @@ button.dag-dot:hover{background:color-mix(in srgb,var(--c) 24%,var(--surface))}
 .cf-pct{margin-left:6px;font-size:11px;color:var(--muted)}
 .cf-txt{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lr-cf,.lr-tags{min-width:0;display:flex;align-items:center;gap:3px;overflow:hidden;white-space:nowrap}
-.tc-cf{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px}
+.tc-cf{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:2px;padding-left:25px}
 /* subtasks that are tasks */
 .kids{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-s);overflow:hidden}
 .kid{display:flex;align-items:center;gap:9px;padding:7px 10px;background:var(--surface);border-bottom:1px solid var(--line)}

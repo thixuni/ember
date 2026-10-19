@@ -2412,51 +2412,65 @@ function filterBar(){
 const field=(l,inner)=>'<div class="field"><label>'+esc(l)+'</label>'+inner+'</div>';
 
 /* ============ tasks: board + list ============ */
+/* ---- a board card ----
+   **The name first and biggest, everything else on one quiet line under
+   it.** It was four stacked rows to carry a single line of text: the
+   category as a filled pill with the date opposite it, then the tick and
+   the name, then the marks, then a progress bar -- 95px for one line, so
+   a lane showed six cards of a twenty-four deep backlog.
+
+   Three things went. The pill is a dot and its name, which is as much as
+   a category needs to say and stops a column reading as a wall of colour.
+   The date comes down to join it rather than holding a row of its own.
+   And the bar is gone, because "3/5" one line above it already said that,
+   and a bar cannot say which three.
+
+   56px now, so a lane shows eleven. The category is still a button
+   (\`cat-pick\`) and still changes in place -- that is the standing rule for
+   a category on a task -- it simply is not a pill any more. */
 function taskCard(t){
   const c=cat(t.cat),sp=subProgress(t),subs={length:feat("subtasks")?sp.n:0},dn=sp.d;
   const q=quadOf(t),Q=q?QUADS.find(x=>x.id===q):null;
   const over=isOpen(t)&&!!t.due&&t.due<TODAY(),soon=!over&&t.due&&dayDiff(t.due,TODAY())<=1;
+  const done=isDoneT(t),dropped=t.status==="dropped";
 
-  /* The category is a tinted pill at the top of the card, and its colour
-     washes faintly in from that corner. One pill, not three: a row of filled
-     pills per card turned a column into a wall of colour. The due date and
-     the priority sit opposite it, the priority as a small badge wearing its
-     quadrant's icon, where the coloured left edge used to be the only clue. */
-  /* Once a task is finished or dropped its due date and priority no longer
-     matter; what it says instead is that it is done, and when. */
-  const doneWhen=d=>!d?"":d===TODAY()?" today":d===ymd(addDays(today(),-1))?" yesterday":" "+fmtDate(d);
-  const state=isDoneT(t)?'<span class="tc-state done">'+icon("i-check","ic-14")+'Done'+esc(doneWhen(t.completedAt))+'</span>'
-    :t.status==="dropped"?'<span class="tc-state dropped">'+icon("i-x","ic-14")+'Dropped</span>':"";
-  const head='<div class="tc-head">'+
-    '<button type="button" class="tc-cat chip-pick" data-act="cat-pick" data-kind="task" data-id="'+t.id+'" title="Change category" aria-haspopup="menu">'+icon(c.icon,"ic-14")+esc(c.name)+'</button>'+
-    '<span class="tc-right">'+(state?state:
-      (t.due?'<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>':"")+
-      (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-14")+'</span>':""))+
-    '</span></div>';
+  /* Everything the card says after its name, in one line. Built as a list
+     so the separators fall between what is actually there and never on
+     the end of it. */
+  const bits=[];
+  bits.push('<button type="button" class="tc-cat chip-pick" data-act="cat-pick" data-kind="task" data-id="'+t.id+'" title="Change category" aria-haspopup="menu"><i></i>'+esc(c.name)+'</button>');
 
-  /* What is attached to this task, counted straight off state so the card does
-     not depend on helpers declared further down the file. */
+  /* Once a task is finished or dropped its due date no longer matters;
+     what it says instead is when it was done. The word "Done" went with
+     the pill -- the tick beside the name is already checked. */
+  const doneWhen=d=>!d?"":d===TODAY()?"today":d===ymd(addDays(today(),-1))?"yesterday":fmtDate(d);
+  if(dropped)bits.push('<span class="tc-state dropped">Dropped</span>');
+  else if(done)bits.push('<span class="tc-state done">'+esc(doneWhen(t.completedAt)||"Done")+'</span>');
+  else if(t.due)bits.push('<span class="m-due'+(over?" over":soon?" soon":"")+'">'+esc(relDue(t.due)+(t.dueTime?" "+fmtTime(t.dueTime):""))+'</span>');
+
+  /* What is attached, counted straight off state so the card does not
+     depend on helpers declared further down the file. */
   const comments=(ixAct().get(t.id)||NONE).reduce((n,a)=>n+(a.kind==="comment"?1:0),0);
   const docs=(ixDocs().get(t.id)||NONE).length;
-  const marks=[];
-  const mark=(ic,n,one,many)=>'<span class="m-mark" title="'+n+' '+(n===1?one:many)+'">'+icon(ic,"ic-14")+'<span class="num">'+n+'</span></span>';
-  if(subs.length)marks.push('<span class="m-mark" title="'+dn+' of '+subs.length+' subtasks done">'+icon("i-check","ic-14")+'<span class="num">'+dn+'/'+subs.length+'</span></span>');
-  if(comments&&feat("comments"))marks.push(mark("i-chat",comments,"comment","comments"));
-  if(docs&&feat("docs"))marks.push(mark("i-doc",docs,"document","documents"));
-  if(tFiles(t).length&&feat("files"))marks.push(mark("i-clip",tFiles(t).length,"attachment","attachments"));
-  if(tLinks(t).length&&feat("links"))marks.push(mark("i-link",tLinks(t).length,"linked task","linked tasks"));
-  /* Fields chosen to show on cards. */
+  const mark=(ic,n,one,many)=>'<span class="m-mark" title="'+n+' '+(n===1?one:many)+'">'+icon(ic,"ic-12")+'<span class="num">'+n+'</span></span>';
+  if(subs.length)bits.push('<span class="m-mark" title="'+dn+' of '+subs.length+' subtasks done">'+icon("i-check","ic-12")+'<span class="num">'+dn+'/'+subs.length+'</span></span>');
+  if(comments&&feat("comments"))bits.push(mark("i-chat",comments,"comment","comments"));
+  if(docs&&feat("docs"))bits.push(mark("i-doc",docs,"document","documents"));
+  if(tFiles(t).length&&feat("files"))bits.push(mark("i-clip",tFiles(t).length,"attachment","attachments"));
+  if(tLinks(t).length&&feat("links"))bits.push(mark("i-link",tLinks(t).length,"linked task","linked tasks"));
+
+  /* Fields chosen to show on cards keep a row of their own: they are the
+     person's own words, not one more count. */
   const cfs=board().fields.filter(f=>f.card).map(f=>cfChip(t,f)).filter(Boolean);
 
   /* The quadrant's name is in the label too, for anyone not going by the
      badge's colour or icon. */
-  const label=Q?esc(t.title)+" — "+Q.name+", "+Q.tag.toLowerCase():esc(t.title);
-  return '<div class="tcard'+(isDoneT(t)?" done":t.status==="dropped"?" dropped":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
-    head+
-    '<div class="top">'+tickBtn(t)+'<span class="ttl">'+esc(t.title)+'</span></div>'+
+  const label=Q?esc(t.title)+" \u2014 "+Q.name+", "+Q.tag.toLowerCase():esc(t.title);
+  return '<div class="tcard'+(done?" done":dropped?" dropped":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
+    '<div class="top">'+tickBtn(t)+'<span class="ttl">'+esc(t.title)+'</span>'+
+      (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-12")+'</span>':"")+'</div>'+
+    '<div class="tc-meta">'+bits.join('<span class="tc-sep">\u00b7</span>')+'</div>'+
     (cfs.length?'<div class="tc-cf">'+cfs.join("")+'</div>':"")+
-    (marks.length?'<div class="marks">'+marks.join("")+'</div>':"")+
-    (subs.length?'<div class="bar" title="'+dn+' of '+subs.length+' subtasks done"><i style="width:'+Math.round(dn/subs.length*100)+'%"></i></div>':"")+
     '</div>';
 }
 /* A column draws its first COL_SHOWN cards and offers the rest on a
