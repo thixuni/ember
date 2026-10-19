@@ -2468,7 +2468,7 @@ function taskCard(t){
   const label=Q?esc(t.title)+" \u2014 "+Q.name+", "+Q.tag.toLowerCase():esc(t.title);
   return '<div class="tcard'+(done?" done":dropped?" dropped":"")+'" style="--c:'+c.color+'" draggable="true" data-id="'+t.id+'" data-act="task" title="'+label+'" aria-label="'+label+'">'+
     '<div class="top">'+tickBtn(t)+'<span class="ttl">'+esc(t.title)+'</span>'+
-      (inFocus(t.id)?'<span class="tc-f" title="In today\u2019s focus" aria-label="In today\u2019s focus">'+icon("i-timer","ic-12")+'</span>':"")+
+      (focusOn()&&inFocus(t.id)?'<span class="tc-f" title="In today\u2019s focus" aria-label="In today\u2019s focus">'+icon("i-timer","ic-12")+'</span>':"")+
       (Q?'<span class="tc-q '+Q.cls+'" title="'+esc(Q.name)+'" aria-label="'+esc(Q.name)+'">'+icon(Q.icon,"ic-12")+'</span>':"")+'</div>'+
     '<div class="tc-meta">'+bits.join('<span class="tc-sep">\u00b7</span>')+'</div>'+
     (cfs.length?'<div class="tc-cf">'+cfs.join("")+'</div>':"")+
@@ -2549,6 +2549,12 @@ function viewBoard(){
    without a tenth entry in KEYS. Keyed by the day it was picked for, so
    tomorrow starts empty on its own and nothing has to sweep it. */
 const FOCUS_END=22*60;
+/* Focus time can be switched off in Customize ▸ Board lanes, where it is
+   a section of its own. It is a setting about the Tasks screen rather than
+   about one workspace, so it lives in prefs.board with the rest of them,
+   and switching it off only stops it being drawn -- what was picked today
+   is still in prefs.focus when it comes back on. */
+const focusOn=()=>board().focus!==false;
 function focusData(){
   const p=S.prefs;
   let f=p.focus;
@@ -2703,8 +2709,9 @@ function focusPanel(){
 /* Board and list share the panel, so Tasks is drawn as one thing: the mode
    on the left, the day's shortlist against the right edge. */
 function viewTasks(){
-  return '<div class="tasks-wrap'+(V.focusOpen?"":" shut")+'">'+
-    (V.taskMode==="board"?viewBoard():viewList())+focusPanel()+'</div>';
+  const main=V.taskMode==="board"?viewBoard():viewList();
+  if(!focusOn())return main;
+  return '<div class="tasks-wrap'+(V.focusOpen?"":" shut")+'">'+main+focusPanel()+'</div>';
 }
 /* ---- adding tasks in a lane ----
    "Add task" at the foot of a lane opens a small card there, kept as plain
@@ -3354,8 +3361,13 @@ function wsOnlyNote(what){
     '<small>You are looking across all of them. Open one to edit its '+esc(what.toLowerCase())+'.</small></div>'+
     '<button class="btn btn-sm" data-act="ws-menu" aria-haspopup="menu">Choose one</button></div>';
 }
+/* Two sections: the workspace's lanes, then focus time. Focus time is not
+   a workspace's, so it shows across all of them as well, where there are
+   no lanes to edit and the pane would otherwise hold one notice. */
 function czLanes(){
-  if(wsAll())return wsOnlyNote("Lanes");
+  return '<div class="cz-sec">'+(wsAll()?wsOnlyNote("Lanes"):czLaneList())+'</div>'+czFocus();
+}
+function czLaneList(){
   const L=lanes(),count=id=>wsTasks().filter(t=>t.status===id).length,doneN=L.filter(l=>l.done).length;
   const del=V.cz.del?lane(V.cz.del):null;
   return '<p class="cz-lead">The columns on <b class="cz-which"><span class="bd-dot" style="--s:'+curSpace().color+'"></span>'+esc(curSpace().name)+'</b>, left to right. '+
@@ -3375,6 +3387,23 @@ function czLanes(){
         '</div>';}).join("")+'</div>'+
     '<button class="btn btn-sm" data-act="cz-lane-add">'+icon("i-plus","ic-14")+'Add a lane</button>'+
     (!doneN?'<p class="cz-warn">'+icon("i-alert","ic-14")+'No lane counts as done, so checking off a task moves it to the last lane.</p>':"");
+}
+/* Said plainly, because the panel is new and its one job -- telling you
+   whether the day has room for what you picked -- is not guessable from
+   its name. */
+function czFocus(){
+  const on=focusOn();
+  return '<div class="cz-sec"><h3 class="cz-sh">Focus time</h3>'+
+    '<p class="cz-lead">A short list of what you’re actually doing today, in a panel beside your board. '+
+      'Drag a few cards onto it and it adds up how long they should take, against the hours you have '+
+      'left today once your routines, your blocked-out time and your calendar are taken out — so you '+
+      'can see whether the day will really take them. Press <b>Start focus</b> and it times the first '+
+      'one for you. Dragging a card in doesn’t move it out of its lane.</p>'+
+    '<div class="cz-row'+(on?"":" off")+'"><span class="cz-row-ic">'+icon("i-timer","ic-14")+'</span>'+
+      '<span class="cz-row-t"><b>Show the focus panel</b>'+
+        '<small>On the right of Tasks, in Board and List. Switch it off and it’s hidden — what you picked today is kept.</small></span>'+
+      '<label class="switch cz-rsw"><input type="checkbox" data-act="cz-focus"'+(on?" checked":"")+' aria-label="Show the focus panel"><span></span></label></div>'+
+    '</div>';
 }
 function czDelRow(l,n){
   const others=lanes().filter(x=>x.id!==l.id);
@@ -6628,6 +6657,8 @@ document.addEventListener("change",function(e){
     /* Tasks in the lane take on what it now means. */
     S.tasks.forEach(x=>{if(x.status===l.id)x.completedAt=l.done?(x.completedAt||TODAY()):null;});
     save("prefs");save("tasks");customiseModal();render();renderSheet();return;}
+  if(t.dataset&&t.dataset.act==="cz-focus"){board().focus=t.checked;save("prefs");render();customiseModal();
+    const f=document.querySelector('.cz [data-act="cz-focus"]');if(f)f.focus({preventScroll:true});return;}
   if(t.dataset&&t.dataset.act==="cz-opt-name"){czReadDraft();return;}
   if(t.dataset&&t.dataset.act==="cz-lane-hex"){const l=lane(t.dataset.id);if(l){l.color=t.value;save("prefs");customiseModal();render();}return;}
   if(t.dataset&&t.dataset.act==="cz-ftype-sel"){czReadDraft();const d=V.cz.draft;if(!d)return;d.type=t.value;
@@ -7100,7 +7131,7 @@ function taskMenu(id,at,btn,fromCard){
   if(fromCard)items.push(["open","i-panel","Open task"]);
   if(feat("subtasks")&&!t.parent)items.push(["sub","i-checklist","Add subtask"]);
   if(feat("timer"))items.push(["time",going?"i-pause":"i-play",going?"Pause the timer":"Track time"]);
-  items.push(["focus","i-timer",inFocus(id)?"Take out of today\u2019s focus":"Add to today\u2019s focus"]);
+  if(focusOn())items.push(["focus","i-timer",inFocus(id)?"Take out of today\u2019s focus":"Add to today\u2019s focus"]);
   if(feat("files"))items.push(["files","i-clip","Attach files"]);
   if(feat("links"))items.push(["link","i-link","Link task"]);
   items.push(["dup","i-copy","Duplicate task"]);

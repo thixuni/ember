@@ -1075,6 +1075,17 @@ rail when shut, the same border, the same `--surface-2`, the same
 exactly as Catch-up's do. It shows in both Board and List, since the
 question it answers belongs to neither.
 
+- **It can be switched off**, in **Customize ▸ Board lanes**, where it is
+  a section of its own under the lanes (`czFocus()`, `board().focus`,
+  read through `focusOn()`). It sits with the lanes rather than in Task
+  details because it is about the Tasks *screen*, not about what a task
+  holds; and being in `prefs.board` it shows there across all workspaces
+  too, where there are no lanes to edit. Switched off it is simply not
+  drawn — no panel, no mark on a card, no menu item, and the board takes
+  the width back — while what was picked today stays in `prefs.focus`
+  for when it comes back on. The section says in plain words what the
+  panel is for, because its one job (telling you whether the day has
+  room for what you picked) is not guessable from its name.
 - **Dragging in does not change a task's lane.** Focus is a mark on the
   task, not a stage -- the card stays in the lane it came from, which is
   what makes taking it out again cost nothing. A lane is where work
