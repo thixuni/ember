@@ -2066,8 +2066,14 @@ button.obx-rt-txt > *{pointer-events:none}
   .sh-where select{flex:1 1 0;max-width:none}
 }
 .sh-body{flex:1;overflow-y:auto;padding:22px 28px 40px;min-height:0}
-.sh-title{width:100%;border:1px solid transparent;background:none;font-family:var(--fd);font-size:23px;font-weight:600;
-  letter-spacing:-.02em;line-height:1.25;color:var(--ink);padding:6px 8px;border-radius:var(--r-s);margin:0 -8px 6px}
+/* A textarea, not an input, so a long name wraps instead of running off
+   the end of one line -- see fitTitle(), which gives it the height its text
+   needs. resize:none because the height is the text's to decide, and
+   overflow:hidden so no scrollbar appears in the moment before it is
+   sized. */
+.sh-title{display:block;width:100%;border:1px solid transparent;background:none;font-family:var(--fd);font-size:23px;font-weight:600;
+  letter-spacing:-.02em;line-height:1.25;color:var(--ink);padding:6px 8px;border-radius:var(--r-s);margin:0 -8px 6px;
+  resize:none;overflow:hidden}
 .sh-title:hover{border-color:var(--line)}
 .sh-title:focus{border-color:var(--accent);outline:0;box-shadow:0 0 0 3px var(--accent-soft)}
 

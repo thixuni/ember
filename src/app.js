@@ -8489,7 +8489,7 @@ function renderSheet(){
 
   const bodyHtml=
       (parent?'<button class="sh-crumb" data-act="task" data-id="'+parent.id+'">'+icon("i-chev-l","ic-14")+'<span>Subtask of</span><b>'+esc(parent.title)+'</b></button>':"")+
-      '<input class="sh-title" id="shTitle" value="'+esc(t.title)+'" placeholder="What needs doing?" data-act="sh-set" data-k="title">'+
+      '<textarea class="sh-title" id="shTitle" rows="1" placeholder="What needs doing?" data-act="sh-set" data-k="title" spellcheck="true">'+esc(t.title)+'</textarea>'+
 
       /* One page of details. The task's history opens from the ⋯ menu in
          its place, with a way back; a Details and Activity tab pair sat
@@ -8534,11 +8534,32 @@ function renderSheet(){
 
   sheet.querySelector(".sh-head").innerHTML=headHtml;
   bodyEl.innerHTML=bodyHtml;
+  fitTitle();
   bodyEl.scrollTop=sameContent?keep:0;
 
   root.dataset.task=t.id;
   root.dataset.tab=s.tab;
 }
+
+/* A long name wraps rather than scrolling out of sight, which is why the
+   title is a textarea and not an input: an input can only ever show one
+   line of a name, and the rest of "CR | Allow AA Pro agencies to transfer
+   SCM denied/suspended profiles to Active" was simply off the end of it.
+   It is still a one-line VALUE -- the keydown handler blurs on Enter, so a
+   newline never gets in -- it is just allowed as many lines as it needs to
+   show itself. The height is set from the text because a textarea will not
+   do it on its own: height to auto first, or it can only ever grow, and the
+   borders are added back because scrollHeight stops at the padding. */
+function fitTitle(){
+  const n=el("shTitle");if(!n)return;
+  n.style.height="auto";
+  n.style.height=(n.scrollHeight+n.offsetHeight-n.clientHeight)+"px";
+}
+document.addEventListener("input",function(e){if(e.target&&e.target.id==="shTitle")fitTitle();});
+/* The panel narrows under 640px, where a name that fitted two lines may
+   want three. */
+let titleFit=null;
+window.addEventListener("resize",function(){clearTimeout(titleFit);titleFit=setTimeout(fitTitle,120);});
 
 /* ---- document editor ----
    One page that looks like the document as it is written -- headings as

@@ -215,6 +215,19 @@ changes a task from outside the panel must call `renderSheet()` itself.
 The panel has no save button: `patchTask()` commits on `change`, which is why
 text fields pass `redraw:false`.
 
+**The name is a `textarea`, not an `input`** (`.sh-title`, `fitTitle()`).
+An input can only ever show one line of a name, so the rest of *CR | Allow
+AA Pro agencies to transfer SCM denied/suspended profiles to Active* was
+simply off the end of it. It is still a one-line **value** -- the keydown
+handler blurs on Enter, so a newline never gets in, and Enter on a task not
+yet created still creates it -- it is just allowed as many lines as it needs
+to show itself. A textarea will not take its own height, so `fitTitle()`
+sets it from the text: **height to `auto` first**, or it can only ever grow,
+and the borders added back because `scrollHeight` stops at the padding. It
+runs after `renderSheet()` draws the body, on every `input` so the box grows
+as you type, and on a debounced resize, since the panel narrows under 640px
+where a name that fitted two lines may want three.
+
 ### Events
 
 One delegated `click` listener on `document` reads `data-act` from the closest
